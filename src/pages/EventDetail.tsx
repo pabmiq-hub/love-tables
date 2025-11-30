@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import RoundTimer from "@/components/event/RoundTimer";
+import EventQRCode from "@/components/event/EventQRCode";
 
 // Mock data
 const mockParticipants = [
@@ -174,6 +176,21 @@ const EventDetail = () => {
           {/* Tables Tab */}
           <TabsContent value="tables">
             <div className="space-y-6">
+              {/* Timer */}
+              {eventStatus === "active" && (
+                <RoundTimer
+                  roundDuration={5}
+                  currentRound={currentRound}
+                  totalRounds={mockTables.length}
+                  onRoundComplete={() => {
+                    toast({
+                      title: "¡Ronda completada!",
+                      description: "Es hora de cambiar de mesa",
+                    });
+                  }}
+                />
+              )}
+
               {/* Round selector */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Ronda:</span>
@@ -275,27 +292,7 @@ const EventDetail = () => {
 
         {/* QR Modal */}
         {showQR && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-md animate-scale-in">
-              <CardHeader className="text-center">
-                <CardTitle>Código QR del Evento</CardTitle>
-                <CardDescription>
-                  Los participantes pueden escanear este código para seleccionar sus matches
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center gap-6">
-                <div className="w-64 h-64 bg-foreground rounded-xl flex items-center justify-center">
-                  <QrCode className="w-48 h-48 text-background" />
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  speedmatch.app/event/{id}
-                </p>
-                <Button variant="outline" className="w-full" onClick={() => setShowQR(false)}>
-                  Cerrar
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <EventQRCode eventId={id || "1"} onClose={() => setShowQR(false)} />
         )}
       </main>
     </div>
