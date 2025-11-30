@@ -81,7 +81,10 @@ const EventDetail = () => {
       const result = await parseExcelFile(file);
       
       if (result.success) {
-        setParticipants(prev => [...prev, ...result.participants]);
+        const newParticipants = [...participants, ...result.participants];
+        setParticipants(newParticipants);
+        // Save to localStorage for sharing with participant page
+        localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
         toast({
           title: "Participantes cargados",
           description: `Se han añadido ${result.participants.length} participantes`,
@@ -112,7 +115,10 @@ const EventDetail = () => {
   };
 
   const handleAddParticipant = (participant: Participant) => {
-    setParticipants(prev => [...prev, participant]);
+    const newParticipants = [...participants, participant];
+    setParticipants(newParticipants);
+    // Save to localStorage for sharing with participant page
+    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
     toast({
       title: "Participante añadido",
       description: `${participant.name} ha sido añadido al evento`,
@@ -120,7 +126,10 @@ const EventDetail = () => {
   };
 
   const handleDeleteParticipant = (participantId: string) => {
-    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    const newParticipants = participants.filter(p => p.id !== participantId);
+    setParticipants(newParticipants);
+    // Save to localStorage for sharing with participant page
+    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
     toast({
       title: "Participante eliminado",
       description: "El participante ha sido eliminado del evento",
