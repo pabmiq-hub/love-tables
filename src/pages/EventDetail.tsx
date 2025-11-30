@@ -1,44 +1,141 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2 } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
+import AddParticipantModal from "@/components/event/AddParticipantModal";
+import { parseExcelFile, Participant } from "@/lib/excelParser";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Mock data
-const mockParticipants = [
-  { id: "1", name: "María García", age: 28, gender: "Mujer", preference: "Amistad y ligue", agePreference: "25-35" },
-  { id: "2", name: "Carlos López", age: 32, gender: "Hombre", preference: "Amistad y ligue", agePreference: "28-38" },
-  { id: "3", name: "Ana Martínez", age: 26, gender: "Mujer", preference: "Solo amistad", agePreference: "24-32" },
-  { id: "4", name: "David Fernández", age: 30, gender: "Hombre", preference: "Amistad y ligue", agePreference: "25-32" },
-  { id: "5", name: "Laura Sánchez", age: 29, gender: "Mujer", preference: "Amistad y ligue", agePreference: "27-35" },
-  { id: "6", name: "Pedro Ruiz", age: 34, gender: "Hombre", preference: "Solo amistad", agePreference: "28-40" },
-];
-
-const mockTables = [
-  { round: 1, tables: [[mockParticipants[0], mockParticipants[1]], [mockParticipants[2], mockParticipants[3]], [mockParticipants[4], mockParticipants[5]]] },
-  { round: 2, tables: [[mockParticipants[0], mockParticipants[3]], [mockParticipants[1], mockParticipants[4]], [mockParticipants[2], mockParticipants[5]]] },
-  { round: 3, tables: [[mockParticipants[0], mockParticipants[5]], [mockParticipants[1], mockParticipants[2]], [mockParticipants[3], mockParticipants[4]]] },
-];
-
-const mockMatches = [
-  { participant1: mockParticipants[0], participant2: mockParticipants[1], mutual: true },
-  { participant1: mockParticipants[2], participant2: mockParticipants[3], mutual: false },
-  { participant1: mockParticipants[4], participant2: mockParticipants[5], mutual: true },
-];
+// Initial empty state - will be populated by Excel or manual add
+const initialParticipants: Participant[] = [];
 
 const EventDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
   const [showQR, setShowQR] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
+  const [isLoadingExcel, setIsLoadingExcel] = useState(false);
+
+  // Generate tables based on participants
+  const generateTables = () => {
+    if (participants.length < 2) return [];
+    
+    const tables = [];
+    const numRounds = Math.min(5, participants.length - 1);
+    
+    for (let round = 1; round <= numRounds; round++) {
+      const roundTables = [];
+      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      
+      for (let i = 0; i < shuffled.length; i += 2) {
+        if (i + 1 < shuffled.length) {
+          roundTables.push([shuffled[i], shuffled[i + 1]]);
+        }
+      }
+      
+      tables.push({ round, tables: roundTables });
+    }
+    
+    return tables;
+  };
+
+  const tables = generateTables();
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      toast({
+        title: "Error",
+        description: "Por favor, sube un archivo Excel (.xlsx o .xls)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoadingExcel(true);
+    
+    try {
+      const result = await parseExcelFile(file);
+      
+      if (result.success) {
+        setParticipants(prev => [...prev, ...result.participants]);
+        toast({
+          title: "Participantes cargados",
+          description: `Se han añadido ${result.participants.length} participantes`,
+        });
+        
+        if (result.errors.length > 0) {
+          console.warn("Errores durante la carga:", result.errors);
+        }
+      } else {
+        toast({
+          title: "Error al procesar Excel",
+          description: result.errors.join(". "),
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo procesar el archivo Excel",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingExcel(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAddParticipant = (participant: Participant) => {
+    setParticipants(prev => [...prev, participant]);
+    toast({
+      title: "Participante añadido",
+      description: `${participant.name} ha sido añadido al evento`,
+    });
+  };
+
+  const handleDeleteParticipant = (participantId: string) => {
+    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    toast({
+      title: "Participante eliminado",
+      description: "El participante ha sido eliminado del evento",
+    });
+  };
 
   const handleStartEvent = () => {
+    if (participants.length < 2) {
+      toast({
+        title: "Error",
+        description: "Necesitas al menos 2 participantes para iniciar el evento",
+        variant: "destructive",
+      });
+      return;
+    }
     setEventStatus("active");
     toast({
       title: "Evento iniciado",
@@ -58,12 +155,30 @@ const EventDetail = () => {
   const getGenderBadge = (gender: string) => {
     switch (gender) {
       case "Mujer":
-        return <Badge variant="secondary" className="bg-pink-100 text-pink-700">Mujer</Badge>;
+        return <Badge variant="secondary" className="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">Mujer</Badge>;
       case "Hombre":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-700">Hombre</Badge>;
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Hombre</Badge>;
       default:
         return <Badge variant="secondary">{gender}</Badge>;
     }
+  };
+
+  const exportToCSV = () => {
+    if (participants.length === 0) return;
+    
+    const headers = ["Nombre", "Rango Edad", "Edad Preferida", "Preferencia", "Género"];
+    const rows = participants.map(p => [p.name, p.ageRange, p.preferredAgeRange, p.preference, p.gender]);
+    
+    const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `participantes-evento-${id}.csv`;
+    a.click();
+    
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -90,7 +205,7 @@ const EventDetail = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold mb-2">Speed Dating Valencia</h1>
-            <p className="text-muted-foreground">15 de febrero de 2024 • 6 participantes</p>
+            <p className="text-muted-foreground">Evento #{id} • {participants.length} participantes</p>
           </div>
           <div className="flex gap-3">
             {eventStatus === "pending" && (
@@ -134,41 +249,117 @@ const EventDetail = () => {
           <TabsContent value="participants">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Lista de Participantes</CardTitle>
-                    <CardDescription>{mockParticipants.length} personas registradas</CardDescription>
+                    <CardDescription>{participants.length} personas registradas</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Exportar
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="excel-upload"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isLoadingExcel}
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      {isLoadingExcel ? "Cargando..." : "Cargar Excel"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Añadir manual
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={exportToCSV}
+                      disabled={participants.length === 0}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Exportar
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-3">
-                  {mockParticipants.map((participant, index) => (
-                    <div 
-                      key={participant.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 animate-fade-in"
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium">
-                          {participant.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium">{participant.name}</p>
-                          <p className="text-sm text-muted-foreground">{participant.age} años • {participant.preference}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {getGenderBadge(participant.gender)}
-                        <span className="text-sm text-muted-foreground">Busca: {participant.agePreference}</span>
-                      </div>
+                {participants.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Users className="w-8 h-8 text-muted-foreground" />
                     </div>
-                  ))}
-                </div>
+                    <h3 className="font-display text-lg font-semibold mb-2">Sin participantes</h3>
+                    <p className="text-muted-foreground mb-4">Carga un archivo Excel o añade participantes manualmente</p>
+                    <div className="flex justify-center gap-3">
+                      <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Cargar Excel
+                      </Button>
+                      <Button variant="hero" onClick={() => setShowAddModal(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Añadir manual
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {participants.map((participant, index) => (
+                      <div 
+                        key={participant.id}
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50 animate-fade-in"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium">
+                            {participant.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium">{participant.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {participant.ageRange || "Sin rango"} • {participant.preference}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {getGenderBadge(participant.gender)}
+                          <span className="text-sm text-muted-foreground hidden sm:inline">
+                            Busca: {participant.preferredAgeRange || "Sin preferencia"}
+                          </span>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de que quieres eliminar a {participant.name}?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteParticipant(participant.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -177,11 +368,11 @@ const EventDetail = () => {
           <TabsContent value="tables">
             <div className="space-y-6">
               {/* Timer */}
-              {eventStatus === "active" && (
+              {eventStatus === "active" && tables.length > 0 && (
                 <RoundTimer
                   roundDuration={5}
                   currentRound={currentRound}
-                  totalRounds={mockTables.length}
+                  totalRounds={tables.length}
                   onRoundComplete={() => {
                     toast({
                       title: "¡Ronda completada!",
@@ -191,51 +382,65 @@ const EventDetail = () => {
                 />
               )}
 
-              {/* Round selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Ronda:</span>
-                {mockTables.map((table) => (
-                  <Button
-                    key={table.round}
-                    variant={currentRound === table.round ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentRound(table.round)}
-                  >
-                    {table.round}
-                  </Button>
-                ))}
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ronda {currentRound}</CardTitle>
-                  <CardDescription>Distribución de mesas para esta ronda</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mockTables.find(t => t.round === currentRound)?.tables.map((table, tableIndex) => (
-                      <Card key={tableIndex} className="bg-gradient-card">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Table2 className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Mesa {tableIndex + 1}</span>
-                          </div>
-                          <div className="space-y-2">
-                            {table.map((participant) => (
-                              <div key={participant.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-                                  {participant.name.charAt(0)}
-                                </div>
-                                <span className="text-sm">{participant.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
+              {tables.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Table2 className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-display text-lg font-semibold mb-2">Sin mesas generadas</h3>
+                    <p className="text-muted-foreground">Añade al menos 2 participantes para generar las mesas</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Round selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Ronda:</span>
+                    {tables.map((table) => (
+                      <Button
+                        key={table.round}
+                        variant={currentRound === table.round ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentRound(table.round)}
+                      >
+                        {table.round}
+                      </Button>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Ronda {currentRound}</CardTitle>
+                      <CardDescription>Distribución de mesas para esta ronda</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {tables.find(t => t.round === currentRound)?.tables.map((table, tableIndex) => (
+                          <Card key={tableIndex} className="bg-gradient-card">
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Table2 className="w-4 h-4 text-primary" />
+                                <span className="font-medium">Mesa {tableIndex + 1}</span>
+                              </div>
+                              <div className="space-y-2">
+                                {table.map((participant) => (
+                                  <div key={participant.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
+                                      {participant.name.charAt(0)}
+                                    </div>
+                                    <span className="text-sm">{participant.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           </TabsContent>
 
@@ -245,45 +450,21 @@ const EventDetail = () => {
               <CardHeader>
                 <CardTitle>Coincidencias</CardTitle>
                 <CardDescription>
-                  {mockMatches.filter(m => m.mutual).length} matches mutuos de {mockMatches.length} posibles
+                  Los matches aparecerán aquí cuando los participantes voten
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4">
-                  {mockMatches.map((match, index) => (
-                    <div 
-                      key={index}
-                      className={`flex items-center justify-between p-4 rounded-lg animate-fade-in ${
-                        match.mutual ? 'bg-primary/5 border-2 border-primary/20' : 'bg-muted/50'
-                      }`}
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex -space-x-2">
-                          <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
-                            {match.participant1.name.charAt(0)}
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center text-accent-foreground font-medium border-2 border-background">
-                            {match.participant2.name.charAt(0)}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {match.participant1.name} & {match.participant2.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {match.mutual ? '¡Match mutuo!' : 'Interés de una parte'}
-                          </p>
-                        </div>
-                      </div>
-                      {match.mutual && (
-                        <div className="flex items-center gap-2 text-primary">
-                          <Heart className="w-5 h-5 fill-current" />
-                          <span className="font-medium">Match</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <Heart className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-display text-lg font-semibold mb-2">Sin matches todavía</h3>
+                  <p className="text-muted-foreground">
+                    {eventStatus === "completed" 
+                      ? "Espera a que los participantes voten usando el código QR"
+                      : "Finaliza el evento y comparte el código QR para que los participantes voten"
+                    }
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -293,6 +474,14 @@ const EventDetail = () => {
         {/* QR Modal */}
         {showQR && (
           <EventQRCode eventId={id || "1"} onClose={() => setShowQR(false)} />
+        )}
+
+        {/* Add Participant Modal */}
+        {showAddModal && (
+          <AddParticipantModal
+            onClose={() => setShowAddModal(false)}
+            onAdd={handleAddParticipant}
+          />
         )}
       </main>
     </div>
