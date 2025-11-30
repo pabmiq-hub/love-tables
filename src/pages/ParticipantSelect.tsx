@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, ArrowLeft, Check, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 // Mock participants
@@ -23,10 +23,14 @@ const mockPeopleMet = [
 ];
 
 const ParticipantSelect = () => {
+  const { id: eventId } = useParams();
   const [step, setStep] = useState<"identify" | "select" | "done">("identify");
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // In a real app, we would fetch event data and participants based on eventId
+  console.log("Event ID:", eventId);
 
   const handleIdentify = () => {
     if (!selectedParticipant) {
