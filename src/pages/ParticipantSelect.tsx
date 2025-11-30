@@ -1,36 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, ArrowLeft, Check, Sparkles } from "lucide-react";
+import { Heart, ArrowLeft, Check, Sparkles, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Mock participants
-const mockParticipants = [
-  { id: "1", name: "María García" },
-  { id: "2", name: "Carlos López" },
-  { id: "3", name: "Ana Martínez" },
-  { id: "4", name: "David Fernández" },
-  { id: "5", name: "Laura Sánchez" },
-  { id: "6", name: "Pedro Ruiz" },
-];
-
-// Mock people met
-const mockPeopleMet = [
-  { id: "2", name: "Carlos López" },
-  { id: "4", name: "David Fernández" },
-  { id: "6", name: "Pedro Ruiz" },
-];
+interface Participant {
+  id: string;
+  name: string;
+  ageRange?: string;
+  preferredAgeRange?: string;
+  preference?: string;
+  gender?: string;
+}
 
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
-  const [step, setStep] = useState<"identify" | "select" | "done">("identify");
+  const [step, setStep] = useState<"identify" | "select" | "done" | "error">("identify");
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // In a real app, we would fetch event data and participants based on eventId
-  console.log("Event ID:", eventId);
+  // Load participants from localStorage based on eventId
+  useEffect(() => {
+    if (!eventId) {
+      setStep("error");
+      setIsLoading(false);
+      return;
+    }
+
+    const stored = localStorage.getItem(`event-${eventId}-participants`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setParticipants(parsed);
+      } catch (e) {
+        console.error("Error parsing participants:", e);
+      }
+    }
+    setIsLoading(false);
+  }, [eventId]);
+
+  // Get other participants (excluding the selected one)
+  const otherParticipants = participants.filter(p => p.id !== selectedParticipant);
 
   const handleIdentify = () => {
     if (!selectedParticipant) {
@@ -60,6 +74,14 @@ const ParticipantSelect = () => {
     setStep("done");
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="text-muted-foreground">Cargando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
       <Link 
@@ -78,8 +100,28 @@ const ParticipantSelect = () => {
         <span className="font-display text-2xl font-bold">SpeedMatch</span>
       </div>
 
+      {/* Error state */}
+      {(step === "error" || participants.length === 0) && step !== "done" && (
+        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
+          <CardContent className="pt-8 pb-8">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-destructive" />
+            </div>
+            <h2 className="font-display text-xl font-bold mb-2">Evento no disponible</h2>
+            <p className="text-muted-foreground mb-6">
+              Este evento no tiene participantes registrados o el enlace es inválido.
+            </p>
+            <Link to="/">
+              <Button variant="outline" className="w-full">
+                Volver al inicio
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Step: Identify */}
-      {step === "identify" && (
+      {step === "identify" && participants.length > 0 && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">¡Hola! 👋</CardTitle>
@@ -88,8 +130,8 @@ const ParticipantSelect = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              {mockParticipants.map((participant) => (
+            <div className="grid gap-2 max-h-80 overflow-y-auto">
+              {participants.map((participant) => (
                 <button
                   key={participant.id}
                   onClick={() => setSelectedParticipant(participant.id)}
@@ -120,8 +162,8 @@ const ParticipantSelect = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              {mockPeopleMet.map((person) => (
+            <div className="grid gap-2 max-h-80 overflow-y-auto">
+              {otherParticipants.map((person) => (
                 <button
                   key={person.id}
                   onClick={() => toggleMatch(person.id)}
