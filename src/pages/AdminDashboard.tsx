@@ -2,9 +2,20 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3 } from "lucide-react";
+import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Mock events data
 const mockEvents = [
@@ -46,6 +57,14 @@ const AdminDashboard = () => {
       description: "Has cerrado sesión correctamente",
     });
     navigate("/");
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    toast({
+      title: "Evento eliminado",
+      description: "El evento ha sido eliminado correctamente",
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -198,12 +217,38 @@ const AdminDashboard = () => {
                         <p className="text-lg font-bold text-primary">{event.matches}</p>
                         <p className="text-xs text-muted-foreground">Matches</p>
                       </div>
-                      <Link to={`/admin/events/${event.id}`}>
-                        <Button variant="outline" size="sm">
-                          <BarChart3 className="w-4 h-4 mr-2" />
-                          Gestionar
-                        </Button>
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link to={`/admin/events/${event.id}`}>
+                          <Button variant="outline" size="sm">
+                            <BarChart3 className="w-4 h-4 mr-2" />
+                            Gestionar
+                          </Button>
+                        </Link>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminarán todos los datos del evento "{event.name}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteEvent(event.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
