@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X } from "lucide-react";
+import MultiSelectAge from "@/components/ui/multi-select-age";
 import { 
   Participant, 
   AGE_RANGES, 
@@ -22,7 +23,7 @@ interface AddParticipantModalProps {
 const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
   const [name, setName] = useState("");
   const [ageRange, setAgeRange] = useState("");
-  const [preferredAgeRange, setPreferredAgeRange] = useState("");
+  const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState("Amistad y ligue");
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
@@ -31,6 +32,8 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
     e.preventDefault();
     
     if (!name.trim()) return;
+    
+    const preferredAgeRange = selectedAgeRanges.join(', ');
     
     const participant: Participant = {
       id: Math.random().toString(36).substring(2, 11),
@@ -107,17 +110,13 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
             </div>
             
             <div className="space-y-2">
-              <Label>Rango de edad preferido</Label>
-              <Select value={preferredAgeRange} onValueChange={setPreferredAgeRange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el rango que buscas" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PREFERRED_AGE_RANGES.map((range) => (
-                    <SelectItem key={range} value={range}>{range}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Rango de edad preferido (puedes seleccionar varios)</Label>
+              <MultiSelectAge
+                options={PREFERRED_AGE_RANGES}
+                selected={selectedAgeRanges}
+                onChange={setSelectedAgeRanges}
+                placeholder="Selecciona los rangos que buscas"
+              />
             </div>
             
             <div className="space-y-2">
