@@ -20,6 +20,7 @@ export type Database = {
           date: string
           id: string
           name: string
+          organizer_id: string | null
           participants_count: number
           round_duration: number
           rounds: number
@@ -33,6 +34,7 @@ export type Database = {
           date: string
           id?: string
           name: string
+          organizer_id?: string | null
           participants_count?: number
           round_duration?: number
           rounds?: number
@@ -46,6 +48,7 @@ export type Database = {
           date?: string
           id?: string
           name?: string
+          organizer_id?: string | null
           participants_count?: number
           round_duration?: number
           rounds?: number
@@ -149,15 +152,40 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       increment_participants: { Args: { event_id: string }; Returns: undefined }
+      is_event_organizer: {
+        Args: { _event_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -284,6 +312,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

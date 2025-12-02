@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Heart, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -14,30 +15,58 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading, signIn } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/admin/dashboard");
+    }
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Por favor, introduce tus credenciales",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulated login - will be replaced with Supabase auth
-    setTimeout(() => {
-      if (email && password) {
-        localStorage.setItem("adminLoggedIn", "true");
-        toast({
-          title: "Bienvenido",
-          description: "Has iniciado sesión correctamente",
-        });
-        navigate("/admin/dashboard");
-      } else {
-        toast({
-          title: "Error",
-          description: "Por favor, introduce tus credenciales",
-          variant: "destructive",
-        });
-      }
+    const { error } = await signIn(email, password);
+    
+    if (error) {
+      toast({
+        title: "Error de autenticación",
+        description: error.message === "Invalid login credentials" 
+          ? "Credenciales incorrectas" 
+          : error.message,
+        variant: "destructive",
+      });
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    toast({
+      title: "Bienvenido",
+      description: "Has iniciado sesión correctamente",
+    });
+    navigate("/admin/dashboard");
+    setIsLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">

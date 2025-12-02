@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type ParticipantMode = "manual" | "excel" | "both";
 
@@ -33,6 +34,14 @@ const CreateEvent = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading } = useAuth();
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/admin/login");
+    }
+  }, [user, loading, navigate]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -89,9 +98,18 @@ const CreateEvent = () => {
   };
 
   const handleCreateEvent = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Debes iniciar sesión para crear un evento",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
-    // Create event in database
+    // Create event in database with organizer_id
     const { data: eventData, error: eventError } = await supabase
       .from("events")
       .insert({
@@ -102,6 +120,7 @@ const CreateEvent = () => {
         round_duration: roundDuration * 60, // Convert to seconds
         participants_count: participants.length,
         status: "pending",
+        organizer_id: user.id,
       })
       .select()
       .single();
