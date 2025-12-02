@@ -45,11 +45,16 @@ interface DbParticipant {
   preference: string | null;
   dating_preference: string | null;
   gender: string | null;
+  phone: string | null;
 }
 
 interface Match {
   participant1: DbParticipant;
   participant2: DbParticipant;
+  matchTypes: {
+    friendship: boolean;
+    dating: boolean;
+  };
 }
 
 const EventDetail = () => {
@@ -101,10 +106,10 @@ const EventDetail = () => {
       setParticipants(participantsData);
     }
 
-    // Load matches (mutual selections)
+    // Load matches (mutual selections) with selection types
     const { data: selectionsData } = await supabase
       .from("participant_selections")
-      .select("selector_id, selected_id")
+      .select("selector_id, selected_id, selection_type")
       .eq("event_id", id);
 
     if (selectionsData && participantsData) {
@@ -123,7 +128,18 @@ const EventDetail = () => {
           const p1 = participantsData.find(p => p.id === sel.selector_id);
           const p2 = participantsData.find(p => p.id === sel.selected_id);
           if (p1 && p2) {
-            mutualMatches.push({ participant1: p1, participant2: p2 });
+            // Determine match types based on both selections
+            const sel1Type = (sel as any).selection_type || 'friendship';
+            const sel2Type = (reverse as any).selection_type || 'friendship';
+            
+            const matchTypes = {
+              friendship: (sel1Type === 'friendship' || sel1Type === 'both') && 
+                          (sel2Type === 'friendship' || sel2Type === 'both'),
+              dating: (sel1Type === 'dating' || sel1Type === 'both') && 
+                      (sel2Type === 'dating' || sel2Type === 'both'),
+            };
+            
+            mutualMatches.push({ participant1: p1, participant2: p2, matchTypes });
           }
           processed.add(key);
         }
@@ -135,8 +151,13 @@ const EventDetail = () => {
     setIsLoading(false);
   };
 
-  // Generate tables based on participants
+  // Generate tables based on participants (stored or new)
   const generateTables = () => {
+    // Use stored tables if available
+    if (eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+      return eventData.tables;
+    }
+    
     if (participants.length < 2) return [];
     
     const tables = [];
@@ -156,6 +177,53 @@ const EventDetail = () => {
     }
     
     return tables;
+  };
+
+  const saveTablesAndStart = async () => {
+    if (participants.length < 2) {
+      toast({
+        title: "Error",
+        description: "Necesitas al menos 2 participantes para iniciar el evento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Generate and save tables
+    const generatedTables = [];
+    const numRounds = Math.min(eventData?.rounds || 5, participants.length - 1);
+    
+    for (let round = 1; round <= numRounds; round++) {
+      const roundTables = [];
+      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      
+      for (let i = 0; i < shuffled.length; i += 2) {
+        if (i + 1 < shuffled.length) {
+          roundTables.push([
+            { id: shuffled[i].id, name: shuffled[i].name },
+            { id: shuffled[i + 1].id, name: shuffled[i + 1].name }
+          ]);
+        }
+      }
+      
+      generatedTables.push({ round, tables: roundTables });
+    }
+
+    // Save tables and update status
+    await supabase
+      .from("events")
+      .update({ 
+        tables: generatedTables,
+        status: "active" 
+      })
+      .eq("id", id);
+
+    setEventData(prev => prev ? { ...prev, tables: generatedTables } : prev);
+    setEventStatus("active");
+    toast({
+      title: "Evento iniciado",
+      description: "Las mesas han sido generadas y guardadas",
+    });
   };
 
   const tables = generateTables();
@@ -207,6 +275,7 @@ const EventDetail = () => {
       preference: p.preference || null,
       dating_preference: p.datingPreference || null,
       gender: p.gender || null,
+      phone: p.phone || null,
     }));
 
     const { data: newParticipants, error } = await supabase
@@ -255,6 +324,7 @@ const EventDetail = () => {
         preference: participant.preference || null,
         dating_preference: participant.datingPreference || null,
         gender: participant.gender || null,
+        phone: participant.phone || null,
       })
       .select()
       .single();
@@ -313,25 +383,7 @@ const EventDetail = () => {
   };
 
   const handleStartEvent = async () => {
-    if (participants.length < 2) {
-      toast({
-        title: "Error",
-        description: "Necesitas al menos 2 participantes para iniciar el evento",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await supabase
-      .from("events")
-      .update({ status: "active" })
-      .eq("id", id);
-
-    setEventStatus("active");
-    toast({
-      title: "Evento iniciado",
-      description: "Los participantes ya pueden empezar las rondas",
-    });
+    await saveTablesAndStart();
   };
 
   const handleEndEvent = async () => {
@@ -363,8 +415,8 @@ const EventDetail = () => {
   const exportToCSV = () => {
     if (participants.length === 0) return;
     
-    const headers = ["Nombre", "Rango Edad", "Edad Preferida", "Preferencia", "Preferencia de Ligue", "Género"];
-    const rows = participants.map(p => [p.name, p.age_range, p.preferred_age_range, p.preference, p.dating_preference || "", p.gender]);
+    const headers = ["Nombre", "Teléfono", "Rango Edad", "Edad Preferida", "Preferencia", "Preferencia de Ligue", "Género"];
+    const rows = participants.map(p => [p.name, p.phone || "", p.age_range, p.preferred_age_range, p.preference, p.dating_preference || "", p.gender]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -695,28 +747,47 @@ const EventDetail = () => {
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {matches.map((match, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="flex -space-x-2">
-                            <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
-                              {match.participant1.name.charAt(0)}
+                    {matches.map((match, index) => {
+                      const matchLabels: string[] = [];
+                      if (match.matchTypes.friendship) matchLabels.push("Amistad 😊");
+                      if (match.matchTypes.dating) matchLabels.push("Ligue 💕");
+                      const matchLabel = matchLabels.length > 0 ? matchLabels.join(" + ") : "Match";
+                      
+                      return (
+                        <div 
+                          key={index}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20 gap-3"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="flex -space-x-2">
+                              <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
+                                {match.participant1.name.charAt(0)}
+                              </div>
+                              <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
+                                {match.participant2.name.charAt(0)}
+                              </div>
                             </div>
-                            <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
-                              {match.participant2.name.charAt(0)}
+                            <div>
+                              <p className="font-medium">{match.participant1.name} & {match.participant2.name}</p>
+                              <p className="text-sm text-muted-foreground">¡Match mutuo! {matchLabel}</p>
                             </div>
                           </div>
-                          <div>
-                            <p className="font-medium">{match.participant1.name} & {match.participant2.name}</p>
-                            <p className="text-sm text-muted-foreground">¡Match mutuo! 💕</p>
+                          <div className="flex flex-col sm:flex-row gap-2 text-sm">
+                            {match.participant1.phone && (
+                              <a href={`tel:${match.participant1.phone}`} className="text-primary hover:underline">
+                                📞 {match.participant1.name.split(' ')[0]}
+                              </a>
+                            )}
+                            {match.participant2.phone && (
+                              <a href={`tel:${match.participant2.phone}`} className="text-primary hover:underline">
+                                📞 {match.participant2.name.split(' ')[0]}
+                              </a>
+                            )}
                           </div>
+                          <Heart className="w-5 h-5 text-primary hidden sm:block" />
                         </div>
-                        <Heart className="w-5 h-5 text-primary" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

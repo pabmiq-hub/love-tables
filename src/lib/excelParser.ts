@@ -23,6 +23,7 @@ export interface Participant {
   preference: string;
   datingPreference?: string; // Only when preference is "Amistad y ligue"
   gender: string;
+  phone?: string;
 }
 
 export interface ParseResult {
@@ -74,6 +75,11 @@ const columnMappingsOrdered: Array<{
     key: 'age',
     exact: ['edad'],
     partial: ['age', 'años']
+  },
+  {
+    key: 'phone',
+    exact: ['teléfono', 'telefono', 'phone'],
+    partial: ['tel', 'móvil', 'movil', 'celular', 'contacto']
   },
 ];
 
@@ -298,6 +304,7 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
               preferredAgeRange: columnMap.preferredAgeRange !== undefined ? normalizePreferredAgeRange(String(row[columnMap.preferredAgeRange] || '')) : '',
               preference,
               gender: columnMap.gender !== undefined ? normalizeGender(String(row[columnMap.gender] || '')) : 'Prefiero no decirlo',
+              phone: columnMap.phone !== undefined ? String(row[columnMap.phone] || '').trim() : undefined,
             };
             
             // Add dating preference if preference includes "ligue"

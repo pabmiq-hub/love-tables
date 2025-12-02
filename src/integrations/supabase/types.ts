@@ -65,6 +65,7 @@ export type Database = {
           event_id: string
           id: string
           selected_id: string
+          selection_type: string | null
           selector_id: string
         }
         Insert: {
@@ -72,6 +73,7 @@ export type Database = {
           event_id: string
           id?: string
           selected_id: string
+          selection_type?: string | null
           selector_id: string
         }
         Update: {
@@ -79,6 +81,7 @@ export type Database = {
           event_id?: string
           id?: string
           selected_id?: string
+          selection_type?: string | null
           selector_id?: string
         }
         Relationships: [
@@ -115,6 +118,7 @@ export type Database = {
           gender: string | null
           id: string
           name: string
+          phone: string | null
           preference: string | null
           preferred_age_range: string | null
         }
@@ -127,6 +131,7 @@ export type Database = {
           gender?: string | null
           id?: string
           name: string
+          phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
         }
@@ -139,6 +144,7 @@ export type Database = {
           gender?: string | null
           id?: string
           name?: string
+          phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
         }
