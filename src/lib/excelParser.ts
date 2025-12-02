@@ -149,25 +149,28 @@ function normalizeAgeRange(value: string): string {
 
 function normalizePreferredAgeRange(value: string): string {
   const lower = value.toLowerCase();
-  if (lower.includes('cualquier') || lower.includes('todo') || lower.includes('all')) {
+  if (lower.includes('cualquier') || lower.includes('all')) {
     return 'Cualquier rango de edad';
+  }
+  // Handle multiple age ranges separated by commas
+  if (value.includes(',')) {
+    const ranges = value.split(',').map(r => normalizeAgeRange(r.trim())).filter(r => r);
+    return ranges.join(', ');
   }
   return normalizeAgeRange(value);
 }
 
 function normalizePreference(value: string): string {
   const lower = value.toLowerCase().trim();
-  // Check for "ligue" alone or "amistad y ligue"
-  if (lower === 'ligue' || lower.includes('amistad y ligue') || lower.includes('romance') || lower.includes('romántico') || lower.includes('cita')) {
+  // Check for "ligue" or "amistad y ligue"
+  if (lower === 'ligue' || lower === 'amistad y ligue' || lower.includes('romance') || lower.includes('romántico') || lower.includes('cita')) {
     return 'Amistad y ligue';
   }
-  if (lower.includes('solo') && lower.includes('amistad')) {
+  // "Amistad" alone (without "y ligue") means "Solo amistad"
+  if (lower === 'amistad' || lower === 'solo amistad' || (lower.includes('solo') && lower.includes('amistad'))) {
     return 'Solo amistad';
   }
-  if (lower === 'amistad' || lower.includes('solo amistad')) {
-    return 'Solo amistad';
-  }
-  return value; // Return original if no match
+  return value;
 }
 
 // Check if preference requires dating preference
@@ -177,7 +180,9 @@ function requiresDatingPreference(preference: string): boolean {
 }
 
 function normalizeDatingPreference(value: string): string {
-  const lower = value.toLowerCase();
+  // Remove trailing periods and trim
+  const cleaned = value.trim().replace(/\.$/, '');
+  const lower = cleaned.toLowerCase();
   
   if (lower.includes('hombre') && lower.includes('busco') && lower.includes('mujer')) {
     return 'Soy un hombre y busco una mujer';
@@ -194,14 +199,14 @@ function normalizeDatingPreference(value: string): string {
   if (lower.includes('no binario') || lower.includes('non binary')) {
     return 'No binario';
   }
-  if (lower.includes('abierto') || lower.includes('todo') || lower.includes('open')) {
+  if (lower.includes('abierto') || lower.includes('open')) {
     return 'Estoy abierto a todo';
   }
   if (lower.includes('prefiero no') || lower.includes('no contest')) {
     return 'Prefiero no contestar';
   }
   
-  return value;
+  return cleaned;
 }
 
 function normalizeGender(value: string): string {
