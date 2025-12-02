@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
+import ParticipantJoin from "./pages/ParticipantJoin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/admin/events/new" element={<CreateEvent />} />
           <Route path="/admin/events/:id" element={<EventDetail />} />
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
+          <Route path="/event/:id/join" element={<ParticipantJoin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

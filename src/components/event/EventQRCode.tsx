@@ -7,13 +7,16 @@ import { useRef } from "react";
 interface EventQRCodeProps {
   eventId: string;
   onClose: () => void;
+  type?: "join" | "select"; // join = registration form, select = match selection
 }
 
-const EventQRCode = ({ eventId, onClose }: EventQRCodeProps) => {
+const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) => {
   const qrRef = useRef<HTMLDivElement>(null);
   
-  // Generate the URL for participants to access
-  const participantUrl = `${window.location.origin}/event/${eventId}/select`;
+  // Generate the URL based on type
+  const participantUrl = type === "join" 
+    ? `${window.location.origin}/event/${eventId}/join`
+    : `${window.location.origin}/event/${eventId}/select`;
 
   const handleDownload = () => {
     if (!qrRef.current) return;
@@ -33,7 +36,7 @@ const EventQRCode = ({ eventId, onClose }: EventQRCodeProps) => {
       
       const pngFile = canvas.toDataURL("image/png");
       const downloadLink = document.createElement("a");
-      downloadLink.download = `qr-evento-${eventId}.png`;
+      downloadLink.download = `qr-evento-${eventId}-${type}.png`;
       downloadLink.href = pngFile;
       downloadLink.click();
     };
@@ -53,9 +56,14 @@ const EventQRCode = ({ eventId, onClose }: EventQRCodeProps) => {
           >
             <X className="w-4 h-4" />
           </Button>
-          <CardTitle>Código QR del Evento</CardTitle>
+          <CardTitle>
+            {type === "join" ? "QR de Registro" : "QR de Selección"}
+          </CardTitle>
           <CardDescription>
-            Los participantes pueden escanear este código para seleccionar sus matches
+            {type === "join" 
+              ? "Los participantes pueden escanear para unirse al evento"
+              : "Los participantes pueden escanear para seleccionar sus matches"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-6">

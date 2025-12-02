@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -17,28 +17,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Mock events data
-const mockEvents = [
-  {
-    id: "1",
-    name: "Speed Dating Valencia",
-    date: "2024-02-15",
-    participants: 24,
-    status: "upcoming",
-    matches: 0,
-  },
-  {
-    id: "2",
-    name: "Networking Profesional",
-    date: "2024-01-28",
-    participants: 18,
-    status: "completed",
-    matches: 7,
-  },
-];
+interface Event {
+  id: string;
+  name: string;
+  date: string;
+  participants: number;
+  status: string;
+  matches: number;
+}
 
 const AdminDashboard = () => {
-  const [events, setEvents] = useState(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -47,6 +36,12 @@ const AdminDashboard = () => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn");
     if (!isLoggedIn) {
       navigate("/admin/login");
+    }
+    
+    // Load events from localStorage
+    const savedEvents = localStorage.getItem("events");
+    if (savedEvents) {
+      setEvents(JSON.parse(savedEvents));
     }
   }, [navigate]);
 
@@ -60,7 +55,11 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(e => e.id !== eventId));
+    const newEvents = events.filter(e => e.id !== eventId);
+    setEvents(newEvents);
+    localStorage.setItem("events", JSON.stringify(newEvents));
+    // Also remove participants data
+    localStorage.removeItem(`event-${eventId}-participants`);
     toast({
       title: "Evento eliminado",
       description: "El evento ha sido eliminado correctamente",
