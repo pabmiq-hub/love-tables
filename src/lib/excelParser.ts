@@ -31,16 +31,51 @@ export interface ParseResult {
   errors: string[];
 }
 
-// Common column name mappings (Spanish variations)
-const columnMappings: Record<string, string[]> = {
-  name: ['nombre', 'nombre y apellidos', 'nombre completo', 'participante', 'name'],
-  age: ['edad', 'age', 'años'],
-  ageRange: ['rango de edad', 'rango edad', 'age range', 'mi edad'],
-  preferredAgeRange: ['rango de edad preferido', 'edad preferida', 'busca edad', 'preferred age', 'rango preferido'],
-  preference: ['preferencia', 'preferencias', 'tipo', 'busca', 'preference', 'tipo de conexión'],
-  datingPreference: ['preferencia acerca de ligue', 'preferencia de ligue', 'tipo de ligue', 'busco a'],
-  gender: ['género', 'genero', 'sexo', 'gender', 'sex'],
-};
+// Column mappings ordered by specificity (most specific first)
+// Each entry: [fieldKey, exact match patterns, partial match patterns]
+const columnMappingsOrdered: Array<{
+  key: string;
+  exact: string[];
+  partial: string[];
+}> = [
+  // More specific patterns first
+  {
+    key: 'preferredAgeRange',
+    exact: ['rango de edad preferido', 'edad preferida', 'rango preferido'],
+    partial: ['preferido', 'preferred age', 'busca edad']
+  },
+  {
+    key: 'datingPreference',
+    exact: ['preferencia acerca de ligue', 'preferencia de ligue', 'tipo de ligue'],
+    partial: ['acerca de ligue', 'busco a']
+  },
+  // Then less specific patterns
+  {
+    key: 'ageRange',
+    exact: ['rango de edad', 'mi rango de edad', 'mi edad'],
+    partial: ['age range', 'rango edad']
+  },
+  {
+    key: 'name',
+    exact: ['nombre y apellidos', 'nombre completo'],
+    partial: ['nombre', 'participante', 'name']
+  },
+  {
+    key: 'preference',
+    exact: ['preferencia', 'tipo de conexion'],
+    partial: ['preferencias', 'preference']
+  },
+  {
+    key: 'gender',
+    exact: ['genero', 'género'],
+    partial: ['sexo', 'gender', 'sex']
+  },
+  {
+    key: 'age',
+    exact: ['edad'],
+    partial: ['age', 'años']
+  },
+];
 
 function normalizeColumnName(name: string): string {
   return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -49,13 +84,36 @@ function normalizeColumnName(name: string): string {
 function findColumnMapping(header: string): string | null {
   const normalized = normalizeColumnName(header);
   
-  for (const [key, variations] of Object.entries(columnMappings)) {
-    for (const variation of variations) {
-      if (normalized.includes(normalizeColumnName(variation))) {
-        return key;
+  // First pass: look for exact matches
+  for (const mapping of columnMappingsOrdered) {
+    for (const pattern of mapping.exact) {
+      const normalizedPattern = normalizeColumnName(pattern);
+      if (normalized === normalizedPattern) {
+        return mapping.key;
       }
     }
   }
+  
+  // Second pass: look for patterns contained in header (more specific first due to order)
+  for (const mapping of columnMappingsOrdered) {
+    for (const pattern of mapping.exact) {
+      const normalizedPattern = normalizeColumnName(pattern);
+      if (normalized.includes(normalizedPattern)) {
+        return mapping.key;
+      }
+    }
+  }
+  
+  // Third pass: partial matches
+  for (const mapping of columnMappingsOrdered) {
+    for (const pattern of mapping.partial) {
+      const normalizedPattern = normalizeColumnName(pattern);
+      if (normalized.includes(normalizedPattern)) {
+        return mapping.key;
+      }
+    }
+  }
+  
   return null;
 }
 
