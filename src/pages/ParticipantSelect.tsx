@@ -2,14 +2,15 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, ArrowLeft, Check, Sparkles, AlertCircle } from "lucide-react";
+import { Heart, ArrowLeft, Check, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Participant {
   id: string;
   name: string;
-  ageRange?: string;
-  preferredAgeRange?: string;
+  age_range?: string;
+  preferred_age_range?: string;
   preference?: string;
   gender?: string;
 }
@@ -21,29 +22,33 @@ const ParticipantSelect = () => {
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Load participants from localStorage based on eventId
   useEffect(() => {
-    if (!eventId) {
-      setStep("error");
-      setIsLoading(false);
-      return;
-    }
-
-    const stored = localStorage.getItem(`event-${eventId}-participants`);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setParticipants(parsed);
-      } catch (e) {
-        console.error("Error parsing participants:", e);
+    const loadParticipants = async () => {
+      if (!eventId) {
+        setStep("error");
+        setIsLoading(false);
+        return;
       }
-    }
-    setIsLoading(false);
+
+      const { data, error } = await supabase
+        .from("participants")
+        .select("id, name, age_range, preferred_age_range, preference, gender")
+        .eq("event_id", eventId);
+
+      if (error || !data || data.length === 0) {
+        setStep("error");
+      } else {
+        setParticipants(data);
+      }
+      setIsLoading(false);
+    };
+
+    loadParticipants();
   }, [eventId]);
 
-  // Get other participants (excluding the selected one)
   const otherParticipants = participants.filter(p => p.id !== selectedParticipant);
 
   const handleIdentify = () => {
@@ -66,18 +71,46 @@ const ParticipantSelect = () => {
     );
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!selectedParticipant || !eventId) return;
+
+    setIsSubmitting(true);
+
+    // Insert all selections
+    const selections = selectedMatches.map(selectedId => ({
+      event_id: eventId,
+      selector_id: selectedParticipant,
+      selected_id: selectedId,
+    }));
+
+    if (selections.length > 0) {
+      const { error } = await supabase
+        .from("participant_selections")
+        .insert(selections);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron guardar las selecciones. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     toast({
       title: "¡Gracias por participar!",
       description: "Tus selecciones han sido guardadas. Te notificaremos si hay matches.",
     });
+    setIsSubmitting(false);
     setStep("done");
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
-        <div className="text-muted-foreground">Cargando...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -183,9 +216,23 @@ const ParticipantSelect = () => {
             <p className="text-sm text-center text-muted-foreground">
               Si ambos os seleccionáis mutuamente, ¡es un match! 💕
             </p>
-            <Button variant="hero" className="w-full" onClick={handleSubmit}>
-              <Heart className="w-4 h-4 mr-2" />
-              Enviar selecciones
+            <Button 
+              variant="hero" 
+              className="w-full" 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Heart className="w-4 h-4 mr-2" />
+                  Enviar selecciones
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>

@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, CheckCircle2 } from "lucide-react";
+import { Heart, CheckCircle2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
+import { supabase } from "@/integrations/supabase/client";
 import { 
-  Participant, 
   AGE_RANGES, 
   PREFERRED_AGE_RANGES, 
   GENDERS, 
@@ -19,7 +19,6 @@ import {
 
 const ParticipantJoin = () => {
   const { id: eventId } = useParams();
-  const navigate = useNavigate();
   const { toast } = useToast();
   
   const [name, setName] = useState("");
@@ -29,18 +28,32 @@ const ParticipantJoin = () => {
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [eventExists, setEventExists] = useState(true);
+  const [eventExists, setEventExists] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Check if event exists
-    const events = JSON.parse(localStorage.getItem("events") || "[]");
-    const event = events.find((e: any) => e.id === eventId);
-    if (!event) {
-      setEventExists(false);
-    }
+    const checkEvent = async () => {
+      if (!eventId) {
+        setEventExists(false);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("events")
+        .select("id")
+        .eq("id", eventId)
+        .single();
+
+      setEventExists(!error && !!data);
+      setIsLoading(false);
+    };
+
+    checkEvent();
   }, [eventId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
@@ -60,43 +73,68 @@ const ParticipantJoin = () => {
       });
       return;
     }
-    
+
+    setIsSubmitting(true);
+
     const preferredAgeRange = selectedAgeRanges.join(', ');
     
-    const participant: Participant = {
-      id: Math.random().toString(36).substring(2, 11),
+    const { error } = await supabase.from("participants").insert({
+      event_id: eventId,
       name: name.trim(),
-      age: parseInt(ageRange.split('–')[0]) || 0,
-      ageRange,
-      preferredAgeRange,
+      age: parseInt(ageRange.split('–')[0]) || null,
+      age_range: ageRange,
+      preferred_age_range: preferredAgeRange,
       preference,
+      dating_preference: preference === "Amistad y ligue" ? datingPreference : null,
       gender,
-    };
-    
-    if (preference === "Amistad y ligue" && datingPreference) {
-      participant.datingPreference = datingPreference;
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo registrar. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
     }
-    
-    // Save to localStorage
-    const existingParticipants = JSON.parse(
-      localStorage.getItem(`event-${eventId}-participants`) || "[]"
-    );
-    const newParticipants = [...existingParticipants, participant];
-    localStorage.setItem(`event-${eventId}-participants`, JSON.stringify(newParticipants));
-    
-    // Update event participant count
-    const events = JSON.parse(localStorage.getItem("events") || "[]");
-    const updatedEvents = events.map((e: any) => 
-      e.id === eventId ? { ...e, participants: newParticipants.length } : e
-    );
-    localStorage.setItem("events", JSON.stringify(updatedEvents));
+
+    // Update participant count
+    await supabase
+      .from("events")
+      .update({ participants_count: undefined })
+      .eq("id", eventId)
+      .select()
+      .then(async () => {
+        // Get current count and update
+        const { data: eventData } = await supabase
+          .from("events")
+          .select("participants_count")
+          .eq("id", eventId)
+          .single();
+        if (eventData) {
+          await supabase
+            .from("events")
+            .update({ participants_count: (eventData.participants_count || 0) + 1 })
+            .eq("id", eventId);
+        }
+      });
     
     setIsSubmitted(true);
+    setIsSubmitting(false);
     toast({
       title: "¡Registrado!",
       description: "Te has unido al evento correctamente",
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!eventExists) {
     return (
@@ -244,8 +282,15 @@ const ParticipantJoin = () => {
                 </div>
               )}
               
-              <Button type="submit" variant="hero" className="w-full mt-6">
-                Unirme al evento
+              <Button type="submit" variant="hero" className="w-full mt-6" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Registrando...
+                  </>
+                ) : (
+                  "Unirme al evento"
+                )}
               </Button>
             </form>
           </CardContent>

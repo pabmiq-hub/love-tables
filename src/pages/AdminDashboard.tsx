@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2 } from "lucide-react";
+import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,13 +22,13 @@ interface Event {
   id: string;
   name: string;
   date: string;
-  participants: number;
+  participants_count: number;
   status: string;
-  matches: number;
 }
 
 const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -36,28 +37,23 @@ const AdminDashboard = () => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn");
     if (!isLoggedIn) {
       navigate("/admin/login");
+      return;
     }
     
-    // Clear all old mock/test data on first load of this session
-    const dataCleared = sessionStorage.getItem("dataCleared");
-    if (!dataCleared) {
-      localStorage.removeItem("events");
-      // Clear all participant data
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.startsWith("event-") && key.endsWith("-participants")) {
-          localStorage.removeItem(key);
-        }
-      });
-      sessionStorage.setItem("dataCleared", "true");
-    }
-    
-    // Load events from localStorage
-    const savedEvents = localStorage.getItem("events");
-    if (savedEvents) {
-      setEvents(JSON.parse(savedEvents));
-    }
+    loadEvents();
   }, [navigate]);
+
+  const loadEvents = async () => {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setEvents(data);
+    }
+    setIsLoading(false);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("adminLoggedIn");
@@ -68,12 +64,22 @@ const AdminDashboard = () => {
     navigate("/");
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    const newEvents = events.filter(e => e.id !== eventId);
-    setEvents(newEvents);
-    localStorage.setItem("events", JSON.stringify(newEvents));
-    // Also remove participants data
-    localStorage.removeItem(`event-${eventId}-participants`);
+  const handleDeleteEvent = async (eventId: string) => {
+    const { error } = await supabase
+      .from("events")
+      .delete()
+      .eq("id", eventId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el evento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEvents(events.filter(e => e.id !== eventId));
     toast({
       title: "Evento eliminado",
       description: "El evento ha sido eliminado correctamente",
@@ -82,7 +88,7 @@ const AdminDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "upcoming":
+      case "pending":
         return <span className="px-3 py-1 rounded-full bg-accent/20 text-accent-foreground text-xs font-medium">Próximo</span>;
       case "active":
         return <span className="px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium">En curso</span>;
@@ -92,6 +98,16 @@ const AdminDashboard = () => {
         return null;
     }
   };
+
+  const totalParticipants = events.reduce((acc, e) => acc + (e.participants_count || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,7 +161,7 @@ const AdminDashboard = () => {
                 <Users className="w-6 h-6 text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{events.reduce((acc, e) => acc + e.participants, 0)}</p>
+                <p className="text-2xl font-bold">{totalParticipants}</p>
                 <p className="text-sm text-muted-foreground">Participantes totales</p>
               </div>
             </CardContent>
@@ -157,7 +173,7 @@ const AdminDashboard = () => {
                 <Heart className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{events.reduce((acc, e) => acc + e.matches, 0)}</p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-sm text-muted-foreground">Matches realizados</p>
               </div>
             </CardContent>
@@ -223,12 +239,8 @@ const AdminDashboard = () => {
 
                     <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <p className="text-lg font-bold">{event.participants}</p>
+                        <p className="text-lg font-bold">{event.participants_count || 0}</p>
                         <p className="text-xs text-muted-foreground">Participantes</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-primary">{event.matches}</p>
-                        <p className="text-xs text-muted-foreground">Matches</p>
                       </div>
                       <div className="flex gap-2">
                         <Link to={`/admin/events/${event.id}`}>

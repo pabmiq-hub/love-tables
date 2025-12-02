@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
+import { supabase } from "@/integrations/supabase/client";
 
 type ParticipantMode = "manual" | "excel" | "both";
 
@@ -87,42 +88,66 @@ const CreateEvent = () => {
     setParticipants(prev => prev.filter(p => p.id !== id));
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     setIsLoading(true);
     
-    // Generate event ID
-    const eventId = Math.random().toString(36).substring(2, 11);
+    // Create event in database
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .insert({
+        name: eventName,
+        date: eventDate.split('T')[0],
+        rounds,
+        table_size: tableSize,
+        round_duration: roundDuration * 60, // Convert to seconds
+        participants_count: participants.length,
+        status: "pending",
+      })
+      .select()
+      .single();
     
-    // Create event object
-    const newEvent = {
-      id: eventId,
-      name: eventName,
-      date: eventDate,
-      location: eventLocation,
-      rounds,
-      tableSize,
-      roundDuration,
-      matchPreference,
-      participants: participants.length,
-      status: "upcoming",
-      matches: 0,
-    };
-    
-    // Save event to localStorage
-    const existingEvents = JSON.parse(localStorage.getItem("events") || "[]");
-    localStorage.setItem("events", JSON.stringify([...existingEvents, newEvent]));
+    if (eventError || !eventData) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear el evento",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
     
     // Save participants
-    localStorage.setItem(`event-${eventId}-participants`, JSON.stringify(participants));
+    if (participants.length > 0) {
+      const participantsToInsert = participants.map(p => ({
+        event_id: eventData.id,
+        name: p.name,
+        age: p.age || null,
+        age_range: p.ageRange || null,
+        preferred_age_range: p.preferredAgeRange || null,
+        preference: p.preference || null,
+        dating_preference: p.datingPreference || null,
+        gender: p.gender || null,
+      }));
+      
+      const { error: participantsError } = await supabase
+        .from("participants")
+        .insert(participantsToInsert);
+      
+      if (participantsError) {
+        toast({
+          title: "Advertencia",
+          description: "El evento se creó pero hubo un error al añadir algunos participantes",
+          variant: "destructive",
+        });
+      }
+    }
     
-    setTimeout(() => {
-      toast({
-        title: "Evento creado",
-        description: "El evento se ha creado correctamente",
-      });
-      navigate(`/admin/events/${eventId}`);
-      setIsLoading(false);
-    }, 1000);
+    toast({
+      title: "Evento creado",
+      description: "El evento se ha creado correctamente",
+    });
+    navigate(`/admin/events/${eventData.id}`);
+    setIsLoading(false);
   };
 
   const nextStep = () => {
