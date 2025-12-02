@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Heart, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import MultiSelectAge from "@/components/ui/multi-select-age";
 import { 
   Participant, 
   AGE_RANGES, 
@@ -23,7 +24,7 @@ const ParticipantJoin = () => {
   
   const [name, setName] = useState("");
   const [ageRange, setAgeRange] = useState("");
-  const [preferredAgeRange, setPreferredAgeRange] = useState("");
+  const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState("");
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
@@ -42,7 +43,7 @@ const ParticipantJoin = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !ageRange || !gender || !preferredAgeRange || !preference) {
+    if (!name.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios",
@@ -59,6 +60,8 @@ const ParticipantJoin = () => {
       });
       return;
     }
+    
+    const preferredAgeRange = selectedAgeRanges.join(', ');
     
     const participant: Participant = {
       id: Math.random().toString(36).substring(2, 11),
@@ -202,17 +205,13 @@ const ParticipantJoin = () => {
               </div>
               
               <div className="space-y-2">
-                <Label>Rango de edad preferido *</Label>
-                <Select value={preferredAgeRange} onValueChange={setPreferredAgeRange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el rango que buscas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PREFERRED_AGE_RANGES.map((range) => (
-                      <SelectItem key={range} value={range}>{range}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Rango de edad preferido * (puedes seleccionar varios)</Label>
+                <MultiSelectAge
+                  options={PREFERRED_AGE_RANGES}
+                  selected={selectedAgeRanges}
+                  onChange={setSelectedAgeRanges}
+                  placeholder="Selecciona los rangos que buscas"
+                />
               </div>
               
               <div className="space-y-2">
