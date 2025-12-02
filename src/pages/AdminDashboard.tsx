@@ -38,6 +38,20 @@ const AdminDashboard = () => {
       navigate("/admin/login");
     }
     
+    // Clear all old mock/test data on first load of this session
+    const dataCleared = sessionStorage.getItem("dataCleared");
+    if (!dataCleared) {
+      localStorage.removeItem("events");
+      // Clear all participant data
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith("event-") && key.endsWith("-participants")) {
+          localStorage.removeItem(key);
+        }
+      });
+      sessionStorage.setItem("dataCleared", "true");
+    }
+    
     // Load events from localStorage
     const savedEvents = localStorage.getItem("events");
     if (savedEvents) {

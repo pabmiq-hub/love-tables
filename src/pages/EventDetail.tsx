@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
+import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import {
   AlertDialog,
@@ -22,21 +23,53 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Initial empty state - will be populated by Excel or manual add
-const initialParticipants: Participant[] = [];
+interface EventData {
+  id: string;
+  name: string;
+  date: string;
+  location?: string;
+  rounds: number;
+  tableSize: number;
+  roundDuration: number;
+  matchPreference: string;
+  participants: number;
+  status: string;
+  matches: number;
+}
 
 const EventDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
-const [showQR, setShowQR] = useState(false);
+  const [eventData, setEventData] = useState<EventData | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
   const [isLoadingExcel, setIsLoadingExcel] = useState(false);
+  const [excelPreview, setExcelPreview] = useState<{participants: Participant[], errors: string[]} | null>(null);
+
+  // Load event data and participants from localStorage
+  useEffect(() => {
+    const savedEvents = localStorage.getItem("events");
+    if (savedEvents) {
+      const events: EventData[] = JSON.parse(savedEvents);
+      const currentEvent = events.find(e => e.id === id);
+      if (currentEvent) {
+        setEventData(currentEvent);
+        if (currentEvent.status === "active") setEventStatus("active");
+        if (currentEvent.status === "completed") setEventStatus("completed");
+      }
+    }
+    
+    const savedParticipants = localStorage.getItem(`event-${id}-participants`);
+    if (savedParticipants) {
+      setParticipants(JSON.parse(savedParticipants));
+    }
+  }, [id]);
 
   // Generate tables based on participants
   const generateTables = () => {
@@ -81,26 +114,11 @@ const [showQR, setShowQR] = useState(false);
     try {
       const result = await parseExcelFile(file);
       
-      if (result.success) {
-        const newParticipants = [...participants, ...result.participants];
-        setParticipants(newParticipants);
-        // Save to localStorage for sharing with participant page
-        localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
-        toast({
-          title: "Participantes cargados",
-          description: `Se han añadido ${result.participants.length} participantes`,
-        });
-        
-        if (result.errors.length > 0) {
-          console.warn("Errores durante la carga:", result.errors);
-        }
-      } else {
-        toast({
-          title: "Error al procesar Excel",
-          description: result.errors.join(". "),
-          variant: "destructive",
-        });
-      }
+      // Show preview instead of directly adding
+      setExcelPreview({
+        participants: result.participants,
+        errors: result.errors,
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -115,11 +133,46 @@ const [showQR, setShowQR] = useState(false);
     }
   };
 
+  const handleConfirmExcelImport = () => {
+    if (!excelPreview) return;
+    
+    const newParticipants = [...participants, ...excelPreview.participants];
+    setParticipants(newParticipants);
+    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
+    
+    // Update event participant count
+    const savedEvents = localStorage.getItem("events");
+    if (savedEvents) {
+      const events: EventData[] = JSON.parse(savedEvents);
+      const updatedEvents = events.map(e => 
+        e.id === id ? { ...e, participants: newParticipants.length } : e
+      );
+      localStorage.setItem("events", JSON.stringify(updatedEvents));
+    }
+    
+    toast({
+      title: "Participantes cargados",
+      description: `Se han añadido ${excelPreview.participants.length} participantes`,
+    });
+    
+    setExcelPreview(null);
+  };
+
   const handleAddParticipant = (participant: Participant) => {
     const newParticipants = [...participants, participant];
     setParticipants(newParticipants);
-    // Save to localStorage for sharing with participant page
     localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
+    
+    // Update event participant count
+    const savedEvents = localStorage.getItem("events");
+    if (savedEvents) {
+      const events: EventData[] = JSON.parse(savedEvents);
+      const updatedEvents = events.map(e => 
+        e.id === id ? { ...e, participants: newParticipants.length } : e
+      );
+      localStorage.setItem("events", JSON.stringify(updatedEvents));
+    }
+    
     toast({
       title: "Participante añadido",
       description: `${participant.name} ha sido añadido al evento`,
@@ -129,8 +182,18 @@ const [showQR, setShowQR] = useState(false);
   const handleDeleteParticipant = (participantId: string) => {
     const newParticipants = participants.filter(p => p.id !== participantId);
     setParticipants(newParticipants);
-    // Save to localStorage for sharing with participant page
     localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
+    
+    // Update event participant count
+    const savedEvents = localStorage.getItem("events");
+    if (savedEvents) {
+      const events: EventData[] = JSON.parse(savedEvents);
+      const updatedEvents = events.map(e => 
+        e.id === id ? { ...e, participants: newParticipants.length } : e
+      );
+      localStorage.setItem("events", JSON.stringify(updatedEvents));
+    }
+    
     toast({
       title: "Participante eliminado",
       description: "El participante ha sido eliminado del evento",
@@ -214,7 +277,7 @@ const [showQR, setShowQR] = useState(false);
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="font-display text-3xl font-bold mb-2">Speed Dating Valencia</h1>
+            <h1 className="font-display text-3xl font-bold mb-2">{eventData?.name || "Evento"}</h1>
             <p className="text-muted-foreground">Evento #{id} • {participants.length} participantes</p>
           </div>
           <div className="flex gap-3">
@@ -500,6 +563,16 @@ const [showQR, setShowQR] = useState(false);
           <AddParticipantModal
             onClose={() => setShowAddModal(false)}
             onAdd={handleAddParticipant}
+          />
+        )}
+
+        {/* Excel Preview Modal */}
+        {excelPreview && (
+          <ExcelPreviewModal
+            participants={excelPreview.participants}
+            errors={excelPreview.errors}
+            onConfirm={handleConfirmExcelImport}
+            onCancel={() => setExcelPreview(null)}
           />
         )}
       </main>
