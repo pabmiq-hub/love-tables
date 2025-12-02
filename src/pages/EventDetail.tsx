@@ -239,8 +239,8 @@ const EventDetail = () => {
   const exportToCSV = () => {
     if (participants.length === 0) return;
     
-    const headers = ["Nombre", "Rango Edad", "Edad Preferida", "Preferencia", "Género"];
-    const rows = participants.map(p => [p.name, p.ageRange, p.preferredAgeRange, p.preference, p.gender]);
+    const headers = ["Nombre", "Rango Edad", "Edad Preferida", "Preferencia", "Preferencia de Ligue", "Género"];
+    const rows = participants.map(p => [p.name, p.ageRange, p.preferredAgeRange, p.preference, p.datingPreference || "", p.gender]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -400,6 +400,7 @@ const EventDetail = () => {
                             <p className="font-medium">{participant.name}</p>
                             <p className="text-sm text-muted-foreground">
                               {participant.ageRange || "Sin rango"} • {participant.preference}
+                              {participant.datingPreference && ` • ${participant.datingPreference}`}
                             </p>
                           </div>
                         </div>

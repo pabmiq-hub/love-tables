@@ -98,17 +98,24 @@ function normalizePreferredAgeRange(value: string): string {
 }
 
 function normalizePreference(value: string): string {
-  const lower = value.toLowerCase();
-  if (lower.includes('ligue') || lower.includes('romance') || lower.includes('romántico') || lower.includes('cita')) {
+  const lower = value.toLowerCase().trim();
+  // Check for "ligue" alone or "amistad y ligue"
+  if (lower === 'ligue' || lower.includes('amistad y ligue') || lower.includes('romance') || lower.includes('romántico') || lower.includes('cita')) {
     return 'Amistad y ligue';
   }
   if (lower.includes('solo') && lower.includes('amistad')) {
     return 'Solo amistad';
   }
-  if (lower.includes('amistad')) {
+  if (lower === 'amistad' || lower.includes('solo amistad')) {
     return 'Solo amistad';
   }
-  return 'Amistad y ligue';
+  return value; // Return original if no match
+}
+
+// Check if preference requires dating preference
+function requiresDatingPreference(preference: string): boolean {
+  const lower = preference.toLowerCase().trim();
+  return lower === 'ligue' || lower === 'amistad y ligue' || lower.includes('ligue');
 }
 
 function normalizeDatingPreference(value: string): string {
@@ -230,9 +237,12 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
               gender: columnMap.gender !== undefined ? normalizeGender(String(row[columnMap.gender] || '')) : 'Prefiero no decirlo',
             };
             
-            // Add dating preference only if preference is "Amistad y ligue"
-            if (preference === 'Amistad y ligue' && columnMap.datingPreference !== undefined) {
-              participant.datingPreference = normalizeDatingPreference(String(row[columnMap.datingPreference] || ''));
+            // Add dating preference if preference includes "ligue"
+            if (requiresDatingPreference(preference) && columnMap.datingPreference !== undefined) {
+              const rawDatingPref = String(row[columnMap.datingPreference] || '').trim();
+              if (rawDatingPref) {
+                participant.datingPreference = normalizeDatingPreference(rawDatingPref);
+              }
             }
             
             participants.push(participant);
