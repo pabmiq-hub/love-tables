@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Heart, ArrowLeft, Upload, Users, Clock, Table2, Loader2 } from "lucide-react";
+import { Heart, ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { parseExcelFile, Participant } from "@/lib/excelParser";
+import AddParticipantModal from "@/components/event/AddParticipantModal";
+
+type ParticipantMode = "manual" | "excel" | "both";
 
 const CreateEvent = () => {
   const [step, setStep] = useState(1);
@@ -19,21 +23,48 @@ const CreateEvent = () => {
   const [tableSize, setTableSize] = useState(2);
   const [roundDuration, setRoundDuration] = useState(5);
   const [matchPreference, setMatchPreference] = useState("both");
+  const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         setExcelFile(file);
-        toast({
-          title: "Archivo cargado",
-          description: `${file.name} se ha cargado correctamente`,
-        });
+        setIsLoading(true);
+        
+        try {
+          const result = await parseExcelFile(file);
+          
+          if (result.success) {
+            setParticipants(prev => [...prev, ...result.participants]);
+            toast({
+              title: "Participantes cargados",
+              description: `Se han añadido ${result.participants.length} participantes del Excel`,
+            });
+          } else {
+            toast({
+              title: "Error al procesar Excel",
+              description: result.errors.join(". "),
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "No se pudo procesar el archivo Excel",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
       } else {
         toast({
           title: "Error",
@@ -44,17 +75,54 @@ const CreateEvent = () => {
     }
   };
 
+  const handleAddParticipant = (participant: Participant) => {
+    setParticipants(prev => [...prev, participant]);
+    toast({
+      title: "Participante añadido",
+      description: `${participant.name} ha sido añadido`,
+    });
+  };
+
+  const handleRemoveParticipant = (id: string) => {
+    setParticipants(prev => prev.filter(p => p.id !== id));
+  };
+
   const handleCreateEvent = () => {
     setIsLoading(true);
+    
+    // Generate event ID
+    const eventId = Math.random().toString(36).substring(2, 11);
+    
+    // Create event object
+    const newEvent = {
+      id: eventId,
+      name: eventName,
+      date: eventDate,
+      location: eventLocation,
+      rounds,
+      tableSize,
+      roundDuration,
+      matchPreference,
+      participants: participants.length,
+      status: "upcoming",
+      matches: 0,
+    };
+    
+    // Save event to localStorage
+    const existingEvents = JSON.parse(localStorage.getItem("events") || "[]");
+    localStorage.setItem("events", JSON.stringify([...existingEvents, newEvent]));
+    
+    // Save participants
+    localStorage.setItem(`event-${eventId}-participants`, JSON.stringify(participants));
     
     setTimeout(() => {
       toast({
         title: "Evento creado",
-        description: "Las mesas se han generado correctamente",
+        description: "El evento se ha creado correctamente",
       });
-      navigate("/admin/events/1");
+      navigate(`/admin/events/${eventId}`);
       setIsLoading(false);
-    }, 2000);
+    }, 1000);
   };
 
   const nextStep = () => {
@@ -66,10 +134,28 @@ const CreateEvent = () => {
       });
       return;
     }
+    if (step === 3 && !participantMode) {
+      toast({
+        title: "Error",
+        description: "Por favor, selecciona una opción",
+        variant: "destructive",
+      });
+      return;
+    }
     setStep(step + 1);
   };
 
   const prevStep = () => setStep(step - 1);
+
+  const canCreateEvent = () => {
+    if (participantMode === "manual" || participantMode === "both") {
+      return participants.length > 0;
+    }
+    if (participantMode === "excel") {
+      return excelFile && participants.length > 0;
+    }
+    return false;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,14 +185,14 @@ const CreateEvent = () => {
 
         {/* Progress indicator */}
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                 s <= step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}>
                 {s}
               </div>
-              {s < 3 && (
+              {s < 4 && (
                 <div className={`w-12 h-1 mx-2 rounded ${s < step ? 'bg-primary' : 'bg-muted'}`} />
               )}
             </div>
@@ -242,52 +328,183 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 3: Upload participants */}
+        {/* Step 3: Choose participant mode */}
         {step === 3 && (
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Cargar participantes</CardTitle>
+              <CardTitle>¿Cómo quieres añadir participantes?</CardTitle>
+              <CardDescription>Selecciona el método para registrar a los asistentes</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4">
+                <div
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    participantMode === "manual" 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  onClick={() => setParticipantMode("manual")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <UserPlus className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Solo manual</p>
+                      <p className="text-sm text-muted-foreground">Añadir participantes uno a uno</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    participantMode === "excel" 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  onClick={() => setParticipantMode("excel")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <FileSpreadsheet className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Solo Excel</p>
+                      <p className="text-sm text-muted-foreground">Cargar participantes desde un archivo</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                    participantMode === "both" 
+                      ? "border-primary bg-primary/5" 
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  onClick={() => setParticipantMode("both")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Excel + Manual</p>
+                      <p className="text-sm text-muted-foreground">Cargar Excel y añadir más manualmente</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" className="flex-1" onClick={prevStep}>
+                  Atrás
+                </Button>
+                <Button variant="hero" className="flex-1" onClick={nextStep} disabled={!participantMode}>
+                  Continuar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 4: Add participants */}
+        {step === 4 && (
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle>Añadir participantes</CardTitle>
               <CardDescription>
-                Sube un archivo Excel con la información de los participantes
+                {participantMode === "manual" && "Añade los participantes manualmente"}
+                {participantMode === "excel" && "Carga el archivo Excel con los participantes"}
+                {participantMode === "both" && "Carga el Excel y añade más participantes si lo necesitas"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="excel-upload"
-                />
-                <label htmlFor="excel-upload" className="cursor-pointer">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-8 h-8 text-primary" />
-                  </div>
-                  {excelFile ? (
-                    <>
-                      <p className="font-medium text-foreground">{excelFile.name}</p>
-                      <p className="text-sm text-muted-foreground mt-1">Haz clic para cambiar el archivo</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium text-foreground">Arrastra tu archivo Excel aquí</p>
-                      <p className="text-sm text-muted-foreground mt-1">o haz clic para seleccionar</p>
-                    </>
-                  )}
-                </label>
-              </div>
+              {/* Excel upload */}
+              {(participantMode === "excel" || participantMode === "both") && (
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="excel-upload"
+                  />
+                  <label htmlFor="excel-upload" className="cursor-pointer">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                      <Upload className="w-6 h-6 text-primary" />
+                    </div>
+                    {excelFile ? (
+                      <>
+                        <p className="font-medium text-foreground">{excelFile.name}</p>
+                        <p className="text-sm text-muted-foreground mt-1">Haz clic para cambiar</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-foreground">Arrastra tu archivo Excel aquí</p>
+                        <p className="text-sm text-muted-foreground mt-1">o haz clic para seleccionar</p>
+                      </>
+                    )}
+                  </label>
+                </div>
+              )}
 
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">Formato del Excel:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• <strong>Nombre y apellidos</strong></li>
-                  <li>• <strong>Rango de edad</strong> (ej: 25-30)</li>
-                  <li>• <strong>Rango de edad preferido</strong> (ej: 25-35)</li>
-                  <li>• <strong>Preferencia</strong> (amistad / amistad y ligue)</li>
-                  <li>• <strong>Género</strong> (hombre / mujer / otro)</li>
-                </ul>
-              </div>
+              {/* Excel format info */}
+              {(participantMode === "excel" || participantMode === "both") && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2">Formato del Excel:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• <strong>Nombre y apellidos</strong></li>
+                    <li>• <strong>Rango de edad</strong> (18–24, 25–32, 33–40, 41–50, + 50)</li>
+                    <li>• <strong>Género</strong> (Hombre, Mujer, No binario, Prefiero no decirlo)</li>
+                    <li>• <strong>Rango de edad preferido</strong></li>
+                    <li>• <strong>Preferencia</strong> (Amistad y ligue / Solo amistad)</li>
+                    <li>• <strong>Preferencia acerca de ligue</strong> (si aplica)</li>
+                  </ul>
+                </div>
+              )}
+
+              {/* Manual add button */}
+              {(participantMode === "manual" || participantMode === "both") && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Añadir participante
+                </Button>
+              )}
+
+              {/* Participants list */}
+              {participants.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Participantes ({participants.length})</h4>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {participants.map((p) => (
+                      <div 
+                        key={p.id} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.ageRange} • {p.gender} • {p.preference}
+                          </p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveParticipant(p.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={prevStep}>
@@ -297,23 +514,31 @@ const CreateEvent = () => {
                   variant="hero" 
                   className="flex-1" 
                   onClick={handleCreateEvent}
-                  disabled={!excelFile || isLoading}
+                  disabled={!canCreateEvent() || isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generando mesas...
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Creando...
                     </>
                   ) : (
                     <>
-                      <Users className="w-4 h-4" />
-                      Crear evento y generar mesas
+                      <Users className="w-4 h-4 mr-2" />
+                      Crear evento
                     </>
                   )}
                 </Button>
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Add Participant Modal */}
+        {showAddModal && (
+          <AddParticipantModal
+            onClose={() => setShowAddModal(false)}
+            onAdd={handleAddParticipant}
+          />
         )}
       </main>
     </div>

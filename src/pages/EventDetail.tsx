@@ -31,7 +31,8 @@ const EventDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
-  const [showQR, setShowQR] = useState(false);
+const [showQR, setShowQR] = useState(false);
+  const [showJoinQR, setShowJoinQR] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
@@ -217,6 +218,10 @@ const EventDetail = () => {
             <p className="text-muted-foreground">Evento #{id} • {participants.length} participantes</p>
           </div>
           <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setShowJoinQR(true)}>
+              <QrCode className="w-4 h-4 mr-2" />
+              QR Registro
+            </Button>
             {eventStatus === "pending" && (
               <Button variant="hero" onClick={handleStartEvent}>
                 <Play className="w-4 h-4 mr-2" />
@@ -232,7 +237,7 @@ const EventDetail = () => {
             {eventStatus === "completed" && (
               <Button variant="outline" onClick={() => setShowQR(true)}>
                 <QrCode className="w-4 h-4 mr-2" />
-                Mostrar QR
+                QR Matches
               </Button>
             )}
           </div>
@@ -480,9 +485,14 @@ const EventDetail = () => {
           </TabsContent>
         </Tabs>
 
-        {/* QR Modal */}
+        {/* QR Modal - Matches */}
         {showQR && (
-          <EventQRCode eventId={id || "1"} onClose={() => setShowQR(false)} />
+          <EventQRCode eventId={id || "1"} onClose={() => setShowQR(false)} type="select" />
+        )}
+
+        {/* QR Modal - Join/Registration */}
+        {showJoinQR && (
+          <EventQRCode eventId={id || "1"} onClose={() => setShowJoinQR(false)} type="join" />
         )}
 
         {/* Add Participant Modal */}
