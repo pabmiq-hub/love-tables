@@ -22,6 +22,7 @@ const ParticipantJoin = () => {
   const { toast } = useToast();
   
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState("");
@@ -81,6 +82,7 @@ const ParticipantJoin = () => {
     const { error } = await supabase.from("participants").insert({
       event_id: eventId,
       name: name.trim(),
+      phone: phone.trim() || null,
       age: parseInt(ageRange.split('–')[0]) || null,
       age_range: ageRange,
       preferred_age_range: preferredAgeRange,
@@ -100,25 +102,18 @@ const ParticipantJoin = () => {
     }
 
     // Update participant count
-    await supabase
+    const { data: eventData } = await supabase
       .from("events")
-      .update({ participants_count: undefined })
+      .select("participants_count")
       .eq("id", eventId)
-      .select()
-      .then(async () => {
-        // Get current count and update
-        const { data: eventData } = await supabase
-          .from("events")
-          .select("participants_count")
-          .eq("id", eventId)
-          .single();
-        if (eventData) {
-          await supabase
-            .from("events")
-            .update({ participants_count: (eventData.participants_count || 0) + 1 })
-            .eq("id", eventId);
-        }
-      });
+      .single();
+    
+    if (eventData) {
+      await supabase
+        .from("events")
+        .update({ participants_count: (eventData.participants_count || 0) + 1 })
+        .eq("id", eventId);
+    }
     
     setIsSubmitted(true);
     setIsSubmitting(false);
@@ -211,6 +206,17 @@ const ParticipantJoin = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ej: María García López"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Teléfono de contacto</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Ej: +34 612 345 678"
                 />
               </div>
               

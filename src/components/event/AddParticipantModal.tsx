@@ -22,6 +22,7 @@ interface AddParticipantModalProps {
 
 const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState("Amistad y ligue");
@@ -43,6 +44,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
       preferredAgeRange,
       preference,
       gender,
+      phone: phone.trim() || undefined,
     };
     
     if (preference === "Amistad y ligue" && datingPreference) {
@@ -78,6 +80,17 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ej: María García López"
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono de contacto</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ej: +34 612 345 678"
               />
             </div>
             
