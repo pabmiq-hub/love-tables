@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -11,6 +11,7 @@ import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,14 +28,28 @@ interface EventData {
   id: string;
   name: string;
   date: string;
-  location?: string;
   rounds: number;
-  tableSize: number;
-  roundDuration: number;
-  matchPreference: string;
-  participants: number;
+  table_size: number;
+  round_duration: number;
+  participants_count: number;
   status: string;
-  matches: number;
+  tables: any;
+}
+
+interface DbParticipant {
+  id: string;
+  name: string;
+  age: number | null;
+  age_range: string | null;
+  preferred_age_range: string | null;
+  preference: string | null;
+  dating_preference: string | null;
+  gender: string | null;
+}
+
+interface Match {
+  participant1: DbParticipant;
+  participant2: DbParticipant;
 }
 
 const EventDetail = () => {
@@ -43,40 +58,89 @@ const EventDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [eventData, setEventData] = useState<EventData | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participants, setParticipants] = useState<DbParticipant[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingExcel, setIsLoadingExcel] = useState(false);
   const [excelPreview, setExcelPreview] = useState<{participants: Participant[], errors: string[]} | null>(null);
 
-  // Load event data and participants from localStorage
   useEffect(() => {
-    const savedEvents = localStorage.getItem("events");
-    if (savedEvents) {
-      const events: EventData[] = JSON.parse(savedEvents);
-      const currentEvent = events.find(e => e.id === id);
-      if (currentEvent) {
-        setEventData(currentEvent);
-        if (currentEvent.status === "active") setEventStatus("active");
-        if (currentEvent.status === "completed") setEventStatus("completed");
-      }
-    }
-    
-    const savedParticipants = localStorage.getItem(`event-${id}-participants`);
-    if (savedParticipants) {
-      setParticipants(JSON.parse(savedParticipants));
-    }
+    loadEventData();
   }, [id]);
+
+  const loadEventData = async () => {
+    if (!id) return;
+
+    // Load event
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (eventError || !event) {
+      setIsLoading(false);
+      return;
+    }
+
+    setEventData(event);
+    setEventStatus(event.status as "pending" | "active" | "completed");
+
+    // Load participants
+    const { data: participantsData } = await supabase
+      .from("participants")
+      .select("*")
+      .eq("event_id", id);
+
+    if (participantsData) {
+      setParticipants(participantsData);
+    }
+
+    // Load matches (mutual selections)
+    const { data: selectionsData } = await supabase
+      .from("participant_selections")
+      .select("selector_id, selected_id")
+      .eq("event_id", id);
+
+    if (selectionsData && participantsData) {
+      const mutualMatches: Match[] = [];
+      const processed = new Set<string>();
+
+      selectionsData.forEach(sel => {
+        const key = [sel.selector_id, sel.selected_id].sort().join('-');
+        if (processed.has(key)) return;
+
+        const reverse = selectionsData.find(
+          s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id
+        );
+
+        if (reverse) {
+          const p1 = participantsData.find(p => p.id === sel.selector_id);
+          const p2 = participantsData.find(p => p.id === sel.selected_id);
+          if (p1 && p2) {
+            mutualMatches.push({ participant1: p1, participant2: p2 });
+          }
+          processed.add(key);
+        }
+      });
+
+      setMatches(mutualMatches);
+    }
+
+    setIsLoading(false);
+  };
 
   // Generate tables based on participants
   const generateTables = () => {
     if (participants.length < 2) return [];
     
     const tables = [];
-    const numRounds = Math.min(5, participants.length - 1);
+    const numRounds = Math.min(eventData?.rounds || 5, participants.length - 1);
     
     for (let round = 1; round <= numRounds; round++) {
       const roundTables = [];
@@ -113,8 +177,6 @@ const EventDetail = () => {
     
     try {
       const result = await parseExcelFile(file);
-      
-      // Show preview instead of directly adding
       setExcelPreview({
         participants: result.participants,
         errors: result.errors,
@@ -133,21 +195,42 @@ const EventDetail = () => {
     }
   };
 
-  const handleConfirmExcelImport = () => {
-    if (!excelPreview) return;
+  const handleConfirmExcelImport = async () => {
+    if (!excelPreview || !id) return;
     
-    const newParticipants = [...participants, ...excelPreview.participants];
-    setParticipants(newParticipants);
-    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
-    
-    // Update event participant count
-    const savedEvents = localStorage.getItem("events");
-    if (savedEvents) {
-      const events: EventData[] = JSON.parse(savedEvents);
-      const updatedEvents = events.map(e => 
-        e.id === id ? { ...e, participants: newParticipants.length } : e
-      );
-      localStorage.setItem("events", JSON.stringify(updatedEvents));
+    const participantsToInsert = excelPreview.participants.map(p => ({
+      event_id: id,
+      name: p.name,
+      age: p.age || null,
+      age_range: p.ageRange || null,
+      preferred_age_range: p.preferredAgeRange || null,
+      preference: p.preference || null,
+      dating_preference: p.datingPreference || null,
+      gender: p.gender || null,
+    }));
+
+    const { data: newParticipants, error } = await supabase
+      .from("participants")
+      .insert(participantsToInsert)
+      .select();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron añadir los participantes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newParticipants) {
+      setParticipants([...participants, ...newParticipants]);
+      
+      // Update participant count
+      await supabase
+        .from("events")
+        .update({ participants_count: participants.length + newParticipants.length })
+        .eq("id", id);
     }
     
     toast({
@@ -158,20 +241,40 @@ const EventDetail = () => {
     setExcelPreview(null);
   };
 
-  const handleAddParticipant = (participant: Participant) => {
-    const newParticipants = [...participants, participant];
-    setParticipants(newParticipants);
-    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
-    
-    // Update event participant count
-    const savedEvents = localStorage.getItem("events");
-    if (savedEvents) {
-      const events: EventData[] = JSON.parse(savedEvents);
-      const updatedEvents = events.map(e => 
-        e.id === id ? { ...e, participants: newParticipants.length } : e
-      );
-      localStorage.setItem("events", JSON.stringify(updatedEvents));
+  const handleAddParticipant = async (participant: Participant) => {
+    if (!id) return;
+
+    const { data: newParticipant, error } = await supabase
+      .from("participants")
+      .insert({
+        event_id: id,
+        name: participant.name,
+        age: participant.age || null,
+        age_range: participant.ageRange || null,
+        preferred_age_range: participant.preferredAgeRange || null,
+        preference: participant.preference || null,
+        dating_preference: participant.datingPreference || null,
+        gender: participant.gender || null,
+      })
+      .select()
+      .single();
+
+    if (error || !newParticipant) {
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el participante",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setParticipants([...participants, newParticipant]);
+    
+    // Update participant count
+    await supabase
+      .from("events")
+      .update({ participants_count: participants.length + 1 })
+      .eq("id", id);
     
     toast({
       title: "Participante añadido",
@@ -179,20 +282,29 @@ const EventDetail = () => {
     });
   };
 
-  const handleDeleteParticipant = (participantId: string) => {
+  const handleDeleteParticipant = async (participantId: string) => {
+    const { error } = await supabase
+      .from("participants")
+      .delete()
+      .eq("id", participantId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el participante",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newParticipants = participants.filter(p => p.id !== participantId);
     setParticipants(newParticipants);
-    localStorage.setItem(`event-${id}-participants`, JSON.stringify(newParticipants));
     
-    // Update event participant count
-    const savedEvents = localStorage.getItem("events");
-    if (savedEvents) {
-      const events: EventData[] = JSON.parse(savedEvents);
-      const updatedEvents = events.map(e => 
-        e.id === id ? { ...e, participants: newParticipants.length } : e
-      );
-      localStorage.setItem("events", JSON.stringify(updatedEvents));
-    }
+    // Update participant count
+    await supabase
+      .from("events")
+      .update({ participants_count: newParticipants.length })
+      .eq("id", id);
     
     toast({
       title: "Participante eliminado",
@@ -200,7 +312,7 @@ const EventDetail = () => {
     });
   };
 
-  const handleStartEvent = () => {
+  const handleStartEvent = async () => {
     if (participants.length < 2) {
       toast({
         title: "Error",
@@ -209,6 +321,12 @@ const EventDetail = () => {
       });
       return;
     }
+
+    await supabase
+      .from("events")
+      .update({ status: "active" })
+      .eq("id", id);
+
     setEventStatus("active");
     toast({
       title: "Evento iniciado",
@@ -216,7 +334,12 @@ const EventDetail = () => {
     });
   };
 
-  const handleEndEvent = () => {
+  const handleEndEvent = async () => {
+    await supabase
+      .from("events")
+      .update({ status: "completed" })
+      .eq("id", id);
+
     setEventStatus("completed");
     setShowQR(true);
     toast({
@@ -225,7 +348,8 @@ const EventDetail = () => {
     });
   };
 
-  const getGenderBadge = (gender: string) => {
+  const getGenderBadge = (gender: string | null) => {
+    if (!gender) return null;
     switch (gender) {
       case "Mujer":
         return <Badge variant="secondary" className="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">Mujer</Badge>;
@@ -240,7 +364,7 @@ const EventDetail = () => {
     if (participants.length === 0) return;
     
     const headers = ["Nombre", "Rango Edad", "Edad Preferida", "Preferencia", "Preferencia de Ligue", "Género"];
-    const rows = participants.map(p => [p.name, p.ageRange, p.preferredAgeRange, p.preference, p.datingPreference || "", p.gender]);
+    const rows = participants.map(p => [p.name, p.age_range, p.preferred_age_range, p.preference, p.dating_preference || "", p.gender]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -253,6 +377,29 @@ const EventDetail = () => {
     
     URL.revokeObjectURL(url);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!eventData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md text-center">
+          <CardContent className="pt-6">
+            <h2 className="font-display text-xl font-semibold mb-2">Evento no encontrado</h2>
+            <Link to="/admin/dashboard">
+              <Button variant="outline" className="mt-4">Volver al dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -277,8 +424,8 @@ const EventDetail = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="font-display text-3xl font-bold mb-2">{eventData?.name || "Evento"}</h1>
-            <p className="text-muted-foreground">Evento #{id} • {participants.length} participantes</p>
+            <h1 className="font-display text-3xl font-bold mb-2">{eventData.name}</h1>
+            <p className="text-muted-foreground">{participants.length} participantes</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setShowJoinQR(true)}>
@@ -318,7 +465,7 @@ const EventDetail = () => {
             </TabsTrigger>
             <TabsTrigger value="matches" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Heart className="w-4 h-4 mr-2" />
-              Matches
+              Matches ({matches.length})
             </TabsTrigger>
           </TabsList>
 
@@ -399,15 +546,15 @@ const EventDetail = () => {
                           <div>
                             <p className="font-medium">{participant.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {participant.ageRange || "Sin rango"} • {participant.preference}
-                              {participant.datingPreference && ` • ${participant.datingPreference}`}
+                              {participant.age_range || "Sin rango"} • {participant.preference}
+                              {participant.dating_preference && ` • ${participant.dating_preference}`}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           {getGenderBadge(participant.gender)}
                           <span className="text-sm text-muted-foreground hidden sm:inline">
-                            Busca: {participant.preferredAgeRange || "Sin preferencia"}
+                            Busca: {participant.preferred_age_range || "Sin preferencia"}
                           </span>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -445,10 +592,9 @@ const EventDetail = () => {
           {/* Tables Tab */}
           <TabsContent value="tables">
             <div className="space-y-6">
-              {/* Timer */}
               {eventStatus === "active" && tables.length > 0 && (
                 <RoundTimer
-                  roundDuration={5}
+                  roundDuration={Math.floor((eventData.round_duration || 300) / 60)}
                   currentRound={currentRound}
                   totalRounds={tables.length}
                   onRoundComplete={() => {
@@ -472,7 +618,6 @@ const EventDetail = () => {
                 </Card>
               ) : (
                 <>
-                  {/* Round selector */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Ronda:</span>
                     {tables.map((table) => (
@@ -494,7 +639,7 @@ const EventDetail = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {tables.find(t => t.round === currentRound)?.tables.map((table, tableIndex) => (
+                        {tables.find(t => t.round === currentRound)?.tables.map((table: DbParticipant[], tableIndex: number) => (
                           <Card key={tableIndex} className="bg-gradient-card">
                             <CardContent className="p-4">
                               <div className="flex items-center gap-2 mb-3">
@@ -526,24 +671,54 @@ const EventDetail = () => {
           <TabsContent value="matches">
             <Card>
               <CardHeader>
-                <CardTitle>Coincidencias</CardTitle>
+                <CardTitle>Coincidencias ({matches.length})</CardTitle>
                 <CardDescription>
-                  Los matches aparecerán aquí cuando los participantes voten
+                  Matches mutuos entre participantes
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                    <Heart className="w-8 h-8 text-muted-foreground" />
+                {matches.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Heart className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-display text-lg font-semibold mb-2">Sin matches todavía</h3>
+                    <p className="text-muted-foreground">
+                      {eventStatus === "completed" 
+                        ? "Espera a que los participantes voten usando el código QR"
+                        : "Finaliza el evento y comparte el código QR para que los participantes voten"
+                      }
+                    </p>
+                    <Button variant="outline" className="mt-4" onClick={loadEventData}>
+                      Actualizar matches
+                    </Button>
                   </div>
-                  <h3 className="font-display text-lg font-semibold mb-2">Sin matches todavía</h3>
-                  <p className="text-muted-foreground">
-                    {eventStatus === "completed" 
-                      ? "Espera a que los participantes voten usando el código QR"
-                      : "Finaliza el evento y comparte el código QR para que los participantes voten"
-                    }
-                  </p>
-                </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {matches.map((match, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex -space-x-2">
+                            <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
+                              {match.participant1.name.charAt(0)}
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
+                              {match.participant2.name.charAt(0)}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-medium">{match.participant1.name} & {match.participant2.name}</p>
+                            <p className="text-sm text-muted-foreground">¡Match mutuo! 💕</p>
+                          </div>
+                        </div>
+                        <Heart className="w-5 h-5 text-primary" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -551,12 +726,12 @@ const EventDetail = () => {
 
         {/* QR Modal - Matches */}
         {showQR && (
-          <EventQRCode eventId={id || "1"} onClose={() => setShowQR(false)} type="select" />
+          <EventQRCode eventId={id || ""} onClose={() => setShowQR(false)} type="select" />
         )}
 
         {/* QR Modal - Join/Registration */}
         {showJoinQR && (
-          <EventQRCode eventId={id || "1"} onClose={() => setShowJoinQR(false)} type="join" />
+          <EventQRCode eventId={id || ""} onClose={() => setShowJoinQR(false)} type="join" />
         )}
 
         {/* Add Participant Modal */}
