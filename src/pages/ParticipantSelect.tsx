@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, ArrowLeft, Check, Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { Heart, ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Participant {
   id: string;
@@ -15,40 +16,65 @@ interface Participant {
   gender?: string;
 }
 
+interface MatchSelection {
+  participantId: string;
+  friendship: boolean;
+  dating: boolean;
+}
+
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<"identify" | "select" | "done" | "error">("identify");
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [availableParticipants, setAvailableParticipants] = useState<Participant[]>([]);
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
-  const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
+  const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUserPreference, setCurrentUserPreference] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadParticipants = async () => {
+    const loadData = async () => {
       if (!eventId) {
         setStep("error");
         setIsLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
+      // Load participants
+      const { data: participantsData, error: participantsError } = await supabase
         .from("participants")
         .select("id, name, age_range, preferred_age_range, preference, gender")
         .eq("event_id", eventId);
 
-      if (error || !data || data.length === 0) {
+      if (participantsError || !participantsData || participantsData.length === 0) {
         setStep("error");
-      } else {
-        setParticipants(data);
+        setIsLoading(false);
+        return;
       }
+
+      // Load participants who have already submitted selections
+      const { data: selectionsData } = await supabase
+        .from("participant_selections")
+        .select("selector_id")
+        .eq("event_id", eventId);
+
+      // Get unique selector IDs (participants who already submitted)
+      const submittedIds = new Set(selectionsData?.map(s => s.selector_id) || []);
+
+      // Filter out participants who have already submitted
+      const available = participantsData.filter(p => !submittedIds.has(p.id));
+
+      setParticipants(participantsData);
+      setAvailableParticipants(available);
       setIsLoading(false);
     };
 
-    loadParticipants();
+    loadData();
   }, [eventId]);
 
+  // Filter other participants (exclude self)
   const otherParticipants = participants.filter(p => p.id !== selectedParticipant);
 
   const handleIdentify = () => {
@@ -60,28 +86,57 @@ const ParticipantSelect = () => {
       });
       return;
     }
+    
+    // Set current user's preference
+    const currentUser = participants.find(p => p.id === selectedParticipant);
+    setCurrentUserPreference(currentUser?.preference || null);
+    
+    // Initialize match selections for all other participants
+    setMatchSelections(otherParticipants.map(p => ({
+      participantId: p.id,
+      friendship: false,
+      dating: false,
+    })));
+    
     setStep("select");
   };
 
-  const toggleMatch = (id: string) => {
-    setSelectedMatches(prev => 
-      prev.includes(id) 
-        ? prev.filter(p => p !== id)
-        : [...prev, id]
+  const toggleSelection = (participantId: string, type: 'friendship' | 'dating') => {
+    setMatchSelections(prev => 
+      prev.map(ms => 
+        ms.participantId === participantId
+          ? { ...ms, [type]: !ms[type] }
+          : ms
+      )
     );
   };
+
+  const isUserInterestedInDating = currentUserPreference?.toLowerCase().includes('ligue');
 
   const handleSubmit = async () => {
     if (!selectedParticipant || !eventId) return;
 
     setIsSubmitting(true);
 
-    // Insert all selections
-    const selections = selectedMatches.map(selectedId => ({
-      event_id: eventId,
-      selector_id: selectedParticipant,
-      selected_id: selectedId,
-    }));
+    // Filter selections where at least one option is selected
+    const activeSelections = matchSelections.filter(ms => ms.friendship || ms.dating);
+
+    // Create selection records with selection_type
+    const selections = activeSelections.map(ms => {
+      let selectionType = 'friendship';
+      if (ms.friendship && ms.dating) {
+        selectionType = 'both';
+      } else if (ms.dating) {
+        selectionType = 'dating';
+      }
+      
+      return {
+        event_id: eventId,
+        selector_id: selectedParticipant,
+        selected_id: ms.participantId,
+        selection_type: selectionType,
+      };
+    });
 
     if (selections.length > 0) {
       const { error } = await supabase
@@ -105,6 +160,15 @@ const ParticipantSelect = () => {
     });
     setIsSubmitting(false);
     setStep("done");
+  };
+
+  const getSelectionState = (participantId: string) => {
+    return matchSelections.find(ms => ms.participantId === participantId) || { friendship: false, dating: false };
+  };
+
+  const hasAnySelection = (participantId: string) => {
+    const state = getSelectionState(participantId);
+    return state.friendship || state.dating;
   };
 
   if (isLoading) {
@@ -163,24 +227,37 @@ const ParticipantSelect = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 max-h-80 overflow-y-auto">
-              {participants.map((participant) => (
-                <button
-                  key={participant.id}
-                  onClick={() => setSelectedParticipant(participant.id)}
-                  className={`w-full p-4 rounded-lg text-left transition-all ${
-                    selectedParticipant === participant.id
-                      ? 'bg-primary text-primary-foreground shadow-soft'
-                      : 'bg-muted hover:bg-muted/80'
-                  }`}
-                >
-                  <span className="font-medium">{participant.name}</span>
-                </button>
-              ))}
-            </div>
-            <Button variant="hero" className="w-full" onClick={handleIdentify}>
-              Continuar
-            </Button>
+            {availableParticipants.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground">
+                  Todos los participantes ya han enviado sus selecciones.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-2 max-h-80 overflow-y-auto">
+                  {availableParticipants.map((participant) => (
+                    <button
+                      key={participant.id}
+                      onClick={() => setSelectedParticipant(participant.id)}
+                      className={`w-full p-4 rounded-lg text-left transition-all ${
+                        selectedParticipant === participant.id
+                          ? 'bg-primary text-primary-foreground shadow-soft'
+                          : 'bg-muted hover:bg-muted/80'
+                      }`}
+                    >
+                      <span className="font-medium">{participant.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <Button variant="hero" className="w-full" onClick={handleIdentify}>
+                  Continuar
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -191,27 +268,53 @@ const ParticipantSelect = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">¿Con quién conectaste?</CardTitle>
             <CardDescription>
-              Selecciona a las personas que te gustaría volver a ver
+              {isUserInterestedInDating 
+                ? "Selecciona a las personas y el tipo de conexión"
+                : "Selecciona a las personas que te gustaría volver a ver"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 max-h-80 overflow-y-auto">
-              {otherParticipants.map((person) => (
-                <button
-                  key={person.id}
-                  onClick={() => toggleMatch(person.id)}
-                  className={`w-full p-4 rounded-lg text-left transition-all flex items-center justify-between ${
-                    selectedMatches.includes(person.id)
-                      ? 'bg-primary text-primary-foreground shadow-soft'
-                      : 'bg-muted hover:bg-muted/80'
-                  }`}
-                >
-                  <span className="font-medium">{person.name}</span>
-                  {selectedMatches.includes(person.id) && (
-                    <Check className="w-5 h-5" />
-                  )}
-                </button>
-              ))}
+            <div className="grid gap-3 max-h-96 overflow-y-auto">
+              {otherParticipants.map((person) => {
+                const selectionState = getSelectionState(person.id);
+                const isSelected = hasAnySelection(person.id);
+                
+                return (
+                  <div
+                    key={person.id}
+                    className={`p-4 rounded-lg transition-all ${
+                      isSelected
+                        ? 'bg-primary/10 border-2 border-primary shadow-soft'
+                        : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
+                    }`}
+                  >
+                    <div className="font-medium mb-3">{person.name}</div>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={selectionState.friendship}
+                          onCheckedChange={() => toggleSelection(person.id, 'friendship')}
+                        />
+                        <span className="text-sm flex items-center gap-1">
+                          <Smile className="w-4 h-4" /> Amistad
+                        </span>
+                      </label>
+                      {isUserInterestedInDating && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={selectionState.dating}
+                            onCheckedChange={() => toggleSelection(person.id, 'dating')}
+                          />
+                          <span className="text-sm flex items-center gap-1">
+                            <Heart className="w-4 h-4" /> Ligue
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <p className="text-sm text-center text-muted-foreground">
               Si ambos os seleccionáis mutuamente, ¡es un match! 💕
