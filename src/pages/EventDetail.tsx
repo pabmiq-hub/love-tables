@@ -46,6 +46,7 @@ interface DbParticipant {
   dating_preference: string | null;
   gender: string | null;
   phone: string | null;
+  checked_in: boolean;
 }
 
 interface Match {
@@ -67,6 +68,7 @@ const EventDetail = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
+  const [showCheckinQR, setShowCheckinQR] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
@@ -180,50 +182,171 @@ const EventDetail = () => {
   };
 
   const saveTablesAndStart = async () => {
-    if (participants.length < 2) {
+    // Filter only checked-in participants
+    const checkedInParticipants = participants.filter(p => p.checked_in);
+    
+    if (checkedInParticipants.length < 2) {
       toast({
         title: "Error",
-        description: "Necesitas al menos 2 participantes para iniciar el evento",
+        description: "Necesitas al menos 2 participantes con check-in para iniciar el evento",
         variant: "destructive",
       });
       return;
     }
 
-    // Generate and save tables
-    const generatedTables = [];
-    const numRounds = Math.min(eventData?.rounds || 5, participants.length - 1);
-    
-    for (let round = 1; round <= numRounds; round++) {
-      const roundTables = [];
-      const shuffled = [...participants].sort(() => Math.random() - 0.5);
-      
-      for (let i = 0; i < shuffled.length; i += 2) {
-        if (i + 1 < shuffled.length) {
-          roundTables.push([
-            { id: shuffled[i].id, name: shuffled[i].name },
-            { id: shuffled[i + 1].id, name: shuffled[i + 1].name }
-          ]);
-        }
-      }
-      
-      generatedTables.push({ round, tables: roundTables });
+    // Remove non-checked-in participants from database
+    const nonCheckedInIds = participants.filter(p => !p.checked_in).map(p => p.id);
+    if (nonCheckedInIds.length > 0) {
+      await supabase
+        .from("participants")
+        .delete()
+        .in("id", nonCheckedInIds);
     }
+
+    // Generate smart tables based on preferences
+    const generatedTables = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2);
 
     // Save tables and update status
     await supabase
       .from("events")
       .update({ 
         tables: generatedTables,
-        status: "active" 
+        status: "active",
+        participants_count: checkedInParticipants.length
       })
       .eq("id", id);
 
-    setEventData(prev => prev ? { ...prev, tables: generatedTables } : prev);
+    setParticipants(checkedInParticipants);
+    setEventData(prev => prev ? { ...prev, tables: generatedTables, participants_count: checkedInParticipants.length } : prev);
     setEventStatus("active");
     toast({
       title: "Evento iniciado",
-      description: "Las mesas han sido generadas y guardadas",
+      description: `${nonCheckedInIds.length > 0 ? `Se eliminaron ${nonCheckedInIds.length} participantes sin check-in. ` : ""}Las mesas han sido generadas.`,
     });
+  };
+
+  // Smart table generation algorithm based on preferences
+  const generateSmartTables = (participantsList: DbParticipant[], numRounds: number, tableSize: number) => {
+    const tables = [];
+    const actualRounds = Math.min(numRounds, participantsList.length - 1);
+    
+    for (let round = 1; round <= actualRounds; round++) {
+      const roundTables = [];
+      const available = [...participantsList];
+      const paired = new Set<string>();
+      
+      while (available.length >= tableSize) {
+        const table: { id: string; name: string }[] = [];
+        
+        // Pick first person
+        const first = available.shift()!;
+        table.push({ id: first.id, name: first.name });
+        paired.add(first.id);
+        
+        // Find best matches for the table
+        for (let i = 1; i < tableSize && available.length > 0; i++) {
+          let bestMatch = 0;
+          let bestScore = -1;
+          
+          for (let j = 0; j < available.length; j++) {
+            const candidate = available[j];
+            const score = calculateCompatibilityScore(first, candidate);
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = j;
+            }
+          }
+          
+          const matched = available.splice(bestMatch, 1)[0];
+          table.push({ id: matched.id, name: matched.name });
+          paired.add(matched.id);
+        }
+        
+        roundTables.push(table);
+      }
+      
+      tables.push({ round, tables: roundTables });
+      
+      // Shuffle for next round to get different combinations
+      participantsList = [...participantsList].sort(() => Math.random() - 0.5);
+    }
+    
+    return tables;
+  };
+
+  // Calculate compatibility score between two participants
+  const calculateCompatibilityScore = (p1: DbParticipant, p2: DbParticipant): number => {
+    let score = 0;
+    
+    // Age range compatibility (check if each person's age is in the other's preferred range)
+    const p1AgeInP2Pref = checkAgeRangeMatch(p1.age_range, p2.preferred_age_range);
+    const p2AgeInP1Pref = checkAgeRangeMatch(p2.age_range, p1.preferred_age_range);
+    if (p1AgeInP2Pref && p2AgeInP1Pref) score += 3;
+    else if (p1AgeInP2Pref || p2AgeInP1Pref) score += 1;
+    
+    // Preference compatibility (both friendship, both dating, or mixed)
+    const bothFriendship = p1.preference === "Sólo amistad" && p2.preference === "Sólo amistad";
+    const bothDating = p1.preference === "Amistad y ligue" && p2.preference === "Amistad y ligue";
+    if (bothFriendship || bothDating) score += 2;
+    
+    // Dating preference compatibility (if both are looking for dating)
+    if (bothDating && p1.dating_preference && p2.dating_preference) {
+      if (areDatingPreferencesCompatible(p1.dating_preference, p1.gender, p2.dating_preference, p2.gender)) {
+        score += 3;
+      }
+    }
+    
+    return score;
+  };
+
+  const checkAgeRangeMatch = (personAge: string | null, preferredRange: string | null): boolean => {
+    if (!personAge || !preferredRange) return true; // No preference = accept all
+    if (preferredRange.includes("Cualquier rango")) return true;
+    return preferredRange.includes(personAge);
+  };
+
+  const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
+    const openPrefs = ["Estoy abierto a todo", "No binario"];
+    if (openPrefs.includes(pref1) || openPrefs.includes(pref2)) return true;
+    
+    // Check specific preferences
+    const p1LookingForWoman = pref1.includes("busco una mujer");
+    const p1LookingForMan = pref1.includes("busco un hombre");
+    const p2LookingForWoman = pref2.includes("busco una mujer");
+    const p2LookingForMan = pref2.includes("busco un hombre");
+    
+    const p1IsWoman = gender1 === "Mujer" || pref1.includes("Soy una mujer");
+    const p1IsMan = gender1 === "Hombre" || pref1.includes("Soy un hombre");
+    const p2IsWoman = gender2 === "Mujer" || pref2.includes("Soy una mujer");
+    const p2IsMan = gender2 === "Hombre" || pref2.includes("Soy un hombre");
+    
+    // Check mutual attraction
+    if (p1LookingForWoman && p2IsWoman && p2LookingForMan && p1IsMan) return true;
+    if (p1LookingForMan && p2IsMan && p2LookingForMan && p1IsMan) return true;
+    if (p1LookingForWoman && p2IsWoman && p2LookingForWoman && p1IsWoman) return true;
+    if (p1LookingForMan && p2IsMan && p2LookingForWoman && p1IsWoman) return true;
+    
+    return false;
+  };
+
+  const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from("participants")
+      .update({ checked_in: !currentStatus })
+      .eq("id", participantId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el check-in",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants(participants.map(p => 
+      p.id === participantId ? { ...p, checked_in: !currentStatus } : p
+    ));
   };
 
   const tables = generateTables();
@@ -477,13 +600,21 @@ const EventDetail = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display text-3xl font-bold mb-2">{eventData.name}</h1>
-            <p className="text-muted-foreground">{participants.length} participantes</p>
+            <p className="text-muted-foreground">
+              {participants.length} participantes • {participants.filter(p => p.checked_in).length} check-in ✅
+            </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={() => setShowJoinQR(true)}>
               <QrCode className="w-4 h-4 mr-2" />
               QR Registro
             </Button>
+            {eventStatus === "pending" && (
+              <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
+                <QrCode className="w-4 h-4 mr-2" />
+                QR Check-in
+              </Button>
+            )}
             {eventStatus === "pending" && (
               <Button variant="hero" onClick={handleStartEvent}>
                 <Play className="w-4 h-4 mr-2" />
@@ -588,15 +719,30 @@ const EventDetail = () => {
                     {participants.map((participant, index) => (
                       <div 
                         key={participant.id}
-                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50 animate-fade-in"
+                        className={`flex items-center justify-between p-4 rounded-lg animate-fade-in ${
+                          participant.checked_in ? "bg-primary/10 border border-primary/20" : "bg-muted/50"
+                        }`}
                         style={{ animationDelay: `${index * 0.05}s` }}
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium">
-                            {participant.name.charAt(0)}
-                          </div>
+                          <button
+                            onClick={() => handleToggleCheckin(participant.id, participant.checked_in)}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all ${
+                              participant.checked_in 
+                                ? "bg-primary text-primary-foreground" 
+                                : "bg-gradient-primary text-primary-foreground"
+                            }`}
+                            title={participant.checked_in ? "Desmarcar check-in" : "Marcar check-in"}
+                          >
+                            {participant.checked_in ? "✓" : participant.name.charAt(0)}
+                          </button>
                           <div>
-                            <p className="font-medium">{participant.name}</p>
+                            <p className="font-medium flex items-center gap-2">
+                              {participant.name}
+                              {participant.checked_in && (
+                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Check-in ✅</span>
+                              )}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               {participant.age_range || "Sin rango"} • {participant.preference}
                               {participant.dating_preference && ` • ${participant.dating_preference}`}
@@ -803,6 +949,11 @@ const EventDetail = () => {
         {/* QR Modal - Join/Registration */}
         {showJoinQR && (
           <EventQRCode eventId={id || ""} onClose={() => setShowJoinQR(false)} type="join" />
+        )}
+
+        {/* QR Modal - Check-in */}
+        {showCheckinQR && (
+          <EventQRCode eventId={id || ""} onClose={() => setShowCheckinQR(false)} type="checkin" />
         )}
 
         {/* Add Participant Modal */}

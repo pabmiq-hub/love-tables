@@ -7,16 +7,47 @@ import { useRef } from "react";
 interface EventQRCodeProps {
   eventId: string;
   onClose: () => void;
-  type?: "join" | "select"; // join = registration form, select = match selection
+  type?: "join" | "select" | "checkin"; // join = registration, select = match selection, checkin = attendance
 }
 
 const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) => {
   const qrRef = useRef<HTMLDivElement>(null);
   
   // Generate the URL based on type
-  const participantUrl = type === "join" 
-    ? `${window.location.origin}/event/${eventId}/join`
-    : `${window.location.origin}/event/${eventId}/select`;
+  const getUrl = () => {
+    switch (type) {
+      case "join":
+        return `${window.location.origin}/event/${eventId}/join`;
+      case "checkin":
+        return `${window.location.origin}/event/${eventId}/checkin`;
+      default:
+        return `${window.location.origin}/event/${eventId}/select`;
+    }
+  };
+  
+  const participantUrl = getUrl();
+  
+  const getTitle = () => {
+    switch (type) {
+      case "join":
+        return "QR de Registro";
+      case "checkin":
+        return "QR de Check-in";
+      default:
+        return "QR de Selección";
+    }
+  };
+  
+  const getDescription = () => {
+    switch (type) {
+      case "join":
+        return "Los participantes pueden escanear para unirse al evento";
+      case "checkin":
+        return "Los participantes pueden escanear para confirmar su asistencia";
+      default:
+        return "Los participantes pueden escanear para seleccionar sus matches";
+    }
+  };
 
   const handleDownload = () => {
     if (!qrRef.current) return;
@@ -56,15 +87,8 @@ const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) =>
           >
             <X className="w-4 h-4" />
           </Button>
-          <CardTitle>
-            {type === "join" ? "QR de Registro" : "QR de Selección"}
-          </CardTitle>
-          <CardDescription>
-            {type === "join" 
-              ? "Los participantes pueden escanear para unirse al evento"
-              : "Los participantes pueden escanear para seleccionar sus matches"
-            }
-          </CardDescription>
+          <CardTitle>{getTitle()}</CardTitle>
+          <CardDescription>{getDescription()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-6">
           <div 
