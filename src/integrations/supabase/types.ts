@@ -112,6 +112,7 @@ export type Database = {
         Row: {
           age: number | null
           age_range: string | null
+          checked_in: boolean | null
           created_at: string
           dating_preference: string | null
           event_id: string
@@ -125,6 +126,7 @@ export type Database = {
         Insert: {
           age?: number | null
           age_range?: string | null
+          checked_in?: boolean | null
           created_at?: string
           dating_preference?: string | null
           event_id: string
@@ -138,6 +140,7 @@ export type Database = {
         Update: {
           age?: number | null
           age_range?: string | null
+          checked_in?: boolean | null
           created_at?: string
           dating_preference?: string | null
           event_id?: string

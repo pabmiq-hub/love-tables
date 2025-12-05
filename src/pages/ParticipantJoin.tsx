@@ -79,6 +79,7 @@ const ParticipantJoin = () => {
 
     const preferredAgeRange = selectedAgeRanges.join(', ');
     
+    // Auto check-in when registering via QR
     const { error } = await supabase.from("participants").insert({
       event_id: eventId,
       name: name.trim(),
@@ -89,6 +90,7 @@ const ParticipantJoin = () => {
       preference,
       dating_preference: preference === "Amistad y ligue" ? datingPreference : null,
       gender,
+      checked_in: true, // Auto check-in
     });
 
     if (error) {
