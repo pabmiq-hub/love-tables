@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -616,10 +616,28 @@ const EventDetail = () => {
               </Button>
             )}
             {eventStatus === "pending" && (
-              <Button variant="hero" onClick={handleStartEvent}>
-                <Play className="w-4 h-4 mr-2" />
-                Iniciar evento
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="hero">
+                    <Play className="w-4 h-4 mr-2" />
+                    Cerrar inscripciones e iniciar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) serán eliminados y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleStartEvent}>
+                      Confirmar e iniciar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             {eventStatus === "active" && (
               <Button variant="hero" onClick={handleEndEvent}>
@@ -725,17 +743,13 @@ const EventDetail = () => {
                         style={{ animationDelay: `${index * 0.05}s` }}
                       >
                         <div className="flex items-center gap-4">
-                          <button
-                            onClick={() => handleToggleCheckin(participant.id, participant.checked_in)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all ${
-                              participant.checked_in 
-                                ? "bg-primary text-primary-foreground" 
-                                : "bg-gradient-primary text-primary-foreground"
-                            }`}
-                            title={participant.checked_in ? "Desmarcar check-in" : "Marcar check-in"}
-                          >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
+                            participant.checked_in 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-gradient-primary text-primary-foreground"
+                          }`}>
                             {participant.checked_in ? "✓" : participant.name.charAt(0)}
-                          </button>
+                          </div>
                           <div>
                             <p className="font-medium flex items-center gap-2">
                               {participant.name}
@@ -749,11 +763,22 @@ const EventDetail = () => {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           {getGenderBadge(participant.gender)}
                           <span className="text-sm text-muted-foreground hidden sm:inline">
                             Busca: {participant.preferred_age_range || "Sin preferencia"}
                           </span>
+                          {eventStatus === "pending" && (
+                            <Button
+                              variant={participant.checked_in ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleToggleCheckin(participant.id, participant.checked_in)}
+                              className={participant.checked_in ? "bg-primary hover:bg-primary/90" : ""}
+                            >
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              <span className="hidden sm:inline">{participant.checked_in ? "Confirmado" : "Check-in"}</span>
+                            </Button>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
@@ -804,7 +829,25 @@ const EventDetail = () => {
                 />
               )}
 
-              {tables.length === 0 ? (
+              {eventStatus === "pending" ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Table2 className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-display text-lg font-semibold mb-2">Inscripciones abiertas</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Las mesas se generarán automáticamente cuando cierres las inscripciones e inicies el evento.
+                      <br />
+                      <span className="text-sm">Participantes con check-in: {participants.filter(p => p.checked_in).length} de {participants.length}</span>
+                    </p>
+                    <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
+                      <QrCode className="w-4 h-4 mr-2" />
+                      Ver QR Check-in
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : tables.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
