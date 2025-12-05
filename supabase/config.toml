@@ -1,1 +1,7 @@
 project_id = "wvmrmapnzdixesfasivs"
+
+[functions.get-event-participants]
+verify_jwt = false
+
+[functions.checkin-participant]
+verify_jwt = false
