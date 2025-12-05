@@ -6,6 +6,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple in-memory rate limiter (per IP, max 5 check-ins per minute)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  
+  if (entry.count >= MAX_REQUESTS_PER_WINDOW) {
+    return true;
+  }
+  
+  entry.count++;
+  return false;
+}
+
+// Clean up old entries periodically (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap.entries()) {
+    if (now > entry.resetTime) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 300000);
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -13,6 +45,22 @@ serve(async (req) => {
   }
 
   try {
+    // Get client IP for rate limiting
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+      || req.headers.get('x-real-ip') 
+      || 'unknown';
+    
+    console.log(`[checkin-participant] Request from IP: ${clientIP}`);
+    
+    // Check rate limit
+    if (isRateLimited(clientIP)) {
+      console.warn(`[checkin-participant] Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please wait a minute before trying again.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { eventId, participantId } = await req.json();
     
     console.log(`[checkin-participant] Check-in request for participant: ${participantId} in event: ${eventId}`);
@@ -25,10 +73,43 @@ serve(async (req) => {
       );
     }
 
+    // Validate UUID format to prevent injection
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(eventId) || !uuidRegex.test(participantId)) {
+      console.error('[checkin-participant] Invalid UUID format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Create Supabase client with service role to bypass RLS
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the event exists and is in pending status (registrations still open)
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('id, status')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !event) {
+      console.error('[checkin-participant] Event not found:', eventError);
+      return new Response(
+        JSON.stringify({ error: 'Event not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (event.status !== 'pending') {
+      console.log('[checkin-participant] Event registrations are closed');
+      return new Response(
+        JSON.stringify({ error: 'Event registrations are closed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verify the participant belongs to the event and isn't already checked in
     const { data: participant, error: participantError } = await supabase
