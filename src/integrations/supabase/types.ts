@@ -122,6 +122,7 @@ export type Database = {
           phone: string | null
           preference: string | null
           preferred_age_range: string | null
+          selection_submitted_at: string | null
         }
         Insert: {
           age?: number | null
@@ -136,6 +137,7 @@ export type Database = {
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
+          selection_submitted_at?: string | null
         }
         Update: {
           age?: number | null
@@ -150,6 +152,7 @@ export type Database = {
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
+          selection_submitted_at?: string | null
         }
         Relationships: [
           {

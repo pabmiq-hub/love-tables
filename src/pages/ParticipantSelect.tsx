@@ -10,10 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface Participant {
   id: string;
   name: string;
-  age_range?: string;
-  preferred_age_range?: string;
   preference?: string;
-  gender?: string;
 }
 
 interface MatchSelection {
@@ -42,29 +39,23 @@ const ParticipantSelect = () => {
         return;
       }
 
-      // Load participants
-      const { data: participantsData, error: participantsError } = await supabase
-        .from("participants")
-        .select("id, name, age_range, preferred_age_range, preference, gender")
-        .eq("event_id", eventId);
+      // Use secure edge function to get participant data (names and preferences only)
+      const { data, error } = await supabase.functions.invoke('get-event-participants', {
+        body: { eventId, type: 'select' }
+      });
 
-      if (participantsError || !participantsData || participantsData.length === 0) {
+      if (error || data?.error || !data?.participants || data.participants.length === 0) {
+        console.error('Error loading participants:', error || data?.error);
         setStep("error");
         setIsLoading(false);
         return;
       }
 
-      // Load participants who have already submitted selections
-      const { data: selectionsData } = await supabase
-        .from("participant_selections")
-        .select("selector_id")
-        .eq("event_id", eventId);
-
-      // Get unique selector IDs (participants who already submitted)
-      const submittedIds = new Set(selectionsData?.map(s => s.selector_id) || []);
+      const participantsData = data.participants;
+      const submittedIds = new Set(data.submittedIds || []);
 
       // Filter out participants who have already submitted
-      const available = participantsData.filter(p => !submittedIds.has(p.id));
+      const available = participantsData.filter((p: Participant) => !submittedIds.has(p.id));
 
       setParticipants(participantsData);
       setAvailableParticipants(available);
@@ -144,9 +135,10 @@ const ParticipantSelect = () => {
         .insert(selections);
 
       if (error) {
+        console.error('Error saving selections:', error);
         toast({
           title: "Error",
-          description: "No se pudieron guardar las selecciones. Inténtalo de nuevo.",
+          description: "No se pudieron guardar las selecciones. Es posible que ya hayas enviado tus selecciones.",
           variant: "destructive",
         });
         setIsSubmitting(false);

@@ -33,33 +33,20 @@ const ParticipantCheckin = () => {
         return;
       }
 
-      // Check event exists
-      const { data: event, error: eventError } = await supabase
-        .from("events")
-        .select("id, status")
-        .eq("id", eventId)
-        .single();
+      // Use secure edge function to get participant names only
+      const { data, error } = await supabase.functions.invoke('get-event-participants', {
+        body: { eventId, type: 'checkin' }
+      });
 
-      if (eventError || !event) {
+      if (error || data?.error) {
+        console.error('Error loading participants:', error || data?.error);
         setEventExists(false);
         setIsLoading(false);
         return;
       }
 
       setEventExists(true);
-
-      // Load participants that are NOT checked in yet
-      const { data: participantsData } = await supabase
-        .from("participants")
-        .select("id, name, checked_in")
-        .eq("event_id", eventId)
-        .eq("checked_in", false)
-        .order("name");
-
-      if (participantsData) {
-        setParticipants(participantsData);
-      }
-
+      setParticipants(data.participants || []);
       setIsLoading(false);
     };
 
@@ -67,19 +54,19 @@ const ParticipantCheckin = () => {
   }, [eventId]);
 
   const handleCheckin = async () => {
-    if (!selectedId) return;
+    if (!selectedId || !eventId) return;
 
     setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from("participants")
-      .update({ checked_in: true })
-      .eq("id", selectedId);
+    // Use secure edge function to perform check-in
+    const { data, error } = await supabase.functions.invoke('checkin-participant', {
+      body: { eventId, participantId: selectedId }
+    });
 
-    if (error) {
+    if (error || data?.error) {
       toast({
         title: "Error",
-        description: "No se pudo realizar el check-in. Inténtalo de nuevo.",
+        description: data?.error || "No se pudo realizar el check-in. Inténtalo de nuevo.",
         variant: "destructive",
       });
       setIsSubmitting(false);
