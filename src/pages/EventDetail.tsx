@@ -1291,17 +1291,11 @@ const EventDetail = () => {
           <TabsContent value="matches">
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>Coincidencias ({matches.length})</CardTitle>
-                    <CardDescription>
-                      Matches mutuos entre participantes
-                    </CardDescription>
-                  </div>
-                  <Button variant="outline" onClick={() => setShowQR(true)}>
-                    <QrCode className="w-4 h-4 mr-2" />
-                    QR Selección
-                  </Button>
+                <div>
+                  <CardTitle>Coincidencias ({matches.length})</CardTitle>
+                  <CardDescription>
+                    Matches mutuos entre participantes
+                  </CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
