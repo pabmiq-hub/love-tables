@@ -40,10 +40,10 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // First verify the event exists
+    // First verify the event exists and get tables
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status')
+      .select('id, status, tables')
       .eq('id', eventId)
       .single();
 
@@ -82,6 +82,7 @@ serve(async (req) => {
     
     if (type === 'select') {
       // For selection: return names and IDs only, plus who has already submitted
+      // Also include tables data so the frontend can filter by tablemates
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
         .select('id, name, preference')
@@ -111,7 +112,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           participants: participants || [],
-          submittedIds 
+          submittedIds,
+          tables: event.tables || []
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
