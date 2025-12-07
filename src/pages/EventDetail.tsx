@@ -1318,38 +1318,44 @@ const EventDetail = () => {
 
         {/* Table Generation Confirmation Dialog */}
         <AlertDialog open={showTableConfirmDialog} onOpenChange={setShowTableConfirmDialog}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle>Mesas incompletas detectadas</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3">
-                <p>
-                  {pendingTableGeneration?.incompleteInfo || "No se pudieron completar todas las mesas siguiendo estrictamente las preferencias de los participantes."}
-                </p>
-                <p className="font-medium">¿Qué deseas hacer?</p>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <p>
+                    {pendingTableGeneration?.incompleteInfo || "Algunas mesas no pudieron completarse con las preferencias óptimas."}
+                  </p>
+                  <p className="font-medium">¿Qué deseas hacer?</p>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-              <AlertDialogCancel 
+            <div className="flex flex-col gap-2 mt-4">
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={handleConfirmWithRelax}
+              >
+                Rellenar con preferencias similares
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleConfirmWithIncomplete}
+              >
+                Continuar con mesas incompletas
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
                 onClick={() => {
                   setPendingTableGeneration(null);
                   setShowTableConfirmDialog(false);
                 }}
               >
                 Cancelar
-              </AlertDialogCancel>
-              <Button
-                variant="outline"
-                onClick={handleConfirmWithIncomplete}
-              >
-                Continuar con mesas incompletas
               </Button>
-              <Button
-                variant="default"
-                onClick={handleConfirmWithRelax}
-              >
-                Rellenar con preferencias similares
-              </Button>
-            </AlertDialogFooter>
+            </div>
           </AlertDialogContent>
         </AlertDialog>
       </main>
