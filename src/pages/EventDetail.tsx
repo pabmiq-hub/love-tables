@@ -35,6 +35,7 @@ interface EventData {
   status: string;
   tables: any;
   rotation_mode: "fixed_host" | "all_rotate";
+  gender_parity: boolean;
 }
 
 interface DbParticipant {
@@ -106,7 +107,8 @@ const EventDetail = () => {
 
     setEventData({
       ...event,
-      rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host"
+      rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host",
+      gender_parity: event.gender_parity || false
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
 
@@ -207,7 +209,7 @@ const EventDetail = () => {
     }
 
     // Generate smart tables based on preferences
-    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2);
+    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, false, eventData?.gender_parity || false);
     
     if (result.hasIncomplete) {
       // Show confirmation dialog asking what to do
@@ -255,7 +257,7 @@ const EventDetail = () => {
     
     const checkedInParticipants = participants.filter(p => p.checked_in);
     // Generate tables with relaxed constraints (fill with similar preferences)
-    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, true);
+    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, true, eventData?.gender_parity || false);
     await finalizeTableGeneration(result.tables, checkedInParticipants);
   };
 
@@ -287,15 +289,65 @@ const EventDetail = () => {
     participantsList: DbParticipant[], 
     numRounds: number, 
     tableSize: number,
-    relaxConstraints: boolean = false
+    relaxConstraints: boolean = false,
+    genderParity: boolean = false
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity);
     }
+  };
+
+  // Helper function to count genders in a table
+  const countTableGenders = (tableMembers: { id: string; name: string }[], participantsList: DbParticipant[]) => {
+    let men = 0;
+    let women = 0;
+    let other = 0;
+    
+    for (const member of tableMembers) {
+      const participant = participantsList.find(p => p.id === member.id);
+      if (participant?.gender === "Hombre") men++;
+      else if (participant?.gender === "Mujer") women++;
+      else other++;
+    }
+    
+    return { men, women, other };
+  };
+
+  // Helper function to check if adding a participant would maintain gender balance
+  const wouldMaintainGenderBalance = (
+    participant: DbParticipant, 
+    tableMembers: { id: string; name: string }[], 
+    participantsList: DbParticipant[],
+    targetSize: number,
+    menAvailable: number,
+    womenAvailable: number
+  ): boolean => {
+    const { men, women } = countTableGenders(tableMembers, participantsList);
+    const targetPerGender = Math.floor(targetSize / 2);
+    
+    // If minority gender, always allow
+    const participantGender = participant.gender;
+    
+    if (participantGender === "Hombre") {
+      // Check if we still need men
+      if (men < targetPerGender) return true;
+      // If we have enough men, only add if we can't find women
+      if (womenAvailable === 0 && women >= targetPerGender) return true;
+      return false;
+    } else if (participantGender === "Mujer") {
+      // Check if we still need women
+      if (women < targetPerGender) return true;
+      // If we have enough women, only add if we can't find men
+      if (menAvailable === 0 && men >= targetPerGender) return true;
+      return false;
+    }
+    
+    // Non-binary or unknown - always allow
+    return true;
   };
 
   // All rotate mode: everyone changes tables each round
@@ -303,7 +355,8 @@ const EventDetail = () => {
     participantsList: DbParticipant[], 
     numRounds: number, 
     tableSize: number,
-    relaxConstraints: boolean = false
+    relaxConstraints: boolean = false,
+    genderParity: boolean = false
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -334,8 +387,22 @@ const EventDetail = () => {
         // Find best participants for this table
         const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
         
+        // Count available genders for parity
+        const menAvailable = availableParticipants.filter(p => p.gender === "Hombre").length;
+        const womenAvailable = availableParticipants.filter(p => p.gender === "Mujer").length;
+        
         for (const participant of availableParticipants) {
           if (table.length >= targetSize) break;
+          
+          // Check gender parity if enabled
+          if (genderParity && table.length > 0) {
+            const remainingMen = availableParticipants.filter(p => !usedParticipants.has(p.id) && p.gender === "Hombre").length;
+            const remainingWomen = availableParticipants.filter(p => !usedParticipants.has(p.id) && p.gender === "Mujer").length;
+            
+            if (!wouldMaintainGenderBalance(participant, table, participantsList, targetSize, remainingMen, remainingWomen)) {
+              continue;
+            }
+          }
           
           // Check compatibility with existing table members
           let canJoin = true;
@@ -354,8 +421,8 @@ const EventDetail = () => {
           }
         }
         
-        // Fill remaining if relaxed
-        if (relaxConstraints && table.length < targetSize) {
+        // Fill remaining if relaxed or if gender parity couldn't be achieved
+        if ((relaxConstraints || genderParity) && table.length < targetSize) {
           for (const participant of availableParticipants) {
             if (table.length >= targetSize) break;
             if (!usedParticipants.has(participant.id)) {
@@ -401,7 +468,8 @@ const EventDetail = () => {
     participantsList: DbParticipant[], 
     numRounds: number, 
     tableSize: number,
-    relaxConstraints: boolean = false
+    relaxConstraints: boolean = false,
+    genderParity: boolean = false
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -469,6 +537,10 @@ const EventDetail = () => {
         
         const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
         
+        // Count available genders for parity
+        const menAvailable = availableRotators.filter(r => r.gender === "Hombre").length;
+        const womenAvailable = availableRotators.filter(r => r.gender === "Mujer").length;
+
         const scoredRotators = availableRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
           
@@ -491,6 +563,22 @@ const EventDetail = () => {
             }
           });
           
+          // Add gender parity bonus/penalty
+          if (genderParity) {
+            const { men, women } = countTableGenders(table, participantsList);
+            const targetPerGender = Math.floor(targetSize / 2);
+            
+            if (rotator.gender === "Hombre" && men < targetPerGender) {
+              score += 10; // Bonus for balancing
+            } else if (rotator.gender === "Mujer" && women < targetPerGender) {
+              score += 10; // Bonus for balancing
+            } else if (rotator.gender === "Hombre" && men >= targetPerGender && womenAvailable > 0) {
+              score -= 20; // Penalty if we have enough men but need women
+            } else if (rotator.gender === "Mujer" && women >= targetPerGender && menAvailable > 0) {
+              score -= 20; // Penalty if we have enough women but need men
+            }
+          }
+          
           return { rotator, score };
         }).sort((a, b) => b.score - a.score);
         
@@ -511,7 +599,7 @@ const EventDetail = () => {
           filledSeats++;
         }
         
-        if (relaxConstraints && filledSeats < seatsNeeded) {
+        if ((relaxConstraints || genderParity) && filledSeats < seatsNeeded) {
           for (const { rotator } of scoredRotators) {
             if (filledSeats >= seatsNeeded) break;
             if (usedRotators.has(rotator.id)) continue;
