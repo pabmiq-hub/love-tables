@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.checkin-participant]
 verify_jwt = false
+
+[functions.submit-selections]
+verify_jwt = false
