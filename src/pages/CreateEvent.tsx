@@ -27,6 +27,7 @@ const CreateEvent = () => {
   const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
   const [matchPreference, setMatchPreference] = useState("both");
   const [rotationMode, setRotationMode] = useState<"fixed_host" | "all_rotate">("fixed_host");
+  const [genderParity, setGenderParity] = useState(false);
   const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -124,6 +125,7 @@ const CreateEvent = () => {
         status: "pending",
         organizer_id: user.id,
         rotation_mode: rotationMode,
+        gender_parity: genderParity,
       })
       .select()
       .single();
@@ -395,6 +397,28 @@ const CreateEvent = () => {
                     }
                   </p>
                 </div>
+
+                {/* Gender parity option - only show for friendship events */}
+                {(matchPreference === "friendship" || matchPreference === "both") && (
+                  <div className="space-y-2">
+                    <Label>Paridad de géneros</Label>
+                    <Select value={genderParity ? "yes" : "no"} onValueChange={(v) => setGenderParity(v === "yes")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No aplicar paridad</SelectItem>
+                        <SelectItem value="yes">Aplicar paridad de géneros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {genderParity 
+                        ? "Se intentará equilibrar géneros en cada mesa (ej: 2 hombres y 2 mujeres en mesa de 4)"
+                        : "Los participantes se asignan según preferencias sin considerar paridad de género"
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">

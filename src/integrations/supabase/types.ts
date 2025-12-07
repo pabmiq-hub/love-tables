@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          gender_parity: boolean | null
           id: string
           name: string
           organizer_id: string | null
@@ -33,6 +34,7 @@ export type Database = {
         Insert: {
           created_at?: string
           date: string
+          gender_parity?: boolean | null
           id?: string
           name: string
           organizer_id?: string | null
@@ -48,6 +50,7 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
+          gender_parity?: boolean | null
           id?: string
           name?: string
           organizer_id?: string | null
