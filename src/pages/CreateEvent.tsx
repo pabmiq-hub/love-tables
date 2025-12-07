@@ -26,6 +26,7 @@ const CreateEvent = () => {
   const [roundDuration, setRoundDuration] = useState(5);
   const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
   const [matchPreference, setMatchPreference] = useState("both");
+  const [rotationMode, setRotationMode] = useState<"fixed_host" | "all_rotate">("fixed_host");
   const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -122,6 +123,7 @@ const CreateEvent = () => {
         participants_count: participants.length,
         status: "pending",
         organizer_id: user.id,
+        rotation_mode: rotationMode,
       })
       .select()
       .single();
@@ -373,6 +375,25 @@ const CreateEvent = () => {
                       <SelectItem value="romance">Solo romance</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Rotación de mesas</Label>
+                  <Select value={rotationMode} onValueChange={(v) => setRotationMode(v as "fixed_host" | "all_rotate")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed_host">Un participante fijo por mesa</SelectItem>
+                      <SelectItem value="all_rotate">Todos los participantes rotan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {rotationMode === "fixed_host" 
+                      ? "Un participante se mantiene en cada mesa y los demás rotan"
+                      : "Todos los participantes cambian de mesa en cada ronda"
+                    }
+                  </p>
                 </div>
               </div>
 

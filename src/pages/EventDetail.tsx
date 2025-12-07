@@ -34,6 +34,7 @@ interface EventData {
   participants_count: number;
   status: string;
   tables: any;
+  rotation_mode: "fixed_host" | "all_rotate";
 }
 
 interface DbParticipant {
@@ -103,7 +104,10 @@ const EventDetail = () => {
       return;
     }
 
-    setEventData(event);
+    setEventData({
+      ...event,
+      rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host"
+    });
     setEventStatus(event.status as "pending" | "active" | "completed");
 
     // Load participants
@@ -277,9 +281,123 @@ const EventDetail = () => {
     return Math.abs(idx1 - idx2);
   };
 
-  // Smart table generation algorithm based on preferences with fixed-seat format
-  // One person stays at each table (table "hosts") while others rotate
+  // Smart table generation algorithm based on preferences
+  // Supports two modes: fixed_host (one stays) or all_rotate (everyone moves)
   const generateSmartTables = (
+    participantsList: DbParticipant[], 
+    numRounds: number, 
+    tableSize: number,
+    relaxConstraints: boolean = false
+  ): TableGenerationResult => {
+    const rotationMode = eventData?.rotation_mode || "fixed_host";
+    
+    if (rotationMode === "all_rotate") {
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints);
+    } else {
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints);
+    }
+  };
+
+  // All rotate mode: everyone changes tables each round
+  const generateAllRotateTables = (
+    participantsList: DbParticipant[], 
+    numRounds: number, 
+    tableSize: number,
+    relaxConstraints: boolean = false
+  ): TableGenerationResult => {
+    const tables = [];
+    const numParticipants = participantsList.length;
+    const numTables = Math.ceil(numParticipants / tableSize);
+    
+    // Track who has been paired with whom across all rounds
+    const pairedHistory = new Map<string, Set<string>>();
+    participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
+    
+    // Sort participants by age range for better initial grouping
+    const sortedParticipants = [...participantsList].sort((a, b) => {
+      const aIdx = AGE_RANGE_ORDER.findIndex(r => a.age_range?.includes(r));
+      const bIdx = AGE_RANGE_ORDER.findIndex(r => b.age_range?.includes(r));
+      return aIdx - bIdx;
+    });
+    
+    let hasIncomplete = false;
+    
+    for (let round = 1; round <= numRounds; round++) {
+      const roundTables: { id: string; name: string }[][] = [];
+      const usedParticipants = new Set<string>();
+      
+      // Create tables for this round
+      for (let tableIdx = 0; tableIdx < numTables; tableIdx++) {
+        const table: { id: string; name: string }[] = [];
+        const targetSize = Math.min(tableSize, numParticipants - usedParticipants.size);
+        
+        // Find best participants for this table
+        const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
+        
+        for (const participant of availableParticipants) {
+          if (table.length >= targetSize) break;
+          
+          // Check compatibility with existing table members
+          let canJoin = true;
+          if (!relaxConstraints) {
+            for (const member of table) {
+              if (pairedHistory.get(participant.id)?.has(member.id)) {
+                canJoin = false;
+                break;
+              }
+            }
+          }
+          
+          if (canJoin || table.length === 0) {
+            table.push({ id: participant.id, name: participant.name });
+            usedParticipants.add(participant.id);
+          }
+        }
+        
+        // Fill remaining if relaxed
+        if (relaxConstraints && table.length < targetSize) {
+          for (const participant of availableParticipants) {
+            if (table.length >= targetSize) break;
+            if (!usedParticipants.has(participant.id)) {
+              table.push({ id: participant.id, name: participant.name });
+              usedParticipants.add(participant.id);
+            }
+          }
+        }
+        
+        if (table.length < Math.min(2, targetSize)) {
+          hasIncomplete = true;
+        }
+        
+        // Record pairings
+        for (let i = 0; i < table.length; i++) {
+          for (let j = i + 1; j < table.length; j++) {
+            pairedHistory.get(table[i].id)?.add(table[j].id);
+            pairedHistory.get(table[j].id)?.add(table[i].id);
+          }
+        }
+        
+        if (table.length > 0) {
+          roundTables.push(table);
+        }
+      }
+      
+      // Shuffle for next round
+      const first = sortedParticipants.shift()!;
+      sortedParticipants.push(first);
+      
+      tables.push({ round, tables: roundTables });
+    }
+    
+    return {
+      tables,
+      hasIncomplete,
+      incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse evitando repeticiones." : "",
+    };
+  };
+
+  // Fixed host mode: one person stays at each table, others rotate
+  const generateFixedHostTables = (
     participantsList: DbParticipant[], 
     numRounds: number, 
     tableSize: number,
@@ -289,36 +407,20 @@ const EventDetail = () => {
     const numParticipants = participantsList.length;
     
     // Calculate balanced table distribution
-    // Prefer balanced sizes (e.g., two tables of 3 over one of 2 and one of 4)
     const numTables = Math.ceil(numParticipants / tableSize);
     const baseParticipantsPerTable = Math.floor(numParticipants / numTables);
     const tablesWithExtra = numParticipants % numTables;
-    
-    // This creates a more balanced distribution
-    // e.g., 7 participants with tableSize 4: 2 tables -> 4+3 instead of trying 4+4
-    // e.g., 8 participants with tableSize 5: 2 tables -> 4+4 instead of 5+3
     
     // Track who has been paired with whom across all rounds
     const pairedHistory = new Map<string, Set<string>>();
     participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
     
-    // Group participants by age range for better matching
-    const byAgeRange = new Map<string, DbParticipant[]>();
-    participantsList.forEach(p => {
-      const range = p.age_range || "unknown";
-      if (!byAgeRange.has(range)) byAgeRange.set(range, []);
-      byAgeRange.get(range)!.push(p);
-    });
-    
-    // Assign fixed hosts - one per table (they stay at their table all rounds)
     // Sort by age range first, then by compatibility potential
     const sortedParticipants = [...participantsList].sort((a, b) => {
-      // First sort by age range to group similar ages
       const aIdx = AGE_RANGE_ORDER.findIndex(r => a.age_range?.includes(r));
       const bIdx = AGE_RANGE_ORDER.findIndex(r => b.age_range?.includes(r));
       if (aIdx !== bIdx) return aIdx - bIdx;
       
-      // Then by compatibility potential
       const aScore = (a.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
                      (a.preference === "Amistad y ligue" ? 1 : 0);
       const bScore = (b.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
@@ -330,14 +432,12 @@ const EventDetail = () => {
     const hosts: DbParticipant[] = [];
     const hostIndices = new Set<number>();
     for (let i = 0; i < numTables && hosts.length < numTables; i++) {
-      // Pick hosts spread across the sorted list to represent different age ranges
       const idx = Math.floor(i * sortedParticipants.length / numTables);
       if (!hostIndices.has(idx)) {
         hosts.push(sortedParticipants[idx]);
         hostIndices.add(idx);
       }
     }
-    // Fill remaining hosts if needed
     for (let i = 0; hosts.length < numTables && i < sortedParticipants.length; i++) {
       if (!hostIndices.has(i)) {
         hosts.push(sortedParticipants[i]);
@@ -348,9 +448,7 @@ const EventDetail = () => {
     const rotators = sortedParticipants.filter((_, idx) => !hostIndices.has(idx));
     
     let hasIncomplete = false;
-    const incompleteReasons: string[] = [];
     
-    // Calculate target sizes for each table (balanced distribution)
     const tableSizes: number[] = [];
     for (let i = 0; i < numTables; i++) {
       tableSizes.push(baseParticipantsPerTable + (i < tablesWithExtra ? 1 : 0));
@@ -362,38 +460,31 @@ const EventDetail = () => {
       const roundTables: { id: string; name: string }[][] = [];
       const usedRotators = new Set<string>();
       
-      // For each table (host)
       for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
         
-        // Target size for this table (balanced distribution)
         const targetSize = tableSizes[tableIdx] || tableSize;
         const seatsNeeded = targetSize - 1;
         
         const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
         
-        // Score and sort available rotators by compatibility
-        // Prioritize same age range, then adjacent age ranges
         const scoredRotators = availableRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
           
-          // Bonus for same/similar age as other table members
           table.forEach(member => {
             const memberParticipant = participantsList.find(p => p.id === member.id);
             if (memberParticipant) {
               const dist = getAgeRangeDistance(rotator.age_range, memberParticipant.age_range);
-              if (dist === 0) score += 5; // Same age range as tablemate
-              else if (dist === 1) score += 2; // Adjacent age range
+              if (dist === 0) score += 5;
+              else if (dist === 1) score += 2;
             }
           });
           
-          // Penalty for already paired in previous rounds
           if (pairedHistory.get(host.id)?.has(rotator.id)) {
-            score -= 100; // Strong penalty to avoid repeats
+            score -= 100;
           }
           
-          // Also check if rotator would repeat with anyone already in the table
           table.forEach(member => {
             if (pairedHistory.get(member.id)?.has(rotator.id)) {
               score -= 50;
@@ -403,18 +494,15 @@ const EventDetail = () => {
           return { rotator, score };
         }).sort((a, b) => b.score - a.score);
         
-        // Select best rotators for this table
         let filledSeats = 0;
         for (const { rotator, score } of scoredRotators) {
           if (filledSeats >= seatsNeeded) break;
           if (usedRotators.has(rotator.id)) continue;
           
-          // Check if this would be a repeat (unless relaxed)
           const wouldRepeat = pairedHistory.get(host.id)?.has(rotator.id) ||
                               table.some(m => pairedHistory.get(m.id)?.has(rotator.id));
           
           if (wouldRepeat && !relaxConstraints && score < 0) {
-            // Skip if not relaxing constraints and this is a repeat
             continue;
           }
           
@@ -423,7 +511,6 @@ const EventDetail = () => {
           filledSeats++;
         }
         
-        // If we couldn't fill the table and relaxConstraints is true, fill with anyone
         if (relaxConstraints && filledSeats < seatsNeeded) {
           for (const { rotator } of scoredRotators) {
             if (filledSeats >= seatsNeeded) break;
@@ -435,12 +522,10 @@ const EventDetail = () => {
           }
         }
         
-        // Check if table is incomplete based on its target size
         if (table.length < targetSize) {
           hasIncomplete = true;
         }
         
-        // Record pairings for this round
         for (let i = 0; i < table.length; i++) {
           for (let j = i + 1; j < table.length; j++) {
             pairedHistory.get(table[i].id)?.add(table[j].id);
@@ -451,7 +536,6 @@ const EventDetail = () => {
         roundTables.push(table);
       }
       
-      // Rotate the rotators for next round
       if (rotators.length > 1) {
         const first = rotators.shift()!;
         rotators.push(first);
@@ -460,14 +544,10 @@ const EventDetail = () => {
       tables.push({ round, tables: roundTables });
     }
     
-    if (hasIncomplete) {
-      incompleteReasons.push("Algunas mesas no pudieron completarse con las preferencias óptimas.");
-    }
-    
     return {
       tables,
       hasIncomplete,
-      incompleteInfo: incompleteReasons.join(" "),
+      incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse con las preferencias óptimas." : "",
     };
   };
 
