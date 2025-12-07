@@ -814,10 +814,12 @@ const EventDetail = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={() => setShowJoinQR(true)}>
-              <QrCode className="w-4 h-4 mr-2" />
-              QR Registro
-            </Button>
+            {eventStatus === "pending" && (
+              <Button variant="outline" onClick={() => setShowJoinQR(true)}>
+                <QrCode className="w-4 h-4 mr-2" />
+                QR Registro
+              </Button>
+            )}
             {eventStatus === "pending" && (
               <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
                 <QrCode className="w-4 h-4 mr-2" />
@@ -1238,9 +1240,8 @@ const EventDetail = () => {
                 <p className="font-medium">¿Qué deseas hacer?</p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-3">
+            <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
               <AlertDialogCancel 
-                className="order-3 sm:order-1"
                 onClick={() => {
                   setPendingTableGeneration(null);
                   setShowTableConfirmDialog(false);
@@ -1250,14 +1251,12 @@ const EventDetail = () => {
               </AlertDialogCancel>
               <Button
                 variant="outline"
-                className="order-2"
                 onClick={handleConfirmWithIncomplete}
               >
                 Continuar con mesas incompletas
               </Button>
               <Button
                 variant="default"
-                className="order-1 sm:order-3"
                 onClick={handleConfirmWithRelax}
               >
                 Rellenar con preferencias similares

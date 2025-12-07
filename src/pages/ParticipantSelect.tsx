@@ -17,6 +17,12 @@ interface MatchSelection {
   participantId: string;
   friendship: boolean;
   dating: boolean;
+  canShowDating: boolean; // Whether to show dating option based on both participants' preferences
+}
+
+interface TableData {
+  round: number;
+  tables: { id: string; name: string }[][];
 }
 
 const ParticipantSelect = () => {
@@ -29,6 +35,7 @@ const ParticipantSelect = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserPreference, setCurrentUserPreference] = useState<string | null>(null);
+  const [tablesData, setTablesData] = useState<TableData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,20 +60,53 @@ const ParticipantSelect = () => {
 
       const participantsData = data.participants;
       const submittedIds = new Set(data.submittedIds || []);
+      const tables = data.tables || [];
 
       // Filter out participants who have already submitted
       const available = participantsData.filter((p: Participant) => !submittedIds.has(p.id));
 
       setParticipants(participantsData);
       setAvailableParticipants(available);
+      setTablesData(tables);
       setIsLoading(false);
     };
 
     loadData();
   }, [eventId]);
 
-  // Filter other participants (exclude self)
-  const otherParticipants = participants.filter(p => p.id !== selectedParticipant);
+  // Find participants who sat at the same table as the selected participant
+  const getTablemates = (participantId: string): Set<string> => {
+    const tablemates = new Set<string>();
+    
+    tablesData.forEach(round => {
+      round.tables.forEach(table => {
+        const participantAtTable = table.some(p => p.id === participantId);
+        if (participantAtTable) {
+          table.forEach(p => {
+            if (p.id !== participantId) {
+              tablemates.add(p.id);
+            }
+          });
+        }
+      });
+    });
+    
+    return tablemates;
+  };
+
+  // Filter participants to only show tablemates (people who sat at the same table)
+  const getFilteredParticipants = (): Participant[] => {
+    if (!selectedParticipant) return [];
+    
+    const tablemates = getTablemates(selectedParticipant);
+    
+    // If no tables data, fall back to all participants
+    if (tablemates.size === 0 && tablesData.length === 0) {
+      return participants.filter(p => p.id !== selectedParticipant);
+    }
+    
+    return participants.filter(p => tablemates.has(p.id));
+  };
 
   const handleIdentify = () => {
     if (!selectedParticipant) {
@@ -80,14 +120,26 @@ const ParticipantSelect = () => {
     
     // Set current user's preference
     const currentUser = participants.find(p => p.id === selectedParticipant);
-    setCurrentUserPreference(currentUser?.preference || null);
+    const userPreference = currentUser?.preference || null;
+    setCurrentUserPreference(userPreference);
     
-    // Initialize match selections for all other participants
-    setMatchSelections(otherParticipants.map(p => ({
-      participantId: p.id,
-      friendship: false,
-      dating: false,
-    })));
+    // Get tablemates only
+    const tablemates = getFilteredParticipants();
+    const userInterestedInDating = userPreference?.toLowerCase().includes('ligue');
+    
+    // Initialize match selections for tablemates only
+    setMatchSelections(tablemates.map(p => {
+      // Check if both participants are interested in dating
+      const otherInterestedInDating = p.preference?.toLowerCase().includes('ligue');
+      const canShowDating = userInterestedInDating && otherInterestedInDating;
+      
+      return {
+        participantId: p.id,
+        friendship: false,
+        dating: false,
+        canShowDating: canShowDating || false,
+      };
+    }));
     
     setStep("select");
   };
@@ -102,7 +154,8 @@ const ParticipantSelect = () => {
     );
   };
 
-  const isUserInterestedInDating = currentUserPreference?.toLowerCase().includes('ligue');
+  // Get only tablemates for display
+  const tablematesForSelection = getFilteredParticipants();
 
   const handleSubmit = async () => {
     if (!selectedParticipant || !eventId) return;
@@ -155,8 +208,13 @@ const ParticipantSelect = () => {
     setStep("done");
   };
 
-  const getSelectionState = (participantId: string) => {
-    return matchSelections.find(ms => ms.participantId === participantId) || { friendship: false, dating: false };
+  const getSelectionState = (participantId: string): MatchSelection => {
+    return matchSelections.find(ms => ms.participantId === participantId) || { 
+      participantId, 
+      friendship: false, 
+      dating: false, 
+      canShowDating: false 
+    };
   };
 
   const hasAnySelection = (participantId: string) => {
@@ -261,15 +319,19 @@ const ParticipantSelect = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">¿Con quién conectaste?</CardTitle>
             <CardDescription>
-              {isUserInterestedInDating 
-                ? "Selecciona a las personas y el tipo de conexión"
-                : "Selecciona a las personas que te gustaría volver a ver"
-              }
+              Selecciona a las personas con las que coincidiste y el tipo de conexión
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {tablematesForSelection.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  No se encontraron participantes con los que coincidiste en las mesas.
+                </p>
+              </div>
+            ) : (
             <div className="grid gap-3 max-h-96 overflow-y-auto">
-              {otherParticipants.map((person) => {
+              {tablematesForSelection.map((person) => {
                 const selectionState = getSelectionState(person.id);
                 const isSelected = hasAnySelection(person.id);
                 
@@ -293,7 +355,7 @@ const ParticipantSelect = () => {
                           <Smile className="w-4 h-4" /> Amistad
                         </span>
                       </label>
-                      {isUserInterestedInDating && (
+                      {selectionState.canShowDating && (
                         <label className="flex items-center gap-2 cursor-pointer">
                           <Checkbox
                             checked={selectionState.dating}
@@ -309,6 +371,7 @@ const ParticipantSelect = () => {
                 );
               })}
             </div>
+            )}
             <p className="text-sm text-center text-muted-foreground">
               Si ambos os seleccionáis mutuamente, ¡es un match! 💕
             </p>
