@@ -1151,21 +1151,26 @@ const EventDetail = () => {
                 <p className="font-medium">¿Qué deseas hacer?</p>
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-              <AlertDialogCancel onClick={() => {
-                setPendingTableGeneration(null);
-                setShowTableConfirmDialog(false);
-              }}>
+            <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-3">
+              <AlertDialogCancel 
+                className="order-3 sm:order-1"
+                onClick={() => {
+                  setPendingTableGeneration(null);
+                  setShowTableConfirmDialog(false);
+                }}
+              >
                 Cancelar
               </AlertDialogCancel>
               <Button
                 variant="outline"
+                className="order-2"
                 onClick={handleConfirmWithIncomplete}
               >
                 Continuar con mesas incompletas
               </Button>
               <Button
-                variant="hero"
+                variant="default"
+                className="order-1 sm:order-3"
                 onClick={handleConfirmWithRelax}
               >
                 Rellenar con preferencias similares
