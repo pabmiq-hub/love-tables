@@ -24,6 +24,7 @@ const CreateEvent = () => {
   const [rounds, setRounds] = useState(5);
   const [tableSize, setTableSize] = useState(2);
   const [roundDuration, setRoundDuration] = useState(5);
+  const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
   const [matchPreference, setMatchPreference] = useState("both");
   const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -117,7 +118,7 @@ const CreateEvent = () => {
         date: eventDate.split('T')[0],
         rounds,
         table_size: tableSize,
-        round_duration: roundDuration * 60, // Convert to seconds
+        round_duration: roundDuration * 60 + roundDurationSeconds, // Convert to seconds
         participants_count: participants.length,
         status: "pending",
         organizer_id: user.id,
@@ -333,15 +334,30 @@ const CreateEvent = () => {
                     <Clock className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <Label>Duración por ronda: {roundDuration} minutos</Label>
-                    <Slider
-                      value={[roundDuration]}
-                      onValueChange={(v) => setRoundDuration(v[0])}
-                      min={3}
-                      max={15}
-                      step={1}
-                      className="mt-2"
-                    />
+                    <Label>Duración por ronda</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={roundDuration}
+                        onChange={(e) => setRoundDuration(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">minutos</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={roundDurationSeconds}
+                        onChange={(e) => setRoundDurationSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">segundos</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total: {roundDuration} min {roundDurationSeconds > 0 ? `${roundDurationSeconds} seg` : ""}
+                    </p>
                   </div>
                 </div>
 

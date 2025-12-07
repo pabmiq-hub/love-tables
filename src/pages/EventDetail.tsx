@@ -58,6 +58,12 @@ interface Match {
   };
 }
 
+interface TableGenerationResult {
+  tables: any[];
+  hasIncomplete: boolean;
+  incompleteInfo: string;
+}
+
 const EventDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
@@ -75,6 +81,8 @@ const EventDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingExcel, setIsLoadingExcel] = useState(false);
   const [excelPreview, setExcelPreview] = useState<{participants: Participant[], errors: string[]} | null>(null);
+  const [pendingTableGeneration, setPendingTableGeneration] = useState<TableGenerationResult | null>(null);
+  const [showTableConfirmDialog, setShowTableConfirmDialog] = useState(false);
 
   useEffect(() => {
     loadEventData();
@@ -181,7 +189,7 @@ const EventDetail = () => {
     return tables;
   };
 
-  const saveTablesAndStart = async () => {
+  const initiateTableGeneration = async () => {
     // Filter only checked-in participants
     const checkedInParticipants = participants.filter(p => p.checked_in);
     
@@ -194,6 +202,20 @@ const EventDetail = () => {
       return;
     }
 
+    // Generate smart tables based on preferences
+    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2);
+    
+    if (result.hasIncomplete) {
+      // Show confirmation dialog asking what to do
+      setPendingTableGeneration(result);
+      setShowTableConfirmDialog(true);
+    } else {
+      // No issues, proceed directly
+      await finalizeTableGeneration(result.tables, checkedInParticipants);
+    }
+  };
+
+  const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
     // Remove non-checked-in participants from database
     const nonCheckedInIds = participants.filter(p => !p.checked_in).map(p => p.id);
     if (nonCheckedInIds.length > 0) {
@@ -202,9 +224,6 @@ const EventDetail = () => {
         .delete()
         .in("id", nonCheckedInIds);
     }
-
-    // Generate smart tables based on preferences
-    const generatedTables = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2);
 
     // Save tables and update status
     await supabase
@@ -219,59 +238,162 @@ const EventDetail = () => {
     setParticipants(checkedInParticipants);
     setEventData(prev => prev ? { ...prev, tables: generatedTables, participants_count: checkedInParticipants.length } : prev);
     setEventStatus("active");
+    setPendingTableGeneration(null);
+    setShowTableConfirmDialog(false);
     toast({
       title: "Evento iniciado",
       description: `${nonCheckedInIds.length > 0 ? `Se eliminaron ${nonCheckedInIds.length} participantes sin check-in. ` : ""}Las mesas han sido generadas.`,
     });
   };
 
-  // Smart table generation algorithm based on preferences
-  const generateSmartTables = (participantsList: DbParticipant[], numRounds: number, tableSize: number) => {
+  const handleConfirmWithRelax = async () => {
+    if (!pendingTableGeneration) return;
+    
+    const checkedInParticipants = participants.filter(p => p.checked_in);
+    // Generate tables with relaxed constraints (fill with similar preferences)
+    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, true);
+    await finalizeTableGeneration(result.tables, checkedInParticipants);
+  };
+
+  const handleConfirmWithIncomplete = async () => {
+    if (!pendingTableGeneration) return;
+    
+    const checkedInParticipants = participants.filter(p => p.checked_in);
+    await finalizeTableGeneration(pendingTableGeneration.tables, checkedInParticipants);
+  };
+
+  // Smart table generation algorithm based on preferences with fixed-seat format
+  // One person stays at each table (table "hosts") while others rotate
+  const generateSmartTables = (
+    participantsList: DbParticipant[], 
+    numRounds: number, 
+    tableSize: number,
+    relaxConstraints: boolean = false
+  ): TableGenerationResult => {
     const tables = [];
-    const actualRounds = Math.min(numRounds, participantsList.length - 1);
+    const numParticipants = participantsList.length;
+    const numTables = Math.ceil(numParticipants / tableSize);
+    
+    // Track who has been paired with whom across all rounds
+    const pairedHistory = new Map<string, Set<string>>();
+    participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
+    
+    // Assign fixed hosts - one per table (they stay at their table all rounds)
+    // Sort by compatibility potential to assign best hosts
+    const sortedParticipants = [...participantsList].sort((a, b) => {
+      // Prioritize participants with more open preferences as hosts
+      const aScore = (a.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
+                     (a.preference === "Amistad y ligue" ? 1 : 0);
+      const bScore = (b.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
+                     (b.preference === "Amistad y ligue" ? 1 : 0);
+      return bScore - aScore;
+    });
+    
+    const hosts = sortedParticipants.slice(0, numTables);
+    const rotators = sortedParticipants.slice(numTables);
+    
+    let hasIncomplete = false;
+    const incompleteReasons: string[] = [];
+    
+    const actualRounds = Math.min(numRounds, rotators.length > 0 ? rotators.length : 1);
     
     for (let round = 1; round <= actualRounds; round++) {
-      const roundTables = [];
-      const available = [...participantsList];
-      const paired = new Set<string>();
+      const roundTables: { id: string; name: string }[][] = [];
+      const usedRotators = new Set<string>();
       
-      while (available.length >= tableSize) {
-        const table: { id: string; name: string }[] = [];
+      // For each table (host)
+      for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
+        const host = hosts[tableIdx];
+        const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
         
-        // Pick first person
-        const first = available.shift()!;
-        table.push({ id: first.id, name: first.name });
-        paired.add(first.id);
+        // Find best rotators for this table
+        const seatsNeeded = tableSize - 1;
+        const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
         
-        // Find best matches for the table
-        for (let i = 1; i < tableSize && available.length > 0; i++) {
-          let bestMatch = 0;
-          let bestScore = -1;
+        // Score and sort available rotators by compatibility
+        const scoredRotators = availableRotators.map(rotator => {
+          let score = calculateCompatibilityScore(host, rotator);
           
-          for (let j = 0; j < available.length; j++) {
-            const candidate = available[j];
-            const score = calculateCompatibilityScore(first, candidate);
-            if (score > bestScore) {
-              bestScore = score;
-              bestMatch = j;
-            }
+          // Penalty for already paired in previous rounds
+          if (pairedHistory.get(host.id)?.has(rotator.id)) {
+            score -= 100; // Strong penalty to avoid repeats
           }
           
-          const matched = available.splice(bestMatch, 1)[0];
-          table.push({ id: matched.id, name: matched.name });
-          paired.add(matched.id);
+          // Also check if rotator would repeat with anyone already in the table
+          table.forEach(member => {
+            if (pairedHistory.get(member.id)?.has(rotator.id)) {
+              score -= 50;
+            }
+          });
+          
+          return { rotator, score };
+        }).sort((a, b) => b.score - a.score);
+        
+        // Select best rotators for this table
+        let filledSeats = 0;
+        for (const { rotator, score } of scoredRotators) {
+          if (filledSeats >= seatsNeeded) break;
+          if (usedRotators.has(rotator.id)) continue;
+          
+          // Check if this would be a repeat (unless relaxed)
+          const wouldRepeat = pairedHistory.get(host.id)?.has(rotator.id) ||
+                              table.some(m => pairedHistory.get(m.id)?.has(rotator.id));
+          
+          if (wouldRepeat && !relaxConstraints && score < 0) {
+            // Skip if not relaxing constraints and this is a repeat
+            continue;
+          }
+          
+          table.push({ id: rotator.id, name: rotator.name });
+          usedRotators.add(rotator.id);
+          filledSeats++;
+        }
+        
+        // If we couldn't fill the table and relaxConstraints is true, fill with anyone
+        if (relaxConstraints && filledSeats < seatsNeeded) {
+          for (const { rotator } of scoredRotators) {
+            if (filledSeats >= seatsNeeded) break;
+            if (usedRotators.has(rotator.id)) continue;
+            
+            table.push({ id: rotator.id, name: rotator.name });
+            usedRotators.add(rotator.id);
+            filledSeats++;
+          }
+        }
+        
+        if (table.length < tableSize) {
+          hasIncomplete = true;
+        }
+        
+        // Record pairings for this round
+        for (let i = 0; i < table.length; i++) {
+          for (let j = i + 1; j < table.length; j++) {
+            pairedHistory.get(table[i].id)?.add(table[j].id);
+            pairedHistory.get(table[j].id)?.add(table[i].id);
+          }
         }
         
         roundTables.push(table);
       }
       
-      tables.push({ round, tables: roundTables });
+      // Rotate the rotators for next round
+      if (rotators.length > 1) {
+        const first = rotators.shift()!;
+        rotators.push(first);
+      }
       
-      // Shuffle for next round to get different combinations
-      participantsList = [...participantsList].sort(() => Math.random() - 0.5);
+      tables.push({ round, tables: roundTables });
     }
     
-    return tables;
+    if (hasIncomplete) {
+      incompleteReasons.push("Algunas mesas no pudieron completarse con las preferencias óptimas.");
+    }
+    
+    return {
+      tables,
+      hasIncomplete,
+      incompleteInfo: incompleteReasons.join(" "),
+    };
   };
 
   // Calculate compatibility score between two participants
@@ -506,7 +628,7 @@ const EventDetail = () => {
   };
 
   const handleStartEvent = async () => {
-    await saveTablesAndStart();
+    await initiateTableGeneration();
   };
 
   const handleEndEvent = async () => {
@@ -1016,6 +1138,41 @@ const EventDetail = () => {
             onCancel={() => setExcelPreview(null)}
           />
         )}
+
+        {/* Table Generation Confirmation Dialog */}
+        <AlertDialog open={showTableConfirmDialog} onOpenChange={setShowTableConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mesas incompletas detectadas</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>
+                  {pendingTableGeneration?.incompleteInfo || "No se pudieron completar todas las mesas siguiendo estrictamente las preferencias de los participantes."}
+                </p>
+                <p className="font-medium">¿Qué deseas hacer?</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+              <AlertDialogCancel onClick={() => {
+                setPendingTableGeneration(null);
+                setShowTableConfirmDialog(false);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <Button
+                variant="outline"
+                onClick={handleConfirmWithIncomplete}
+              >
+                Continuar con mesas incompletas
+              </Button>
+              <Button
+                variant="hero"
+                onClick={handleConfirmWithRelax}
+              >
+                Rellenar con preferencias similares
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
