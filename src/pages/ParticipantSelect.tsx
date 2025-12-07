@@ -122,28 +122,29 @@ const ParticipantSelect = () => {
       }
       
       return {
-        event_id: eventId,
-        selector_id: selectedParticipant,
         selected_id: ms.participantId,
         selection_type: selectionType,
       };
     });
 
-    if (selections.length > 0) {
-      const { error } = await supabase
-        .from("participant_selections")
-        .insert(selections);
-
-      if (error) {
-        console.error('Error saving selections:', error);
-        toast({
-          title: "Error",
-          description: "No se pudieron guardar las selecciones. Es posible que ya hayas enviado tus selecciones.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
+    // Use secure edge function to submit selections
+    const { data, error } = await supabase.functions.invoke('submit-selections', {
+      body: { 
+        eventId, 
+        selectorId: selectedParticipant, 
+        selections 
       }
+    });
+
+    if (error || data?.error) {
+      console.error('Error saving selections:', error || data?.error);
+      toast({
+        title: "Error",
+        description: data?.error || "No se pudieron guardar las selecciones. Es posible que ya hayas enviado tus selecciones.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
     }
 
     toast({
