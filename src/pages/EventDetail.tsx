@@ -262,6 +262,21 @@ const EventDetail = () => {
     await finalizeTableGeneration(pendingTableGeneration.tables, checkedInParticipants);
   };
 
+  // Age range order for adjacency calculation
+  const AGE_RANGE_ORDER = ["18–24", "25–32", "33–40", "41–50", "+50"];
+
+  const getAgeRangeIndex = (ageRange: string | null): number => {
+    if (!ageRange) return -1;
+    return AGE_RANGE_ORDER.findIndex(range => ageRange.includes(range.replace("–", "-")) || ageRange.includes(range));
+  };
+
+  const getAgeRangeDistance = (age1: string | null, age2: string | null): number => {
+    const idx1 = getAgeRangeIndex(age1);
+    const idx2 = getAgeRangeIndex(age2);
+    if (idx1 === -1 || idx2 === -1) return 0; // Unknown = treat as same
+    return Math.abs(idx1 - idx2);
+  };
+
   // Smart table generation algorithm based on preferences with fixed-seat format
   // One person stays at each table (table "hosts") while others rotate
   const generateSmartTables = (
@@ -272,16 +287,38 @@ const EventDetail = () => {
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+    
+    // Calculate balanced table distribution
+    // Prefer balanced sizes (e.g., two tables of 3 over one of 2 and one of 4)
     const numTables = Math.ceil(numParticipants / tableSize);
+    const baseParticipantsPerTable = Math.floor(numParticipants / numTables);
+    const tablesWithExtra = numParticipants % numTables;
+    
+    // This creates a more balanced distribution
+    // e.g., 7 participants with tableSize 4: 2 tables -> 4+3 instead of trying 4+4
+    // e.g., 8 participants with tableSize 5: 2 tables -> 4+4 instead of 5+3
     
     // Track who has been paired with whom across all rounds
     const pairedHistory = new Map<string, Set<string>>();
     participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
     
+    // Group participants by age range for better matching
+    const byAgeRange = new Map<string, DbParticipant[]>();
+    participantsList.forEach(p => {
+      const range = p.age_range || "unknown";
+      if (!byAgeRange.has(range)) byAgeRange.set(range, []);
+      byAgeRange.get(range)!.push(p);
+    });
+    
     // Assign fixed hosts - one per table (they stay at their table all rounds)
-    // Sort by compatibility potential to assign best hosts
+    // Sort by age range first, then by compatibility potential
     const sortedParticipants = [...participantsList].sort((a, b) => {
-      // Prioritize participants with more open preferences as hosts
+      // First sort by age range to group similar ages
+      const aIdx = AGE_RANGE_ORDER.findIndex(r => a.age_range?.includes(r));
+      const bIdx = AGE_RANGE_ORDER.findIndex(r => b.age_range?.includes(r));
+      if (aIdx !== bIdx) return aIdx - bIdx;
+      
+      // Then by compatibility potential
       const aScore = (a.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
                      (a.preference === "Amistad y ligue" ? 1 : 0);
       const bScore = (b.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
@@ -289,11 +326,35 @@ const EventDetail = () => {
       return bScore - aScore;
     });
     
-    const hosts = sortedParticipants.slice(0, numTables);
-    const rotators = sortedParticipants.slice(numTables);
+    // Distribute hosts evenly across age ranges
+    const hosts: DbParticipant[] = [];
+    const hostIndices = new Set<number>();
+    for (let i = 0; i < numTables && hosts.length < numTables; i++) {
+      // Pick hosts spread across the sorted list to represent different age ranges
+      const idx = Math.floor(i * sortedParticipants.length / numTables);
+      if (!hostIndices.has(idx)) {
+        hosts.push(sortedParticipants[idx]);
+        hostIndices.add(idx);
+      }
+    }
+    // Fill remaining hosts if needed
+    for (let i = 0; hosts.length < numTables && i < sortedParticipants.length; i++) {
+      if (!hostIndices.has(i)) {
+        hosts.push(sortedParticipants[i]);
+        hostIndices.add(i);
+      }
+    }
+    
+    const rotators = sortedParticipants.filter((_, idx) => !hostIndices.has(idx));
     
     let hasIncomplete = false;
     const incompleteReasons: string[] = [];
+    
+    // Calculate target sizes for each table (balanced distribution)
+    const tableSizes: number[] = [];
+    for (let i = 0; i < numTables; i++) {
+      tableSizes.push(baseParticipantsPerTable + (i < tablesWithExtra ? 1 : 0));
+    }
     
     const actualRounds = Math.min(numRounds, rotators.length > 0 ? rotators.length : 1);
     
@@ -306,13 +367,26 @@ const EventDetail = () => {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
         
-        // Find best rotators for this table
-        const seatsNeeded = tableSize - 1;
+        // Target size for this table (balanced distribution)
+        const targetSize = tableSizes[tableIdx] || tableSize;
+        const seatsNeeded = targetSize - 1;
+        
         const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
         
         // Score and sort available rotators by compatibility
+        // Prioritize same age range, then adjacent age ranges
         const scoredRotators = availableRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
+          
+          // Bonus for same/similar age as other table members
+          table.forEach(member => {
+            const memberParticipant = participantsList.find(p => p.id === member.id);
+            if (memberParticipant) {
+              const dist = getAgeRangeDistance(rotator.age_range, memberParticipant.age_range);
+              if (dist === 0) score += 5; // Same age range as tablemate
+              else if (dist === 1) score += 2; // Adjacent age range
+            }
+          });
           
           // Penalty for already paired in previous rounds
           if (pairedHistory.get(host.id)?.has(rotator.id)) {
@@ -361,7 +435,8 @@ const EventDetail = () => {
           }
         }
         
-        if (table.length < tableSize) {
+        // Check if table is incomplete based on its target size
+        if (table.length < targetSize) {
           hasIncomplete = true;
         }
         
@@ -396,11 +471,23 @@ const EventDetail = () => {
     };
   };
 
+
   // Calculate compatibility score between two participants
   const calculateCompatibilityScore = (p1: DbParticipant, p2: DbParticipant): number => {
     let score = 0;
     
-    // Age range compatibility (check if each person's age is in the other's preferred range)
+    // PRIORITY 1: Same age range (highest priority)
+    const ageDistance = getAgeRangeDistance(p1.age_range, p2.age_range);
+    if (ageDistance === 0) {
+      score += 10; // Same age range - highest bonus
+    } else if (ageDistance === 1) {
+      score += 5; // Adjacent age range - good bonus
+    } else if (ageDistance === 2) {
+      score += 2; // Two ranges apart - small bonus
+    }
+    // More than 2 ranges apart = no bonus
+    
+    // PRIORITY 2: Age range preferences (secondary)
     const p1AgeInP2Pref = checkAgeRangeMatch(p1.age_range, p2.preferred_age_range);
     const p2AgeInP1Pref = checkAgeRangeMatch(p2.age_range, p1.preferred_age_range);
     if (p1AgeInP2Pref && p2AgeInP1Pref) score += 3;
