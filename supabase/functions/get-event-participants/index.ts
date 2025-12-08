@@ -57,10 +57,10 @@ serve(async (req) => {
 
     // Return different data based on type
     if (type === 'checkin') {
-      // For check-in: return only names and IDs of participants NOT yet checked in
+      // For check-in: return only names, phone and IDs of participants NOT yet checked in
       const { data: participants, error } = await supabase
         .from('participants')
-        .select('id, name, checked_in')
+        .select('id, name, phone, checked_in')
         .eq('event_id', eventId)
         .eq('checked_in', false)
         .order('name');
@@ -81,11 +81,11 @@ serve(async (req) => {
     } 
     
     if (type === 'select') {
-      // For selection: return names and IDs only, plus who has already submitted
+      // For selection: return names, phone and IDs only, plus who has already submitted
       // Also include tables data so the frontend can filter by tablemates
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
-        .select('id, name, preference')
+        .select('id, name, phone, preference')
         .eq('event_id', eventId);
 
       if (participantsError) {
