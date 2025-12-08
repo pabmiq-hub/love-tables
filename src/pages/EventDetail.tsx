@@ -781,6 +781,9 @@ const EventDetail = () => {
   const handleConfirmExcelImport = async () => {
     if (!excelPreview || !id) return;
     
+    // Auto check-in if event is already active
+    const autoCheckin = eventStatus === "active";
+    
     const participantsToInsert = excelPreview.participants.map(p => ({
       event_id: id,
       name: p.name,
@@ -791,6 +794,7 @@ const EventDetail = () => {
       dating_preference: p.datingPreference || null,
       gender: p.gender || null,
       phone: p.phone || null,
+      checked_in: autoCheckin,
     }));
 
     const { data: newParticipants, error } = await supabase
@@ -819,7 +823,9 @@ const EventDetail = () => {
     
     toast({
       title: "Participantes cargados",
-      description: `Se han añadido ${excelPreview.participants.length} participantes`,
+      description: eventStatus === "active"
+        ? `Se han añadido ${excelPreview.participants.length} participantes (confirmados automáticamente)`
+        : `Se han añadido ${excelPreview.participants.length} participantes`,
     });
     
     setExcelPreview(null);
@@ -827,6 +833,9 @@ const EventDetail = () => {
 
   const handleAddParticipant = async (participant: Participant) => {
     if (!id) return;
+
+    // Auto check-in if event is already active
+    const autoCheckin = eventStatus === "active";
 
     const { data: newParticipant, error } = await supabase
       .from("participants")
@@ -840,6 +849,7 @@ const EventDetail = () => {
         dating_preference: participant.datingPreference || null,
         gender: participant.gender || null,
         phone: participant.phone || null,
+        checked_in: autoCheckin,
       })
       .select()
       .single();
@@ -863,7 +873,9 @@ const EventDetail = () => {
     
     toast({
       title: "Participante añadido",
-      description: `${participant.name} ha sido añadido al evento`,
+      description: autoCheckin 
+        ? `${participant.name} ha sido añadido y confirmado automáticamente (evento activo)`
+        : `${participant.name} ha sido añadido al evento`,
     });
   };
 
