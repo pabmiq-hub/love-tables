@@ -85,7 +85,7 @@ serve(async (req) => {
       // Also include tables data so the frontend can filter by tablemates
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
-        .select('id, name, phone, preference')
+        .select('id, name, phone, preference, dating_preference')
         .eq('event_id', eventId);
 
       if (participantsError) {
