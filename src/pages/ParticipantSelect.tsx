@@ -112,8 +112,10 @@ const ParticipantSelect = () => {
   };
 
   // Check if two dating preferences are compatible
-  const areDatingPreferencesCompatible = (pref1?: string, pref2?: string): boolean => {
-    if (!pref1 || !pref2) return false;
+  const areDatingPreferencesCompatible = (pref1?: string | null, pref2?: string | null): boolean => {
+    // If either preference is missing/null, assume compatible (benefit of the doubt)
+    // This handles cases where dating_preference wasn't collected
+    if (!pref1 || !pref2) return true;
     
     const p1 = pref1.toLowerCase();
     const p2 = pref2.toLowerCase();
