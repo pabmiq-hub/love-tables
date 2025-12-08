@@ -166,29 +166,21 @@ const ParticipantSelect = () => {
     
     // Get tablemates only
     const tablemates = getFilteredParticipants();
-    // Check for dating interest: "ligue", "sentimental", or "pareja"
-    const isInterestedInDating = (pref?: string | null) => {
-      if (!pref) return false;
-      const lower = pref.toLowerCase();
-      return lower.includes('ligue') || lower.includes('sentimental') || lower.includes('pareja');
-    };
-    const userInterestedInDating = isInterestedInDating(userPreference);
+    
+    // Check if user is interested in dating based on their preference
+    // "Pareja sentimental" or "Nuevas amistades y también pareja sentimental" = show Ligue option
+    // "Nuevas amistades" only = show only Amistad option
+    const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') || 
+                                   userPreference?.toLowerCase().includes('pareja');
     
     // Initialize match selections for tablemates only
     setMatchSelections(tablemates.map(p => {
-      // Check if both participants are interested in dating
-      const otherInterestedInDating = isInterestedInDating(p.preference);
-      
-      // Check if both want dating AND their dating preferences are compatible
-      const canShowDating = userInterestedInDating && 
-                           otherInterestedInDating && 
-                           areDatingPreferencesCompatible(userDatingPreference, p.dating_preference);
-      
       return {
         participantId: p.id,
         friendship: false,
         dating: false,
-        canShowDating: canShowDating || false,
+        // Show dating option if the SELECTOR is interested in dating
+        canShowDating: userInterestedInDating || false,
       };
     }));
     
