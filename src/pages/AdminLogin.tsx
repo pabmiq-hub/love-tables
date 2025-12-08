@@ -13,9 +13,11 @@ const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [recoveryEmailSent, setRecoveryEmailSent] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, resetPassword } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -60,6 +62,36 @@ const AdminLogin = () => {
     setIsLoading(false);
   };
 
+  const handleRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Por favor, introduce tu email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    const { error } = await resetPassword(email);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    setRecoveryEmailSent(true);
+    setIsLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
@@ -96,49 +128,117 @@ const AdminLogin = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" variant="hero" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Iniciando sesión...
-                </>
-              ) : (
-                "Iniciar Sesión"
-              )}
-            </Button>
-          </form>
+          {isRecoveryMode ? (
+            recoveryEmailSent ? (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                  <Heart className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-muted-foreground">
+                  Hemos enviado un enlace de recuperación a <strong>{email}</strong>. 
+                  Revisa tu bandeja de entrada.
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsRecoveryMode(false);
+                    setRecoveryEmailSent(false);
+                    setEmail("");
+                  }}
+                  className="w-full"
+                >
+                  Volver al login
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleRecovery} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="admin@ejemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" variant="hero" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Enviar enlace de recuperación"
+                  )}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setIsRecoveryMode(false)}
+                  className="w-full"
+                >
+                  Volver al login
+                </Button>
+              </form>
+            )
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@ejemplo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecoveryMode(true)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" variant="hero" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Iniciando sesión...
+                  </>
+                ) : (
+                  "Iniciar Sesión"
+                )}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
 
-      <p className="mt-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.3s' }}>
-        ¿No tienes cuenta?{" "}
-        <Link to="/admin/register" className="text-primary hover:underline">
-          Regístrate aquí
-        </Link>
-      </p>
+      {!isRecoveryMode && (
+        <p className="mt-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          ¿No tienes cuenta?{" "}
+          <Link to="/admin/register" className="text-primary hover:underline">
+            Regístrate aquí
+          </Link>
+        </p>
+      )}
     </div>
   );
 };
