@@ -6,6 +6,7 @@ import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Load
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,17 +32,18 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading, signOut } = useAuth();
 
   useEffect(() => {
-    // Check if admin is logged in
-    const isLoggedIn = localStorage.getItem("adminLoggedIn");
-    if (!isLoggedIn) {
+    if (!loading && !user) {
       navigate("/admin/login");
       return;
     }
     
-    loadEvents();
-  }, [navigate]);
+    if (user) {
+      loadEvents();
+    }
+  }, [user, loading, navigate]);
 
   const loadEvents = async () => {
     const { data, error } = await supabase
@@ -55,13 +57,13 @@ const AdminDashboard = () => {
     setIsLoading(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente",
     });
-    navigate("/");
+    navigate("/admin/login");
   };
 
   const handleDeleteEvent = async (eventId: string) => {
@@ -101,7 +103,7 @@ const AdminDashboard = () => {
 
   const totalParticipants = events.reduce((acc, e) => acc + (e.participants_count || 0), 0);
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
