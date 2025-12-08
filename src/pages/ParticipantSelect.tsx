@@ -304,7 +304,7 @@ const ParticipantSelect = () => {
                           : 'bg-muted hover:bg-muted/80'
                       }`}
                     >
-                      <span className="font-medium">{formatAnonymousName(participant.name, participant.phone)}</span>
+                      <span className="font-medium">{formatAnonymousName(participant.name)}</span>
                     </button>
                   ))}
                 </div>
@@ -348,7 +348,7 @@ const ParticipantSelect = () => {
                         : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
                     }`}
                   >
-                    <div className="font-medium mb-3">{formatAnonymousName(person.name, person.phone)}</div>
+                    <div className="font-medium mb-3">{formatAnonymousName(person.name)}</div>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <Checkbox
