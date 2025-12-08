@@ -61,6 +61,12 @@ interface Match {
   };
 }
 
+interface Selection {
+  selector_id: string;
+  selected_id: string;
+  selection_type: string | null;
+}
+
 interface TableGenerationResult {
   tables: any[];
   hasIncomplete: boolean;
@@ -75,6 +81,7 @@ const EventDetail = () => {
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [selections, setSelections] = useState<Selection[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showCheckinQR, setShowCheckinQR] = useState(false);
@@ -130,6 +137,9 @@ const EventDetail = () => {
       .eq("event_id", id);
 
     if (selectionsData && participantsData) {
+      // Store raw selections
+      setSelections(selectionsData);
+      
       const mutualMatches: Match[] = [];
       const processed = new Set<string>();
 
@@ -1295,6 +1305,8 @@ const EventDetail = () => {
           <TabsContent value="matches">
             <MatchesDashboard
               matches={matches}
+              selections={selections}
+              participants={participants}
               eventName={eventData?.name || ""}
               eventStatus={eventStatus}
               onShowQR={() => setShowQR(true)}
