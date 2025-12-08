@@ -13,6 +13,7 @@ interface Participant {
   name: string;
   phone?: string;
   preference?: string;
+  dating_preference?: string;
 }
 
 interface MatchSelection {
@@ -110,6 +111,41 @@ const ParticipantSelect = () => {
     return participants.filter(p => tablemates.has(p.id));
   };
 
+  // Check if two dating preferences are compatible
+  const areDatingPreferencesCompatible = (pref1?: string, pref2?: string): boolean => {
+    if (!pref1 || !pref2) return false;
+    
+    const p1 = pref1.toLowerCase();
+    const p2 = pref2.toLowerCase();
+    
+    // "Estoy abierto a todo" is compatible with everyone
+    if (p1.includes('abierto a todo') || p2.includes('abierto a todo')) return true;
+    
+    // "No binario" is compatible with everyone
+    if (p1.includes('no binario') || p2.includes('no binario')) return true;
+    
+    // "Prefiero no contestar" - show dating option (benefit of the doubt)
+    if (p1.includes('prefiero no contestar') || p2.includes('prefiero no contestar')) return true;
+    
+    // Check specific compatibility
+    const isManSeekingWoman = (p: string) => p.includes('hombre') && p.includes('busco una mujer');
+    const isManSeekingMan = (p: string) => p.includes('hombre') && p.includes('busco un hombre');
+    const isWomanSeekingMan = (p: string) => p.includes('mujer') && p.includes('busco un hombre');
+    const isWomanSeekingWoman = (p: string) => p.includes('mujer') && p.includes('busco una mujer');
+    
+    // Man seeking woman <-> Woman seeking man
+    if (isManSeekingWoman(p1) && isWomanSeekingMan(p2)) return true;
+    if (isWomanSeekingMan(p1) && isManSeekingWoman(p2)) return true;
+    
+    // Man seeking man <-> Man seeking man
+    if (isManSeekingMan(p1) && isManSeekingMan(p2)) return true;
+    
+    // Woman seeking woman <-> Woman seeking woman
+    if (isWomanSeekingWoman(p1) && isWomanSeekingWoman(p2)) return true;
+    
+    return false;
+  };
+
   const handleIdentify = () => {
     if (!selectedParticipant) {
       toast({
@@ -123,19 +159,22 @@ const ParticipantSelect = () => {
     // Set current user's preference
     const currentUser = participants.find(p => p.id === selectedParticipant);
     const userPreference = currentUser?.preference || null;
+    const userDatingPreference = currentUser?.dating_preference || null;
     setCurrentUserPreference(userPreference);
     
     // Get tablemates only
     const tablemates = getFilteredParticipants();
-    const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') || 
-                                    userPreference?.toLowerCase().includes('pareja');
+    const userInterestedInDating = userPreference?.toLowerCase().includes('ligue');
     
     // Initialize match selections for tablemates only
     setMatchSelections(tablemates.map(p => {
       // Check if both participants are interested in dating
-      const otherInterestedInDating = p.preference?.toLowerCase().includes('sentimental') || 
-                                       p.preference?.toLowerCase().includes('pareja');
-      const canShowDating = userInterestedInDating && otherInterestedInDating;
+      const otherInterestedInDating = p.preference?.toLowerCase().includes('ligue');
+      
+      // Check if both want dating AND their dating preferences are compatible
+      const canShowDating = userInterestedInDating && 
+                           otherInterestedInDating && 
+                           areDatingPreferencesCompatible(userDatingPreference, p.dating_preference);
       
       return {
         participantId: p.id,
