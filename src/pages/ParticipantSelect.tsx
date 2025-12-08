@@ -164,12 +164,18 @@ const ParticipantSelect = () => {
     
     // Get tablemates only
     const tablemates = getFilteredParticipants();
-    const userInterestedInDating = userPreference?.toLowerCase().includes('ligue');
+    // Check for dating interest: "ligue", "sentimental", or "pareja"
+    const isInterestedInDating = (pref?: string | null) => {
+      if (!pref) return false;
+      const lower = pref.toLowerCase();
+      return lower.includes('ligue') || lower.includes('sentimental') || lower.includes('pareja');
+    };
+    const userInterestedInDating = isInterestedInDating(userPreference);
     
     // Initialize match selections for tablemates only
     setMatchSelections(tablemates.map(p => {
       // Check if both participants are interested in dating
-      const otherInterestedInDating = p.preference?.toLowerCase().includes('ligue');
+      const otherInterestedInDating = isInterestedInDating(p.preference);
       
       // Check if both want dating AND their dating preferences are compatible
       const canShowDating = userInterestedInDating && 
