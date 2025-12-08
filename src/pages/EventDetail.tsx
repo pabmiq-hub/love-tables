@@ -146,14 +146,18 @@ const EventDetail = () => {
           const p2 = participantsData.find(p => p.id === sel.selected_id);
           if (p1 && p2) {
             // Determine match types based on both selections
-            const sel1Type = (sel as any).selection_type || 'friendship';
-            const sel2Type = (reverse as any).selection_type || 'friendship';
+            const sel1Type = sel.selection_type || 'friendship';
+            const sel2Type = reverse.selection_type || 'friendship';
+            
+            // Check if each type matches - 'both' counts for both friendship and dating
+            const sel1HasFriendship = sel1Type === 'friendship' || sel1Type === 'both';
+            const sel2HasFriendship = sel2Type === 'friendship' || sel2Type === 'both';
+            const sel1HasDating = sel1Type === 'dating' || sel1Type === 'both';
+            const sel2HasDating = sel2Type === 'dating' || sel2Type === 'both';
             
             const matchTypes = {
-              friendship: (sel1Type === 'friendship' || sel1Type === 'both') && 
-                          (sel2Type === 'friendship' || sel2Type === 'both'),
-              dating: (sel1Type === 'dating' || sel1Type === 'both') && 
-                      (sel2Type === 'dating' || sel2Type === 'both'),
+              friendship: sel1HasFriendship && sel2HasFriendship,
+              dating: sel1HasDating && sel2HasDating,
             };
             
             mutualMatches.push({ participant1: p1, participant2: p2, matchTypes });
