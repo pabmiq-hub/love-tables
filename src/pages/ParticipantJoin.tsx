@@ -57,7 +57,7 @@ const ParticipantJoin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
+    if (!name.trim() || !phone.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios",
@@ -212,13 +212,14 @@ const ParticipantJoin = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono de contacto</Label>
+                <Label htmlFor="phone">Teléfono de contacto *</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ej: +34 612 345 678"
+                  required
                 />
               </div>
               

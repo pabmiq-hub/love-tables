@@ -6,10 +6,12 @@ import { Heart, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { formatAnonymousName } from "@/lib/utils";
 
 interface Participant {
   id: string;
   name: string;
+  phone?: string;
   checked_in: boolean;
 }
 
@@ -81,9 +83,11 @@ const ParticipantCheckin = () => {
     });
   };
 
-  const filteredParticipants = participants.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredParticipants = participants.filter(p => {
+    const displayName = formatAnonymousName(p.name, p.phone);
+    return displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           p.name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   if (isLoading) {
     return (
@@ -187,7 +191,7 @@ const ParticipantCheckin = () => {
                         : "border-border hover:border-primary/50 hover:bg-muted/50"
                     }`}
                   >
-                    <span className="font-medium">{participant.name}</span>
+                    <span className="font-medium">{formatAnonymousName(participant.name, participant.phone)}</span>
                   </button>
                 ))
               )}
