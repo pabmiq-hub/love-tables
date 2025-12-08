@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck } from "lucide-react";
+import MatchesDashboard from "@/components/event/MatchesDashboard";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -1287,81 +1288,14 @@ const EventDetail = () => {
             </div>
           </TabsContent>
 
-          {/* Matches Tab */}
           <TabsContent value="matches">
-            <Card>
-              <CardHeader>
-                <div>
-                  <CardTitle>Coincidencias ({matches.length})</CardTitle>
-                  <CardDescription>
-                    Matches mutuos entre participantes
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {matches.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                      <Heart className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-display text-lg font-semibold mb-2">Sin matches todavía</h3>
-                    <p className="text-muted-foreground">
-                      {eventStatus === "completed" 
-                        ? "Espera a que los participantes voten usando el código QR"
-                        : "Finaliza el evento y comparte el código QR para que los participantes voten"
-                      }
-                    </p>
-                    <Button variant="outline" className="mt-4" onClick={loadEventData}>
-                      Actualizar matches
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {matches.map((match, index) => {
-                      const matchLabels: string[] = [];
-                      if (match.matchTypes.friendship) matchLabels.push("Amistad 😊");
-                      if (match.matchTypes.dating) matchLabels.push("Ligue 💕");
-                      const matchLabel = matchLabels.length > 0 ? matchLabels.join(" + ") : "Match";
-                      
-                      return (
-                        <div 
-                          key={index}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20 gap-3"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="flex -space-x-2">
-                              <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
-                                {match.participant1.name.charAt(0)}
-                              </div>
-                              <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium border-2 border-background">
-                                {match.participant2.name.charAt(0)}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="font-medium">{match.participant1.name} & {match.participant2.name}</p>
-                              <p className="text-sm text-muted-foreground">¡Match mutuo! {matchLabel}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-2 text-sm">
-                            {match.participant1.phone && (
-                              <a href={`tel:${match.participant1.phone}`} className="text-primary hover:underline">
-                                📞 {match.participant1.name.split(' ')[0]}
-                              </a>
-                            )}
-                            {match.participant2.phone && (
-                              <a href={`tel:${match.participant2.phone}`} className="text-primary hover:underline">
-                                📞 {match.participant2.name.split(' ')[0]}
-                              </a>
-                            )}
-                          </div>
-                          <Heart className="w-5 h-5 text-primary hidden sm:block" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <MatchesDashboard
+              matches={matches}
+              eventName={eventData?.name || ""}
+              eventStatus={eventStatus}
+              onShowQR={() => setShowQR(true)}
+              onRefresh={loadEventData}
+            />
           </TabsContent>
         </Tabs>
 
