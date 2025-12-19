@@ -37,6 +37,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState(preferences[0] || "Amistad y ligue");
@@ -59,6 +60,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
       preference,
       gender,
       phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
     };
     
     if (preference === "Amistad y ligue" && datingPreference) {
@@ -105,6 +107,17 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ej: +34 612 345 678"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ej: tu@email.com"
               />
             </div>
             

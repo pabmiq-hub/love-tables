@@ -22,6 +22,8 @@ export type Database = {
           custom_genders: Json | null
           custom_preferences: Json | null
           date: string
+          email_template: Json | null
+          emails_sent_at: string | null
           gender_parity: boolean | null
           id: string
           name: string
@@ -42,6 +44,8 @@ export type Database = {
           custom_genders?: Json | null
           custom_preferences?: Json | null
           date: string
+          email_template?: Json | null
+          emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
           name: string
@@ -62,6 +66,8 @@ export type Database = {
           custom_genders?: Json | null
           custom_preferences?: Json | null
           date?: string
+          email_template?: Json | null
+          emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
           name?: string
@@ -133,6 +139,7 @@ export type Database = {
           checked_in: boolean | null
           created_at: string
           dating_preference: string | null
+          email: string | null
           event_id: string
           gender: string | null
           id: string
@@ -148,6 +155,7 @@ export type Database = {
           checked_in?: boolean | null
           created_at?: string
           dating_preference?: string | null
+          email?: string | null
           event_id: string
           gender?: string | null
           id?: string
@@ -163,6 +171,7 @@ export type Database = {
           checked_in?: boolean | null
           created_at?: string
           dating_preference?: string | null
+          email?: string | null
           event_id?: string
           gender?: string | null
           id?: string
