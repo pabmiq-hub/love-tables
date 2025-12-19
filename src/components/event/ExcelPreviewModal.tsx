@@ -99,9 +99,10 @@ const ExcelPreviewModal = ({ participants, errors, onConfirm, onCancel }: ExcelP
                           {index + 1}
                         </div>
                         <div>
-                          <p className="font-medium text-sm">{participant.name}</p>
+                        <p className="font-medium text-sm">{participant.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {participant.ageRange || "Sin rango"} • Busca: {participant.preferredAgeRange || "Sin preferencia"}
+                            {participant.email && ` • ${participant.email}`}
                           </p>
                         </div>
                       </div>

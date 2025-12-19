@@ -23,6 +23,7 @@ const ParticipantJoin = () => {
   
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState("");
@@ -87,10 +88,21 @@ const ParticipantJoin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !phone.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
+    if (!name.trim() || !phone.trim() || !email.trim() || !ageRange || !gender || selectedAgeRanges.length === 0 || !preference) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast({
+        title: "Error",
+        description: "Por favor, introduce un email válido",
         variant: "destructive",
       });
       return;
@@ -114,6 +126,7 @@ const ParticipantJoin = () => {
       event_id: eventId,
       name: name.trim(),
       phone: phone.trim() || null,
+      email: email.trim(),
       age: parseInt(ageRange.split('–')[0]) || null,
       age_range: ageRange,
       preferred_age_range: preferredAgeRange,
@@ -249,6 +262,18 @@ const ParticipantJoin = () => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ej: +34 612 345 678"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Ej: tu@email.com"
                   required
                 />
               </div>
