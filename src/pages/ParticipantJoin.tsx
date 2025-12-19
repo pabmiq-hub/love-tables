@@ -33,6 +33,12 @@ const ParticipantJoin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Event preferences (custom or default)
+  const [eventAgeRanges, setEventAgeRanges] = useState<string[]>([...AGE_RANGES]);
+  const [eventGenders, setEventGenders] = useState<string[]>([...GENDERS]);
+  const [eventPreferences, setEventPreferences] = useState<string[]>([...PREFERENCES]);
+  const [eventDatingPreferences, setEventDatingPreferences] = useState<string[]>([...DATING_PREFERENCES]);
+
   useEffect(() => {
     const checkEvent = async () => {
       if (!eventId) {
@@ -43,16 +49,40 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id")
+        .select("id, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences")
         .eq("id", eventId)
         .single();
 
-      setEventExists(!error && !!data);
+      if (error || !data) {
+        setEventExists(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setEventExists(true);
+      
+      // Load custom preferences if they exist
+      if (data.custom_age_ranges && Array.isArray(data.custom_age_ranges)) {
+        setEventAgeRanges(data.custom_age_ranges as string[]);
+      }
+      if (data.custom_genders && Array.isArray(data.custom_genders)) {
+        setEventGenders(data.custom_genders as string[]);
+      }
+      if (data.custom_preferences && Array.isArray(data.custom_preferences)) {
+        setEventPreferences(data.custom_preferences as string[]);
+      }
+      if (data.custom_dating_preferences && Array.isArray(data.custom_dating_preferences)) {
+        setEventDatingPreferences(data.custom_dating_preferences as string[]);
+      }
+      
       setIsLoading(false);
     };
 
     checkEvent();
   }, [eventId]);
+
+  // Computed preferred age ranges (event age ranges + "Cualquier rango de edad")
+  const preferredAgeRanges = [...eventAgeRanges, "Cualquier rango de edad"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,7 +260,7 @@ const ParticipantJoin = () => {
                     <SelectValue placeholder="Selecciona tu rango de edad" />
                   </SelectTrigger>
                   <SelectContent>
-                    {AGE_RANGES.map((range) => (
+                    {eventAgeRanges.map((range) => (
                       <SelectItem key={range} value={range}>{range}</SelectItem>
                     ))}
                   </SelectContent>
@@ -244,7 +274,7 @@ const ParticipantJoin = () => {
                     <SelectValue placeholder="Selecciona tu género" />
                   </SelectTrigger>
                   <SelectContent>
-                    {GENDERS.map((g) => (
+                    {eventGenders.map((g) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
                     ))}
                   </SelectContent>
@@ -254,7 +284,7 @@ const ParticipantJoin = () => {
               <div className="space-y-2">
                 <Label>Rango de edad preferido * (puedes seleccionar varios)</Label>
                 <MultiSelectAge
-                  options={PREFERRED_AGE_RANGES}
+                  options={preferredAgeRanges}
                   selected={selectedAgeRanges}
                   onChange={setSelectedAgeRanges}
                   placeholder="Selecciona los rangos que buscas"
@@ -268,7 +298,7 @@ const ParticipantJoin = () => {
                     <SelectValue placeholder="Selecciona tu preferencia" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PREFERENCES.map((pref) => (
+                    {eventPreferences.map((pref) => (
                       <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                     ))}
                   </SelectContent>
@@ -283,7 +313,7 @@ const ParticipantJoin = () => {
                       <SelectValue placeholder="Selecciona tu preferencia" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DATING_PREFERENCES.map((pref) => (
+                      {eventDatingPreferences.map((pref) => (
                         <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                       ))}
                     </SelectContent>
