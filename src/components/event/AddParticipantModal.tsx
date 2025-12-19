@@ -9,23 +9,37 @@ import MultiSelectAge from "@/components/ui/multi-select-age";
 import { 
   Participant, 
   AGE_RANGES, 
-  PREFERRED_AGE_RANGES, 
   GENDERS, 
   PREFERENCES, 
   DATING_PREFERENCES 
 } from "@/lib/excelParser";
 
+export interface EventCustomPreferences {
+  ageRanges?: string[];
+  genders?: string[];
+  preferences?: string[];
+  datingPreferences?: string[];
+}
+
 interface AddParticipantModalProps {
   onClose: () => void;
   onAdd: (participant: Participant) => void;
+  customPreferences?: EventCustomPreferences;
 }
 
-const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
+const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipantModalProps) => {
+  // Use custom preferences if provided, otherwise use defaults
+  const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
+  const genders = customPreferences?.genders || [...GENDERS];
+  const preferences = customPreferences?.preferences || [...PREFERENCES];
+  const datingPreferences = customPreferences?.datingPreferences || [...DATING_PREFERENCES];
+  const preferredAgeRanges = [...ageRanges, "Cualquier rango de edad"];
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
-  const [preference, setPreference] = useState("Amistad y ligue");
+  const [preference, setPreference] = useState(preferences[0] || "Amistad y ligue");
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
 
@@ -101,7 +115,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
                   <SelectValue placeholder="Selecciona tu rango de edad" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AGE_RANGES.map((range) => (
+                  {ageRanges.map((range) => (
                     <SelectItem key={range} value={range}>{range}</SelectItem>
                   ))}
                 </SelectContent>
@@ -115,7 +129,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
                   <SelectValue placeholder="Selecciona tu género" />
                 </SelectTrigger>
                 <SelectContent>
-                  {GENDERS.map((g) => (
+                  {genders.map((g) => (
                     <SelectItem key={g} value={g}>{g}</SelectItem>
                   ))}
                 </SelectContent>
@@ -125,7 +139,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
             <div className="space-y-2">
               <Label>Rango de edad preferido (puedes seleccionar varios)</Label>
               <MultiSelectAge
-                options={PREFERRED_AGE_RANGES}
+                options={preferredAgeRanges}
                 selected={selectedAgeRanges}
                 onChange={setSelectedAgeRanges}
                 placeholder="Selecciona los rangos que buscas"
@@ -139,7 +153,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PREFERENCES.map((pref) => (
+                  {preferences.map((pref) => (
                     <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                   ))}
                 </SelectContent>
@@ -154,7 +168,7 @@ const AddParticipantModal = ({ onClose, onAdd }: AddParticipantModalProps) => {
                     <SelectValue placeholder="Selecciona tu preferencia" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DATING_PREFERENCES.map((pref) => (
+                    {datingPreferences.map((pref) => (
                       <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                     ))}
                   </SelectContent>

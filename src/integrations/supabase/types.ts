@@ -17,6 +17,10 @@ export type Database = {
       events: {
         Row: {
           created_at: string
+          custom_age_ranges: Json | null
+          custom_dating_preferences: Json | null
+          custom_genders: Json | null
+          custom_preferences: Json | null
           date: string
           gender_parity: boolean | null
           id: string
@@ -33,6 +37,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          custom_age_ranges?: Json | null
+          custom_dating_preferences?: Json | null
+          custom_genders?: Json | null
+          custom_preferences?: Json | null
           date: string
           gender_parity?: boolean | null
           id?: string
@@ -49,6 +57,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          custom_age_ranges?: Json | null
+          custom_dating_preferences?: Json | null
+          custom_genders?: Json | null
+          custom_preferences?: Json | null
           date?: string
           gender_parity?: boolean | null
           id?: string

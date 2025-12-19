@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
+import EventPreferencesEditor, { EventPreferences, DEFAULT_PREFERENCES } from "@/components/event/EventPreferencesEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,6 +34,7 @@ const CreateEvent = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [eventPreferences, setEventPreferences] = useState<EventPreferences>({ ...DEFAULT_PREFERENCES });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -112,6 +114,9 @@ const CreateEvent = () => {
 
     setIsLoading(true);
     
+    // Check if preferences are customized
+    const hasCustomPreferences = JSON.stringify(eventPreferences) !== JSON.stringify(DEFAULT_PREFERENCES);
+    
     // Create event in database with organizer_id
     const { data: eventData, error: eventError } = await supabase
       .from("events")
@@ -126,6 +131,10 @@ const CreateEvent = () => {
         organizer_id: user.id,
         rotation_mode: rotationMode,
         gender_parity: genderParity,
+        custom_age_ranges: hasCustomPreferences ? eventPreferences.ageRanges : null,
+        custom_genders: hasCustomPreferences ? eventPreferences.genders : null,
+        custom_preferences: hasCustomPreferences ? eventPreferences.preferences : null,
+        custom_dating_preferences: hasCustomPreferences ? eventPreferences.datingPreferences : null,
       })
       .select()
       .single();
@@ -420,6 +429,14 @@ const CreateEvent = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Event Preferences Editor */}
+                <div className="pt-2">
+                  <EventPreferencesEditor
+                    value={eventPreferences}
+                    onChange={setEventPreferences}
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3">
