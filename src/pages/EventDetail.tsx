@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2 } from "lucide-react";
+import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -37,11 +38,14 @@ interface EventData {
   tables: any;
   rotation_mode: "fixed_host" | "all_rotate";
   gender_parity: boolean;
+  email_template: EmailTemplate | null;
+  emails_sent_at: string | null;
 }
 
 interface DbParticipant {
   id: string;
   name: string;
+  email: string | null;
   age: number | null;
   age_range: string | null;
   preferred_age_range: string | null;
@@ -93,6 +97,8 @@ const EventDetail = () => {
   const [excelPreview, setExcelPreview] = useState<{participants: Participant[], errors: string[]} | null>(null);
   const [pendingTableGeneration, setPendingTableGeneration] = useState<TableGenerationResult | null>(null);
   const [showTableConfirmDialog, setShowTableConfirmDialog] = useState(false);
+  const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
 
   useEffect(() => {
     loadEventData();
@@ -116,7 +122,9 @@ const EventDetail = () => {
     setEventData({
       ...event,
       rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host",
-      gender_parity: event.gender_parity || false
+      gender_parity: event.gender_parity || false,
+      email_template: event.email_template as unknown as EmailTemplate | null,
+      emails_sent_at: event.emails_sent_at
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
 
@@ -927,6 +935,70 @@ const EventDetail = () => {
     });
   };
 
+  const handleSaveEmailTemplate = async (template: EmailTemplate) => {
+    if (!id) return;
+    
+    const { error } = await supabase
+      .from("events")
+      .update({ email_template: JSON.parse(JSON.stringify(template)) })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la plantilla",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, email_template: template } : prev);
+    toast({
+      title: "Plantilla guardada",
+      description: "La plantilla de email ha sido guardada correctamente",
+    });
+  };
+
+  const handleSendEmails = async () => {
+    if (!id) return;
+    
+    setIsSendingEmails(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('send-match-emails', {
+        body: { 
+          event_id: id, 
+          email_template: eventData?.email_template 
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Reload event data to get updated emails_sent_at
+      await loadEventData();
+
+      toast({
+        title: "Emails enviados",
+        description: `Se enviaron ${data?.sent || 0} emails correctamente${data?.failed > 0 ? `. ${data.failed} fallidos.` : "."}`,
+      });
+    } catch (error: any) {
+      console.error("Error sending emails:", error);
+      toast({
+        title: "Error al enviar emails",
+        description: error.message || "No se pudieron enviar los emails",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingEmails(false);
+    }
+  };
+
   const getGenderBadge = (gender: string | null) => {
     if (!gender) return null;
     switch (gender) {
@@ -1074,6 +1146,12 @@ const EventDetail = () => {
               <Heart className="w-4 h-4 mr-2" />
               Matches ({matches.length})
             </TabsTrigger>
+            {eventStatus === "completed" && (
+              <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Mail className="w-4 h-4 mr-2" />
+                Emails
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Participants Tab */}
@@ -1325,7 +1403,147 @@ const EventDetail = () => {
               onRefresh={loadEventData}
             />
           </TabsContent>
+
+          {/* Emails Tab */}
+          <TabsContent value="emails">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Envío de Emails</CardTitle>
+                    <CardDescription>
+                      Notifica a los participantes sobre sus matches
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowEmailEditor(true)}
+                    >
+                      <Settings2 className="w-4 h-4 mr-2" />
+                      Personalizar plantilla
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Statistics */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-muted/50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {participants.filter(p => p.email).length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Con email</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-destructive">
+                      {participants.filter(p => !p.email).length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Sin email</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold">
+                      {matches.length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Matches totales</div>
+                  </div>
+                </div>
+
+                {/* Email Status */}
+                {eventData?.emails_sent_at && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="font-medium text-primary">Emails enviados</p>
+                      <p className="text-sm text-muted-foreground">
+                        Enviados el {new Date(eventData.emails_sent_at).toLocaleDateString("es-ES", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Template Preview */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Plantilla actual
+                  </h3>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p><span className="font-medium">Asunto (con matches):</span> {eventData?.email_template?.withMatches?.subject || "¡Tienes matches en {{evento}}! 🎉"}</p>
+                    <p><span className="font-medium">Asunto (sin matches):</span> {eventData?.email_template?.withoutMatches?.subject || "Gracias por participar en {{evento}}"}</p>
+                  </div>
+                </div>
+
+                {/* Send Button */}
+                <div className="flex flex-col items-center gap-4 py-4">
+                  {participants.filter(p => !p.email).length > 0 && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+                      ⚠️ {participants.filter(p => !p.email).length} participantes no tienen email registrado y no recibirán notificación.
+                    </p>
+                  )}
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="hero" 
+                        size="lg"
+                        disabled={isSendingEmails || participants.filter(p => p.email).length === 0}
+                      >
+                        {isSendingEmails ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            {eventData?.emails_sent_at ? "Reenviar emails" : "Enviar emails a todos"}
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {eventData?.emails_sent_at ? "¿Reenviar emails?" : "¿Enviar emails?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {eventData?.emails_sent_at 
+                            ? `Los emails ya fueron enviados previamente. ¿Quieres reenviarlos a los ${participants.filter(p => p.email).length} participantes con email?`
+                            : `Se enviarán emails a ${participants.filter(p => p.email).length} participantes con sus matches (o un mensaje de agradecimiento si no tienen matches).`
+                          }
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSendEmails}>
+                          Confirmar envío
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
+
+        {/* Email Template Editor Modal */}
+        {showEmailEditor && (
+          <EmailTemplateEditor
+            template={eventData?.email_template || null}
+            eventName={eventData?.name || ""}
+            onSave={handleSaveEmailTemplate}
+            onClose={() => setShowEmailEditor(false)}
+          />
+        )}
 
         {/* QR Modal - Matches */}
         {showQR && (
