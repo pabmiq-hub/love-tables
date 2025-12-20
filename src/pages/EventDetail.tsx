@@ -3,9 +3,12 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2 } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList } from "lucide-react";
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
+import SelectionProgress from "@/components/event/SelectionProgress";
+import InlineEmailEditor from "@/components/event/InlineEmailEditor";
+import CloseEventDialog from "@/components/event/CloseEventDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -13,6 +16,7 @@ import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
+import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -54,6 +58,7 @@ interface DbParticipant {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  selection_submitted_at?: string | null;
 }
 
 interface Match {
@@ -99,6 +104,9 @@ const EventDetail = () => {
   const [showTableConfirmDialog, setShowTableConfirmDialog] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [isSendingEmails, setIsSendingEmails] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [showCloseEventDialog, setShowCloseEventDialog] = useState(false);
+  const [isClosingEvent, setIsClosingEvent] = useState(false);
 
   useEffect(() => {
     loadEventData();
@@ -999,6 +1007,158 @@ const EventDetail = () => {
     }
   };
 
+  const handleSendReminder = async (participantIds: string[]) => {
+    if (!id || participantIds.length === 0) return;
+    
+    setIsSendingReminder(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('send-reminder-email', {
+        body: { 
+          event_id: id, 
+          participant_ids: participantIds 
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Recordatorios enviados",
+        description: `Se enviaron ${data?.stats?.sent || 0} recordatorios correctamente`,
+      });
+    } catch (error: any) {
+      console.error("Error sending reminders:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron enviar los recordatorios",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
+
+  const handleCloseAndSendEmails = async () => {
+    if (!id) return;
+    
+    setIsClosingEvent(true);
+    
+    try {
+      // First close the event
+      await supabase
+        .from("events")
+        .update({ status: "completed" })
+        .eq("id", id);
+
+      setEventStatus("completed");
+      
+      // Then send emails
+      const { data, error } = await supabase.functions.invoke('send-match-emails', {
+        body: { 
+          event_id: id, 
+          email_template: eventData?.email_template 
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await loadEventData();
+
+      toast({
+        title: "Evento cerrado y emails enviados",
+        description: `Se enviaron ${data?.stats?.withMatches + data?.stats?.withoutMatches || 0} emails correctamente`,
+      });
+      
+      setShowCloseEventDialog(false);
+      setShowQR(true);
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Ocurrió un error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClosingEvent(false);
+    }
+  };
+
+  const handleCloseWithoutSending = async () => {
+    if (!id) return;
+    
+    setIsClosingEvent(true);
+    
+    try {
+      await supabase
+        .from("events")
+        .update({ status: "completed" })
+        .eq("id", id);
+
+      setEventStatus("completed");
+      setShowCloseEventDialog(false);
+      setShowQR(true);
+      
+      toast({
+        title: "Evento cerrado",
+        description: "El evento ha sido cerrado. Puedes enviar los emails más tarde.",
+      });
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar el evento",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClosingEvent(false);
+    }
+  };
+
+  const handleUpdateParticipantEmail = (participantId: string, newEmail: string) => {
+    setParticipants(participants.map(p => 
+      p.id === participantId ? { ...p, email: newEmail } : p
+    ));
+  };
+
+  const handleExportMatches = async (format: 'csv' | 'excel') => {
+    if (matches.length === 0) {
+      toast({
+        title: "Sin matches",
+        description: "No hay matches para exportar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (format === 'csv') {
+        exportMatchesToCSV(matches, eventData?.name || "evento");
+      } else {
+        await exportMatchesToExcel(matches, eventData?.name || "evento");
+      }
+      
+      toast({
+        title: "Exportación completada",
+        description: `Los matches se han exportado correctamente`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron exportar los matches",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getGenderBadge = (gender: string | null) => {
     if (!gender) return null;
     switch (gender) {
@@ -1118,9 +1278,9 @@ const EventDetail = () => {
               </AlertDialog>
             )}
             {eventStatus === "active" && (
-              <Button variant="hero" onClick={handleEndEvent}>
+              <Button variant="hero" onClick={() => setShowCloseEventDialog(true)}>
                 <CheckCircle2 className="w-4 h-4 mr-2" />
-                Finalizar evento
+                Cerrar evento y enviar emails
               </Button>
             )}
             {eventStatus === "completed" && (
@@ -1146,6 +1306,12 @@ const EventDetail = () => {
               <Heart className="w-4 h-4 mr-2" />
               Matches ({matches.length})
             </TabsTrigger>
+            {(eventStatus === "active" || eventStatus === "completed") && (
+              <TabsTrigger value="selections" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Selecciones
+              </TabsTrigger>
+            )}
             {eventStatus === "completed" && (
               <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Mail className="w-4 h-4 mr-2" />
@@ -1248,8 +1414,15 @@ const EventDetail = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="hidden sm:block">
+                            <InlineEmailEditor
+                              participantId={participant.id}
+                              currentEmail={participant.email}
+                              onEmailUpdated={(newEmail) => handleUpdateParticipantEmail(participant.id, newEmail)}
+                            />
+                          </div>
                           {getGenderBadge(participant.gender)}
-                          <span className="text-sm text-muted-foreground hidden sm:inline">
+                          <span className="text-sm text-muted-foreground hidden lg:inline">
                             Busca: {participant.preferred_age_range || "Sin preferencia"}
                           </span>
                           {eventStatus === "pending" && (
@@ -1402,6 +1575,45 @@ const EventDetail = () => {
               onShowQR={() => setShowQR(true)}
               onRefresh={loadEventData}
             />
+          </TabsContent>
+
+          {/* Selections Tab */}
+          <TabsContent value="selections">
+            <div className="space-y-6">
+              <SelectionProgress
+                participants={participants}
+                selections={selections}
+                onSendReminder={handleSendReminder}
+                isSendingReminder={isSendingReminder}
+              />
+
+              {/* Export Matches Button */}
+              {matches.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Download className="w-5 h-5" />
+                      Exportar Matches
+                    </CardTitle>
+                    <CardDescription>
+                      Descarga los matches en formato CSV o Excel
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={() => handleExportMatches('csv')}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Exportar CSV
+                      </Button>
+                      <Button variant="outline" onClick={() => handleExportMatches('excel')}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Exportar Excel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
 
           {/* Emails Tab */}
@@ -1620,6 +1832,18 @@ const EventDetail = () => {
             </div>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Close Event Dialog */}
+        <CloseEventDialog
+          open={showCloseEventDialog}
+          onOpenChange={setShowCloseEventDialog}
+          participants={participants}
+          selections={selections}
+          onCloseAndSend={handleCloseAndSendEmails}
+          onCloseWithoutSending={handleCloseWithoutSending}
+          onWait={() => setShowCloseEventDialog(false)}
+          isClosing={isClosingEvent}
+        />
       </main>
     </div>
   );

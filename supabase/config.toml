@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-match-emails]
 verify_jwt = false
+
+[functions.send-reminder-email]
+verify_jwt = false
