@@ -3,12 +3,14 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye } from "lucide-react";
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
+import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
+import EditParticipantModal from "@/components/event/EditParticipantModal";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -107,6 +109,8 @@ const EventDetail = () => {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [showCloseEventDialog, setShowCloseEventDialog] = useState(false);
   const [isClosingEvent, setIsClosingEvent] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<DbParticipant | null>(null);
+  const [editingParticipant, setEditingParticipant] = useState<DbParticipant | null>(null);
 
   useEffect(() => {
     loadEventData();
@@ -925,6 +929,86 @@ const EventDetail = () => {
     });
   };
 
+  const handleCheckInAll = async () => {
+    const { error } = await supabase
+      .from("participants")
+      .update({ checked_in: true })
+      .eq("event_id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo hacer check-in a todos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants(participants.map(p => ({ ...p, checked_in: true })));
+    toast({
+      title: "Check-in completado",
+      description: `Se ha hecho check-in a ${participants.length} participantes`,
+    });
+  };
+
+  const handleDeleteAllParticipants = async () => {
+    const { error } = await supabase
+      .from("participants")
+      .delete()
+      .eq("event_id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron eliminar los participantes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants([]);
+    
+    await supabase
+      .from("events")
+      .update({ participants_count: 0 })
+      .eq("id", id);
+
+    toast({
+      title: "Participantes eliminados",
+      description: "Todos los participantes han sido eliminados",
+    });
+  };
+
+  const handleUpdateParticipant = (updatedParticipant: DbParticipant) => {
+    setParticipants(participants.map(p => 
+      p.id === updatedParticipant.id ? updatedParticipant : p
+    ));
+    setEditingParticipant(null);
+    setSelectedParticipant(null);
+  };
+
+  // Get dominant age range for a table
+  const getTableAgeRangeInfo = (tableMembers: { id: string; name: string }[]): { dominant: string; isMixed: boolean } => {
+    const ageRanges: Record<string, number> = {};
+    
+    tableMembers.forEach(member => {
+      const participant = participants.find(p => p.id === member.id);
+      const ageRange = participant?.age_range || "Desconocido";
+      ageRanges[ageRange] = (ageRanges[ageRange] || 0) + 1;
+    });
+
+    const entries = Object.entries(ageRanges);
+    if (entries.length === 0) return { dominant: "Desconocido", isMixed: false };
+    
+    const sorted = entries.sort((a, b) => b[1] - a[1]);
+    const isMixed = sorted.length > 1;
+    
+    return { 
+      dominant: sorted[0][0], 
+      isMixed 
+    };
+  };
+
   const handleStartEvent = async () => {
     await initiateTableGeneration();
   };
@@ -1355,11 +1439,48 @@ const EventDetail = () => {
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
+                   <div>
                     <CardTitle>Lista de Participantes</CardTitle>
                     <CardDescription>{participants.length} personas registradas</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {eventStatus === "pending" && participants.length > 0 && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleCheckInAll}
+                        >
+                          <UserCheck className="w-4 h-4 mr-2" />
+                          Check-in todos
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                              <UserX className="w-4 h-4 mr-2" />
+                              Eliminar todos
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar todos los participantes?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción eliminará a los {participants.length} participantes del evento. No se puede deshacer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={handleDeleteAllParticipants}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Eliminar todos
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1417,10 +1538,11 @@ const EventDetail = () => {
                     {participants.map((participant, index) => (
                       <div 
                         key={participant.id}
-                        className={`flex items-center justify-between p-4 rounded-lg animate-fade-in ${
+                        className={`flex items-center justify-between p-4 rounded-lg animate-fade-in cursor-pointer hover:shadow-md transition-shadow ${
                           participant.checked_in ? "bg-primary/10 border border-primary/20" : "bg-muted/50"
                         }`}
                         style={{ animationDelay: `${index * 0.05}s` }}
+                        onClick={() => setSelectedParticipant(participant)}
                       >
                         <div className="flex items-center gap-4">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
@@ -1443,7 +1565,10 @@ const EventDetail = () => {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedParticipant(participant)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
                           <div className="hidden sm:block">
                             <InlineEmailEditor
                               participantId={participant.id}
@@ -1452,9 +1577,6 @@ const EventDetail = () => {
                             />
                           </div>
                           {getGenderBadge(participant.gender)}
-                          <span className="text-sm text-muted-foreground hidden lg:inline">
-                            Busca: {participant.preferred_age_range || "Sin preferencia"}
-                          </span>
                           {eventStatus === "pending" && (
                             <Button
                               variant={participant.checked_in ? "default" : "outline"}
@@ -1874,6 +1996,28 @@ const EventDetail = () => {
           onWait={() => setShowCloseEventDialog(false)}
           isClosing={isClosingEvent}
         />
+
+        {/* Participant Detail Modal */}
+        {selectedParticipant && !editingParticipant && (
+          <ParticipantDetailModal
+            participant={selectedParticipant}
+            tables={tables}
+            selections={selections}
+            participants={participants}
+            onClose={() => setSelectedParticipant(null)}
+            onEdit={() => setEditingParticipant(selectedParticipant)}
+            canEdit={eventStatus === "pending"}
+          />
+        )}
+
+        {/* Edit Participant Modal */}
+        {editingParticipant && (
+          <EditParticipantModal
+            participant={editingParticipant}
+            onClose={() => setEditingParticipant(null)}
+            onSave={handleUpdateParticipant}
+          />
+        )}
       </main>
     </div>
   );
