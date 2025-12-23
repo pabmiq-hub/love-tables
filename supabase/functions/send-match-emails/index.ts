@@ -86,6 +86,35 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.log("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - No token provided" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create auth client to verify token
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !user) {
+      console.log("Invalid token:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const { event_id, email_template } = await req.json();
     console.log("Processing event:", event_id);
 
@@ -100,10 +129,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: event } = await supabase.from("events").select("name, email_template").eq("id", event_id).single();
+    // Verify user is the event organizer
+    const { data: event } = await supabase.from("events").select("name, email_template, organizer_id").eq("id", event_id).single();
     if (!event) {
       return new Response(JSON.stringify({ error: "Event not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    if (event.organizer_id !== user.id) {
+      console.log("User is not the organizer. User:", user.id, "Organizer:", event.organizer_id);
+      return new Response(
+        JSON.stringify({ error: "Forbidden - You are not the organizer of this event" }), 
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authorization verified - user is event organizer");
 
     const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || DEFAULT_TEMPLATE;
     const { data: participants } = await supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
