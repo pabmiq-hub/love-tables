@@ -14,6 +14,11 @@ import ParticipantSelect from "./pages/ParticipantSelect";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantCheckin from "./pages/ParticipantCheckin";
 import NotFound from "./pages/NotFound";
+import AvisoLegal from "./pages/AvisoLegal";
+import PoliticaPrivacidad from "./pages/PoliticaPrivacidad";
+import PoliticaCookies from "./pages/PoliticaCookies";
+import TerminosCondiciones from "./pages/TerminosCondiciones";
+import { CookieBanner } from "./components/cookies/CookieBanner";
 
 const queryClient = new QueryClient();
 
@@ -34,8 +39,13 @@ const App = () => (
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
           <Route path="/event/:id/join" element={<ParticipantJoin />} />
           <Route path="/event/:id/checkin" element={<ParticipantCheckin />} />
+          <Route path="/aviso-legal" element={<AvisoLegal />} />
+          <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
+          <Route path="/politica-cookies" element={<PoliticaCookies />} />
+          <Route path="/terminos-condiciones" element={<TerminosCondiciones />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <CookieBanner />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
