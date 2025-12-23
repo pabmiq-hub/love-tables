@@ -1392,15 +1392,27 @@ const EventDetail = () => {
               </AlertDialog>
             )}
             {eventStatus === "active" && (
-              <Button variant="hero" onClick={() => setShowCloseEventDialog(true)}>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Cerrar evento y enviar emails
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => setShowQR(true)}>
+                  <QrCode className="w-4 h-4 mr-2" />
+                  QR Selección
+                </Button>
+                <Button variant="hero" onClick={() => setShowCloseEventDialog(true)}>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Cerrar evento y enviar emails
+                </Button>
+              </>
             )}
             {eventStatus === "completed" && (
               <Button variant="outline" onClick={() => setShowQR(true)}>
                 <QrCode className="w-4 h-4 mr-2" />
                 QR Matches
+              </Button>
+            )}
+            {eventStatus === "pending" && (
+              <Button variant="outline" onClick={() => setShowEmailEditor(true)}>
+                <Mail className="w-4 h-4 mr-2" />
+                Personalizar email
               </Button>
             )}
           </div>
@@ -1426,7 +1438,7 @@ const EventDetail = () => {
                 Selecciones
               </TabsTrigger>
             )}
-            {eventStatus === "completed" && (
+            {(eventStatus === "active" || eventStatus === "completed") && (
               <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Mail className="w-4 h-4 mr-2" />
                 Emails
@@ -1625,17 +1637,61 @@ const EventDetail = () => {
           <TabsContent value="tables">
             <div className="space-y-6">
               {eventStatus === "active" && tables.length > 0 && (
-                <RoundTimer
-                  roundDuration={Math.floor((eventData.round_duration || 300) / 60)}
-                  currentRound={currentRound}
-                  totalRounds={tables.length}
-                  onRoundComplete={() => {
-                    toast({
-                      title: "¡Ronda completada!",
-                      description: "Es hora de cambiar de mesa",
-                    });
-                  }}
-                />
+                <>
+                  <RoundTimer
+                    roundDuration={Math.floor((eventData.round_duration || 300) / 60)}
+                    currentRound={currentRound}
+                    totalRounds={tables.length}
+                    onRoundComplete={() => {
+                      toast({
+                        title: "¡Ronda completada!",
+                        description: "Es hora de cambiar de mesa",
+                      });
+                    }}
+                  />
+                  
+                  {/* Round Controls and QR */}
+                  <Card className="bg-gradient-card border-primary/20">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <Button 
+                            variant="hero" 
+                            size="lg"
+                            onClick={() => setShowQR(true)}
+                          >
+                            <QrCode className="w-5 h-5 mr-2" />
+                            Mostrar QR de Selección
+                          </Button>
+                          
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Selecciones enviadas</p>
+                            <p className="text-2xl font-bold text-primary">
+                              {participants.filter(p => p.selection_submitted_at).length} / {participants.length}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          {currentRound < tables.length && (
+                            <Button 
+                              variant="outline"
+                              onClick={() => {
+                                setCurrentRound(prev => prev + 1);
+                                toast({
+                                  title: `Ronda ${currentRound + 1}`,
+                                  description: "Avanzando a la siguiente ronda",
+                                });
+                              }}
+                            >
+                              Siguiente Ronda →
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
               )}
 
               {eventStatus === "pending" ? (
@@ -1689,26 +1745,45 @@ const EventDetail = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {tables.find(t => t.round === currentRound)?.tables.map((table: DbParticipant[], tableIndex: number) => (
-                          <Card key={tableIndex} className="bg-gradient-card">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Table2 className="w-4 h-4 text-primary" />
-                                <span className="font-medium">Mesa {tableIndex + 1}</span>
-                              </div>
-                              <div className="space-y-2">
-                                {table.map((participant) => (
-                                  <div key={participant.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-                                      {participant.name.charAt(0)}
-                                    </div>
-                                    <span className="text-sm">{participant.name}</span>
+                        {tables.find(t => t.round === currentRound)?.tables.map((table: DbParticipant[], tableIndex: number) => {
+                          const ageInfo = getTableAgeRangeInfo(table);
+                          const isFriendshipOnly = eventData?.rotation_mode === "all_rotate" || 
+                            !table.some((m: any) => {
+                              const p = participants.find(pp => pp.id === m.id);
+                              return p?.preference?.toLowerCase().includes('ligue');
+                            });
+                          
+                          return (
+                            <Card key={tableIndex} className="bg-gradient-card">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Table2 className="w-4 h-4 text-primary" />
+                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
                                   </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                  {isFriendshipOnly && (
+                                    <Badge 
+                                      variant={ageInfo.isMixed ? "outline" : "secondary"}
+                                      className={ageInfo.isMixed ? "text-amber-600 border-amber-300" : ""}
+                                    >
+                                      {ageInfo.isMixed ? `Mixto` : ageInfo.dominant}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="space-y-2">
+                                  {table.map((participant: any) => (
+                                    <div key={participant.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
+                                        {participant.name.charAt(0)}
+                                      </div>
+                                      <span className="text-sm">{participant.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
