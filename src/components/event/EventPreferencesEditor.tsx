@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, Plus, X, RotateCcw, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AgeRangeSlider from "./AgeRangeSlider";
 import {
   AGE_RANGES,
   GENDERS,
@@ -228,14 +229,28 @@ const EventPreferencesEditor = ({ value, onChange }: EventPreferencesEditorProps
             )}
           </div>
 
-          <EditableChipList
-            label="📊 Rangos de Edad"
-            items={value.ageRanges}
-            defaultItems={AGE_RANGES}
-            onAdd={(item) => addItem("ageRanges", item)}
-            onRemove={(item) => removeItem("ageRanges", item)}
-            onReset={() => resetToDefault("ageRanges")}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">📊 Rangos de Edad</Label>
+              {JSON.stringify([...value.ageRanges].sort()) !== JSON.stringify([...AGE_RANGES].sort()) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => resetToDefault("ageRanges")}
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Restaurar
+                </Button>
+              )}
+            </div>
+            <AgeRangeSlider
+              ranges={value.ageRanges}
+              onChange={(newRanges) => updatePreferences("ageRanges", newRanges)}
+              defaultRanges={[...AGE_RANGES]}
+            />
+          </div>
 
           <EditableChipList
             label="👤 Géneros"
