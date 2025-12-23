@@ -171,16 +171,24 @@ const ParticipantSelect = () => {
     // "Pareja sentimental" or "Nuevas amistades y también pareja sentimental" = show Ligue option
     // "Nuevas amistades" only = show only Amistad option
     const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') || 
-                                   userPreference?.toLowerCase().includes('pareja');
+                                   userPreference?.toLowerCase().includes('pareja') ||
+                                   userPreference?.toLowerCase().includes('ligue');
     
     // Initialize match selections for tablemates only
+    // Romance is shown only if BOTH the selector AND the target are interested in dating
     setMatchSelections(tablemates.map(p => {
+      // Check if the TARGET person is also interested in dating
+      const targetPreference = p.preference?.toLowerCase() || '';
+      const targetInterestedInDating = targetPreference.includes('sentimental') || 
+                                        targetPreference.includes('pareja') ||
+                                        targetPreference.includes('ligue');
+      
       return {
         participantId: p.id,
         friendship: false,
         dating: false,
-        // Show dating option if the SELECTOR is interested in dating
-        canShowDating: userInterestedInDating || false,
+        // Show dating option ONLY if BOTH are interested in dating
+        canShowDating: userInterestedInDating && targetInterestedInDating,
       };
     }));
     
