@@ -14,6 +14,35 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.log("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - No token provided" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create auth client to verify token
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !user) {
+      console.log("Invalid token:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const { event_id, participant_ids } = await req.json();
     console.log("Processing reminder for event:", event_id, "participants:", participant_ids?.length);
 
@@ -44,10 +73,10 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get event details
+    // Verify user is the event organizer
     const { data: event } = await supabase
       .from("events")
-      .select("name")
+      .select("name, organizer_id")
       .eq("id", event_id)
       .single();
 
@@ -57,6 +86,16 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    if (event.organizer_id !== user.id) {
+      console.log("User is not the organizer. User:", user.id, "Organizer:", event.organizer_id);
+      return new Response(
+        JSON.stringify({ error: "Forbidden - You are not the organizer of this event" }), 
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authorization verified - user is event organizer");
 
     // Get participants
     const { data: participants } = await supabase

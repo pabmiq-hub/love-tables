@@ -973,10 +973,20 @@ const EventDetail = () => {
     setIsSendingEmails(true);
     
     try {
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("No estás autenticado");
+      }
+
       const { data, error } = await supabase.functions.invoke('send-match-emails', {
         body: { 
           event_id: id, 
           email_template: eventData?.email_template 
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
@@ -1013,10 +1023,20 @@ const EventDetail = () => {
     setIsSendingReminder(true);
     
     try {
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("No estás autenticado");
+      }
+
       const { data, error } = await supabase.functions.invoke('send-reminder-email', {
         body: { 
           event_id: id, 
           participant_ids: participantIds 
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
@@ -1050,6 +1070,13 @@ const EventDetail = () => {
     setIsClosingEvent(true);
     
     try {
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("No estás autenticado");
+      }
+
       // First close the event
       await supabase
         .from("events")
@@ -1058,11 +1085,14 @@ const EventDetail = () => {
 
       setEventStatus("completed");
       
-      // Then send emails
+      // Then send emails with authorization
       const { data, error } = await supabase.functions.invoke('send-match-emails', {
         body: { 
           event_id: id, 
           email_template: eventData?.email_template 
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
