@@ -63,7 +63,7 @@ const featureTabs = [
     features: [
       { icon: Heart, text: "Votación en tiempo real desde cualquier dispositivo" },
       { icon: CheckCircle2, text: "Interfaz intuitiva que cualquiera puede usar" },
-      { icon: Sparkles, text: "Sistema de 'me gusta' y 'super like'" },
+      { icon: Sparkles, text: "Sistema de votación con 'me gusta'" },
       { icon: Users, text: "Filtros por preferencias y rangos de edad" }
     ],
     visual: (
@@ -199,10 +199,6 @@ export const Features = () => {
                     ))}
                   </ul>
 
-                  <button className="inline-flex items-center gap-2 text-primary font-medium group">
-                    Ver más detalles
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
                 </div>
 
                 {/* Visual */}
