@@ -27,23 +27,38 @@ export const HowItWorks = () => {
   return (
     <section id="como-funciona" className="py-24 md:py-32 bg-muted/30">
       <div className="container mx-auto px-4">
+        {/* Transition Title */}
+        <div className="animate-fade-in text-center mb-16">
+          <h2 className="text-2xl md:text-4xl font-display font-bold text-primary mb-2">
+            Tu próximo match está a solo
+          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-5xl md:text-7xl font-display font-bold text-gradient">4</span>
+            <span className="text-2xl md:text-4xl font-display font-bold text-muted-foreground">pasos</span>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             Proceso sencillo
           </span>
-          <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
+          <h3 className="text-2xl md:text-3xl font-display font-semibold mb-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             ¿Cómo funciona?
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Organiza eventos de speed dating profesionales en cuatro simples pasos
+          </h3>
+          <p className="text-lg text-muted-foreground animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            Organiza eventos de speed dating profesionales de forma sencilla
           </p>
         </div>
 
         {/* Steps */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((step, index) => (
-            <div key={index} className="relative group">
+            <div 
+              key={index} 
+              className="relative group animate-fade-in"
+              style={{ animationDelay: `${0.4 + index * 0.15}s` }}
+            >
               {/* Connection line for desktop */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-12 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-primary/30 to-transparent" />

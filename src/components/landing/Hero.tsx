@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Users, Calendar, Sparkles, ArrowRight } from "lucide-react";
+import { Heart, Users, Calendar, Sparkles, ArrowRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const Hero = () => {
@@ -82,10 +82,12 @@ export const Hero = () => {
 
         {/* Features */}
         <div 
-          className="animate-fade-in grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full" 
-          style={{ animationDelay: '0.4s' }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full" 
         >
-          <div className="flex flex-col items-center text-center p-6 rounded-2xl glass">
+          <div 
+            className="animate-fade-in flex flex-col items-center text-center p-6 rounded-2xl glass hover:scale-105 transition-transform duration-300 cursor-pointer"
+            style={{ animationDelay: '0.4s' }}
+          >
             <div className="w-14 h-14 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-soft">
               <Calendar className="w-7 h-7 text-primary-foreground" />
             </div>
@@ -95,7 +97,10 @@ export const Hero = () => {
             </p>
           </div>
 
-          <div className="flex flex-col items-center text-center p-6 rounded-2xl glass">
+          <div 
+            className="animate-fade-in flex flex-col items-center text-center p-6 rounded-2xl glass hover:scale-105 transition-transform duration-300 cursor-pointer"
+            style={{ animationDelay: '0.5s' }}
+          >
             <div className="w-14 h-14 rounded-xl bg-gradient-accent flex items-center justify-center mb-4">
               <Users className="w-7 h-7 text-accent-foreground" />
             </div>
@@ -105,7 +110,10 @@ export const Hero = () => {
             </p>
           </div>
 
-          <div className="flex flex-col items-center text-center p-6 rounded-2xl glass">
+          <div 
+            className="animate-fade-in flex flex-col items-center text-center p-6 rounded-2xl glass hover:scale-105 transition-transform duration-300 cursor-pointer"
+            style={{ animationDelay: '0.6s' }}
+          >
             <div className="w-14 h-14 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-soft">
               <Heart className="w-7 h-7 text-primary-foreground" />
             </div>
@@ -113,6 +121,18 @@ export const Hero = () => {
             <p className="text-sm text-muted-foreground">
               Los participantes eligen y descubren sus coincidencias
             </p>
+          </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div 
+          className="animate-fade-in mt-16 flex flex-col items-center cursor-pointer group"
+          style={{ animationDelay: '0.7s' }}
+          onClick={() => document.getElementById('como-funciona')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span className="text-sm text-muted-foreground mb-2 group-hover:text-primary transition-colors">Descubre cómo funciona</span>
+          <div className="w-10 h-10 rounded-full border-2 border-primary/30 flex items-center justify-center animate-bounce group-hover:border-primary transition-colors">
+            <ChevronDown className="w-5 h-5 text-primary/50 group-hover:text-primary transition-colors" />
           </div>
         </div>
       </div>
