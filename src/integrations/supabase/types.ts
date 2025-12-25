@@ -32,6 +32,7 @@ export type Database = {
           rotation_mode: string
           round_duration: number
           rounds: number
+          scheduled_email_at: string | null
           status: string
           table_size: number
           tables: Json | null
@@ -54,6 +55,7 @@ export type Database = {
           rotation_mode?: string
           round_duration?: number
           rounds?: number
+          scheduled_email_at?: string | null
           status?: string
           table_size?: number
           tables?: Json | null
@@ -76,6 +78,7 @@ export type Database = {
           rotation_mode?: string
           round_duration?: number
           rounds?: number
+          scheduled_email_at?: string | null
           status?: string
           table_size?: number
           tables?: Json | null
