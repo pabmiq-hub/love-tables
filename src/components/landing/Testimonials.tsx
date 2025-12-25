@@ -26,10 +26,10 @@ const testimonials = [
 
 export const Testimonials = () => {
   return (
-    <section id="testimonios" className="py-24 md:py-32">
+    <section id="testimonios" className="py-16 md:py-20">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="text-center max-w-2xl mx-auto mb-10">
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
             Testimonios
           </span>

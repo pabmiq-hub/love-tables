@@ -25,28 +25,23 @@ const steps = [
 
 export const HowItWorks = () => {
   return (
-    <section id="como-funciona" className="py-24 md:py-32 bg-muted/30">
+    <section id="como-funciona" className="py-16 md:py-20 bg-muted/30">
       <div className="container mx-auto px-4">
-        {/* Transition Title */}
-        <div className="animate-fade-in text-center mb-16">
-          <h2 className="text-2xl md:text-4xl font-display font-bold text-primary mb-2">
-            Tu próximo match está a solo
-          </h2>
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-5xl md:text-7xl font-display font-bold text-gradient">4</span>
-            <span className="text-2xl md:text-4xl font-display font-bold text-muted-foreground">pasos</span>
+        {/* Unified Header */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <div className="animate-fade-in mb-6">
+            <span className="text-lg md:text-xl font-display font-medium text-primary">
+              Tu próximo match está a solo
+            </span>
+            <div className="flex items-center justify-center gap-2 mt-1">
+              <span className="text-4xl md:text-5xl font-display font-bold text-gradient">4</span>
+              <span className="text-lg md:text-xl font-display font-medium text-muted-foreground">pasos</span>
+            </div>
           </div>
-        </div>
-
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            Proceso sencillo
-          </span>
-          <h3 className="text-2xl md:text-3xl font-display font-semibold mb-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <h2 className="text-2xl md:text-4xl font-display font-bold mb-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             ¿Cómo funciona?
-          </h3>
-          <p className="text-lg text-muted-foreground animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          </h2>
+          <p className="text-muted-foreground animate-fade-in" style={{ animationDelay: '0.2s' }}>
             Organiza eventos de speed dating profesionales de forma sencilla
           </p>
         </div>

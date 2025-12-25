@@ -137,7 +137,7 @@ export const Features = () => {
   const [activeTab, setActiveTab] = useState("gestion");
 
   return (
-    <section id="caracteristicas" className="py-24 md:py-32 bg-muted/30">
+    <section id="caracteristicas" className="py-16 md:py-20 bg-muted/30">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
