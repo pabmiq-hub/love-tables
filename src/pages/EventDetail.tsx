@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X } from "lucide-react";
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
@@ -11,6 +11,7 @@ import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
+import ScheduleEmailDialog from "@/components/event/ScheduleEmailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
@@ -46,6 +47,7 @@ interface EventData {
   gender_parity: boolean;
   email_template: EmailTemplate | null;
   emails_sent_at: string | null;
+  scheduled_email_at: string | null;
 }
 
 interface DbParticipant {
@@ -111,6 +113,8 @@ const EventDetail = () => {
   const [isClosingEvent, setIsClosingEvent] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<DbParticipant | null>(null);
   const [editingParticipant, setEditingParticipant] = useState<DbParticipant | null>(null);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   useEffect(() => {
     loadEventData();
@@ -136,7 +140,8 @@ const EventDetail = () => {
       rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host",
       gender_parity: event.gender_parity || false,
       email_template: event.email_template as unknown as EmailTemplate | null,
-      emails_sent_at: event.emails_sent_at
+      emails_sent_at: event.emails_sent_at,
+      scheduled_email_at: event.scheduled_email_at
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
 
@@ -1148,6 +1153,76 @@ const EventDetail = () => {
     }
   };
 
+  const handleScheduleEmails = async (scheduledDate: Date) => {
+    if (!id) return;
+    
+    setIsScheduling(true);
+    
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ scheduled_email_at: scheduledDate.toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setEventData(prev => prev ? { ...prev, scheduled_email_at: scheduledDate.toISOString() } : null);
+      setShowScheduleDialog(false);
+      
+      toast({
+        title: "Envío programado",
+        description: `Los emails se enviarán el ${scheduledDate.toLocaleDateString("es-ES", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        })}`,
+      });
+    } catch (error: any) {
+      console.error("Error scheduling emails:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo programar el envío",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const handleCancelScheduledEmails = async () => {
+    if (!id) return;
+    
+    setIsScheduling(true);
+    
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ scheduled_email_at: null })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setEventData(prev => prev ? { ...prev, scheduled_email_at: null } : null);
+      setShowScheduleDialog(false);
+      
+      toast({
+        title: "Programación cancelada",
+        description: "El envío programado ha sido cancelado",
+      });
+    } catch (error: any) {
+      console.error("Error canceling scheduled emails:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la programación",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
   const handleCloseAndSendEmails = async () => {
     if (!id) return;
     
@@ -1889,6 +1964,37 @@ const EventDetail = () => {
                   </div>
                 </div>
 
+                {/* Scheduled Email Status */}
+                {eventData?.scheduled_email_at && !eventData?.emails_sent_at && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      <div>
+                        <p className="font-medium text-amber-700 dark:text-amber-300">Envío programado</p>
+                        <p className="text-sm text-muted-foreground">
+                          Programado para el {new Date(eventData.scheduled_email_at).toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleCancelScheduledEmails}
+                      disabled={isScheduling}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+
                 {/* Email Status */}
                 {eventData?.emails_sent_at && (
                   <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-3">
@@ -1920,7 +2026,7 @@ const EventDetail = () => {
                   </div>
                 </div>
 
-                {/* Send Button */}
+                {/* Send Buttons */}
                 <div className="flex flex-col items-center gap-4 py-4">
                   {participants.filter(p => !p.email).length > 0 && (
                     <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
@@ -1928,46 +2034,62 @@ const EventDetail = () => {
                     </p>
                   )}
                   
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {/* Immediate Send Button */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="hero" 
+                          size="lg"
+                          disabled={isSendingEmails || participants.filter(p => p.email).length === 0}
+                        >
+                          {isSendingEmails ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-2" />
+                              {eventData?.emails_sent_at ? "Reenviar emails" : "Enviar ahora"}
+                            </>
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {eventData?.emails_sent_at ? "¿Reenviar emails?" : "¿Enviar emails?"}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {eventData?.emails_sent_at 
+                              ? `Los emails ya fueron enviados previamente. ¿Quieres reenviarlos a los ${participants.filter(p => p.email).length} participantes con email?`
+                              : `Se enviarán emails a ${participants.filter(p => p.email).length} participantes con sus matches (o un mensaje de agradecimiento si no tienen matches).`
+                            }
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSendEmails}>
+                            Confirmar envío
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Schedule Button */}
+                    {!eventData?.emails_sent_at && (
                       <Button 
-                        variant="hero" 
+                        variant="outline" 
                         size="lg"
-                        disabled={isSendingEmails || participants.filter(p => p.email).length === 0}
+                        onClick={() => setShowScheduleDialog(true)}
+                        disabled={participants.filter(p => p.email).length === 0}
                       >
-                        {isSendingEmails ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Enviando...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            {eventData?.emails_sent_at ? "Reenviar emails" : "Enviar emails a todos"}
-                          </>
-                        )}
+                        <Clock className="w-4 h-4 mr-2" />
+                        {eventData?.scheduled_email_at ? "Modificar programación" : "Programar envío"}
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          {eventData?.emails_sent_at ? "¿Reenviar emails?" : "¿Enviar emails?"}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {eventData?.emails_sent_at 
-                            ? `Los emails ya fueron enviados previamente. ¿Quieres reenviarlos a los ${participants.filter(p => p.email).length} participantes con email?`
-                            : `Se enviarán emails a ${participants.filter(p => p.email).length} participantes con sus matches (o un mensaje de agradecimiento si no tienen matches).`
-                          }
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleSendEmails}>
-                          Confirmar envío
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1983,6 +2105,16 @@ const EventDetail = () => {
             onClose={() => setShowEmailEditor(false)}
           />
         )}
+
+        {/* Schedule Email Dialog */}
+        <ScheduleEmailDialog
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          onSchedule={handleScheduleEmails}
+          onCancel={handleCancelScheduledEmails}
+          currentSchedule={eventData?.scheduled_email_at ? new Date(eventData.scheduled_email_at) : null}
+          isLoading={isScheduling}
+        />
 
         {/* QR Modal - Matches */}
         {showQR && (
