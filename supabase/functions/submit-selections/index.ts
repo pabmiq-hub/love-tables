@@ -6,10 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple rate limiting - 3 submissions per IP per 10 minutes
+// Simple rate limiting - 10 submissions per IP per 10 minutes (increased for incremental selections)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 10 * 60 * 1000; // 10 minutes
-const MAX_SUBMISSIONS = 3;
+const MAX_SUBMISSIONS = 10;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -61,7 +61,7 @@ serve(async (req) => {
 
     const { eventId, selectorId, selections } = await req.json();
     
-    console.log(`[submit-selections] Request for event: ${eventId}, selector: ${selectorId}`);
+    console.log(`[submit-selections] Request for event: ${eventId}, selector: ${selectorId}, selections count: ${selections?.length || 0}`);
 
     // Validate required fields
     if (!eventId || !selectorId) {
@@ -152,13 +152,12 @@ serve(async (req) => {
       );
     }
 
-    // Check if selector has already submitted selections
+    // Get existing selections for this selector (for incremental selection)
     const { data: existingSelections, error: existingError } = await supabase
       .from('participant_selections')
-      .select('id')
+      .select('selected_id')
       .eq('event_id', eventId)
-      .eq('selector_id', selectorId)
-      .limit(1);
+      .eq('selector_id', selectorId);
 
     if (existingError) {
       console.error('[submit-selections] Error checking existing selections:', existingError);
@@ -168,68 +167,78 @@ serve(async (req) => {
       );
     }
 
-    if (existingSelections && existingSelections.length > 0) {
-      console.log('[submit-selections] Selector has already submitted selections');
+    // Create set of already selected participant IDs
+    const alreadySelectedIds = new Set(existingSelections?.map(s => s.selected_id) || []);
+    console.log(`[submit-selections] Selector already has ${alreadySelectedIds.size} selections`);
+
+    // Filter out already selected participants (only add new ones)
+    const newSelections = selections.filter(
+      (s: { selected_id: string }) => !alreadySelectedIds.has(s.selected_id)
+    );
+
+    console.log(`[submit-selections] New selections to add: ${newSelections.length}`);
+
+    // If no new selections, return success (nothing to do)
+    if (newSelections.length === 0) {
+      console.log('[submit-selections] No new selections to add');
       return new Response(
-        JSON.stringify({ error: 'Ya has enviado tus selecciones anteriormente' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, count: 0, message: 'No hay nuevas selecciones para guardar' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Verify all selected participants belong to this event
-    if (selections.length > 0) {
-      const selectedIds = selections.map((s: { selected_id: string }) => s.selected_id);
-      
-      const { data: validParticipants, error: validError } = await supabase
-        .from('participants')
-        .select('id')
-        .eq('event_id', eventId)
-        .in('id', selectedIds);
+    const selectedIds = newSelections.map((s: { selected_id: string }) => s.selected_id);
+    
+    const { data: validParticipants, error: validError } = await supabase
+      .from('participants')
+      .select('id')
+      .eq('event_id', eventId)
+      .in('id', selectedIds);
 
-      if (validError) {
-        console.error('[submit-selections] Error validating selected participants:', validError);
-        return new Response(
-          JSON.stringify({ error: 'Error al validar participantes seleccionados' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (validError) {
+      console.error('[submit-selections] Error validating selected participants:', validError);
+      return new Response(
+        JSON.stringify({ error: 'Error al validar participantes seleccionados' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-      if (!validParticipants || validParticipants.length !== selectedIds.length) {
-        console.error('[submit-selections] Some selected participants are not valid');
-        return new Response(
-          JSON.stringify({ error: 'Algunos participantes seleccionados no son válidos' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (!validParticipants || validParticipants.length !== selectedIds.length) {
+      console.error('[submit-selections] Some selected participants are not valid');
+      return new Response(
+        JSON.stringify({ error: 'Algunos participantes seleccionados no son válidos' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-      // Verify selector is not selecting themselves
-      if (selectedIds.includes(selectorId)) {
-        console.error('[submit-selections] Selector cannot select themselves');
-        return new Response(
-          JSON.stringify({ error: 'No puedes seleccionarte a ti mismo' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // Verify selector is not selecting themselves
+    if (selectedIds.includes(selectorId)) {
+      console.error('[submit-selections] Selector cannot select themselves');
+      return new Response(
+        JSON.stringify({ error: 'No puedes seleccionarte a ti mismo' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-      // Insert selections
-      const selectionsToInsert = selections.map((s: { selected_id: string; selection_type: string }) => ({
-        event_id: eventId,
-        selector_id: selectorId,
-        selected_id: s.selected_id,
-        selection_type: s.selection_type,
-      }));
+    // Insert new selections
+    const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => ({
+      event_id: eventId,
+      selector_id: selectorId,
+      selected_id: s.selected_id,
+      selection_type: s.selection_type,
+    }));
 
-      const { error: insertError } = await supabase
-        .from('participant_selections')
-        .insert(selectionsToInsert);
+    const { error: insertError } = await supabase
+      .from('participant_selections')
+      .insert(selectionsToInsert);
 
-      if (insertError) {
-        console.error('[submit-selections] Error inserting selections:', insertError);
-        return new Response(
-          JSON.stringify({ error: 'Error al guardar las selecciones' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (insertError) {
+      console.error('[submit-selections] Error inserting selections:', insertError);
+      return new Response(
+        JSON.stringify({ error: 'Error al guardar las selecciones' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Update participant's selection_submitted_at
@@ -238,9 +247,16 @@ serve(async (req) => {
       .update({ selection_submitted_at: new Date().toISOString() })
       .eq('id', selectorId);
 
-    console.log(`[submit-selections] Successfully saved ${selections.length} selections for participant ${selectorId}`);
+    const totalSelections = alreadySelectedIds.size + newSelections.length;
+    console.log(`[submit-selections] Successfully saved ${newSelections.length} new selections. Total: ${totalSelections}`);
+    
     return new Response(
-      JSON.stringify({ success: true, count: selections.length }),
+      JSON.stringify({ 
+        success: true, 
+        count: newSelections.length, 
+        total: totalSelections,
+        message: `Guardadas ${newSelections.length} nuevas selecciones` 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
