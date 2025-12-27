@@ -17,6 +17,7 @@ export type Database = {
       events: {
         Row: {
           created_at: string
+          current_round: number | null
           custom_age_ranges: Json | null
           custom_dating_preferences: Json | null
           custom_genders: Json | null
@@ -40,6 +41,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_round?: number | null
           custom_age_ranges?: Json | null
           custom_dating_preferences?: Json | null
           custom_genders?: Json | null
@@ -63,6 +65,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_round?: number | null
           custom_age_ranges?: Json | null
           custom_dating_preferences?: Json | null
           custom_genders?: Json | null

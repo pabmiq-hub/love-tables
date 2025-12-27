@@ -40,10 +40,10 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // First verify the event exists and get tables
+    // First verify the event exists and get tables + current_round
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables')
+      .select('id, status, tables, current_round')
       .eq('id', eventId)
       .single();
 
@@ -82,7 +82,7 @@ serve(async (req) => {
     
     if (type === 'select') {
       // For selection: return names, phone and IDs only, plus who has already submitted
-      // Also include tables data so the frontend can filter by tablemates
+      // Filter tables based on current_round and event status
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
         .select('id, name, phone, preference, dating_preference')
@@ -96,24 +96,43 @@ serve(async (req) => {
         );
       }
 
-      // Get list of participants who have already submitted selections
-      const { data: selections, error: selectionsError } = await supabase
+      // Get existing selections for the current user (for incremental selection display)
+      const { data: existingSelections, error: existingSelectionsError } = await supabase
         .from('participant_selections')
-        .select('selector_id')
+        .select('selector_id, selected_id, selection_type')
         .eq('event_id', eventId);
 
-      if (selectionsError) {
-        console.error('[get-event-participants] Error fetching selections:', selectionsError);
+      if (existingSelectionsError) {
+        console.error('[get-event-participants] Error fetching existing selections:', existingSelectionsError);
       }
 
-      const submittedIds = [...new Set(selections?.map(s => s.selector_id) || [])];
+      // Filter tables based on event status and current_round
+      let filteredTables: any[] = [];
+      const allTables = event.tables || [];
+      const currentRound = event.current_round || 0;
+
+      if (event.status === 'completed') {
+        // Event completed: show all tables from all rounds
+        filteredTables = allTables;
+        console.log(`[get-event-participants] Event completed - returning all ${allTables.length} rounds`);
+      } else if (event.status === 'active' && currentRound > 0) {
+        // Event active: only show tables from rounds 1 to current_round
+        filteredTables = allTables.filter((t: { round: number }) => t.round <= currentRound);
+        console.log(`[get-event-participants] Event active, round ${currentRound} - returning ${filteredTables.length} rounds`);
+      } else {
+        // Event pending or current_round = 0: no tables yet
+        filteredTables = [];
+        console.log(`[get-event-participants] Event pending or not started - returning 0 tables`);
+      }
 
       console.log(`[get-event-participants] Returning ${participants?.length || 0} participants for selection`);
       return new Response(
         JSON.stringify({ 
           participants: participants || [],
-          submittedIds,
-          tables: event.tables || []
+          existingSelections: existingSelections || [],
+          tables: filteredTables,
+          eventStatus: event.status,
+          currentRound: currentRound
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

@@ -144,6 +144,8 @@ const EventDetail = () => {
       scheduled_email_at: event.scheduled_email_at
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
+    // Load current_round from database
+    setCurrentRound(event.current_round || 1);
 
     // Load participants
     const { data: participantsData } = await supabase
@@ -271,15 +273,18 @@ const EventDetail = () => {
         .in("id", nonCheckedInIds);
     }
 
-    // Save tables and update status
+    // Save tables and update status, set current_round to 1 to start
     await supabase
       .from("events")
       .update({ 
         tables: generatedTables,
         status: "active",
-        participants_count: checkedInParticipants.length
+        participants_count: checkedInParticipants.length,
+        current_round: 1
       })
       .eq("id", id);
+    
+    setCurrentRound(1);
 
     setParticipants(checkedInParticipants);
     setEventData(prev => prev ? { ...prev, tables: generatedTables, participants_count: checkedInParticipants.length } : prev);
@@ -1722,6 +1727,20 @@ const EventDetail = () => {
                         title: "¡Ronda completada!",
                         description: "Es hora de cambiar de mesa",
                       });
+                    }}
+                    onAdvanceRound={async () => {
+                      const newRound = currentRound + 1;
+                      if (newRound <= tables.length) {
+                        await supabase
+                          .from("events")
+                          .update({ current_round: newRound })
+                          .eq("id", id);
+                        setCurrentRound(newRound);
+                        toast({
+                          title: `Ronda ${newRound} iniciada`,
+                          description: "Los participantes pueden ver sus nuevos compañeros de mesa",
+                        });
+                      }
                     }}
                   />
                   
