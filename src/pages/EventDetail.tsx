@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock } from "lucide-react";
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
@@ -100,6 +100,7 @@ const EventDetail = () => {
   const [showCheckinQR, setShowCheckinQR] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
+  const [viewingRound, setViewingRound] = useState(1); // For viewing table distribution
   const [eventStatus, setEventStatus] = useState<"pending" | "active" | "completed">("pending");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingExcel, setIsLoadingExcel] = useState(false);
@@ -115,6 +116,7 @@ const EventDetail = () => {
   const [editingParticipant, setEditingParticipant] = useState<DbParticipant | null>(null);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [completedRounds, setCompletedRounds] = useState<number[]>([]);
 
   useEffect(() => {
     loadEventData();
@@ -144,8 +146,11 @@ const EventDetail = () => {
       scheduled_email_at: event.scheduled_email_at
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
-    // Load current_round from database
-    setCurrentRound(event.current_round || 1);
+    // Load current_round and completed_rounds from database
+    const loadedRound = event.current_round || 1;
+    setCurrentRound(loadedRound);
+    setViewingRound(loadedRound);
+    setCompletedRounds(event.completed_rounds || []);
 
     // Load participants
     const { data: participantsData } = await supabase
@@ -395,6 +400,42 @@ const EventDetail = () => {
     return true;
   };
 
+  // Group participants by age range first for better table assignment
+  const groupParticipantsByAgeRange = (participantsList: DbParticipant[]): Map<string, DbParticipant[]> => {
+    const groups = new Map<string, DbParticipant[]>();
+    
+    // Initialize groups in order
+    AGE_RANGE_ORDER.forEach(range => groups.set(range, []));
+    groups.set("Sin especificar", []);
+    
+    participantsList.forEach(p => {
+      const ageRange = AGE_RANGE_ORDER.find(r => p.age_range?.includes(r)) || "Sin especificar";
+      groups.get(ageRange)!.push(p);
+    });
+    
+    return groups;
+  };
+
+  // Merge small age groups with adjacent ones
+  const mergeSmallAgeGroups = (groups: Map<string, DbParticipant[]>, minSize: number): DbParticipant[][] => {
+    const orderedGroups: DbParticipant[][] = [];
+    const ranges = [...AGE_RANGE_ORDER, "Sin especificar"];
+    
+    for (const range of ranges) {
+      const group = groups.get(range) || [];
+      if (group.length > 0) {
+        // If group is small and we have a previous group, merge with it
+        if (group.length < minSize && orderedGroups.length > 0) {
+          orderedGroups[orderedGroups.length - 1].push(...group);
+        } else {
+          orderedGroups.push([...group]);
+        }
+      }
+    }
+    
+    return orderedGroups;
+  };
+
   // All rotate mode: everyone changes tables each round
   const generateAllRotateTables = (
     participantsList: DbParticipant[], 
@@ -405,18 +446,19 @@ const EventDetail = () => {
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+    
+    // Group by age range first, then create tables within groups
+    const ageGroups = groupParticipantsByAgeRange(participantsList);
+    const mergedGroups = mergeSmallAgeGroups(ageGroups, tableSize);
+    
+    // Flatten while maintaining age ordering
+    const sortedParticipants = mergedGroups.flat();
+    
     const numTables = Math.ceil(numParticipants / tableSize);
     
     // Track who has been paired with whom across all rounds
     const pairedHistory = new Map<string, Set<string>>();
     participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
-    
-    // Sort participants by age range for better initial grouping
-    const sortedParticipants = [...participantsList].sort((a, b) => {
-      const aIdx = AGE_RANGE_ORDER.findIndex(r => a.age_range?.includes(r));
-      const bIdx = AGE_RANGE_ORDER.findIndex(r => b.age_range?.includes(r));
-      return aIdx - bIdx;
-    });
     
     let hasIncomplete = false;
     
@@ -528,29 +570,27 @@ const EventDetail = () => {
     const pairedHistory = new Map<string, Set<string>>();
     participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
     
-    // Sort by age range first, then by compatibility potential
-    const sortedParticipants = [...participantsList].sort((a, b) => {
-      const aIdx = AGE_RANGE_ORDER.findIndex(r => a.age_range?.includes(r));
-      const bIdx = AGE_RANGE_ORDER.findIndex(r => b.age_range?.includes(r));
-      if (aIdx !== bIdx) return aIdx - bIdx;
-      
-      const aScore = (a.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
-                     (a.preference === "Amistad y ligue" ? 1 : 0);
-      const bScore = (b.preferred_age_range?.includes("Cualquier") ? 2 : 0) + 
-                     (b.preference === "Amistad y ligue" ? 1 : 0);
-      return bScore - aScore;
-    });
+    // Group by age range first for better host selection
+    const ageGroups = groupParticipantsByAgeRange(participantsList);
+    const mergedGroups = mergeSmallAgeGroups(ageGroups, tableSize);
+    const sortedParticipants = mergedGroups.flat();
     
-    // Distribute hosts evenly across age ranges
+    // Select hosts evenly from each age group
     const hosts: DbParticipant[] = [];
     const hostIndices = new Set<number>();
-    for (let i = 0; i < numTables && hosts.length < numTables; i++) {
-      const idx = Math.floor(i * sortedParticipants.length / numTables);
-      if (!hostIndices.has(idx)) {
-        hosts.push(sortedParticipants[idx]);
-        hostIndices.add(idx);
-      }
+    
+    // Try to pick one host from each merged group
+    let hostIdx = 0;
+    for (const group of mergedGroups) {
+      if (hosts.length >= numTables) break;
+      // Pick from middle of group for better distribution
+      const pickIdx = Math.floor(group.length / 2);
+      const host = group[pickIdx];
+      hosts.push(host);
+      hostIndices.add(sortedParticipants.indexOf(host));
     }
+    
+    // Fill remaining hosts from sorted list
     for (let i = 0; hosts.length < numTables && i < sortedParticipants.length; i++) {
       if (!hostIndices.has(i)) {
         hosts.push(sortedParticipants[i]);
@@ -1720,25 +1760,35 @@ const EventDetail = () => {
                 <>
                   <RoundTimer
                     roundDuration={Math.floor((eventData.round_duration || 300) / 60)}
-                    currentRound={currentRound}
+                    activeRound={currentRound}
+                    completedRounds={completedRounds}
                     totalRounds={tables.length}
-                    onRoundComplete={() => {
-                      toast({
-                        title: "¡Ronda completada!",
-                        description: "Es hora de cambiar de mesa",
-                      });
-                    }}
-                    onAdvanceRound={async () => {
-                      const newRound = currentRound + 1;
-                      if (newRound <= tables.length) {
-                        await supabase
-                          .from("events")
-                          .update({ current_round: newRound })
-                          .eq("id", id);
-                        setCurrentRound(newRound);
+                    onCompleteRound={async (roundNumber: number) => {
+                      const newCompletedRounds = [...completedRounds, roundNumber];
+                      const nextRound = roundNumber + 1;
+                      const isLastRound = roundNumber >= tables.length;
+                      
+                      await supabase
+                        .from("events")
+                        .update({ 
+                          completed_rounds: newCompletedRounds,
+                          current_round: isLastRound ? roundNumber : nextRound 
+                        })
+                        .eq("id", id);
+                      
+                      setCompletedRounds(newCompletedRounds);
+                      
+                      if (!isLastRound) {
+                        setCurrentRound(nextRound);
+                        setViewingRound(nextRound);
                         toast({
-                          title: `Ronda ${newRound} iniciada`,
-                          description: "Los participantes pueden ver sus nuevos compañeros de mesa",
+                          title: `Ronda ${roundNumber} completada`,
+                          description: `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
+                        });
+                      } else {
+                        toast({
+                          title: "¡Todas las rondas completadas!",
+                          description: "Los participantes pueden seguir enviando selecciones.",
                         });
                       }
                     }}
@@ -1766,22 +1816,6 @@ const EventDetail = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-3">
-                          {currentRound < tables.length && (
-                            <Button 
-                              variant="outline"
-                              onClick={() => {
-                                setCurrentRound(prev => prev + 1);
-                                toast({
-                                  title: `Ronda ${currentRound + 1}`,
-                                  description: "Avanzando a la siguiente ronda",
-                                });
-                              }}
-                            >
-                              Siguiente Ronda →
-                            </Button>
-                          )}
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1818,28 +1852,53 @@ const EventDetail = () => {
                 </Card>
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Ronda:</span>
-                    {tables.map((table) => (
-                      <Button
-                        key={table.round}
-                        variant={currentRound === table.round ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentRound(table.round)}
-                      >
-                        {table.round}
-                      </Button>
-                    ))}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Ver distribución:</span>
+                    {tables.map((table) => {
+                      const isCompleted = completedRounds.includes(table.round);
+                      const isActive = table.round === currentRound && !isCompleted;
+                      const isPending = table.round > currentRound;
+                      
+                      return (
+                        <Button
+                          key={table.round}
+                          variant={viewingRound === table.round ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setViewingRound(table.round)}
+                          className="relative"
+                        >
+                          {isCompleted && <Check className="w-3 h-3 mr-1 text-green-500" />}
+                          {isActive && <span className="w-2 h-2 rounded-full bg-primary animate-pulse mr-1" />}
+                          Ronda {table.round}
+                          {isPending && <Lock className="w-3 h-3 ml-1 opacity-50" />}
+                        </Button>
+                      );
+                    })}
                   </div>
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Ronda {currentRound}</CardTitle>
-                      <CardDescription>Distribución de mesas para esta ronda</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            Ronda {viewingRound}
+                            {completedRounds.includes(viewingRound) && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                <Check className="w-3 h-3 mr-1" />
+                                Completada
+                              </Badge>
+                            )}
+                            {viewingRound === currentRound && !completedRounds.includes(viewingRound) && (
+                              <Badge variant="default">Activa</Badge>
+                            )}
+                          </CardTitle>
+                          <CardDescription>Distribución de mesas para esta ronda</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {tables.find(t => t.round === currentRound)?.tables.map((table: DbParticipant[], tableIndex: number) => {
+                        {tables.find(t => t.round === viewingRound)?.tables.map((table: DbParticipant[], tableIndex: number) => {
                           const ageInfo = getTableAgeRangeInfo(table);
                           const isFriendshipOnly = eventData?.rotation_mode === "all_rotate" || 
                             !table.some((m: any) => {
