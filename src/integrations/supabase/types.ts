@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       events: {
         Row: {
+          completed_rounds: number[] | null
           created_at: string
           current_round: number | null
           custom_age_ranges: Json | null
@@ -40,6 +41,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
           custom_age_ranges?: Json | null
@@ -64,6 +66,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
           custom_age_ranges?: Json | null
