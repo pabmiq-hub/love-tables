@@ -797,17 +797,26 @@ const EventDetail = () => {
     return false;
   };
 
+  // Helper function to normalize age range (handle both - and – characters)
+  const normalizeAgeRange = (ageRange: string | null): string => {
+    if (!ageRange) return "";
+    // Normalize en-dash (–) to regular hyphen (-) and handle special cases
+    return ageRange.replace(/–/g, "-").replace("+ 50", "50+").trim();
+  };
+
   // Helper functions for visual display
   const getAgeRangeColor = (ageRange: string | null): string => {
+    const normalized = normalizeAgeRange(ageRange);
     const colors: Record<string, string> = {
       "18-24": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
       "25-32": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
       "33-40": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
       "41-50": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
       "51-60": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+      "50+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
       "60+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
     };
-    return colors[ageRange || ""] || "bg-muted text-muted-foreground";
+    return colors[normalized] || "bg-muted text-muted-foreground";
   };
 
   const getGenderIcon = (gender: string | null) => {
@@ -818,10 +827,14 @@ const EventDetail = () => {
   };
 
   const getPreferenceIcon = (preference: string | null) => {
-    if (preference?.toLowerCase().includes("ligue") || preference?.toLowerCase().includes("amistad y ligue")) {
+    if (!preference) return null;
+    const pref = preference.toLowerCase();
+    // Check for dating/romantic interest keywords
+    if (pref.includes("pareja") || pref.includes("ligue") || pref.includes("sentimental")) {
       return <Heart className="w-3 h-3 text-pink-500" />;
     }
-    if (preference?.toLowerCase().includes("amistad")) {
+    // Friendship only
+    if (pref.includes("amistad")) {
       return <Handshake className="w-3 h-3 text-blue-500" />;
     }
     return null;
@@ -833,6 +846,7 @@ const EventDetail = () => {
     "33-40": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
     "41-50": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
     "51-60": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+    "50+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
     "60+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   };
 
@@ -1088,7 +1102,7 @@ const EventDetail = () => {
     
     tableMembers.forEach(member => {
       const participant = participants.find(p => p.id === member.id);
-      const ageRange = participant?.age_range || "Desconocido";
+      const ageRange = normalizeAgeRange(participant?.age_range) || "Desconocido";
       ageRanges[ageRange] = (ageRanges[ageRange] || 0) + 1;
     });
 
@@ -1969,7 +1983,8 @@ const EventDetail = () => {
                             const ageInfo = getTableAgeRangeInfo(table);
                             const hasLigue = table.some((m: any) => {
                               const p = participants.find(pp => pp.id === m.id);
-                              return p?.preference?.toLowerCase().includes('ligue');
+                              const pref = p?.preference?.toLowerCase() || "";
+                              return pref.includes('ligue') || pref.includes('pareja') || pref.includes('sentimental');
                             });
                             
                             return (
@@ -2019,7 +2034,7 @@ const EventDetail = () => {
                                               <span className="text-sm flex-1 truncate">{participant.name}</span>
                                               <div className="flex items-center gap-1.5">
                                                 <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
-                                                  {fullParticipant?.age_range || "?"}
+                                                  {normalizeAgeRange(fullParticipant?.age_range) || "?"}
                                                 </Badge>
                                                 {getGenderIcon(fullParticipant?.gender)}
                                                 {getPreferenceIcon(fullParticipant?.preference)}
