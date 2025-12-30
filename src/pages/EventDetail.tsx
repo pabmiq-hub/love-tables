@@ -3,7 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
@@ -789,6 +795,45 @@ const EventDetail = () => {
     if (p1LookingForMan && p2IsMan && p2LookingForWoman && p1IsWoman) return true;
     
     return false;
+  };
+
+  // Helper functions for visual display
+  const getAgeRangeColor = (ageRange: string | null): string => {
+    const colors: Record<string, string> = {
+      "18-24": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+      "25-32": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+      "33-40": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+      "41-50": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+      "51-60": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+      "60+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+    };
+    return colors[ageRange || ""] || "bg-muted text-muted-foreground";
+  };
+
+  const getGenderIcon = (gender: string | null) => {
+    if (gender === "Mujer") return <span className="text-pink-500" title="Mujer">♀</span>;
+    if (gender === "Hombre") return <span className="text-blue-500" title="Hombre">♂</span>;
+    if (gender === "No binario") return <span className="text-purple-500" title="No binario">⚧</span>;
+    return null;
+  };
+
+  const getPreferenceIcon = (preference: string | null) => {
+    if (preference?.toLowerCase().includes("ligue") || preference?.toLowerCase().includes("amistad y ligue")) {
+      return <Heart className="w-3 h-3 text-pink-500" />;
+    }
+    if (preference?.toLowerCase().includes("amistad")) {
+      return <Handshake className="w-3 h-3 text-blue-500" />;
+    }
+    return null;
+  };
+
+  const ageRangeColors: Record<string, string> = {
+    "18-24": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+    "25-32": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    "33-40": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+    "41-50": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+    "51-60": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+    "60+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   };
 
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
@@ -1876,6 +1921,27 @@ const EventDetail = () => {
                     })}
                   </div>
 
+                  {/* Legend */}
+                  <Card className="bg-muted/30">
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        <span className="text-muted-foreground font-medium">Leyenda:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(ageRangeColors).map(([range, color]) => (
+                            <Badge key={range} className={`${color} text-xs`}>{range}</Badge>
+                          ))}
+                        </div>
+                        <span className="text-muted-foreground mx-1">|</span>
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1"><span className="text-pink-500">♀</span> Mujer</span>
+                          <span className="flex items-center gap-1"><span className="text-blue-500">♂</span> Hombre</span>
+                          <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-pink-500" /> Ligue</span>
+                          <span className="flex items-center gap-1"><Handshake className="w-3 h-3 text-blue-500" /> Amistad</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -1897,47 +1963,95 @@ const EventDetail = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {tables.find(t => t.round === viewingRound)?.tables.map((table: DbParticipant[], tableIndex: number) => {
-                          const ageInfo = getTableAgeRangeInfo(table);
-                          const isFriendshipOnly = eventData?.rotation_mode === "all_rotate" || 
-                            !table.some((m: any) => {
+                      <TooltipProvider>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {tables.find(t => t.round === viewingRound)?.tables.map((table: DbParticipant[], tableIndex: number) => {
+                            const ageInfo = getTableAgeRangeInfo(table);
+                            const hasLigue = table.some((m: any) => {
                               const p = participants.find(pp => pp.id === m.id);
                               return p?.preference?.toLowerCase().includes('ligue');
                             });
-                          
-                          return (
-                            <Card key={tableIndex} className="bg-gradient-card">
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Table2 className="w-4 h-4 text-primary" />
-                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
-                                  </div>
-                                  {isFriendshipOnly && (
-                                    <Badge 
-                                      variant={ageInfo.isMixed ? "outline" : "secondary"}
-                                      className={ageInfo.isMixed ? "text-amber-600 border-amber-300" : ""}
-                                    >
-                                      {ageInfo.isMixed ? `Mixto` : ageInfo.dominant}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="space-y-2">
-                                  {table.map((participant: any) => (
-                                    <div key={participant.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium">
-                                        {participant.name.charAt(0)}
-                                      </div>
-                                      <span className="text-sm">{participant.name}</span>
+                            
+                            return (
+                              <Card key={tableIndex} className="bg-gradient-card border-l-4" style={{
+                                borderLeftColor: ageInfo.isMixed 
+                                  ? 'hsl(var(--muted-foreground))' 
+                                  : ageInfo.dominant === "25-32" ? '#3b82f6' 
+                                  : ageInfo.dominant === "33-40" ? '#22c55e'
+                                  : ageInfo.dominant === "18-24" ? '#a855f7'
+                                  : ageInfo.dominant === "41-50" ? '#f59e0b'
+                                  : ageInfo.dominant === "51-60" ? '#f97316'
+                                  : '#ef4444'
+                              }}>
+                                <CardContent className="p-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <Table2 className="w-4 h-4 text-primary" />
+                                      <span className="font-medium">Mesa {tableIndex + 1}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        ({table.length})
+                                      </span>
                                     </div>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
+                                    <div className="flex items-center gap-1">
+                                      <Badge className={getAgeRangeColor(ageInfo.dominant)}>
+                                        {ageInfo.dominant || "Mixto"}
+                                      </Badge>
+                                      {ageInfo.isMixed && (
+                                        <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                                          Mixta
+                                        </Badge>
+                                      )}
+                                      {hasLigue && (
+                                        <Heart className="w-3 h-3 text-pink-500 ml-1" />
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {table.map((participant: any) => {
+                                      const fullParticipant = participants.find(p => p.id === participant.id);
+                                      return (
+                                        <Tooltip key={participant.id}>
+                                          <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 hover:bg-background/80 transition-colors cursor-default">
+                                              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-medium">
+                                                {participant.name.charAt(0)}
+                                              </div>
+                                              <span className="text-sm flex-1 truncate">{participant.name}</span>
+                                              <div className="flex items-center gap-1.5">
+                                                <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
+                                                  {fullParticipant?.age_range || "?"}
+                                                </Badge>
+                                                {getGenderIcon(fullParticipant?.gender)}
+                                                {getPreferenceIcon(fullParticipant?.preference)}
+                                              </div>
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="right" className="max-w-xs">
+                                            <div className="space-y-1">
+                                              <p className="font-medium">{participant.name}</p>
+                                              <p className="text-xs text-muted-foreground">
+                                                {fullParticipant?.gender || "Sin especificar"} • {fullParticipant?.age_range || "Edad no especificada"}
+                                              </p>
+                                              <p className="text-xs">
+                                                Busca: {fullParticipant?.preference || "No especificado"}
+                                              </p>
+                                              {fullParticipant?.dating_preference && (
+                                                <p className="text-xs text-pink-500">
+                                                  {fullParticipant.dating_preference}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    })}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </TooltipProvider>
                     </CardContent>
                   </Card>
                 </>
