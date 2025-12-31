@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake } from "lucide-react";
+import { Heart, ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter } from "lucide-react";
+import EventAnalytics from "@/components/event/EventAnalytics";
 import {
   Tooltip,
   TooltipContent,
@@ -324,12 +325,26 @@ const EventDetail = () => {
     await finalizeTableGeneration(pendingTableGeneration.tables, checkedInParticipants);
   };
 
-  // Age range order for adjacency calculation
-  const AGE_RANGE_ORDER = ["18–24", "25–32", "33–40", "41–50", "+50"];
+  // Age range order for adjacency calculation - normalized format
+  const AGE_RANGE_ORDER = ["18-24", "25-32", "33-40", "41-50", "50+"];
+
+  // Normalize age range for consistent grouping
+  const normalizeAgeRangeForGrouping = (ageRange: string | null): string => {
+    if (!ageRange) return "Sin especificar";
+    const normalized = ageRange
+      .replace(/–/g, "-")
+      .replace(/\+ ?50/g, "50+")
+      .replace(/\+50/g, "50+")
+      .replace("51-60", "50+")
+      .replace("60+", "50+")
+      .trim();
+    return AGE_RANGE_ORDER.find(r => normalized.includes(r)) || normalized;
+  };
 
   const getAgeRangeIndex = (ageRange: string | null): number => {
     if (!ageRange) return -1;
-    return AGE_RANGE_ORDER.findIndex(range => ageRange.includes(range.replace("–", "-")) || ageRange.includes(range));
+    const normalized = normalizeAgeRangeForGrouping(ageRange);
+    return AGE_RANGE_ORDER.indexOf(normalized);
   };
 
   const getAgeRangeDistance = (age1: string | null, age2: string | null): number => {
@@ -406,6 +421,38 @@ const EventDetail = () => {
     return true;
   };
 
+  // Calculate optimal table distribution to avoid tables with only 2 people
+  const calculateOptimalTableDistribution = (
+    numParticipants: number,
+    maxTableSize: number,
+    minTableSize: number = 3
+  ): { numTables: number; sizes: number[] } => {
+    if (numParticipants <= maxTableSize) {
+      return { numTables: 1, sizes: [numParticipants] };
+    }
+
+    // Calculate initial distribution
+    let numTables = Math.ceil(numParticipants / maxTableSize);
+    let lastTableSize = numParticipants - (numTables - 1) * maxTableSize;
+
+    // If last table would have fewer than minTableSize, redistribute
+    while (lastTableSize < minTableSize && lastTableSize > 0 && numTables > 1) {
+      numTables++;
+      lastTableSize = numParticipants - (numTables - 1) * Math.floor(numParticipants / numTables);
+    }
+
+    // Calculate balanced sizes
+    const baseSize = Math.floor(numParticipants / numTables);
+    const remainder = numParticipants % numTables;
+
+    const sizes = Array(numTables).fill(baseSize);
+    for (let i = 0; i < remainder; i++) {
+      sizes[i]++;
+    }
+
+    return { numTables, sizes };
+  };
+
   // Group participants by age range first for better table assignment
   const groupParticipantsByAgeRange = (participantsList: DbParticipant[]): Map<string, DbParticipant[]> => {
     const groups = new Map<string, DbParticipant[]>();
@@ -415,31 +462,56 @@ const EventDetail = () => {
     groups.set("Sin especificar", []);
     
     participantsList.forEach(p => {
-      const ageRange = AGE_RANGE_ORDER.find(r => p.age_range?.includes(r)) || "Sin especificar";
-      groups.get(ageRange)!.push(p);
+      const ageRange = normalizeAgeRangeForGrouping(p.age_range);
+      groups.get(ageRange)?.push(p) || groups.get("Sin especificar")!.push(p);
     });
     
     return groups;
   };
 
-  // Merge small age groups with adjacent ones
+  // Merge small age groups with the CLOSEST age group (not just previous)
   const mergeSmallAgeGroups = (groups: Map<string, DbParticipant[]>, minSize: number): DbParticipant[][] => {
-    const orderedGroups: DbParticipant[][] = [];
-    const ranges = [...AGE_RANGE_ORDER, "Sin especificar"];
+    const orderedGroups: { range: string; participants: DbParticipant[] }[] = [];
     
-    for (const range of ranges) {
+    AGE_RANGE_ORDER.forEach(range => {
       const group = groups.get(range) || [];
       if (group.length > 0) {
-        // If group is small and we have a previous group, merge with it
-        if (group.length < minSize && orderedGroups.length > 0) {
-          orderedGroups[orderedGroups.length - 1].push(...group);
-        } else {
-          orderedGroups.push([...group]);
+        orderedGroups.push({ range, participants: [...group] });
+      }
+    });
+    
+    // Add unspecified at the end
+    const unspecified = groups.get("Sin especificar") || [];
+    if (unspecified.length > 0) {
+      orderedGroups.push({ range: "Sin especificar", participants: [...unspecified] });
+    }
+    
+    // Merge small groups with closest neighbor
+    for (let i = 0; i < orderedGroups.length; i++) {
+      if (orderedGroups[i].participants.length < minSize && orderedGroups[i].participants.length > 0) {
+        let bestMergeIdx = -1;
+        let bestDistance = Infinity;
+        
+        for (let j = 0; j < orderedGroups.length; j++) {
+          if (i !== j && orderedGroups[j].participants.length > 0) {
+            const distance = Math.abs(i - j);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              bestMergeIdx = j;
+            }
+          }
+        }
+        
+        if (bestMergeIdx !== -1) {
+          orderedGroups[bestMergeIdx].participants.push(...orderedGroups[i].participants);
+          orderedGroups[i].participants = [];
         }
       }
     }
     
-    return orderedGroups;
+    return orderedGroups
+      .filter(g => g.participants.length > 0)
+      .map(g => g.participants);
   };
 
   // All rotate mode: everyone changes tables each round
@@ -460,7 +532,10 @@ const EventDetail = () => {
     // Flatten while maintaining age ordering
     const sortedParticipants = mergedGroups.flat();
     
-    const numTables = Math.ceil(numParticipants / tableSize);
+    // Use optimal distribution to avoid tables with only 2 people
+    const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
+    const numTables = distribution.numTables;
+    const tableSizes = distribution.sizes;
     
     // Track who has been paired with whom across all rounds
     const pairedHistory = new Map<string, Set<string>>();
@@ -475,7 +550,7 @@ const EventDetail = () => {
       // Create tables for this round
       for (let tableIdx = 0; tableIdx < numTables; tableIdx++) {
         const table: { id: string; name: string }[] = [];
-        const targetSize = Math.min(tableSize, numParticipants - usedParticipants.size);
+        const targetSize = tableSizes[tableIdx] || Math.min(tableSize, numParticipants - usedParticipants.size);
         
         // Find best participants for this table
         const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
@@ -567,10 +642,10 @@ const EventDetail = () => {
     const tables = [];
     const numParticipants = participantsList.length;
     
-    // Calculate balanced table distribution
-    const numTables = Math.ceil(numParticipants / tableSize);
-    const baseParticipantsPerTable = Math.floor(numParticipants / numTables);
-    const tablesWithExtra = numParticipants % numTables;
+    // Use optimal distribution to avoid tables with only 2 people
+    const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
+    const numTables = distribution.numTables;
+    const tableSizes = distribution.sizes;
     
     // Track who has been paired with whom across all rounds
     const pairedHistory = new Map<string, Set<string>>();
@@ -586,7 +661,6 @@ const EventDetail = () => {
     const hostIndices = new Set<number>();
     
     // Try to pick one host from each merged group
-    let hostIdx = 0;
     for (const group of mergedGroups) {
       if (hosts.length >= numTables) break;
       // Pick from middle of group for better distribution
@@ -607,11 +681,6 @@ const EventDetail = () => {
     const rotators = sortedParticipants.filter((_, idx) => !hostIndices.has(idx));
     
     let hasIncomplete = false;
-    
-    const tableSizes: number[] = [];
-    for (let i = 0; i < numTables; i++) {
-      tableSizes.push(baseParticipantsPerTable + (i < tablesWithExtra ? 1 : 0));
-    }
     
     const actualRounds = Math.min(numRounds, rotators.length > 0 ? rotators.length : 1);
     
@@ -635,22 +704,36 @@ const EventDetail = () => {
         const scoredRotators = availableRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
           
+          // INCREASED weight for age compatibility
+          const hostAgeIdx = getAgeRangeIndex(host.age_range);
+          const rotatorAgeIdx = getAgeRangeIndex(rotator.age_range);
+          const ageDist = Math.abs(hostAgeIdx - rotatorAgeIdx);
+          
+          if (ageDist === 0) score += 50;      // Same age range: highest bonus
+          else if (ageDist === 1) score += 25; // Adjacent: good bonus
+          else if (ageDist === 2) score += 5;  // 2 ranges: small bonus
+          else if (ageDist >= 3) score -= 30;  // Very different: penalty
+          
+          // Check compatibility with other table members
           table.forEach(member => {
             const memberParticipant = participantsList.find(p => p.id === member.id);
             if (memberParticipant) {
-              const dist = getAgeRangeDistance(rotator.age_range, memberParticipant.age_range);
-              if (dist === 0) score += 5;
-              else if (dist === 1) score += 2;
+              const memberAgeIdx = getAgeRangeIndex(memberParticipant.age_range);
+              const memberDist = Math.abs(rotatorAgeIdx - memberAgeIdx);
+              if (memberDist === 0) score += 20;
+              else if (memberDist === 1) score += 10;
+              else if (memberDist >= 3) score -= 15;
             }
           });
           
+          // Reduce penalty for repetition (was -100, now -80)
           if (pairedHistory.get(host.id)?.has(rotator.id)) {
-            score -= 100;
+            score -= 80;
           }
           
           table.forEach(member => {
             if (pairedHistory.get(member.id)?.has(rotator.id)) {
-              score -= 50;
+              score -= 40;
             }
           });
           
@@ -660,13 +743,13 @@ const EventDetail = () => {
             const targetPerGender = Math.floor(targetSize / 2);
             
             if (rotator.gender === "Hombre" && men < targetPerGender) {
-              score += 10; // Bonus for balancing
+              score += 10;
             } else if (rotator.gender === "Mujer" && women < targetPerGender) {
-              score += 10; // Bonus for balancing
+              score += 10;
             } else if (rotator.gender === "Hombre" && men >= targetPerGender && womenAvailable > 0) {
-              score -= 20; // Penalty if we have enough men but need women
+              score -= 20;
             } else if (rotator.gender === "Mujer" && women >= targetPerGender && menAvailable > 0) {
-              score -= 20; // Penalty if we have enough women but need men
+              score -= 20;
             }
           }
           
@@ -1623,6 +1706,12 @@ const EventDetail = () => {
                 Emails
               </TabsTrigger>
             )}
+            {(eventStatus === "active" || eventStatus === "completed") && (
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Análisis
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Participants Tab */}
@@ -2300,6 +2389,17 @@ const EventDetail = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics">
+            <EventAnalytics
+              participants={participants}
+              tables={tables}
+              matches={matches}
+              selections={selections}
+              eventStatus={eventStatus}
+            />
           </TabsContent>
         </Tabs>
 
