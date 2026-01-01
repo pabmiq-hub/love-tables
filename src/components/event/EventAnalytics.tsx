@@ -1,573 +1,570 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, UserCheck, Send, Heart, Handshake, TrendingUp, AlertCircle, Target, Percent, Award, Table2 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { 
+  Users, 
+  UserCheck, 
+  UserX,
+  Heart, 
+  HandshakeIcon,
+  BarChart3,
+  AlertCircle,
+  TrendingUp,
+  Percent,
+  Trophy,
+  Target
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-interface DbParticipant {
+interface Participant {
   id: string;
   name: string;
-  email: string | null;
-  age: number | null;
-  age_range: string | null;
-  preferred_age_range: string | null;
-  preference: string | null;
-  dating_preference: string | null;
-  gender: string | null;
-  phone: string | null;
-  checked_in: boolean;
+  gender?: string | null;
+  age_range?: string | null;
+  preference?: string | null;
+  checked_in?: boolean | null;
   selection_submitted_at?: string | null;
-}
-
-interface Match {
-  participant1: DbParticipant;
-  participant2: DbParticipant;
-  matchTypes: {
-    friendship: boolean;
-    dating: boolean;
-  };
 }
 
 interface Selection {
   selector_id: string;
   selected_id: string;
-  selection_type: string | null;
+  selection_type?: string | null;
+}
+
+interface Match {
+  participant1: { id: string; name: string };
+  participant2: { id: string; name: string };
+  matchType?: "dating" | "friendship" | "both";
 }
 
 interface EventAnalyticsProps {
-  participants: DbParticipant[];
-  tables: any[];
-  matches: Match[];
+  participants: Participant[];
   selections: Selection[];
-  eventStatus: "pending" | "active" | "completed";
+  matches: Match[];
+  tables: any[][];
 }
 
-const AGE_RANGE_ORDER = ["18-24", "25-32", "33-40", "41-50", "50+", "51-60", "60+"];
+const COLORS = ["#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
 
-const normalizeAgeRange = (ageRange: string | null): string => {
-  if (!ageRange) return "Sin especificar";
-  return ageRange.replace(/–/g, "-").replace("+ 50", "50+").replace("+50", "50+").trim();
+const AGE_RANGE_ORDER = ["18-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-60", "50+", "+50"];
+
+const normalizeAgeRange = (range: string | null | undefined): string => {
+  if (!range) return "Sin especificar";
+  const cleaned = range.replace(/\s+/g, "").replace("años", "").trim();
+  if (cleaned === "+50" || cleaned === "50+" || cleaned === "51-60") return "50+";
+  return cleaned;
 };
 
-const COLORS = {
-  age: ["#a855f7", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#f97316", "#dc2626"],
-  gender: ["#ec4899", "#3b82f6", "#8b5cf6", "#6b7280"],
-  preference: ["#3b82f6", "#ec4899", "#8b5cf6"],
-  matchType: ["#ec4899", "#3b82f6", "#8b5cf6"],
-};
-
-const EventAnalytics = ({ participants, tables, matches, selections, eventStatus }: EventAnalyticsProps) => {
-  const stats = useMemo(() => {
+const EventAnalytics = ({ participants, selections, matches, tables }: EventAnalyticsProps) => {
+  // ========== INSCRIPTIONS STATS ==========
+  const inscriptionStats = useMemo(() => {
     const total = participants.length;
     const checkedIn = participants.filter(p => p.checked_in).length;
-    const submitted = participants.filter(p => p.selection_submitted_at).length;
-    
-    // Distribution by age
-    const byAge: Record<string, number> = {};
-    participants.forEach(p => {
-      const range = normalizeAgeRange(p.age_range);
-      byAge[range] = (byAge[range] || 0) + 1;
-    });
-    
-    // Distribution by gender
-    const byGender: Record<string, number> = {};
-    participants.forEach(p => {
+    const noShows = total - checkedIn;
+    const noShowRate = total > 0 ? ((noShows / total) * 100).toFixed(1) : "0";
+    const checkinRate = total > 0 ? ((checkedIn / total) * 100).toFixed(1) : "0";
+
+    // Gender distribution
+    const byGender = participants.reduce((acc, p) => {
       const gender = p.gender || "Sin especificar";
-      byGender[gender] = (byGender[gender] || 0) + 1;
-    });
-    
-    // Distribution by preference
-    const byPreference: Record<string, number> = {};
-    participants.forEach(p => {
-      const pref = p.preference?.toLowerCase() || "";
-      let category = "Sin especificar";
-      if (pref.includes("ligue") || pref.includes("pareja") || pref.includes("sentimental")) {
-        category = "Romance";
-      } else if (pref.includes("amistad")) {
-        category = "Amistad";
-      }
-      byPreference[category] = (byPreference[category] || 0) + 1;
-    });
-    
-    // Match statistics
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const genderData = Object.entries(byGender).map(([name, value]) => ({ name, value }));
+
+    // Age distribution
+    const byAge = participants.reduce((acc, p) => {
+      const range = normalizeAgeRange(p.age_range);
+      acc[range] = (acc[range] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ageData = AGE_RANGE_ORDER
+      .filter(range => byAge[range] || byAge[normalizeAgeRange(range)])
+      .map(range => ({
+        name: range,
+        value: byAge[range] || byAge[normalizeAgeRange(range)] || 0
+      }))
+      .filter(d => d.value > 0);
+
+    // Add "Sin especificar" if exists
+    if (byAge["Sin especificar"]) {
+      ageData.push({ name: "Sin especificar", value: byAge["Sin especificar"] });
+    }
+
+    return {
+      total,
+      checkedIn,
+      noShows,
+      noShowRate,
+      checkinRate,
+      genderData,
+      ageData,
+      byGender
+    };
+  }, [participants]);
+
+  // ========== MATCHES STATS ==========
+  const matchStats = useMemo(() => {
+    const submitted = participants.filter(p => p.selection_submitted_at).length;
+    const submissionRate = inscriptionStats.checkedIn > 0 
+      ? ((submitted / inscriptionStats.checkedIn) * 100).toFixed(1) 
+      : "0";
+
     const totalMatches = matches.length;
-    const datingMatches = matches.filter(m => m.matchTypes.dating).length;
-    const friendshipMatches = matches.filter(m => m.matchTypes.friendship).length;
-    const bothMatches = matches.filter(m => m.matchTypes.dating && m.matchTypes.friendship).length;
+    const totalSelections = selections.length;
     
+    // Match rate: (matches * 2 / total_selections) * 100
+    const matchRate = totalSelections > 0 
+      ? ((totalMatches * 2 / totalSelections) * 100).toFixed(1) 
+      : "0";
+
     // Participants with at least one match
     const participantsWithMatch = new Set<string>();
     matches.forEach(m => {
       participantsWithMatch.add(m.participant1.id);
       participantsWithMatch.add(m.participant2.id);
     });
-    
-    // Match rate calculation
-    const totalSelections = selections.length;
-    const matchedSelections = matches.length * 2; // Each match represents 2 mutual selections
-    const matchRate = totalSelections > 0 ? (matchedSelections / totalSelections * 100) : 0;
-    
-    // Average matches per person who submitted
-    const avgMatchesPerPerson = submitted > 0 ? (totalMatches * 2 / submitted) : 0;
-    
-    // Top selected participants
-    const selectionCounts: Record<string, number> = {};
+    const withMatchCount = participantsWithMatch.size;
+    const withMatchRate = submitted > 0 
+      ? ((withMatchCount / submitted) * 100).toFixed(1) 
+      : "0";
+
+    // Average matches per person
+    const avgMatchesPerPerson = submitted > 0 
+      ? ((totalMatches * 2) / submitted).toFixed(1) 
+      : "0";
+
+    // Match types
+    const datingMatches = matches.filter(m => m.matchType === "dating").length;
+    const friendshipMatches = matches.filter(m => m.matchType === "friendship").length;
+    const bothMatches = matches.filter(m => m.matchType === "both").length;
+
+    const matchTypeData = [
+      { name: "Romance", value: datingMatches, color: "#ec4899" },
+      { name: "Amistad", value: friendshipMatches, color: "#3b82f6" },
+      { name: "Ambos", value: bothMatches, color: "#8b5cf6" },
+    ].filter(d => d.value > 0);
+
+    // Top selected
+    const selectionCount: Record<string, number> = {};
     selections.forEach(s => {
-      selectionCounts[s.selected_id] = (selectionCounts[s.selected_id] || 0) + 1;
+      selectionCount[s.selected_id] = (selectionCount[s.selected_id] || 0) + 1;
     });
-    const topSelected = Object.entries(selectionCounts)
-      .map(([id, count]) => {
-        const p = participants.find(pp => pp.id === id);
-        return { name: p?.name || "Desconocido", count };
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-    
+    const topSelected = Object.entries(selectionCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, count]) => ({
+        participant: participants.find(p => p.id === id),
+        count
+      }))
+      .filter(t => t.participant);
+
     // Top matches
-    const matchCounts: Record<string, number> = {};
+    const matchCount: Record<string, number> = {};
     matches.forEach(m => {
-      matchCounts[m.participant1.id] = (matchCounts[m.participant1.id] || 0) + 1;
-      matchCounts[m.participant2.id] = (matchCounts[m.participant2.id] || 0) + 1;
+      matchCount[m.participant1.id] = (matchCount[m.participant1.id] || 0) + 1;
+      matchCount[m.participant2.id] = (matchCount[m.participant2.id] || 0) + 1;
     });
-    const topMatches = Object.entries(matchCounts)
-      .map(([id, count]) => {
-        const p = participants.find(pp => pp.id === id);
-        return { name: p?.name || "Desconocido", count };
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-    
+    const topMatches = Object.entries(matchCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, count]) => ({
+        participant: participants.find(p => p.id === id),
+        count
+      }))
+      .filter(t => t.participant);
+
     return {
-      total,
-      checkedIn,
-      checkedInRate: total > 0 ? (checkedIn / total * 100).toFixed(1) : "0",
       submitted,
-      submissionRate: checkedIn > 0 ? (submitted / checkedIn * 100).toFixed(1) : "0",
+      submissionRate,
       totalMatches,
-      matchRate: matchRate.toFixed(1),
-      participantsWithMatch: participantsWithMatch.size,
-      withMatchRate: submitted > 0 ? (participantsWithMatch.size / submitted * 100).toFixed(1) : "0",
-      avgMatchesPerPerson: avgMatchesPerPerson.toFixed(2),
+      totalSelections,
+      matchRate,
+      withMatchCount,
+      withMatchRate,
+      avgMatchesPerPerson,
       datingMatches,
       friendshipMatches,
       bothMatches,
-      byAge,
-      byGender,
-      byPreference,
+      matchTypeData,
       topSelected,
-      topMatches,
+      topMatches
     };
-  }, [participants, matches, selections]);
+  }, [participants, selections, matches, inscriptionStats.checkedIn]);
 
-  // Table quality analysis
-  const tableAnalysis = useMemo(() => {
-    if (!tables || tables.length === 0) return { warnings: [], quality: { homogeneous: 0, mixed: 0, conflict: 0 } };
-    
-    const currentRoundTables = tables[0]?.tables || [];
-    const warnings: { tableIdx: number; issues: string[] }[] = [];
+  // ========== TABLE QUALITY ==========
+  const tableQuality = useMemo(() => {
+    if (!tables || tables.length === 0) return { homogeneous: 0, mixed: 0, conflict: 0, warnings: [] };
+
     let homogeneous = 0;
     let mixed = 0;
     let conflict = 0;
-    
-    currentRoundTables.forEach((table: any[], idx: number) => {
-      const issues: string[] = [];
-      const ageRanges = table.map(m => {
-        const p = participants.find(pp => pp.id === m.id);
-        return normalizeAgeRange(p?.age_range);
-      });
-      const uniqueAges = [...new Set(ageRanges.filter(a => a !== "Sin especificar"))];
+    const warnings: string[] = [];
+
+    tables.forEach((table, idx) => {
+      if (!Array.isArray(table)) return;
       
-      if (table.length < 3 && table.length > 0) {
-        issues.push(`Solo ${table.length} personas`);
-      }
-      
-      if (uniqueAges.length > 2) {
-        issues.push(`${uniqueAges.length} franjas de edad diferentes`);
-        conflict++;
-      } else if (uniqueAges.length === 2) {
-        // Check if they're adjacent
-        const idx1 = AGE_RANGE_ORDER.indexOf(uniqueAges[0]);
-        const idx2 = AGE_RANGE_ORDER.indexOf(uniqueAges[1]);
-        if (Math.abs(idx1 - idx2) <= 1) {
-          mixed++;
-        } else {
-          issues.push(`Franjas no adyacentes: ${uniqueAges.join(", ")}`);
-          conflict++;
+      const ageRanges = new Set<string>();
+      table.forEach((member: any) => {
+        const p = participants.find(pp => pp.id === member.id);
+        if (p?.age_range) {
+          ageRanges.add(normalizeAgeRange(p.age_range));
         }
-      } else {
+      });
+
+      const uniqueRanges = ageRanges.size;
+      
+      if (uniqueRanges <= 1) {
         homogeneous++;
+      } else if (uniqueRanges === 2) {
+        mixed++;
+      } else {
+        conflict++;
+        warnings.push(`Mesa ${idx + 1}: ${uniqueRanges} franjas de edad diferentes`);
       }
-      
-      // Detect outliers
-      const ageIndices = ageRanges.map(a => AGE_RANGE_ORDER.indexOf(a)).filter(i => i >= 0);
-      if (ageIndices.length > 0) {
-        const avgIdx = ageIndices.reduce((a, b) => a + b, 0) / ageIndices.length;
-        ageIndices.forEach((idx, i) => {
-          if (Math.abs(idx - avgIdx) >= 2) {
-            const p = participants.find(pp => pp.id === table[i]?.id);
-            if (p && !issues.some(issue => issue.includes(p.name))) {
-              issues.push(`${p.name} está en franja diferente al resto`);
-            }
-          }
-        });
-      }
-      
-      if (issues.length > 0) {
-        warnings.push({ tableIdx: idx + 1, issues });
+
+      if (table.length < 3) {
+        warnings.push(`Mesa ${idx + 1}: Solo ${table.length} participantes`);
       }
     });
-    
-    return { warnings, quality: { homogeneous, mixed, conflict } };
+
+    return { homogeneous, mixed, conflict, warnings };
   }, [tables, participants]);
 
-  const ageChartData = Object.entries(stats.byAge)
-    .filter(([name]) => name !== "Sin especificar" || stats.byAge[name] > 0)
-    .map(([name, value]) => ({ name, value }));
-  
-  const genderChartData = Object.entries(stats.byGender).map(([name, value]) => ({ name, value }));
-  const preferenceChartData = Object.entries(stats.byPreference).map(([name, value]) => ({ name, value }));
-  
-  const matchTypeData = [
-    { name: "Romance", value: stats.datingMatches - stats.bothMatches },
-    { name: "Amistad", value: stats.friendshipMatches - stats.bothMatches },
-    { name: "Ambos", value: stats.bothMatches },
-  ].filter(d => d.value > 0);
-
   return (
-    <div className="space-y-6">
-      {/* Main Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Participantes</span>
-            </div>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <UserCheck className="w-4 h-4 text-green-500" />
-              <span className="text-xs text-muted-foreground">Check-in</span>
-            </div>
-            <div className="text-2xl font-bold text-green-600">{stats.checkedInRate}%</div>
-            <div className="text-xs text-muted-foreground">{stats.checkedIn} de {stats.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Send className="w-4 h-4 text-blue-500" />
-              <span className="text-xs text-muted-foreground">Selecciones</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-600">{stats.submissionRate}%</div>
-            <div className="text-xs text-muted-foreground">{stats.submitted} enviaron</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Heart className="w-4 h-4 text-pink-500" />
-              <span className="text-xs text-muted-foreground">Total Matches</span>
-            </div>
-            <div className="text-2xl font-bold text-pink-600">{stats.totalMatches}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Percent className="w-4 h-4 text-purple-500" />
-              <span className="text-xs text-muted-foreground">Tasa Match</span>
-            </div>
-            <div className="text-2xl font-bold text-purple-600">{stats.matchRate}%</div>
-            <div className="text-xs text-muted-foreground">de selecciones</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Target className="w-4 h-4 text-amber-500" />
-              <span className="text-xs text-muted-foreground">Con Match</span>
-            </div>
-            <div className="text-2xl font-bold text-amber-600">{stats.withMatchRate}%</div>
-            <div className="text-xs text-muted-foreground">{stats.participantsWithMatch} personas</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-8">
+      {/* ========== BLOQUE A: INSCRIPCIONES ========== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Users className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Inscripciones</h2>
+        </div>
 
-      {/* Match Details */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground">Matches Romance</div>
-                <div className="text-xl font-bold text-pink-600">{stats.datingMatches}</div>
+        {/* Métricas principales de inscripción */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{inscriptionStats.total}</div>
+                  <div className="text-sm text-muted-foreground">Participantes</div>
+                </div>
+                <Users className="w-8 h-8 text-muted-foreground/50" />
               </div>
-              <Heart className="w-8 h-8 text-pink-200" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground">Matches Amistad</div>
-                <div className="text-xl font-bold text-blue-600">{stats.friendshipMatches}</div>
-              </div>
-              <Handshake className="w-8 h-8 text-blue-200" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground">Promedio por Persona</div>
-                <div className="text-xl font-bold text-purple-600">{stats.avgMatchesPerPerson}</div>
-              </div>
-              <TrendingUp className="w-8 h-8 text-purple-200" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Por Edad</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={ageChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  labelLine={false}
-                >
-                  {ageChartData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS.age[index % COLORS.age.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Por Género</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={genderChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {genderChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={
-                        entry.name === "Mujer" ? "#ec4899" : 
-                        entry.name === "Hombre" ? "#3b82f6" : 
-                        entry.name === "No binario" ? "#8b5cf6" : "#6b7280"
-                      } 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Por Interés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={preferenceChartData} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="value" radius={4}>
-                  {preferenceChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={
-                        entry.name === "Romance" ? "#ec4899" : 
-                        entry.name === "Amistad" ? "#3b82f6" : "#6b7280"
-                      } 
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        
-        {matchTypeData.length > 0 && (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{inscriptionStats.checkedIn}</div>
+                  <div className="text-sm text-muted-foreground">Check-in ({inscriptionStats.checkinRate}%)</div>
+                </div>
+                <UserCheck className="w-8 h-8 text-green-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={inscriptionStats.noShows > 0 ? "border-amber-200 bg-amber-50/50" : ""}>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-amber-600">{inscriptionStats.noShows}</div>
+                  <div className="text-sm text-muted-foreground">No-shows ({inscriptionStats.noShowRate}%)</div>
+                </div>
+                <UserX className="w-8 h-8 text-amber-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{matchStats.submitted}</div>
+                  <div className="text-sm text-muted-foreground">Enviaron selecciones</div>
+                </div>
+                <Target className="w-8 h-8 text-blue-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Gráficos de distribución de inscripción */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Distribución por Género */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Tipos de Match</CardTitle>
+              <CardTitle className="text-base">Distribución por Género</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={matchTypeData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {matchTypeData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={COLORS.matchType[index % COLORS.matchType.length]} 
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {inscriptionStats.genderData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={inscriptionStats.genderData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    >
+                      {inscriptionStats.genderData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Sin datos de género
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Distribución por Edad */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Distribución por Edad</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inscriptionStats.ageData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={inscriptionStats.ageData} layout="vertical">
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Sin datos de edad
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ========== BLOQUE B: MATCHES ========== */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Heart className="w-5 h-5 text-pink-500" />
+          <h2 className="text-lg font-semibold">Matches</h2>
+        </div>
+
+        {/* Métricas principales de matches */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-pink-600">{matchStats.totalMatches}</div>
+                  <div className="text-sm text-muted-foreground">Total Matches</div>
+                </div>
+                <Heart className="w-8 h-8 text-pink-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">{matchStats.matchRate}%</div>
+                  <div className="text-sm text-muted-foreground">Tasa de Match</div>
+                </div>
+                <Percent className="w-8 h-8 text-purple-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-emerald-600">{matchStats.withMatchCount}</div>
+                  <div className="text-sm text-muted-foreground">Con al menos 1 match</div>
+                </div>
+                <TrendingUp className="w-8 h-8 text-emerald-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-cyan-600">{matchStats.avgMatchesPerPerson}</div>
+                  <div className="text-sm text-muted-foreground">Promedio por persona</div>
+                </div>
+                <BarChart3 className="w-8 h-8 text-cyan-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Detalles de matches */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Tipos de Match */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Tipos de Match</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {matchStats.matchTypeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={matchStats.matchTypeData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={60}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {matchStats.matchTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[180px] flex items-center justify-center text-muted-foreground">
+                  Sin matches todavía
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Más Seleccionados */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                Más Seleccionados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {matchStats.topSelected.length > 0 ? (
+                <div className="space-y-2">
+                  {matchStats.topSelected.map((item, idx) => (
+                    <div key={item.participant?.id} className="flex items-center justify-between">
+                      <span className="text-sm truncate flex-1">
+                        {idx === 0 && "🥇 "}
+                        {idx === 1 && "🥈 "}
+                        {idx === 2 && "🥉 "}
+                        {item.participant?.name}
+                      </span>
+                      <Badge variant="secondary">{item.count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                  Sin selecciones todavía
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Más Matches */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Heart className="w-4 h-4 text-pink-500" />
+                Más Matches
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {matchStats.topMatches.length > 0 ? (
+                <div className="space-y-2">
+                  {matchStats.topMatches.map((item, idx) => (
+                    <div key={item.participant?.id} className="flex items-center justify-between">
+                      <span className="text-sm truncate flex-1">
+                        {idx === 0 && "🥇 "}
+                        {idx === 1 && "🥈 "}
+                        {idx === 2 && "🥉 "}
+                        {item.participant?.name}
+                      </span>
+                      <Badge className="bg-pink-100 text-pink-700 hover:bg-pink-100">{item.count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+                  Sin matches todavía
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Análisis de calidad de mesas */}
+        {tables && tables.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Calidad de Mesas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{tableQuality.homogeneous}</div>
+                  <div className="text-xs text-muted-foreground">Homogéneas</div>
+                </div>
+                <div className="text-center p-3 bg-amber-50 rounded-lg">
+                  <div className="text-2xl font-bold text-amber-600">{tableQuality.mixed}</div>
+                  <div className="text-xs text-muted-foreground">Mixtas (2 edades)</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{tableQuality.conflict}</div>
+                  <div className="text-xs text-muted-foreground">Con conflicto</div>
+                </div>
+              </div>
+
+              {tableQuality.warnings.length > 0 && (
+                <div className="space-y-2">
+                  {tableQuality.warnings.slice(0, 5).map((warning, idx) => (
+                    <Alert key={idx} variant="destructive" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">{warning}</AlertDescription>
+                    </Alert>
+                  ))}
+                  {tableQuality.warnings.length > 5 && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      y {tableQuality.warnings.length - 5} alertas más...
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
-
-      {/* Top Participants */}
-      {(stats.topSelected.length > 0 || stats.topMatches.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {stats.topSelected.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500" />
-                  Más Seleccionados
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {stats.topSelected.map((p, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <span className="text-sm">{idx + 1}. {p.name}</span>
-                      <Badge variant="secondary">{p.count} selecciones</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {stats.topMatches.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-pink-500" />
-                  Más Matches
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {stats.topMatches.map((p, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <span className="text-sm">{idx + 1}. {p.name}</span>
-                      <Badge className="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
-                        {p.count} matches
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Table Quality Analysis */}
-      {tables && tables.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Table2 className="w-4 h-4" />
-              Análisis de Calidad de Mesas (Ronda 1)
-            </CardTitle>
-            <CardDescription>Evaluación de la distribución por franjas de edad</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                <div className="text-2xl font-bold text-green-600">{tableAnalysis.quality.homogeneous}</div>
-                <div className="text-xs text-muted-foreground">Mesas Homogéneas</div>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
-                <div className="text-2xl font-bold text-amber-600">{tableAnalysis.quality.mixed}</div>
-                <div className="text-xs text-muted-foreground">Mesas Mixtas</div>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
-                <div className="text-2xl font-bold text-red-600">{tableAnalysis.quality.conflict}</div>
-                <div className="text-xs text-muted-foreground">Con Conflicto</div>
-              </div>
-            </div>
-            
-            {tableAnalysis.warnings.length === 0 ? (
-              <p className="text-green-600 text-sm flex items-center gap-2">
-                <span className="text-lg">✓</span> Todas las mesas tienen buena distribución de edades
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {tableAnalysis.warnings.slice(0, 5).map(({ tableIdx, issues }) => (
-                  <Alert key={tableIdx} variant="destructive" className="py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      <strong>Mesa {tableIdx}:</strong> {issues.join(", ")}
-                    </AlertDescription>
-                  </Alert>
-                ))}
-                {tableAnalysis.warnings.length > 5 && (
-                  <p className="text-xs text-muted-foreground">
-                    ...y {tableAnalysis.warnings.length - 5} mesas más con alertas
-                  </p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
