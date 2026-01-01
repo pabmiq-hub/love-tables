@@ -57,7 +57,14 @@ interface EventAnalyticsProps {
   tables: any[][];
 }
 
-const COLORS = ["#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
+const GENDER_COLORS: Record<string, string> = {
+  "Hombre": "#3b82f6",
+  "Mujer": "#ec4899", 
+  "No binario": "#8b5cf6",
+  "Sin especificar": "#94a3b8"
+};
+
+const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
 
 const AGE_RANGE_ORDER = ["18-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-60", "50+", "+50"];
 
@@ -307,58 +314,108 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
         </div>
 
         {/* Gráficos de distribución de inscripción */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Distribución por Género */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Distribución por Género</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Distribución por Género - PieChart grande con leyenda */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-0 bg-gradient-to-r from-pink-50 to-blue-50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Distribución por Género
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {inscriptionStats.genderData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie
                       data={inscriptionStats.genderData}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={70}
-                      paddingAngle={2}
+                      cy="45%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                      strokeWidth={2}
+                      stroke="#fff"
                     >
-                      {inscriptionStats.genderData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {inscriptionStats.genderData.map((entry) => (
+                        <Cell 
+                          key={`cell-${entry.name}`} 
+                          fill={GENDER_COLORS[entry.name] || "#94a3b8"} 
+                        />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value} participantes`, '']}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value, entry: any) => (
+                        <span className="text-sm font-medium">
+                          {value} ({entry.payload?.value})
+                        </span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                   Sin datos de género
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Distribución por Edad */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Distribución por Edad</CardTitle>
+          {/* Distribución por Edad - BarChart horizontal con gradientes */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-0 bg-gradient-to-r from-purple-50 to-indigo-50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-purple-600" />
+                Distribución por Edad
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {inscriptionStats.ageData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={inscriptionStats.ageData} layout="vertical">
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={60} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart 
+                    data={inscriptionStats.ageData} 
+                    layout="vertical"
+                    margin={{ left: 10, right: 30 }}
+                  >
+                    <XAxis 
+                      type="number" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#64748b' }}
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      width={65} 
+                      tick={{ fontSize: 13, fontWeight: 500, fill: '#334155' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value} participantes`, '']}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      cursor={{ fill: 'rgba(139, 92, 246, 0.1)' }}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      radius={[0, 8, 8, 0]}
+                      barSize={24}
+                    >
+                      {inscriptionStats.ageData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={AGE_COLORS[index % AGE_COLORS.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                   Sin datos de edad
                 </div>
               )}
@@ -426,35 +483,51 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
         </div>
 
         {/* Detalles de matches */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Tipos de Match */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Tipos de Match</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Tipos de Match - PieChart mejorado */}
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-0 bg-gradient-to-r from-pink-50 to-purple-50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Heart className="w-5 h-5 text-pink-500" />
+                Tipos de Match
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {matchStats.matchTypeData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={180}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
                       data={matchStats.matchTypeData}
                       cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={60}
-                      paddingAngle={2}
+                      cy="45%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={4}
                       dataKey="value"
+                      strokeWidth={2}
+                      stroke="#fff"
                     >
                       {matchStats.matchTypeData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
-                    <Legend />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value} matches`, '']}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      formatter={(value, entry: any) => (
+                        <span className="text-sm font-medium">
+                          {value} ({entry.payload?.value})
+                        </span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[180px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                   Sin matches todavía
                 </div>
               )}
