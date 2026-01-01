@@ -2398,7 +2398,6 @@ const EventDetail = () => {
               tables={tables}
               matches={matches}
               selections={selections}
-              eventStatus={eventStatus}
             />
           </TabsContent>
         </Tabs>
