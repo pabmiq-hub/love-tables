@@ -47,14 +47,22 @@ interface Selection {
 interface Match {
   participant1: { id: string; name: string };
   participant2: { id: string; name: string };
-  matchType?: "dating" | "friendship" | "both";
+  matchTypes: {
+    friendship: boolean;
+    dating: boolean;
+  };
+}
+
+interface TableRound {
+  round: number;
+  tables: any[][];
 }
 
 interface EventAnalyticsProps {
   participants: Participant[];
   selections: Selection[];
   matches: Match[];
-  tables: any[][];
+  tables: any[][] | TableRound[];
 }
 
 const GENDER_COLORS: Record<string, string> = {
@@ -66,12 +74,22 @@ const GENDER_COLORS: Record<string, string> = {
 
 const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
 
-const AGE_RANGE_ORDER = ["18-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-60", "50+", "+50"];
+const AGE_RANGE_ORDER = [
+  "18-24", "18-25", 
+  "25-32", "26-30", "26-32",
+  "31-35", "33-40", 
+  "36-40", "41-45", "41-50",
+  "46-50", "50+", "+50", "51-60"
+];
 
 const normalizeAgeRange = (range: string | null | undefined): string => {
   if (!range) return "Sin especificar";
-  const cleaned = range.replace(/\s+/g, "").replace("años", "").trim();
-  if (cleaned === "+50" || cleaned === "50+" || cleaned === "51-60") return "50+";
+  // Normalizar guiones (– → -) y espacios
+  let cleaned = range.replace(/–/g, "-").replace(/\s+/g, "").replace("años", "").trim();
+  
+  // Mapear rangos a formato estándar
+  if (cleaned === "+50" || cleaned === "51-60") return "50+";
+  
   return cleaned;
 };
 
@@ -156,14 +174,14 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
       ? ((totalMatches * 2) / submitted).toFixed(1) 
       : "0";
 
-    // Match types
-    const datingMatches = matches.filter(m => m.matchType === "dating").length;
-    const friendshipMatches = matches.filter(m => m.matchType === "friendship").length;
-    const bothMatches = matches.filter(m => m.matchType === "both").length;
+    // Match types - usando matchTypes object
+    const datingOnlyMatches = matches.filter(m => m.matchTypes?.dating && !m.matchTypes?.friendship).length;
+    const friendshipOnlyMatches = matches.filter(m => m.matchTypes?.friendship && !m.matchTypes?.dating).length;
+    const bothMatches = matches.filter(m => m.matchTypes?.dating && m.matchTypes?.friendship).length;
 
     const matchTypeData = [
-      { name: "Romance", value: datingMatches, color: "#ec4899" },
-      { name: "Amistad", value: friendshipMatches, color: "#3b82f6" },
+      { name: "Romance", value: datingOnlyMatches, color: "#ec4899" },
+      { name: "Amistad", value: friendshipOnlyMatches, color: "#3b82f6" },
       { name: "Ambos", value: bothMatches, color: "#8b5cf6" },
     ].filter(d => d.value > 0);
 
@@ -205,8 +223,8 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
       withMatchCount,
       withMatchRate,
       avgMatchesPerPerson,
-      datingMatches,
-      friendshipMatches,
+      datingOnlyMatches,
+      friendshipOnlyMatches,
       bothMatches,
       matchTypeData,
       topSelected,
@@ -214,16 +232,52 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
     };
   }, [participants, selections, matches, inscriptionStats.checkedIn]);
 
+  // ========== NORMALIZED TABLES ==========
+  const normalizedTables = useMemo(() => {
+    if (!tables || tables.length === 0) return [];
+    
+    // Si es formato {round, tables}[], aplanar a todas las mesas
+    const firstItem = tables[0];
+    if (firstItem && typeof firstItem === 'object' && 'tables' in firstItem) {
+      return (tables as TableRound[]).flatMap(r => r.tables);
+    }
+    return tables as any[][];
+  }, [tables]);
+
+  // ========== TABLES WITH MOST MATCHES ==========
+  const tablesWithMatches = useMemo(() => {
+    if (normalizedTables.length === 0 || matches.length === 0) return [];
+
+    const tableMatchCounts = normalizedTables.map((table, idx) => {
+      if (!Array.isArray(table)) return { tableNum: idx + 1, matchCount: 0, members: [] };
+      
+      const memberIds = table.map((m: any) => m.id);
+      const matchesInTable = matches.filter(match => 
+        memberIds.includes(match.participant1.id) && 
+        memberIds.includes(match.participant2.id)
+      );
+      
+      return {
+        tableNum: idx + 1,
+        matchCount: matchesInTable.length,
+        members: table.map((m: any) => m.name || "Sin nombre")
+      };
+    }).filter(t => t.matchCount > 0)
+      .sort((a, b) => b.matchCount - a.matchCount);
+
+    return tableMatchCounts.slice(0, 5);
+  }, [normalizedTables, matches]);
+
   // ========== TABLE QUALITY ==========
   const tableQuality = useMemo(() => {
-    if (!tables || tables.length === 0) return { homogeneous: 0, mixed: 0, conflict: 0, warnings: [] };
+    if (normalizedTables.length === 0) return { homogeneous: 0, mixed: 0, conflict: 0, warnings: [] };
 
     let homogeneous = 0;
     let mixed = 0;
     let conflict = 0;
     const warnings: string[] = [];
 
-    tables.forEach((table, idx) => {
+    normalizedTables.forEach((table, idx) => {
       if (!Array.isArray(table)) return;
       
       const ageRanges = new Set<string>();
@@ -251,7 +305,7 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
     });
 
     return { homogeneous, mixed, conflict, warnings };
-  }, [tables, participants]);
+  }, [normalizedTables, participants]);
 
   return (
     <div className="space-y-8">
@@ -597,11 +651,52 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
           </Card>
         </div>
 
+        {/* Mesas con más matches */}
+        {tablesWithMatches.length > 0 && (
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-2 bg-gradient-to-r from-emerald-50 to-teal-50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-emerald-600" />
+                Mesas con más Matches
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {tablesWithMatches.map((table, idx) => (
+                  <div key={table.tableNum} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {idx === 0 && "🥇 "}
+                        {idx === 1 && "🥈 "}
+                        {idx === 2 && "🥉 "}
+                        Mesa {table.tableNum}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {table.members.slice(0, 3).join(", ")}
+                        {table.members.length > 3 && ` +${table.members.length - 3}`}
+                      </span>
+                    </div>
+                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                      {table.matchCount} {table.matchCount === 1 ? 'match' : 'matches'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Análisis de calidad de mesas */}
-        {tables && tables.length > 0 && (
+        {normalizedTables.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Calidad de Mesas</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Calidad de Mesas
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Análisis de homogeneidad por rango de edad
+              </p>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4 mb-4">
@@ -621,15 +716,15 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
 
               {tableQuality.warnings.length > 0 && (
                 <div className="space-y-2">
-                  {tableQuality.warnings.slice(0, 5).map((warning, idx) => (
+                  {tableQuality.warnings.slice(0, 3).map((warning, idx) => (
                     <Alert key={idx} variant="destructive" className="py-2">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription className="text-sm">{warning}</AlertDescription>
                     </Alert>
                   ))}
-                  {tableQuality.warnings.length > 5 && (
+                  {tableQuality.warnings.length > 3 && (
                     <p className="text-sm text-muted-foreground text-center">
-                      y {tableQuality.warnings.length - 5} alertas más...
+                      y {tableQuality.warnings.length - 3} alertas más...
                     </p>
                   )}
                 </div>
