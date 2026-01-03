@@ -174,15 +174,30 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
       ? ((totalMatches * 2) / submitted).toFixed(1) 
       : "0";
 
-    // Match types - usando matchTypes object
-    const datingOnlyMatches = matches.filter(m => m.matchTypes?.dating && !m.matchTypes?.friendship).length;
-    const friendshipOnlyMatches = matches.filter(m => m.matchTypes?.friendship && !m.matchTypes?.dating).length;
-    const bothMatches = matches.filter(m => m.matchTypes?.dating && m.matchTypes?.friendship).length;
+    // Match types - usando matchTypes object con fallback para compatibilidad
+    const datingOnlyMatches = matches.filter(m => {
+      const mt = m.matchTypes || { friendship: false, dating: false };
+      return mt.dating && !mt.friendship;
+    }).length;
+    
+    const friendshipOnlyMatches = matches.filter(m => {
+      const mt = m.matchTypes || { friendship: false, dating: false };
+      return mt.friendship && !mt.dating;
+    }).length;
+    
+    const bothMatches = matches.filter(m => {
+      const mt = m.matchTypes || { friendship: false, dating: false };
+      return mt.dating && mt.friendship;
+    }).length;
+
+    // Si no hay tipos específicos pero hay matches, mostrar como "Sin categoría" o recategorizar
+    const uncategorizedMatches = matches.length - datingOnlyMatches - friendshipOnlyMatches - bothMatches;
 
     const matchTypeData = [
       { name: "Romance", value: datingOnlyMatches, color: "#ec4899" },
       { name: "Amistad", value: friendshipOnlyMatches, color: "#3b82f6" },
       { name: "Ambos", value: bothMatches, color: "#8b5cf6" },
+      ...(uncategorizedMatches > 0 ? [{ name: "Otro", value: uncategorizedMatches, color: "#94a3b8" }] : []),
     ].filter(d => d.value > 0);
 
     // Top selected
