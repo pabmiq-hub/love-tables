@@ -84,8 +84,8 @@ const columnMappingsOrdered: Array<{
   },
   {
     key: 'email',
-    exact: ['email', 'e-mail', 'correo', 'correo electrónico', 'correo electronico', 'mail'],
-    partial: ['@', 'correo']
+    exact: ['email', 'e-mail', 'correo', 'correo electrónico', 'correo electronico', 'mail', 'direccion de correo', 'direccion email'],
+    partial: ['e-mail', 'mail', '@', 'correo']
   },
 ];
 

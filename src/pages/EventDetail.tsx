@@ -334,25 +334,43 @@ const EventDetail = () => {
   };
 
   // Age range order for adjacency calculation - normalized format
-  const AGE_RANGE_ORDER = ["18-24", "25-32", "33-40", "41-50", "50+"];
+  // Include custom age ranges from event if available
+  const getAgeRangeOrder = (): string[] => {
+    const defaultOrder = ["18-24", "25-32", "33-40", "41-50", "50+"];
+    if (eventData?.custom_age_ranges && eventData.custom_age_ranges.length > 0) {
+      // Normalize custom ranges to match format
+      return eventData.custom_age_ranges.map(r => 
+        r.replace(/–/g, "-").replace(/\+ ?(\d+)/g, "$1+").trim()
+      );
+    }
+    return defaultOrder;
+  };
 
   // Normalize age range for consistent grouping
   const normalizeAgeRangeForGrouping = (ageRange: string | null): string => {
     if (!ageRange) return "Sin especificar";
     const normalized = ageRange
       .replace(/–/g, "-")
-      .replace(/\+ ?50/g, "50+")
-      .replace(/\+50/g, "50+")
-      .replace("51-60", "50+")
-      .replace("60+", "50+")
+      .replace(/\+ ?(\d+)/g, "$1+")
       .trim();
-    return AGE_RANGE_ORDER.find(r => normalized.includes(r)) || normalized;
+    const order = getAgeRangeOrder();
+    return order.find(r => normalized === r || normalized.includes(r.replace("+", "")) && r.includes("+")) || normalized;
   };
 
   const getAgeRangeIndex = (ageRange: string | null): number => {
     if (!ageRange) return -1;
     const normalized = normalizeAgeRangeForGrouping(ageRange);
-    return AGE_RANGE_ORDER.indexOf(normalized);
+    const order = getAgeRangeOrder();
+    const idx = order.indexOf(normalized);
+    // If not found, try to find by partial match
+    if (idx === -1) {
+      for (let i = 0; i < order.length; i++) {
+        if (normalized.includes(order[i].replace("+", "")) || order[i].includes(normalized.replace("+", ""))) {
+          return i;
+        }
+      }
+    }
+    return idx;
   };
 
   const getAgeRangeDistance = (age1: string | null, age2: string | null): number => {
@@ -360,6 +378,33 @@ const EventDetail = () => {
     const idx2 = getAgeRangeIndex(age2);
     if (idx1 === -1 || idx2 === -1) return 0; // Unknown = treat as same
     return Math.abs(idx1 - idx2);
+  };
+
+  // Check if two participants are compatible based on age preferences
+  // STRICT: Only allow if they are in the same/adjacent age range OR explicitly selected as preference
+  const areAgeCompatible = (p1: DbParticipant, p2: DbParticipant): boolean => {
+    const age1 = normalizeAgeRangeForGrouping(p1.age_range);
+    const age2 = normalizeAgeRangeForGrouping(p2.age_range);
+    
+    // Same age range = always compatible
+    if (age1 === age2) return true;
+    
+    // Check if distance is only 1 (adjacent ranges)
+    const distance = getAgeRangeDistance(p1.age_range, p2.age_range);
+    if (distance <= 1) return true;
+    
+    // Check if p1 explicitly prefers p2's age range
+    const p1PrefersP2 = p1.preferred_age_range?.includes("Cualquier") || 
+                        p1.preferred_age_range?.includes(age2) ||
+                        p1.preferred_age_range?.toLowerCase().includes("any");
+    
+    // Check if p2 explicitly prefers p1's age range
+    const p2PrefersP1 = p2.preferred_age_range?.includes("Cualquier") || 
+                        p2.preferred_age_range?.includes(age1) ||
+                        p2.preferred_age_range?.toLowerCase().includes("any");
+    
+    // Both must have explicitly selected each other's age range for large gaps
+    return p1PrefersP2 && p2PrefersP1;
   };
 
   // Smart table generation algorithm based on preferences
@@ -464,14 +509,19 @@ const EventDetail = () => {
   // Group participants by age range first for better table assignment
   const groupParticipantsByAgeRange = (participantsList: DbParticipant[]): Map<string, DbParticipant[]> => {
     const groups = new Map<string, DbParticipant[]>();
+    const ageRangeOrder = getAgeRangeOrder();
     
     // Initialize groups in order
-    AGE_RANGE_ORDER.forEach(range => groups.set(range, []));
+    ageRangeOrder.forEach(range => groups.set(range, []));
     groups.set("Sin especificar", []);
     
     participantsList.forEach(p => {
       const ageRange = normalizeAgeRangeForGrouping(p.age_range);
-      groups.get(ageRange)?.push(p) || groups.get("Sin especificar")!.push(p);
+      if (groups.has(ageRange)) {
+        groups.get(ageRange)!.push(p);
+      } else {
+        groups.get("Sin especificar")!.push(p);
+      }
     });
     
     return groups;
@@ -481,7 +531,8 @@ const EventDetail = () => {
   const mergeSmallAgeGroups = (groups: Map<string, DbParticipant[]>, minSize: number): DbParticipant[][] => {
     const orderedGroups: { range: string; participants: DbParticipant[] }[] = [];
     
-    AGE_RANGE_ORDER.forEach(range => {
+    const ageRangeOrder = getAgeRangeOrder();
+    ageRangeOrder.forEach(range => {
       const group = groups.get(range) || [];
       if (group.length > 0) {
         orderedGroups.push({ range, participants: [...group] });
@@ -582,8 +633,15 @@ const EventDetail = () => {
           
           // Check compatibility with existing table members
           let canJoin = true;
-          if (!relaxConstraints) {
+          
+          // STRICT AGE CHECK: Must be compatible with all existing table members
+          if (!relaxConstraints && table.length > 0) {
             for (const member of table) {
+              const memberParticipant = participantsList.find(p => p.id === member.id);
+              if (memberParticipant && !areAgeCompatible(participant, memberParticipant)) {
+                canJoin = false;
+                break;
+              }
               if (pairedHistory.get(participant.id)?.has(member.id)) {
                 canJoin = false;
                 break;
@@ -597,14 +655,30 @@ const EventDetail = () => {
           }
         }
         
-        // Fill remaining if relaxed or if gender parity couldn't be achieved
+        // Fill remaining if relaxed - but still try to maintain age compatibility
         if ((relaxConstraints || genderParity) && table.length < targetSize) {
-          for (const participant of availableParticipants) {
+          // Sort by age compatibility first
+          const remainingParticipants = availableParticipants
+            .filter(p => !usedParticipants.has(p.id))
+            .sort((a, b) => {
+              // Prefer participants closer in age to existing table members
+              let aScore = 0, bScore = 0;
+              for (const member of table) {
+                const memberP = participantsList.find(p => p.id === member.id);
+                if (memberP) {
+                  aScore += areAgeCompatible(a, memberP) ? 10 : 0;
+                  bScore += areAgeCompatible(b, memberP) ? 10 : 0;
+                  aScore -= getAgeRangeDistance(a.age_range, memberP.age_range);
+                  bScore -= getAgeRangeDistance(b.age_range, memberP.age_range);
+                }
+              }
+              return bScore - aScore;
+            });
+          
+          for (const participant of remainingParticipants) {
             if (table.length >= targetSize) break;
-            if (!usedParticipants.has(participant.id)) {
-              table.push({ id: participant.id, name: participant.name });
-              usedParticipants.add(participant.id);
-            }
+            table.push({ id: participant.id, name: participant.name });
+            usedParticipants.add(participant.id);
           }
         }
         
@@ -712,29 +786,38 @@ const EventDetail = () => {
         const scoredRotators = availableRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
           
-          // INCREASED weight for age compatibility
+          // STRICT AGE CHECK: Use areAgeCompatible function
+          const isAgeCompatible = areAgeCompatible(host, rotator);
+          
+          if (isAgeCompatible) {
+            score += 100; // Large bonus for age compatibility
+          } else if (!relaxConstraints) {
+            score -= 200; // Large penalty if not compatible and not relaxed
+          }
+          
+          // Additional bonus for same age range
           const hostAgeIdx = getAgeRangeIndex(host.age_range);
           const rotatorAgeIdx = getAgeRangeIndex(rotator.age_range);
           const ageDist = Math.abs(hostAgeIdx - rotatorAgeIdx);
           
           if (ageDist === 0) score += 50;      // Same age range: highest bonus
           else if (ageDist === 1) score += 25; // Adjacent: good bonus
-          else if (ageDist === 2) score += 5;  // 2 ranges: small bonus
-          else if (ageDist >= 3) score -= 30;  // Very different: penalty
+          else if (ageDist >= 3) score -= 50;  // Very different: bigger penalty
           
           // Check compatibility with other table members
           table.forEach(member => {
             const memberParticipant = participantsList.find(p => p.id === member.id);
             if (memberParticipant) {
-              const memberAgeIdx = getAgeRangeIndex(memberParticipant.age_range);
-              const memberDist = Math.abs(rotatorAgeIdx - memberAgeIdx);
-              if (memberDist === 0) score += 20;
-              else if (memberDist === 1) score += 10;
-              else if (memberDist >= 3) score -= 15;
+              const isMemberAgeCompatible = areAgeCompatible(rotator, memberParticipant);
+              if (isMemberAgeCompatible) {
+                score += 30;
+              } else if (!relaxConstraints) {
+                score -= 50;
+              }
             }
           });
           
-          // Reduce penalty for repetition (was -100, now -80)
+          // Penalty for repetition
           if (pairedHistory.get(host.id)?.has(rotator.id)) {
             score -= 80;
           }
@@ -761,16 +844,21 @@ const EventDetail = () => {
             }
           }
           
-          return { rotator, score };
+          return { rotator, score, isAgeCompatible };
         }).sort((a, b) => b.score - a.score);
         
         let filledSeats = 0;
-        for (const { rotator, score } of scoredRotators) {
+        for (const { rotator, score, isAgeCompatible } of scoredRotators) {
           if (filledSeats >= seatsNeeded) break;
           if (usedRotators.has(rotator.id)) continue;
           
           const wouldRepeat = pairedHistory.get(host.id)?.has(rotator.id) ||
                               table.some(m => pairedHistory.get(m.id)?.has(rotator.id));
+          
+          // STRICT: Skip if not age compatible and not relaxed mode
+          if (!relaxConstraints && !isAgeCompatible) {
+            continue;
+          }
           
           if (wouldRepeat && !relaxConstraints && score < 0) {
             continue;
@@ -781,10 +869,20 @@ const EventDetail = () => {
           filledSeats++;
         }
         
+        // Fill remaining if relaxed - prioritize by age compatibility
         if ((relaxConstraints || genderParity) && filledSeats < seatsNeeded) {
-          for (const { rotator } of scoredRotators) {
+          // Sort remaining by age compatibility
+          const remainingRotators = scoredRotators
+            .filter(({ rotator }) => !usedRotators.has(rotator.id))
+            .sort((a, b) => {
+              // Prefer age compatible first
+              if (a.isAgeCompatible && !b.isAgeCompatible) return -1;
+              if (!a.isAgeCompatible && b.isAgeCompatible) return 1;
+              return b.score - a.score;
+            });
+          
+          for (const { rotator } of remainingRotators) {
             if (filledSeats >= seatsNeeded) break;
-            if (usedRotators.has(rotator.id)) continue;
             
             table.push({ id: rotator.id, name: rotator.name });
             usedRotators.add(rotator.id);
