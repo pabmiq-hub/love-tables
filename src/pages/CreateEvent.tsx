@@ -161,6 +161,7 @@ const CreateEvent = () => {
         dating_preference: p.datingPreference || null,
         gender: p.gender || null,
         phone: p.phone || null,
+        email: p.email || null,
       }));
       
       const { error: participantsError } = await supabase
