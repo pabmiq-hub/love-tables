@@ -661,6 +661,12 @@ const CreateEvent = () => {
           <AddParticipantModal
             onClose={() => setShowAddModal(false)}
             onAdd={handleAddParticipant}
+            customPreferences={{
+              ageRanges: eventPreferences.ageRanges,
+              genders: eventPreferences.genders,
+              preferences: eventPreferences.preferences,
+              datingPreferences: eventPreferences.datingPreferences,
+            }}
           />
         )}
       </main>

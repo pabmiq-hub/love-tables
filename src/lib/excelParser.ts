@@ -84,13 +84,14 @@ const columnMappingsOrdered: Array<{
   },
   {
     key: 'email',
-    exact: ['email', 'correo', 'correo electrónico', 'e-mail'],
-    partial: ['mail', '@']
+    exact: ['email', 'correo', 'correo electrónico', 'e-mail', 'correo electronico'],
+    partial: ['mail', '@', 'e-mail']
   },
 ];
 
 function normalizeColumnName(name: string): string {
-  return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Normalize: lowercase, trim, remove accents, and normalize hyphens
+  return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-–—]/g, '-');
 }
 
 function findColumnMapping(header: string): string | null {
