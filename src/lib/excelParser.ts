@@ -84,13 +84,13 @@ const columnMappingsOrdered: Array<{
   },
   {
     key: 'email',
-    exact: ['email', 'correo', 'correo electrónico', 'e-mail', 'correo electronico'],
-    partial: ['mail', '@', 'e-mail']
+    exact: ['email', 'e-mail', 'correo', 'correo electrónico', 'correo electronico', 'mail'],
+    partial: ['@', 'correo']
   },
 ];
 
 function normalizeColumnName(name: string): string {
-  // Normalize: lowercase, trim, remove accents, and normalize hyphens
+  // Normalize: lowercase, trim, remove accents, normalize hyphens, and remove extra spaces
   return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-–—]/g, '-');
 }
 
@@ -145,32 +145,45 @@ function parseAge(value: any): number {
 
 function normalizeAgeRange(value: string): string {
   const normalized = value.trim();
+  
+  // If empty, return empty
+  if (!normalized) return '';
+  
   // Check if it matches any of the predefined ranges
   for (const range of AGE_RANGES) {
     if (normalized.includes(range.replace('–', '-')) || normalized.includes(range)) {
       return range;
     }
   }
-  // Try to match patterns like "18-24" -> "18–24"
+  
+  // Try to match patterns like "18-24" -> "18–24" only for default ranges
   if (normalized.includes('18') && normalized.includes('24')) return '18–24';
   if (normalized.includes('25') && normalized.includes('32')) return '25–32';
   if (normalized.includes('33') && normalized.includes('40')) return '33–40';
   if (normalized.includes('41') && normalized.includes('50')) return '41–50';
-  if (normalized.includes('50') || normalized.includes('+')) return '+ 50';
-  return normalized;
+  
+  // For "+50" or "+ 50" pattern (only if no other number after 50)
+  if (/\+\s*50\b/.test(normalized) || /50\s*\+/.test(normalized)) return '+ 50';
+  
+  // IMPORTANT: Keep custom age ranges as-is (e.g., "41+", "30-35", etc.)
+  // Just normalize the format slightly: convert various dashes to regular hyphen
+  return normalized.replace(/[–—]/g, '-');
 }
 
 function normalizePreferredAgeRange(value: string): string {
-  const lower = value.toLowerCase();
-  if (lower.includes('cualquier') || lower.includes('all')) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  
+  const lower = trimmed.toLowerCase();
+  if (lower.includes('cualquier') || lower.includes('all') || lower.includes('any')) {
     return 'Cualquier rango de edad';
   }
   // Handle multiple age ranges separated by commas
-  if (value.includes(',')) {
-    const ranges = value.split(',').map(r => normalizeAgeRange(r.trim())).filter(r => r);
+  if (trimmed.includes(',')) {
+    const ranges = trimmed.split(',').map(r => normalizeAgeRange(r.trim())).filter(r => r);
     return ranges.join(', ');
   }
-  return normalizeAgeRange(value);
+  return normalizeAgeRange(trimmed);
 }
 
 function normalizePreference(value: string): string {
@@ -303,16 +316,29 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
               ? normalizePreference(String(row[columnMap.preference] || 'Amistad y ligue')) 
               : 'Amistad y ligue';
             
+            // Get email - handle undefined index and empty values
+            let email: string | undefined = undefined;
+            if (columnMap.email !== undefined) {
+              const emailValue = row[columnMap.email];
+              if (emailValue !== undefined && emailValue !== null && String(emailValue).trim() !== '') {
+                email = String(emailValue).trim();
+              }
+            }
+            
+            // Get age range - keep original value from Excel
+            const rawAgeRange = columnMap.ageRange !== undefined ? String(row[columnMap.ageRange] || '').trim() : '';
+            const rawPreferredAgeRange = columnMap.preferredAgeRange !== undefined ? String(row[columnMap.preferredAgeRange] || '').trim() : '';
+            
             const participant: Participant = {
               id: generateId(),
               name: String(name).trim(),
               age: columnMap.age !== undefined ? parseAge(row[columnMap.age]) : 0,
-              ageRange: columnMap.ageRange !== undefined ? normalizeAgeRange(String(row[columnMap.ageRange] || '')) : '',
-              preferredAgeRange: columnMap.preferredAgeRange !== undefined ? normalizePreferredAgeRange(String(row[columnMap.preferredAgeRange] || '')) : '',
+              ageRange: normalizeAgeRange(rawAgeRange),
+              preferredAgeRange: normalizePreferredAgeRange(rawPreferredAgeRange),
               preference,
               gender: columnMap.gender !== undefined ? normalizeGender(String(row[columnMap.gender] || '')) : 'Prefiero no decirlo',
               phone: columnMap.phone !== undefined ? String(row[columnMap.phone] || '').trim() : undefined,
-              email: columnMap.email !== undefined ? String(row[columnMap.email] || '').trim() : undefined,
+              email,
             };
             
             // Add dating preference if preference includes "ligue"
