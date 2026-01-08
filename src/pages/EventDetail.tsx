@@ -128,6 +128,12 @@ const EventDetail = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [completedRounds, setCompletedRounds] = useState<number[]>([]);
+  
+  // Participant filters
+  const [filterGender, setFilterGender] = useState<string>("all");
+  const [filterAgeRange, setFilterAgeRange] = useState<string>("all");
+  const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
+  const [filterPreference, setFilterPreference] = useState<string>("all");
 
   useEffect(() => {
     loadEventData();
@@ -1610,6 +1616,23 @@ const EventDetail = () => {
     ));
   };
 
+  // Filter participants based on selected filters
+  const filteredParticipants = participants.filter(p => {
+    if (filterGender !== "all" && p.gender !== filterGender) return false;
+    if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
+    if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
+    if (filterPreference !== "all" && p.preference !== filterPreference) return false;
+    return true;
+  });
+
+  // Get unique values for filter options
+  const uniqueGenders = [...new Set(participants.map(p => p.gender).filter(Boolean))];
+  const uniqueAgeRanges = [...new Set(participants.map(p => p.age_range).filter(Boolean))];
+  const uniquePreferredAgeRanges = [...new Set(
+    participants.flatMap(p => p.preferred_age_range?.split(', ') || []).filter(Boolean)
+  )];
+  const uniquePreferences = [...new Set(participants.map(p => p.preference).filter(Boolean))];
+
   const handleExportMatches = async (format: 'csv' | 'excel') => {
     if (matches.length === 0) {
       toast({
@@ -1824,11 +1847,17 @@ const EventDetail = () => {
           <TabsContent value="participants">
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                   <div>
-                    <CardTitle>Lista de Participantes</CardTitle>
-                    <CardDescription>{participants.length} personas registradas</CardDescription>
-                  </div>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle>Lista de Participantes</CardTitle>
+                      <CardDescription>
+                        {filteredParticipants.length === participants.length 
+                          ? `${participants.length} personas registradas`
+                          : `Mostrando ${filteredParticipants.length} de ${participants.length} participantes`
+                        }
+                      </CardDescription>
+                    </div>
                   <div className="flex flex-wrap gap-2">
                     {eventStatus === "pending" && participants.length > 0 && (
                       <>
@@ -1898,6 +1927,78 @@ const EventDetail = () => {
                       Exportar
                     </Button>
                   </div>
+                  </div>
+                  
+                  {/* Filters */}
+                  {participants.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Filter className="w-4 h-4" />
+                        <span>Filtrar:</span>
+                      </div>
+                      
+                      <select
+                        value={filterGender}
+                        onChange={(e) => setFilterGender(e.target.value)}
+                        className="h-8 px-2 text-sm border rounded-md bg-background"
+                      >
+                        <option value="all">Género: Todos</option>
+                        {uniqueGenders.map(g => (
+                          <option key={g} value={g!}>{g}</option>
+                        ))}
+                      </select>
+                      
+                      <select
+                        value={filterAgeRange}
+                        onChange={(e) => setFilterAgeRange(e.target.value)}
+                        className="h-8 px-2 text-sm border rounded-md bg-background"
+                      >
+                        <option value="all">Rango edad: Todos</option>
+                        {uniqueAgeRanges.map(ar => (
+                          <option key={ar} value={ar!}>{ar}</option>
+                        ))}
+                      </select>
+                      
+                      <select
+                        value={filterPreferredAgeRange}
+                        onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
+                        className="h-8 px-2 text-sm border rounded-md bg-background"
+                      >
+                        <option value="all">Busca rango: Todos</option>
+                        {uniquePreferredAgeRanges.map(par => (
+                          <option key={par} value={par}>{par}</option>
+                        ))}
+                      </select>
+                      
+                      <select
+                        value={filterPreference}
+                        onChange={(e) => setFilterPreference(e.target.value)}
+                        className="h-8 px-2 text-sm border rounded-md bg-background"
+                      >
+                        <option value="all">Conexión: Todas</option>
+                        {uniquePreferences.map(pref => (
+                          <option key={pref} value={pref!}>{pref}</option>
+                        ))}
+                      </select>
+                      
+                      {(filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFilterGender("all");
+                            setFilterAgeRange("all");
+                            setFilterPreferredAgeRange("all");
+                            setFilterPreference("all");
+                          }}
+                          className="h-8 px-2 text-xs"
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Limpiar filtros
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1921,7 +2022,7 @@ const EventDetail = () => {
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {participants.map((participant, index) => (
+                    {filteredParticipants.map((participant, index) => (
                       <div 
                         key={participant.id}
                         className={`flex items-center justify-between p-4 rounded-lg animate-fade-in cursor-pointer hover:shadow-md transition-shadow ${

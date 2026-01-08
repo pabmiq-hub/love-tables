@@ -84,14 +84,21 @@ const columnMappingsOrdered: Array<{
   },
   {
     key: 'email',
-    exact: ['email', 'e-mail', 'correo', 'correo electrónico', 'correo electronico', 'mail', 'direccion de correo', 'direccion email'],
-    partial: ['e-mail', 'mail', '@', 'correo']
+    exact: ['email', 'e-mail', 'e mail', 'correo', 'correo electrónico', 'correo electronico', 'mail', 'direccion de correo', 'direccion email'],
+    partial: ['email', 'e-mail', 'mail', '@', 'correo']
   },
 ];
 
 function normalizeColumnName(name: string): string {
-  // Normalize: lowercase, trim, remove accents, normalize hyphens, and remove extra spaces
-  return name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-–—]/g, '-');
+  // Normalize: lowercase, trim, remove accents, normalize hyphens, remove extra spaces
+  return name
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[-–—]/g, '-')          // Normalize all dashes to hyphen
+    .replace(/\s+/g, ' ')            // Collapse multiple spaces
+    .trim();
 }
 
 function findColumnMapping(header: string): string | null {
