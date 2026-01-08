@@ -28,13 +28,27 @@ interface ParticipantData {
   checked_in: boolean;
 }
 
+export interface EventCustomPreferences {
+  ageRanges?: string[];
+  genders?: string[];
+  preferences?: string[];
+  datingPreferences?: string[];
+}
+
 interface EditParticipantModalProps {
   participant: ParticipantData;
   onClose: () => void;
   onSave: (updated: ParticipantData) => void;
+  customPreferences?: EventCustomPreferences;
 }
 
-const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantModalProps) => {
+const EditParticipantModal = ({ participant, onClose, onSave, customPreferences }: EditParticipantModalProps) => {
+  // Use custom preferences if provided, otherwise use defaults
+  const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
+  const genders = customPreferences?.genders || [...GENDERS];
+  const preferences = customPreferences?.preferences || [...PREFERENCES];
+  const datingPreferences = customPreferences?.datingPreferences || [...DATING_PREFERENCES];
+  const preferredAgeRanges = [...ageRanges, "Cualquier rango"];
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -155,7 +169,7 @@ const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantM
                 <SelectValue placeholder="Seleccionar género" />
               </SelectTrigger>
               <SelectContent>
-                {GENDERS.map(g => (
+                {genders.map(g => (
                   <SelectItem key={g} value={g}>{g}</SelectItem>
                 ))}
               </SelectContent>
@@ -172,7 +186,7 @@ const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantM
                 <SelectValue placeholder="Seleccionar rango" />
               </SelectTrigger>
               <SelectContent>
-                {AGE_RANGES.map(r => (
+                {ageRanges.map(r => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
                 ))}
               </SelectContent>
@@ -189,8 +203,7 @@ const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantM
                 <SelectValue placeholder="Seleccionar preferencia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Cualquier rango">Cualquier rango</SelectItem>
-                {AGE_RANGES.map(r => (
+                {preferredAgeRanges.map(r => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
                 ))}
               </SelectContent>
@@ -207,7 +220,7 @@ const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantM
                 <SelectValue placeholder="Seleccionar tipo" />
               </SelectTrigger>
               <SelectContent>
-                {PREFERENCES.map(p => (
+                {preferences.map(p => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
@@ -224,7 +237,7 @@ const EditParticipantModal = ({ participant, onClose, onSave }: EditParticipantM
                 <SelectValue placeholder="Seleccionar preferencia" />
               </SelectTrigger>
               <SelectContent>
-                {DATING_PREFERENCES.map(d => (
+                {datingPreferences.map(d => (
                   <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
               </SelectContent>
