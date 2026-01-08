@@ -85,9 +85,21 @@ const columnMappingsOrdered: Array<{
   {
     key: 'email',
     exact: ['email', 'e-mail', 'e mail', 'correo', 'correo electrónico', 'correo electronico', 'mail', 'direccion de correo', 'direccion email'],
-    partial: ['email', 'e-mail', 'mail', '@', 'correo']
+    partial: ['email', 'e-mail', 'e mail', 'mail', '@', 'correo']
   },
 ];
+
+// Debug: log detected columns
+function logColumnMapping(headers: string[], columnMap: Record<string, number>) {
+  console.log('=== Excel Column Detection ===');
+  console.log('Headers found:', headers);
+  console.log('Column mapping:', columnMap);
+  headers.forEach((h, i) => {
+    const normalized = normalizeColumnName(String(h));
+    const mapping = findColumnMapping(String(h));
+    console.log(`Column ${i}: "${h}" -> normalized: "${normalized}" -> mapped to: ${mapping || 'NOT MAPPED'}`);
+  });
+}
 
 function normalizeColumnName(name: string): string {
   // Normalize: lowercase, trim, remove accents, normalize hyphens, remove extra spaces
@@ -293,6 +305,9 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
             }
           }
         });
+        
+        // Debug logging
+        logColumnMapping(headers.map(h => String(h || '')), columnMap);
         
         const requiredColumns = ['name'];
         const missingColumns = requiredColumns.filter(col => !(col in columnMap));
