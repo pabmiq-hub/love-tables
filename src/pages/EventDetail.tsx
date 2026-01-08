@@ -55,6 +55,10 @@ interface EventData {
   email_template: EmailTemplate | null;
   emails_sent_at: string | null;
   scheduled_email_at: string | null;
+  custom_age_ranges: string[] | null;
+  custom_genders: string[] | null;
+  custom_preferences: string[] | null;
+  custom_dating_preferences: string[] | null;
 }
 
 interface DbParticipant {
@@ -150,7 +154,11 @@ const EventDetail = () => {
       gender_parity: event.gender_parity || false,
       email_template: event.email_template as unknown as EmailTemplate | null,
       emails_sent_at: event.emails_sent_at,
-      scheduled_email_at: event.scheduled_email_at
+      scheduled_email_at: event.scheduled_email_at,
+      custom_age_ranges: event.custom_age_ranges as string[] | null,
+      custom_genders: event.custom_genders as string[] | null,
+      custom_preferences: event.custom_preferences as string[] | null,
+      custom_dating_preferences: event.custom_dating_preferences as string[] | null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -2442,6 +2450,12 @@ const EventDetail = () => {
           <AddParticipantModal
             onClose={() => setShowAddModal(false)}
             onAdd={handleAddParticipant}
+            customPreferences={eventData ? {
+              ageRanges: eventData.custom_age_ranges || undefined,
+              genders: eventData.custom_genders || undefined,
+              preferences: eventData.custom_preferences || undefined,
+              datingPreferences: eventData.custom_dating_preferences || undefined,
+            } : undefined}
           />
         )}
 
@@ -2529,6 +2543,12 @@ const EventDetail = () => {
             participant={editingParticipant}
             onClose={() => setEditingParticipant(null)}
             onSave={handleUpdateParticipant}
+            customPreferences={eventData ? {
+              ageRanges: eventData.custom_age_ranges || undefined,
+              genders: eventData.custom_genders || undefined,
+              preferences: eventData.custom_preferences || undefined,
+              datingPreferences: eventData.custom_dating_preferences || undefined,
+            } : undefined}
           />
         )}
       </main>
