@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2 } from "lucide-react";
+import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import konektumLogo from "@/assets/konektum-logo.png";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -117,10 +118,7 @@ const AdminDashboard = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">SpeedMatch</span>
+            <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
           </Link>
 
           <div className="flex items-center gap-3">
@@ -140,7 +138,7 @@ const AdminDashboard = () => {
         {/* Welcome section */}
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold mb-2">Panel de Administración</h1>
-          <p className="text-muted-foreground">Gestiona tus eventos de speed dating</p>
+          <p className="text-muted-foreground">Gestiona tus eventos</p>
         </div>
 
         {/* Stats */}
@@ -172,11 +170,11 @@ const AdminDashboard = () => {
           <Card className="bg-gradient-card">
             <CardContent className="p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Heart className="w-6 h-6 text-primary" />
+                <Handshake className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-muted-foreground">Matches realizados</p>
+                <p className="text-sm text-muted-foreground">Conexiones realizadas</p>
               </div>
             </CardContent>
           </Card>
@@ -200,7 +198,7 @@ const AdminDashboard = () => {
                 <Calendar className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="font-display text-xl font-semibold mb-2">Sin eventos todavía</h3>
-              <p className="text-muted-foreground mb-4">Crea tu primer evento de speed dating</p>
+              <p className="text-muted-foreground mb-4">Crea tu primer evento</p>
               <Link to="/admin/events/new">
                 <Button variant="hero">
                   <Plus className="w-4 h-4 mr-2" />

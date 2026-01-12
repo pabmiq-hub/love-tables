@@ -6,7 +6,7 @@ export interface CookieConsent {
   marketing: boolean;
 }
 
-const COOKIE_CONSENT_KEY = "speedmatch_cookie_consent";
+const COOKIE_CONSENT_KEY = "konektum_cookie_consent";
 
 export const useCookieConsent = () => {
   const [consent, setConsent] = useState<CookieConsent | null>(null);

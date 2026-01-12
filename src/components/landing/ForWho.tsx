@@ -1,20 +1,25 @@
-import { Wine, PartyPopper, Music } from "lucide-react";
+import { Wine, PartyPopper, Building2, Briefcase } from "lucide-react";
 
 const audiences = [
   {
     icon: Wine,
     title: "Bares y restaurantes",
-    description: "Aumenta la afluencia en noches especiales con eventos únicos que atraen nuevos clientes y fidelizan a los habituales."
+    description: "Aumenta la afluencia en noches especiales con eventos únicos de speed dating o networking que atraen nuevos clientes."
   },
   {
     icon: PartyPopper,
     title: "Empresas de eventos",
-    description: "Profesionaliza tus speed dating con herramientas que te ahorran horas de trabajo manual y mejoran la experiencia."
+    description: "Profesionaliza tus eventos de citas y networking con herramientas que te ahorran horas de trabajo manual."
   },
   {
-    icon: Music,
-    title: "Locales de ocio",
-    description: "Diferénciate ofreciendo experiencias sociales memorables que generan repetición y boca a boca."
+    icon: Building2,
+    title: "Cámaras de comercio y asociaciones",
+    description: "Organiza networking profesional para emprendedores, startups y empresas que buscan nuevos contactos."
+  },
+  {
+    icon: Briefcase,
+    title: "Coworkings y espacios de innovación",
+    description: "Facilita conexiones entre profesionales, inversores y emprendedores con eventos de networking estructurado."
   }
 ];
 
@@ -28,7 +33,7 @@ export const ForWho = () => {
             Casos de uso
           </span>
           <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
-            ¿Para quién es SpeedMatch?
+            ¿Para quién es Konektum?
           </h2>
           <p className="text-lg text-muted-foreground">
             Ideal para cualquier negocio que quiera conectar personas
@@ -36,7 +41,7 @@ export const ForWho = () => {
         </div>
 
         {/* Grid - 3 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {audiences.map((audience, index) => (
             <div 
               key={index} 

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Heart, Users, Calendar, Sparkles, ArrowRight, ChevronDown } from "lucide-react";
+import { Users, Calendar, Sparkles, ArrowRight, ChevronDown, Handshake, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const Hero = () => {
@@ -15,21 +15,21 @@ export const Hero = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/3 rounded-full blur-3xl" />
       </div>
 
-      {/* Floating hearts */}
+      {/* Floating icons */}
       <div className="absolute inset-0 pointer-events-none">
-        <Heart 
+        <Handshake 
           className="absolute top-1/4 left-1/4 w-6 h-6 text-primary/20 animate-float" 
           style={{ animationDelay: '0s' }} 
         />
-        <Heart 
+        <Network 
           className="absolute top-1/3 right-1/4 w-4 h-4 text-primary/15 animate-float" 
           style={{ animationDelay: '1s' }} 
         />
-        <Heart 
+        <Users 
           className="absolute bottom-1/3 left-1/3 w-5 h-5 text-primary/20 animate-float" 
           style={{ animationDelay: '2s' }} 
         />
-        <Heart 
+        <Handshake 
           className="absolute top-1/2 right-1/3 w-3 h-3 text-accent/20 animate-float" 
           style={{ animationDelay: '3s' }} 
         />
@@ -40,7 +40,7 @@ export const Hero = () => {
         <div className="animate-fade-in mb-8">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
             <Sparkles className="w-4 h-4" />
-            La plataforma #1 de Speed Dating en España
+            La plataforma líder para conectar personas
           </span>
         </div>
 
@@ -58,8 +58,8 @@ export const Hero = () => {
           className="animate-fade-in text-lg md:text-xl text-muted-foreground text-center max-w-2xl mb-10 leading-relaxed" 
           style={{ animationDelay: '0.2s' }}
         >
-          Organiza eventos de speed dating de forma profesional. Gestiona participantes, 
-          genera mesas inteligentes y descubre los matches perfectos.
+          Organiza eventos de speed dating y networking profesional. Gestiona participantes, 
+          genera mesas inteligentes y descubre las conexiones perfectas.
         </p>
 
         {/* CTA Buttons */}
@@ -93,7 +93,7 @@ export const Hero = () => {
             </div>
             <h3 className="font-display font-semibold text-lg mb-2">Gestión de Eventos</h3>
             <p className="text-sm text-muted-foreground">
-              Crea y administra múltiples eventos de speed dating desde un solo lugar
+              Crea y administra eventos de dating y networking desde un solo lugar
             </p>
           </div>
 
@@ -115,11 +115,11 @@ export const Hero = () => {
             style={{ animationDelay: '0.6s' }}
           >
             <div className="w-14 h-14 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-soft">
-              <Heart className="w-7 h-7 text-primary-foreground" />
+              <Handshake className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h3 className="font-display font-semibold text-lg mb-2">Matches Perfectos</h3>
+            <h3 className="font-display font-semibold text-lg mb-2">Conexiones Perfectas</h3>
             <p className="text-sm text-muted-foreground">
-              Los participantes eligen y descubren sus coincidencias
+              Los participantes eligen y descubren sus matches ideales
             </p>
           </div>
         </div>

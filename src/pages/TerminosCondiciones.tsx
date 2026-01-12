@@ -14,12 +14,12 @@ const TerminosCondiciones = () => {
             
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">1. Aceptación de los términos</h2>
-              <p className="text-muted-foreground">Al acceder y utilizar SpeedMatch, aceptas estar vinculado por estos Términos y Condiciones. Si no estás de acuerdo con alguna parte, no deberás utilizar nuestros servicios.</p>
+              <p className="text-muted-foreground">Al acceder y utilizar Konektum, aceptas estar vinculado por estos Términos y Condiciones. Si no estás de acuerdo con alguna parte, no deberás utilizar nuestros servicios.</p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">2. Descripción del servicio</h2>
-              <p className="text-muted-foreground">SpeedMatch es una plataforma digital que permite a organizadores gestionar eventos de speed dating, incluyendo registro de participantes, generación de mesas, sistema de votación y comunicación de matches.</p>
+              <p className="text-muted-foreground">Konektum es una plataforma digital que permite a organizadores gestionar eventos de speed dating y networking profesional, incluyendo registro de participantes, generación de mesas, sistema de votación y comunicación de matches.</p>
             </section>
 
             <section className="space-y-4">
@@ -44,12 +44,12 @@ const TerminosCondiciones = () => {
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">5. Propiedad intelectual</h2>
-              <p className="text-muted-foreground">Todo el contenido de SpeedMatch, incluyendo diseño, código, textos e imágenes, es propiedad de [TU_NOMBRE] y está protegido por las leyes de propiedad intelectual.</p>
+              <p className="text-muted-foreground">Todo el contenido de Konektum, incluyendo diseño, código, textos e imágenes, está protegido por las leyes de propiedad intelectual.</p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">6. Limitación de responsabilidad</h2>
-              <p className="text-muted-foreground">SpeedMatch no garantiza que el servicio esté libre de errores o interrupciones. No nos hacemos responsables de las relaciones personales que surjan entre participantes de los eventos.</p>
+              <p className="text-muted-foreground">Konektum no garantiza que el servicio esté libre de errores o interrupciones. No nos hacemos responsables de las relaciones personales o profesionales que surjan entre participantes de los eventos.</p>
             </section>
 
             <section className="space-y-4">

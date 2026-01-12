@@ -5,21 +5,21 @@ const testimonials = [
     name: "María García",
     role: "Propietaria de Bar El Encuentro",
     location: "Madrid",
-    content: "SpeedMatch ha transformado nuestras noches de jueves. Antes organizábamos todo con papel y era un caos. Ahora en 5 minutos tengo todo listo y los clientes adoran la experiencia.",
+    content: "Konektum ha transformado nuestras noches de jueves. Antes organizábamos todo con papel y era un caos. Ahora en 5 minutos tengo todo listo y los clientes adoran la experiencia.",
     rating: 5
   },
   {
     name: "Carlos Rodríguez",
     role: "Director de Eventos Conexión",
     location: "Barcelona",
-    content: "Llevo 8 años organizando speed dating y probé muchas herramientas. SpeedMatch es la más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
+    content: "Llevo 8 años organizando speed dating y networking. Konektum es la herramienta más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
     rating: 5
   },
   {
     name: "Ana Martínez",
-    role: "Técnica de Juventud",
-    location: "Ayuntamiento de Alcobendas",
-    content: "Organizamos eventos para combatir la soledad no deseada en jóvenes. La plataforma nos permite gestionar eventos de 50+ personas sin esfuerzo.",
+    role: "Responsable de Networking",
+    location: "Cámara de Comercio de Valencia",
+    content: "Organizamos eventos de networking profesional para emprendedores. La plataforma nos permite gestionar eventos de 80+ personas sin esfuerzo.",
     rating: 5
   }
 ];
@@ -37,7 +37,7 @@ export const Testimonials = () => {
             Lo que dicen nuestros usuarios
           </h2>
           <p className="text-lg text-muted-foreground">
-            Organizadores de toda España confían en SpeedMatch para sus eventos
+            Organizadores de toda España confían en Konektum para sus eventos
           </p>
         </div>
 

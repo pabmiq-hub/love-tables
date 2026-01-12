@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Heart, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 const AdminRegister = () => {
   const [name, setName] = useState("");
@@ -116,10 +117,7 @@ const AdminRegister = () => {
 
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8 animate-fade-in">
-        <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <span className="font-display text-2xl font-bold">SpeedMatch</span>
+        <img src={konektumLogo} alt="Konektum" className="h-12 w-auto" />
       </div>
 
       {/* Register Card */}
