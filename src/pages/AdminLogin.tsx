@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Heart, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, EyeOff, Handshake } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -134,10 +135,7 @@ const AdminLogin = () => {
 
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8 animate-fade-in">
-        <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <span className="font-display text-2xl font-bold">SpeedMatch</span>
+        <img src={konektumLogo} alt="Konektum" className="h-12 w-auto" />
       </div>
 
       {/* Login Card */}
@@ -145,7 +143,7 @@ const AdminLogin = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Panel de Administración</CardTitle>
           <CardDescription>
-            Accede para gestionar tus eventos de speed dating
+            Accede para gestionar tus eventos
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -153,10 +151,10 @@ const AdminLogin = () => {
             recoveryEmailSent ? (
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                  <Heart className="w-8 h-8 text-primary" />
+                  <Handshake className="w-8 h-8 text-primary" />
                 </div>
                 <p className="text-muted-foreground">
-                  Hemos enviado un enlace de recuperación a <strong>{email}</strong>. 
+                  Hemos enviado un enlace de recuperación a <strong>{email}</strong>.
                   Revisa tu bandeja de entrada.
                 </p>
                 <Button 

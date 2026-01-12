@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Handshake } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const CallToAction = () => {
@@ -13,7 +13,7 @@ export const CallToAction = () => {
         <div className="max-w-3xl mx-auto text-center">
           {/* Icon */}
           <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-8 shadow-glow">
-            <Heart className="w-10 h-10 text-primary-foreground" fill="currentColor" />
+            <Handshake className="w-10 h-10 text-primary-foreground" />
           </div>
           
           {/* Heading */}
@@ -23,7 +23,7 @@ export const CallToAction = () => {
           
           {/* Description */}
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-            Únete a cientos de organizadores que ya utilizan SpeedMatch para crear momentos inolvidables. Empieza gratis hoy mismo.
+            Únete a cientos de organizadores que ya utilizan Konektum para crear eventos de dating y networking inolvidables. Empieza gratis hoy mismo.
           </p>
           
           {/* CTAs */}

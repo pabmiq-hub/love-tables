@@ -1,5 +1,5 @@
-import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -11,13 +11,10 @@ export const Footer = () => {
           {/* Brand */}
           <div className="md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" fill="currentColor" />
-              </div>
-              <span className="font-display font-bold text-xl">SpeedMatch</span>
+              <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              La plataforma líder para organizar eventos de speed dating profesionales en España.
+              La plataforma líder para organizar eventos de speed dating y networking profesional en España.
             </p>
           </div>
 
@@ -80,8 +77,8 @@ export const Footer = () => {
             <h4 className="font-display font-semibold mb-4">Contacto</h4>
             <ul className="space-y-3">
               <li>
-                <a href="mailto:hola@speedmatch.app" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  hola@speedmatch.app
+                <a href="mailto:hola@konektum.app" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  hola@konektum.app
                 </a>
               </li>
               <li>
@@ -96,7 +93,7 @@ export const Footer = () => {
         {/* Bottom bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © {currentYear} SpeedMatch. Todos los derechos reservados.
+            © {currentYear} Konektum. Todos los derechos reservados.
           </p>
           <button 
             onClick={() => {

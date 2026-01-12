@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, CheckCircle2, Loader2, Search } from "lucide-react";
+import { CheckCircle2, Loader2, Search, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatAnonymousName } from "@/lib/utils";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 interface Participant {
   id: string;
@@ -128,10 +129,7 @@ const ParticipantCheckin = () => {
               Ya estás registrado. Espera a que comience el evento.
             </p>
             <div className="flex items-center justify-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold">SpeedMatch</span>
+              <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
             </div>
           </CardContent>
         </Card>
@@ -144,12 +142,7 @@ const ParticipantCheckin = () => {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">SpeedMatch</span>
-          </div>
+          <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
         </div>
       </header>
 

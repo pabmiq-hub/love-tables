@@ -34,14 +34,14 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
     friendshipTitle: "🤝 Tus matches de amistad:",
     datingTitle: "❤️ Tus matches de ligue:",
     closing: "¡No dudes en contactarles!",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   withoutMatches: {
     subject: "Gracias por participar en {{evento}}",
     greeting: "¡Hola {{nombre}}! 👋",
     message: "¡Gracias por participar! Aunque no hubo matches esta vez, ¡esperamos verte pronto!",
     closing: "¡Nos vemos en el próximo evento!",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
 };
