@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw } from "lucide-react";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -135,6 +135,7 @@ const EventDetail = () => {
   const [filterAgeRange, setFilterAgeRange] = useState<string>("all");
   const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
   const [filterPreference, setFilterPreference] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
 
   useEffect(() => {
     loadEventData();
@@ -1618,14 +1619,44 @@ const EventDetail = () => {
     ));
   };
 
-  // Filter participants based on selected filters
-  const filteredParticipants = participants.filter(p => {
-    if (filterGender !== "all" && p.gender !== filterGender) return false;
-    if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
-    if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
-    if (filterPreference !== "all" && p.preference !== filterPreference) return false;
-    return true;
-  });
+  // Filter and sort participants
+  const filteredParticipants = participants
+    .filter(p => {
+      if (filterGender !== "all" && p.gender !== filterGender) return false;
+      if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
+      if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
+      if (filterPreference !== "all" && p.preference !== filterPreference) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "none") return 0;
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      if (sortOrder === "asc") return nameA.localeCompare(nameB, 'es');
+      return nameB.localeCompare(nameA, 'es');
+    });
+
+  const handleUncheckInAll = async () => {
+    const { error } = await supabase
+      .from("participants")
+      .update({ checked_in: false })
+      .eq("event_id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo deshacer el check-in",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants(participants.map(p => ({ ...p, checked_in: false })));
+    toast({
+      title: "Check-in deshecho",
+      description: `Se ha deshecho el check-in de ${participants.filter(p => p.checked_in).length} participantes`,
+    });
+  };
 
   // Get unique values for filter options
   const uniqueGenders = [...new Set(participants.map(p => p.gender).filter(Boolean))];
@@ -1868,6 +1899,30 @@ const EventDetail = () => {
                           <UserCheck className="w-4 h-4 mr-2" />
                           Check-in todos
                         </Button>
+                        {participants.some(p => p.checked_in) && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Deshacer check-in
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Deshacer check-in de todos?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción deshará el check-in de los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleUncheckInAll}>
+                                  Confirmar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -1996,6 +2051,28 @@ const EventDetail = () => {
                           Limpiar filtros
                         </Button>
                       )}
+                      
+                      {/* Sorting buttons */}
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Button
+                          variant={sortOrder === "asc" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
+                          className="h-8 px-2"
+                          title="Ordenar A-Z"
+                        >
+                          <ArrowUpAZ className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={sortOrder === "desc" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortOrder(sortOrder === "desc" ? "none" : "desc")}
+                          className="h-8 px-2"
+                          title="Ordenar Z-A"
+                        >
+                          <ArrowDownZA className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
