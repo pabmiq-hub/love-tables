@@ -26,52 +26,54 @@ const testimonials = [
 
 export const Testimonials = () => {
   return (
-    <section id="testimonios" className="py-16 md:py-20">
-      <div className="container mx-auto px-4">
+    <section id="testimonios" className="py-12 sm:py-16 md:py-20">
+      <div className="container mx-auto px-4 sm:px-6">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
+        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+          <span className="inline-block px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-accent/10 text-accent text-xs sm:text-sm font-medium mb-3 sm:mb-4">
             Testimonios
           </span>
-          <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-display font-bold mb-3 sm:mb-4">
             Lo que dicen nuestros usuarios
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-sm sm:text-lg text-muted-foreground px-2">
             Organizadores de toda España confían en Konektum para sus eventos
           </p>
         </div>
 
         {/* Testimonials grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {testimonials.map((testimonial, index) => (
             <div 
               key={index} 
-              className="relative p-8 rounded-2xl bg-card border border-border/50 shadow-card"
+              className={`relative p-5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl bg-card border border-border/50 shadow-card ${
+                index === 2 ? 'sm:col-span-2 lg:col-span-1' : ''
+              }`}
             >
               {/* Quote icon */}
-              <Quote className="absolute top-6 right-6 w-10 h-10 text-primary/10" />
+              <Quote className="absolute top-4 right-4 sm:top-6 sm:right-6 w-8 h-8 sm:w-10 sm:h-10 text-primary/10" />
               
               {/* Rating */}
-              <div className="flex gap-1 mb-4">
+              <div className="flex gap-0.5 sm:gap-1 mb-3 sm:mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 text-accent fill-accent" />
+                  <Star key={i} className="w-3 h-3 sm:w-4 sm:h-4 text-accent fill-accent" />
                 ))}
               </div>
               
               {/* Content */}
-              <p className="text-foreground mb-6 leading-relaxed">
+              <p className="text-sm sm:text-base text-foreground mb-4 sm:mb-6 leading-relaxed">
                 "{testimonial.content}"
               </p>
               
               {/* Author */}
               <div>
-                <p className="font-display font-semibold">
+                <p className="font-display font-semibold text-sm sm:text-base">
                   {testimonial.name}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {testimonial.role}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {testimonial.location}
                 </p>
               </div>
