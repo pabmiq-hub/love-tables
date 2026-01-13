@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban } from "lucide-react";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -26,9 +26,17 @@ import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
+import ExclusionsManager from "@/components/event/ExclusionsManager";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { supabase } from "@/integrations/supabase/client";
+
+interface ParticipantExclusion {
+  id: string;
+  participant_1_id: string;
+  participant_2_id: string;
+  reason: string | null;
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,6 +137,8 @@ const EventDetail = () => {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [completedRounds, setCompletedRounds] = useState<number[]>([]);
+  const [showExclusionsManager, setShowExclusionsManager] = useState(false);
+  const [exclusions, setExclusions] = useState<ParticipantExclusion[]>([]);
   
   // Participant filters
   const [filterGender, setFilterGender] = useState<string>("all");
@@ -232,6 +242,16 @@ const EventDetail = () => {
       });
 
       setMatches(mutualMatches);
+    }
+
+    // Load exclusions
+    const { data: exclusionsData } = await supabase
+      .from("participant_exclusions")
+      .select("*")
+      .eq("event_id", id);
+
+    if (exclusionsData) {
+      setExclusions(exclusionsData);
     }
 
     setIsLoading(false);
@@ -413,6 +433,15 @@ const EventDetail = () => {
     
     // Both must have explicitly selected each other's age range for large gaps
     return p1PrefersP2 && p2PrefersP1;
+  };
+
+  // Check if two participants are excluded from being at the same table
+  const areExcluded = (p1Id: string, p2Id: string): boolean => {
+    return exclusions.some(
+      (e) =>
+        (e.participant_1_id === p1Id && e.participant_2_id === p2Id) ||
+        (e.participant_1_id === p2Id && e.participant_2_id === p1Id)
+    );
   };
 
   // Smart table generation algorithm based on preferences
@@ -642,8 +671,16 @@ const EventDetail = () => {
           // Check compatibility with existing table members
           let canJoin = true;
           
+          // Check exclusions first - these are absolute restrictions
+          for (const member of table) {
+            if (areExcluded(participant.id, member.id)) {
+              canJoin = false;
+              break;
+            }
+          }
+          
           // STRICT AGE CHECK: Must be compatible with all existing table members
-          if (!relaxConstraints && table.length > 0) {
+          if (canJoin && !relaxConstraints && table.length > 0) {
             for (const member of table) {
               const memberParticipant = participantsList.find(p => p.id === member.id);
               if (memberParticipant && !areAgeCompatible(participant, memberParticipant)) {
@@ -663,11 +700,18 @@ const EventDetail = () => {
           }
         }
         
-        // Fill remaining if relaxed - but still try to maintain age compatibility
+        // Fill remaining if relaxed - but still try to maintain age compatibility and respect exclusions
         if ((relaxConstraints || genderParity) && table.length < targetSize) {
           // Sort by age compatibility first
           const remainingParticipants = availableParticipants
-            .filter(p => !usedParticipants.has(p.id))
+            .filter(p => {
+              if (usedParticipants.has(p.id)) return false;
+              // Always respect exclusions even in relaxed mode
+              for (const member of table) {
+                if (areExcluded(p.id, member.id)) return false;
+              }
+              return true;
+            })
             .sort((a, b) => {
               // Prefer participants closer in age to existing table members
               let aScore = 0, bScore = 0;
@@ -791,7 +835,18 @@ const EventDetail = () => {
         const menAvailable = availableRotators.filter(r => r.gender === "Hombre").length;
         const womenAvailable = availableRotators.filter(r => r.gender === "Mujer").length;
 
-        const scoredRotators = availableRotators.map(rotator => {
+        // Filter out excluded rotators first
+        const validRotators = availableRotators.filter(rotator => {
+          // Check exclusion with host
+          if (areExcluded(host.id, rotator.id)) return false;
+          // Check exclusion with other table members
+          for (const member of table) {
+            if (areExcluded(rotator.id, member.id)) return false;
+          }
+          return true;
+        });
+
+        const scoredRotators = validRotators.map(rotator => {
           let score = calculateCompatibilityScore(host, rotator);
           
           // STRICT AGE CHECK: Use areAgeCompatible function
@@ -1786,6 +1841,12 @@ const EventDetail = () => {
               <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
                 <QrCode className="w-4 h-4 mr-2" />
                 QR Check-in
+              </Button>
+            )}
+            {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
+              <Button variant="outline" onClick={() => setShowExclusionsManager(true)}>
+                <Ban className="w-4 h-4 mr-2" />
+                Exclusiones {exclusions.length > 0 && `(${exclusions.length})`}
               </Button>
             )}
             {eventStatus === "pending" && (
@@ -2826,6 +2887,15 @@ const EventDetail = () => {
             } : undefined}
           />
         )}
+
+        {/* Exclusions Manager Modal */}
+        <ExclusionsManager
+          eventId={id || ""}
+          participants={participants}
+          open={showExclusionsManager}
+          onOpenChange={setShowExclusionsManager}
+          onExclusionsChange={setExclusions}
+        />
       </main>
     </div>
   );

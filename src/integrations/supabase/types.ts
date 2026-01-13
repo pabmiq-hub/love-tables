@@ -92,6 +92,55 @@ export type Database = {
         }
         Relationships: []
       }
+      participant_exclusions: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          participant_1_id: string
+          participant_2_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          participant_1_id: string
+          participant_2_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          participant_1_id?: string
+          participant_2_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_exclusions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_exclusions_participant_1_id_fkey"
+            columns: ["participant_1_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_exclusions_participant_2_id_fkey"
+            columns: ["participant_2_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participant_selections: {
         Row: {
           created_at: string
