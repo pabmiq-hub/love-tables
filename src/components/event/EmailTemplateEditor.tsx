@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Eye, RotateCcw, Mail, Heart, Users } from "lucide-react";
+import { X, Eye, RotateCcw, Mail, Heart, Users, Handshake } from "lucide-react";
 
 export interface EmailTemplate {
   withMatches: {
@@ -31,18 +31,18 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
   withMatches: {
     subject: "¡Tienes matches en {{evento}}! 🎉",
     greeting: "¡Hola {{nombre}}! 🎉",
-    intro: "¡Gracias por participar en nuestro evento de speed dating! Tenemos buenas noticias: ¡has hecho match con otros participantes!",
+    intro: "¡Gracias por participar en nuestro evento! Tenemos buenas noticias: ¡has hecho match con otros participantes!",
     friendshipTitle: "🤝 Tus matches de amistad:",
     datingTitle: "❤️ Tus matches de ligue:",
     closing: "¡No dudes en contactarles! Los mejores momentos empiezan con una simple conversación.",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   withoutMatches: {
     subject: "Gracias por participar en {{evento}}",
     greeting: "¡Hola {{nombre}}! 👋",
-    message: "¡Gracias por participar en nuestro evento de speed dating!\n\nAunque en esta ocasión no hubo matches mutuos, ¡no te desanimes! Las conexiones a veces tardan en llegar, y estamos seguros de que en el próximo evento tendrás más suerte.\n\nRecuerda que cada evento es una oportunidad para conocer gente increíble. ¡Esperamos verte muy pronto!",
+    message: "¡Gracias por participar en nuestro evento!\n\nAunque en esta ocasión no hubo matches mutuos, ¡no te desanimes! Las conexiones a veces tardan en llegar, y estamos seguros de que en el próximo evento tendrás más suerte.\n\nRecuerda que cada evento es una oportunidad para conocer gente increíble. ¡Esperamos verte muy pronto!",
     closing: "¡Nos vemos en el próximo evento!",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
 };
@@ -84,8 +84,8 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <Heart className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">SpeedMatch</h2>
+          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum</h2>
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
@@ -116,8 +116,8 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <Heart className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">SpeedMatch</h2>
+          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum</h2>
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting, false)}</h1>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message, false)}</p>
