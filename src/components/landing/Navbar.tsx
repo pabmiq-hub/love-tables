@@ -13,7 +13,7 @@ export const Navbar = () => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
+            <img src={konektumLogo} alt="Konektum" className="h-8 sm:h-10 md:h-12 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}
