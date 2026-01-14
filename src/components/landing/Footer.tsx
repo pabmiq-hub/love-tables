@@ -1,11 +1,8 @@
 import { Link } from "react-router-dom";
 import konektumLogo from "@/assets/konektum-logo.png";
-
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
-
-  return (
-    <footer className="bg-card border-t border-border">
+  return <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* Brand */}
@@ -13,7 +10,7 @@ export const Footer = () => {
             <Link to="/" className="flex items-center gap-2 mb-4">
               <img src={konektumLogo} alt="Konektum" className="h-10 sm:h-12 w-auto" />
             </Link>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed text-justify">
               La plataforma líder para organizar eventos de speed dating y networking profesional en España.
             </p>
           </div>
@@ -77,9 +74,7 @@ export const Footer = () => {
             <h4 className="font-display font-semibold text-sm sm:text-base mb-3 sm:mb-4">Contacto</h4>
             <ul className="space-y-2 sm:space-y-3">
               <li>
-                <a href="mailto:hola@konektum.app" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  hola@konektum.app
-                </a>
+                <a href="mailto:hola@konektum.app" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">hola@konektum.com</a>
               </li>
               <li>
                 <Link to="/admin/login" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -95,17 +90,13 @@ export const Footer = () => {
           <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             © {currentYear} Konektum. Todos los derechos reservados.
           </p>
-          <button 
-            onClick={() => {
-              // Trigger cookie settings modal
-              window.dispatchEvent(new CustomEvent('open-cookie-settings'));
-            }}
-            className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={() => {
+          // Trigger cookie settings modal
+          window.dispatchEvent(new CustomEvent('open-cookie-settings'));
+        }} className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
             Configurar cookies
           </button>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 };
