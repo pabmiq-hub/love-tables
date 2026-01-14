@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Pause, StopCircle, SkipForward, Volume2, Check, Circle, Lock } from "lucide-react";
+import { Play, Pause, StopCircle, SkipForward, Volume2, Check, Lock } from "lucide-react";
 
 interface RoundTimerProps {
   roundDuration: number; // in minutes
@@ -9,6 +9,13 @@ interface RoundTimerProps {
   completedRounds: number[]; // Array of completed round numbers
   totalRounds: number;
   onCompleteRound: (roundNumber: number) => void; // Called when a round is completed
+  // Timer persistence props
+  roundStartedAt: string | null;
+  roundPausedAt: string | null;
+  roundElapsedSeconds: number;
+  onTimerStart: () => void;
+  onTimerPause: (elapsedSeconds: number) => void;
+  onTimerResume: () => void;
 }
 
 const RoundTimer = ({ 
@@ -17,14 +24,43 @@ const RoundTimer = ({
   completedRounds,
   totalRounds, 
   onCompleteRound,
+  roundStartedAt,
+  roundPausedAt,
+  roundElapsedSeconds,
+  onTimerStart,
+  onTimerPause,
+  onTimerResume,
 }: RoundTimerProps) => {
-  const [timeLeft, setTimeLeft] = useState(roundDuration * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const totalSeconds = roundDuration * 60;
+  
+  // Calculate initial time left based on persisted state
+  const calculateTimeLeft = useCallback(() => {
+    if (!roundStartedAt) {
+      // Timer never started for this round
+      return totalSeconds;
+    }
+    
+    if (roundPausedAt) {
+      // Timer is paused - return time left at pause
+      return Math.max(0, totalSeconds - roundElapsedSeconds);
+    }
+    
+    // Timer is running - calculate based on start time
+    const startTime = new Date(roundStartedAt).getTime();
+    const now = Date.now();
+    const elapsedSinceStart = Math.floor((now - startTime) / 1000);
+    const totalElapsed = roundElapsedSeconds + elapsedSinceStart;
+    return Math.max(0, totalSeconds - totalElapsed);
+  }, [roundStartedAt, roundPausedAt, roundElapsedSeconds, totalSeconds]);
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
+  const [localIsRunning, setLocalIsRunning] = useState(false);
+
+  // Determine if timer is running from persisted state
+  const isTimerRunning = roundStartedAt !== null && roundPausedAt === null;
+  const hasStarted = roundStartedAt !== null;
 
   const isRoundCompleted = (round: number) => completedRounds.includes(round);
-  const isRoundActive = (round: number) => round === activeRound && !isRoundCompleted(round);
-  const isRoundPending = (round: number) => round > activeRound || (round < activeRound && !isRoundCompleted(round));
 
   const playSound = useCallback(() => {
     try {
@@ -47,35 +83,36 @@ const RoundTimer = ({
     }
   }, []);
 
-  // Reset timer when active round changes
+  // Sync local running state with persisted state
   useEffect(() => {
-    setTimeLeft(roundDuration * 60);
-    setIsRunning(false);
-    setHasStarted(false);
-  }, [activeRound, roundDuration]);
+    setLocalIsRunning(isTimerRunning);
+    setTimeLeft(calculateTimeLeft());
+  }, [isTimerRunning, calculateTimeLeft]);
 
+  // Timer countdown effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (isRunning && timeLeft > 0) {
+    if (localIsRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            playSound();
-            return 0;
-          }
-          // Play warning sound at 30 seconds
-          if (prev === 31) {
-            playSound();
-          }
-          return prev - 1;
-        });
+        const newTimeLeft = calculateTimeLeft();
+        setTimeLeft(newTimeLeft);
+        
+        // Play warning sound at 30 seconds
+        if (newTimeLeft === 30) {
+          playSound();
+        }
+        
+        // Timer finished
+        if (newTimeLeft <= 0) {
+          setLocalIsRunning(false);
+          playSound();
+        }
       }, 1000);
     }
 
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, playSound]);
+  }, [localIsRunning, timeLeft, calculateTimeLeft, playSound]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -84,16 +121,23 @@ const RoundTimer = ({
   };
 
   const handleStart = () => {
-    setIsRunning(true);
-    setHasStarted(true);
+    setLocalIsRunning(true);
+    onTimerStart();
   };
 
   const handlePause = () => {
-    setIsRunning(false);
+    const currentElapsed = totalSeconds - timeLeft;
+    setLocalIsRunning(false);
+    onTimerPause(currentElapsed);
+  };
+
+  const handleResume = () => {
+    setLocalIsRunning(true);
+    onTimerResume();
   };
 
   const handleCloseRound = () => {
-    setIsRunning(false);
+    setLocalIsRunning(false);
     onCompleteRound(activeRound);
   };
 
@@ -101,17 +145,18 @@ const RoundTimer = ({
     onCompleteRound(activeRound);
   };
 
-  const progress = ((roundDuration * 60 - timeLeft) / (roundDuration * 60)) * 100;
+  const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
   const isWarning = timeLeft <= 30 && timeLeft > 0;
   const isTimerFinished = timeLeft === 0;
   const isLastRound = activeRound >= totalRounds;
   const isCurrentRoundCompleted = isRoundCompleted(activeRound);
+  const isPaused = hasStarted && roundPausedAt !== null;
 
   // Generate round indicators
   const roundIndicators = [];
   for (let i = 1; i <= totalRounds; i++) {
     const completed = isRoundCompleted(i);
-    const active = isRoundActive(i);
+    const active = i === activeRound && !completed;
     const pending = i > activeRound;
 
     roundIndicators.push(
@@ -168,23 +213,31 @@ const RoundTimer = ({
 
               {/* Controls */}
               <div className="flex items-center gap-3 flex-wrap justify-center">
-                {/* Start/Continue button - only if timer not finished */}
-                {!isRunning && !isTimerFinished && (
+                {/* Start button - only if timer never started */}
+                {!hasStarted && !isTimerFinished && (
                   <Button variant="hero" size="lg" onClick={handleStart}>
                     <Play className="w-5 h-5 mr-2" />
-                    {hasStarted ? "Continuar" : "Iniciar Ronda"}
+                    Iniciar Ronda
+                  </Button>
+                )}
+
+                {/* Resume button - only if paused */}
+                {isPaused && !isTimerFinished && (
+                  <Button variant="hero" size="lg" onClick={handleResume}>
+                    <Play className="w-5 h-5 mr-2" />
+                    Continuar
                   </Button>
                 )}
                 
                 {/* Pause button */}
-                {isRunning && (
+                {localIsRunning && (
                   <Button variant="outline" size="lg" onClick={handlePause}>
                     <Pause className="w-5 h-5 mr-2" />
                     Pausar
                   </Button>
                 )}
 
-                {/* Close round button - available when timer is running or paused */}
+                {/* Close round button - available when timer has started and not finished */}
                 {hasStarted && !isTimerFinished && (
                   <Button 
                     variant="destructive" 
@@ -231,6 +284,13 @@ const RoundTimer = ({
               {isWarning && !isTimerFinished && (
                 <p className="text-yellow-600 text-sm animate-pulse">
                   ¡Últimos 30 segundos!
+                </p>
+              )}
+
+              {isPaused && !isTimerFinished && (
+                <p className="text-muted-foreground text-sm flex items-center gap-2">
+                  <Pause className="w-4 h-4" />
+                  Temporizador en pausa
                 </p>
               )}
             </>

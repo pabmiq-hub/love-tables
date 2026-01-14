@@ -69,6 +69,9 @@ interface EventData {
   custom_genders: string[] | null;
   custom_preferences: string[] | null;
   custom_dating_preferences: string[] | null;
+  round_started_at: string | null;
+  round_paused_at: string | null;
+  round_elapsed_seconds: number;
 }
 
 interface DbParticipant {
@@ -181,6 +184,9 @@ const EventDetail = () => {
       custom_genders: event.custom_genders as string[] | null,
       custom_preferences: event.custom_preferences as string[] | null,
       custom_dating_preferences: event.custom_dating_preferences as string[] | null,
+      round_started_at: event.round_started_at || null,
+      round_paused_at: event.round_paused_at || null,
+      round_elapsed_seconds: event.round_elapsed_seconds || 0,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -2328,20 +2334,80 @@ const EventDetail = () => {
                     activeRound={currentRound}
                     completedRounds={completedRounds}
                     totalRounds={tables.length}
+                    roundStartedAt={eventData.round_started_at}
+                    roundPausedAt={eventData.round_paused_at}
+                    roundElapsedSeconds={eventData.round_elapsed_seconds}
+                    onTimerStart={async () => {
+                      const now = new Date().toISOString();
+                      await supabase
+                        .from("events")
+                        .update({ 
+                          round_started_at: now,
+                          round_paused_at: null,
+                          round_elapsed_seconds: 0
+                        })
+                        .eq("id", id);
+                      setEventData(prev => prev ? {
+                        ...prev,
+                        round_started_at: now,
+                        round_paused_at: null,
+                        round_elapsed_seconds: 0
+                      } : null);
+                    }}
+                    onTimerPause={async (elapsedSeconds: number) => {
+                      const now = new Date().toISOString();
+                      await supabase
+                        .from("events")
+                        .update({ 
+                          round_paused_at: now,
+                          round_elapsed_seconds: elapsedSeconds
+                        })
+                        .eq("id", id);
+                      setEventData(prev => prev ? {
+                        ...prev,
+                        round_paused_at: now,
+                        round_elapsed_seconds: elapsedSeconds
+                      } : null);
+                    }}
+                    onTimerResume={async () => {
+                      const now = new Date().toISOString();
+                      await supabase
+                        .from("events")
+                        .update({ 
+                          round_started_at: now,
+                          round_paused_at: null
+                        })
+                        .eq("id", id);
+                      setEventData(prev => prev ? {
+                        ...prev,
+                        round_started_at: now,
+                        round_paused_at: null
+                      } : null);
+                    }}
                     onCompleteRound={async (roundNumber: number) => {
                       const newCompletedRounds = [...completedRounds, roundNumber];
                       const nextRound = roundNumber + 1;
                       const isLastRound = roundNumber >= tables.length;
                       
+                      // Reset timer state for next round
                       await supabase
                         .from("events")
                         .update({ 
                           completed_rounds: newCompletedRounds,
-                          current_round: isLastRound ? roundNumber : nextRound 
+                          current_round: isLastRound ? roundNumber : nextRound,
+                          round_started_at: null,
+                          round_paused_at: null,
+                          round_elapsed_seconds: 0
                         })
                         .eq("id", id);
                       
                       setCompletedRounds(newCompletedRounds);
+                      setEventData(prev => prev ? {
+                        ...prev,
+                        round_started_at: null,
+                        round_paused_at: null,
+                        round_elapsed_seconds: 0
+                      } : null);
                       
                       if (!isLastRound) {
                         setCurrentRound(nextRound);

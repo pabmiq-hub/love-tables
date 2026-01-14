@@ -33,6 +33,9 @@ export type Database = {
           participants_count: number
           rotation_mode: string
           round_duration: number
+          round_elapsed_seconds: number | null
+          round_paused_at: string | null
+          round_started_at: string | null
           rounds: number
           scheduled_email_at: string | null
           status: string
@@ -58,6 +61,9 @@ export type Database = {
           participants_count?: number
           rotation_mode?: string
           round_duration?: number
+          round_elapsed_seconds?: number | null
+          round_paused_at?: string | null
+          round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
           status?: string
@@ -83,6 +89,9 @@ export type Database = {
           participants_count?: number
           rotation_mode?: string
           round_duration?: number
+          round_elapsed_seconds?: number | null
+          round_paused_at?: string | null
+          round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
           status?: string
