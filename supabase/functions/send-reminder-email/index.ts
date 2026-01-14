@@ -127,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
         <html>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eee;">
-            <h2 style="color: #e11d48;">SpeedMatch</h2>
+            <h2 style="color: #e11d48;">Konektum</h2>
           </div>
           
           <h1 style="color: #333;">¡Hola ${participant.name}! 👋</h1>
@@ -161,7 +161,7 @@ const handler = async (req: Request): Promise<Response> => {
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
           
           <p style="color: #888; font-size: 12px; text-align: center;">
-            Este es un recordatorio automático de SpeedMatch.<br>
+            Este es un recordatorio automático de Konektum.<br>
             Si ya has enviado tus selecciones, ignora este mensaje.
           </p>
         </body>
@@ -176,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "SpeedMatch <onboarding@resend.dev>",
+            from: "Konektum <hola@konektum.com>",
             to: [participant.email],
             subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`,
             html,

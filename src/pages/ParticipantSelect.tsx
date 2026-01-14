@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatAnonymousName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 interface Participant {
   id: string;
@@ -327,11 +328,8 @@ const ParticipantSelect = () => {
       </Link>
 
       {/* Logo */}
-      <div className="flex items-center gap-2 mb-8 animate-fade-in">
-        <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <span className="font-display text-2xl font-bold">SpeedMatch</span>
+      <div className="mb-8 animate-fade-in">
+        <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
       {/* Not started state */}

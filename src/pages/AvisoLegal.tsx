@@ -20,13 +20,13 @@ const AvisoLegal = () => {
                 <li><strong>NIF/CIF:</strong> [TU_NIF_O_CIF]</li>
                 <li><strong>Domicilio:</strong> [TU_DIRECCIÓN_COMPLETA]</li>
                 <li><strong>Email:</strong> [TU_EMAIL_DE_CONTACTO]</li>
-                <li><strong>Nombre de dominio:</strong> speedmatch.app</li>
+                <li><strong>Nombre de dominio:</strong> konektum.com</li>
               </ul>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">2. Objeto</h2>
-              <p className="text-muted-foreground">El presente Aviso Legal regula el uso del sitio web speedmatch.app, del que es titular [TU_NOMBRE]. La navegación por el sitio web atribuye la condición de usuario e implica la aceptación plena de las disposiciones incluidas en este Aviso Legal.</p>
+              <p className="text-muted-foreground">El presente Aviso Legal regula el uso del sitio web konektum.com, del que es titular [TU_NOMBRE]. La navegación por el sitio web atribuye la condición de usuario e implica la aceptación plena de las disposiciones incluidas en este Aviso Legal.</p>
             </section>
 
             <section className="space-y-4">
