@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Heart, Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "lucide-react";
+import konektumLogo from "@/assets/konektum-logo.png";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,11 +83,8 @@ const AdminResetPassword = () => {
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
       {/* Logo */}
-      <div className="flex items-center gap-2 mb-8 animate-fade-in">
-        <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <span className="font-display text-2xl font-bold">SpeedMatch</span>
+      <div className="mb-8 animate-fade-in">
+        <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
       {/* Reset Password Card */}

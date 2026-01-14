@@ -34,14 +34,14 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
     friendshipTitle: "🤝 Tus matches de amistad:",
     datingTitle: "❤️ Tus matches de ligue:",
     closing: "¡No dudes en contactarles!",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   withoutMatches: {
     subject: "Gracias por participar en {{evento}}",
     greeting: "¡Hola {{nombre}}! 👋",
     message: "¡Gracias por participar! Aunque no hubo matches esta vez, ¡esperamos verte pronto!",
     closing: "¡Nos vemos en el próximo evento!",
-    signature: "Con cariño,\nEl equipo de SpeedMatch 💕",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
 };
@@ -71,10 +71,10 @@ const generateEmailHtml = (
     const datingList = datingMatches.length > 0
       ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${m.name}${m.phone ? ` - 📞 ${m.phone}` : ''}</li>`).join('')}</ul></div>` : '';
     
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2>SpeedMatch</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   } else {
     const t = template.withoutMatches;
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2>SpeedMatch</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   }
 };
 
@@ -200,7 +200,7 @@ const handler = async (req: Request): Promise<Response> => {
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: "SpeedMatch <onboarding@resend.dev>", to: [participant.email], subject, html }),
+          body: JSON.stringify({ from: "Konektum <hola@konektum.com>", to: [participant.email], subject, html }),
         });
         if (res.ok) { hasMatches ? stats.withMatches++ : stats.withoutMatches++; }
         else { const err = await res.text(); errors.push(`${participant.name}: ${err}`); stats.failed++; }

@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus } from "lucide-react";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -145,7 +145,10 @@ const EventDetail = () => {
   const [filterAgeRange, setFilterAgeRange] = useState<string>("all");
   const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
   const [filterPreference, setFilterPreference] = useState<string>("all");
+  const [filterCheckin, setFilterCheckin] = useState<"all" | "confirmed" | "pending">("all");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     loadEventData();
@@ -1677,6 +1680,12 @@ const EventDetail = () => {
   // Filter and sort participants
   const filteredParticipants = participants
     .filter(p => {
+      // Search by name
+      if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      // Filter by check-in status
+      if (filterCheckin === "confirmed" && !p.checked_in) return false;
+      if (filterCheckin === "pending" && p.checked_in) return false;
+      // Existing filters
       if (filterGender !== "all" && p.gender !== filterGender) return false;
       if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
       if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
@@ -1684,6 +1693,15 @@ const EventDetail = () => {
       return true;
     })
     .sort((a, b) => {
+      // Sort by check-in status first
+      if (sortByCheckin === "confirmed-first") {
+        if (a.checked_in && !b.checked_in) return -1;
+        if (!a.checked_in && b.checked_in) return 1;
+      } else if (sortByCheckin === "pending-first") {
+        if (!a.checked_in && b.checked_in) return -1;
+        if (a.checked_in && !b.checked_in) return 1;
+      }
+      // Then alphabetical
       if (sortOrder === "none") return 0;
       const nameA = a.name.toLowerCase();
       const nameB = b.name.toLowerCase();
@@ -2044,95 +2062,149 @@ const EventDetail = () => {
                   </div>
                   </div>
                   
-                  {/* Filters */}
+                  {/* Search and Filters */}
                   {participants.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Filter className="w-4 h-4" />
-                        <span>Filtrar:</span>
+                    <div className="space-y-3 pt-2 border-t">
+                      {/* Search bar */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Buscar participante..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full h-9 pl-9 pr-4 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm("")}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                       
-                      <select
-                        value={filterGender}
-                        onChange={(e) => setFilterGender(e.target.value)}
-                        className="h-8 px-2 text-sm border rounded-md bg-background"
-                      >
-                        <option value="all">Género: Todos</option>
-                        {uniqueGenders.map(g => (
-                          <option key={g} value={g!}>{g}</option>
-                        ))}
-                      </select>
-                      
-                      <select
-                        value={filterAgeRange}
-                        onChange={(e) => setFilterAgeRange(e.target.value)}
-                        className="h-8 px-2 text-sm border rounded-md bg-background"
-                      >
-                        <option value="all">Rango edad: Todos</option>
-                        {uniqueAgeRanges.map(ar => (
-                          <option key={ar} value={ar!}>{ar}</option>
-                        ))}
-                      </select>
-                      
-                      <select
-                        value={filterPreferredAgeRange}
-                        onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
-                        className="h-8 px-2 text-sm border rounded-md bg-background"
-                      >
-                        <option value="all">Busca rango: Todos</option>
-                        {uniquePreferredAgeRanges.map(par => (
-                          <option key={par} value={par}>{par}</option>
-                        ))}
-                      </select>
-                      
-                      <select
-                        value={filterPreference}
-                        onChange={(e) => setFilterPreference(e.target.value)}
-                        className="h-8 px-2 text-sm border rounded-md bg-background"
-                      >
-                        <option value="all">Conexión: Todas</option>
-                        {uniquePreferences.map(pref => (
-                          <option key={pref} value={pref!}>{pref}</option>
-                        ))}
-                      </select>
-                      
-                      {(filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all") && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setFilterGender("all");
-                            setFilterAgeRange("all");
-                            setFilterPreferredAgeRange("all");
-                            setFilterPreference("all");
-                          }}
-                          className="h-8 px-2 text-xs"
+                      {/* Filters row */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Filter className="w-4 h-4" />
+                          <span>Filtrar:</span>
+                        </div>
+                        
+                        <select
+                          value={filterCheckin}
+                          onChange={(e) => setFilterCheckin(e.target.value as "all" | "confirmed" | "pending")}
+                          className="h-8 px-2 text-sm border rounded-md bg-background"
                         >
-                          <X className="w-3 h-3 mr-1" />
-                          Limpiar filtros
-                        </Button>
-                      )}
-                      
-                      {/* Sorting buttons */}
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Button
-                          variant={sortOrder === "asc" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
-                          className="h-8 px-2"
-                          title="Ordenar A-Z"
+                          <option value="all">Check-in: Todos</option>
+                          <option value="confirmed">Confirmados</option>
+                          <option value="pending">Pendientes</option>
+                        </select>
+                        
+                        <select
+                          value={filterGender}
+                          onChange={(e) => setFilterGender(e.target.value)}
+                          className="h-8 px-2 text-sm border rounded-md bg-background"
                         >
-                          <ArrowUpAZ className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant={sortOrder === "desc" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSortOrder(sortOrder === "desc" ? "none" : "desc")}
-                          className="h-8 px-2"
-                          title="Ordenar Z-A"
+                          <option value="all">Género: Todos</option>
+                          {uniqueGenders.map(g => (
+                            <option key={g} value={g!}>{g}</option>
+                          ))}
+                        </select>
+                        
+                        <select
+                          value={filterAgeRange}
+                          onChange={(e) => setFilterAgeRange(e.target.value)}
+                          className="h-8 px-2 text-sm border rounded-md bg-background"
                         >
-                          <ArrowDownZA className="w-4 h-4" />
-                        </Button>
+                          <option value="all">Rango edad: Todos</option>
+                          {uniqueAgeRanges.map(ar => (
+                            <option key={ar} value={ar!}>{ar}</option>
+                          ))}
+                        </select>
+                        
+                        <select
+                          value={filterPreferredAgeRange}
+                          onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
+                          className="h-8 px-2 text-sm border rounded-md bg-background"
+                        >
+                          <option value="all">Busca rango: Todos</option>
+                          {uniquePreferredAgeRanges.map(par => (
+                            <option key={par} value={par}>{par}</option>
+                          ))}
+                        </select>
+                        
+                        <select
+                          value={filterPreference}
+                          onChange={(e) => setFilterPreference(e.target.value)}
+                          className="h-8 px-2 text-sm border rounded-md bg-background"
+                        >
+                          <option value="all">Conexión: Todas</option>
+                          {uniquePreferences.map(pref => (
+                            <option key={pref} value={pref!}>{pref}</option>
+                          ))}
+                        </select>
+                        
+                        {(filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all" || filterCheckin !== "all" || searchTerm) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setFilterGender("all");
+                              setFilterAgeRange("all");
+                              setFilterPreferredAgeRange("all");
+                              setFilterPreference("all");
+                              setFilterCheckin("all");
+                              setSearchTerm("");
+                            }}
+                            className="h-8 px-2 text-xs"
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Limpiar
+                          </Button>
+                        )}
+                        
+                        {/* Sorting buttons */}
+                        <div className="flex items-center gap-1 ml-auto">
+                          <Button
+                            variant={sortByCheckin === "confirmed-first" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSortByCheckin(sortByCheckin === "confirmed-first" ? "none" : "confirmed-first")}
+                            className="h-8 px-2"
+                            title="Confirmados primero"
+                          >
+                            <UserCheck className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant={sortByCheckin === "pending-first" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSortByCheckin(sortByCheckin === "pending-first" ? "none" : "pending-first")}
+                            className="h-8 px-2"
+                            title="Pendientes primero"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                          <div className="w-px h-6 bg-border mx-1" />
+                          <Button
+                            variant={sortOrder === "asc" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
+                            className="h-8 px-2"
+                            title="Ordenar A-Z"
+                          >
+                            <ArrowUpAZ className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant={sortOrder === "desc" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSortOrder(sortOrder === "desc" ? "none" : "desc")}
+                            className="h-8 px-2"
+                            title="Ordenar Z-A"
+                          >
+                            <ArrowDownZA className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

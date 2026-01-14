@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Heart } from "lucide-react";
+import konektumLogo from "@/assets/konektum-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
 import { supabase } from "@/integrations/supabase/client";
@@ -206,12 +207,7 @@ const ParticipantJoin = () => {
             <p className="text-muted-foreground mb-4">
               Gracias por registrarte. Nos vemos en el evento.
             </p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold">SpeedMatch</span>
-            </div>
+            <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
           </CardContent>
         </Card>
       </div>
@@ -223,12 +219,7 @@ const ParticipantJoin = () => {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">SpeedMatch</span>
-          </div>
+          <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
         </div>
       </header>
 
