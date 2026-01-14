@@ -29,6 +29,7 @@ import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
+import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ParticipantExclusion {
@@ -2370,6 +2371,20 @@ const EventDetail = () => {
                           >
                             <QrCode className="w-5 h-5 mr-2" />
                             Mostrar QR de Selección
+                          </Button>
+                          
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              exportTableAssignmentsToExcel(tables, participants, eventData?.name || "evento");
+                              toast({
+                                title: "Excel descargado",
+                                description: "Las asignaciones de mesas se han exportado correctamente.",
+                              });
+                            }}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Descargar Mesas
                           </Button>
                           
                           <div className="text-center">
