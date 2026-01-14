@@ -86,7 +86,8 @@ serve(async (req) => {
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
         .select('id, name, phone, preference, dating_preference')
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .order('name');
 
       if (participantsError) {
         console.error('[get-event-participants] Error fetching participants:', participantsError);
