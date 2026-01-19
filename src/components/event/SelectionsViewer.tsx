@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Heart, Users, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Heart, Users } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 interface DbParticipant {
   id: string;
@@ -32,11 +34,7 @@ interface SelectionsViewerProps {
 type MatchType = "dating" | "friendship" | "both";
 
 const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewerProps) => {
-  const [openSelectors, setOpenSelectors] = useState<Record<string, boolean>>({});
-
-  const toggleSelector = (id: string) => {
-    setOpenSelectors(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  const [expandedParticipant, setExpandedParticipant] = useState<string | null>(null);
 
   // Find all mutual match pairs for checking if selection resulted in match
   const matchPairs = new Set<string>();
@@ -45,76 +43,62 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
     matchPairs.add(`${m.participant2.id}-${m.participant1.id}`);
   });
 
-  // Build selections view data - what each participant selected
-  const buildParticipantSelections = () => {
-    const selectorMap = new Map<string, { participant: DbParticipant; selections: Array<{ selected: DbParticipant; selectionType: string; isMatch: boolean }> }>();
+  // Build unified data per participant
+  const buildParticipantData = () => {
+    const dataMap = new Map<string, {
+      participant: DbParticipant;
+      selectionsMade: Array<{ selected: DbParticipant; selectionType: string; isMatch: boolean }>;
+      selectionsReceived: Array<{ selector: DbParticipant; selectionType: string; isMatch: boolean }>;
+      matchCount: number;
+    }>();
 
+    // Initialize all participants
+    participants.forEach(p => {
+      dataMap.set(p.id, {
+        participant: p,
+        selectionsMade: [],
+        selectionsReceived: [],
+        matchCount: 0,
+      });
+    });
+
+    // Build selections made
     selections.forEach(sel => {
       const selector = participants.find(p => p.id === sel.selector_id);
       const selected = participants.find(p => p.id === sel.selected_id);
       
       if (!selector || !selected) return;
 
-      if (!selectorMap.has(sel.selector_id)) {
-        selectorMap.set(sel.selector_id, {
-          participant: selector,
-          selections: [],
-        });
-      }
-
       const isMatch = matchPairs.has(`${sel.selector_id}-${sel.selected_id}`);
       
-      selectorMap.get(sel.selector_id)!.selections.push({
-        selected,
-        selectionType: sel.selection_type || 'friendship',
-        isMatch,
-      });
-    });
-
-    return Array.from(selectorMap.values()).sort((a, b) => 
-      a.participant.name.localeCompare(b.participant.name)
-    );
-  };
-
-  // Build reverse selections - who selected each participant
-  const buildReceivedSelections = () => {
-    const receivedMap = new Map<string, { participant: DbParticipant; receivedFrom: Array<{ selector: DbParticipant; selectionType: string; isMatch: boolean }> }>();
-
-    selections.forEach(sel => {
-      const selector = participants.find(p => p.id === sel.selector_id);
-      const selected = participants.find(p => p.id === sel.selected_id);
-      
-      if (!selector || !selected) return;
-
-      if (!receivedMap.has(sel.selected_id)) {
-        receivedMap.set(sel.selected_id, {
-          participant: selected,
-          receivedFrom: [],
+      const selectorData = dataMap.get(sel.selector_id);
+      if (selectorData) {
+        selectorData.selectionsMade.push({
+          selected,
+          selectionType: sel.selection_type || 'friendship',
+          isMatch,
         });
+        if (isMatch) selectorData.matchCount++;
       }
 
-      const isMatch = matchPairs.has(`${sel.selector_id}-${sel.selected_id}`);
-      
-      receivedMap.get(sel.selected_id)!.receivedFrom.push({
-        selector,
-        selectionType: sel.selection_type || 'friendship',
-        isMatch,
-      });
+      // Build selections received
+      const selectedData = dataMap.get(sel.selected_id);
+      if (selectedData) {
+        selectedData.selectionsReceived.push({
+          selector,
+          selectionType: sel.selection_type || 'friendship',
+          isMatch,
+        });
+      }
     });
 
-    return Array.from(receivedMap.values()).sort((a, b) => 
-      a.participant.name.localeCompare(b.participant.name)
-    );
+    return Array.from(dataMap.values())
+      .filter(d => d.selectionsMade.length > 0 || d.selectionsReceived.length > 0)
+      .sort((a, b) => a.participant.name.localeCompare(b.participant.name, 'es'));
   };
 
-  const participantSelections = buildParticipantSelections();
-  const receivedSelections = buildReceivedSelections();
+  const participantData = buildParticipantData();
   const participantsWhoVoted = new Set(selections.map(s => s.selector_id)).size;
-  const [openReceivers, setOpenReceivers] = useState<Record<string, boolean>>({});
-
-  const toggleReceiver = (id: string) => {
-    setOpenReceivers(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const getMatchTypeBadgeStyle = (type: MatchType) => {
     switch (type) {
@@ -124,15 +108,19 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
     }
   };
 
-  const getSectionStyle = (type: MatchType) => {
+  const getTypeLabel = (type: string) => {
     switch (type) {
-      case "dating": return "bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-900";
-      case "friendship": return "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900";
-      case "both": return "bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900";
+      case "both": return "💕😊";
+      case "dating": return "💕";
+      default: return "😊";
     }
   };
 
-  if (participantSelections.length === 0) {
+  const toggleExpand = (id: string) => {
+    setExpandedParticipant(prev => prev === id ? null : id);
+  };
+
+  if (participantData.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -146,201 +134,167 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
   }
 
   return (
-    <div className="space-y-6">
-      {/* Selecciones hechas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Selecciones hechas ({participantsWhoVoted})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {participantSelections.map((ps) => (
-              <Collapsible
-                key={ps.participant.id}
-                open={openSelectors[ps.participant.id]}
-                onOpenChange={() => toggleSelector(ps.participant.id)}
-              >
-                <Card className="overflow-hidden">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500">
-                            <AvatarFallback className="bg-transparent text-white font-medium">
-                              {ps.participant.name.charAt(0)}
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Users className="w-5 h-5" />
+          Detalle de Selecciones ({participantsWhoVoted} han votado)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-10"></TableHead>
+                <TableHead>Participante</TableHead>
+                <TableHead className="text-center w-24">Hizo</TableHead>
+                <TableHead className="text-center w-24">Recibió</TableHead>
+                <TableHead className="text-center w-24">Matches</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {participantData.map((data) => {
+                const isExpanded = expandedParticipant === data.participant.id;
+                
+                return (
+                  <>
+                    <TableRow 
+                      key={data.participant.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleExpand(data.participant.id)}
+                    >
+                      <TableCell className="p-2">
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-7 h-7">
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {data.participant.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium">{ps.participant.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Seleccionó a {ps.selections.length} {ps.selections.length === 1 ? "persona" : "personas"}
-                              {ps.selections.filter(s => s.isMatch).length > 0 && (
-                                <span className="ml-2 text-green-600 dark:text-green-400">
-                                  ({ps.selections.filter(s => s.isMatch).length} match{ps.selections.filter(s => s.isMatch).length !== 1 ? "es" : ""})
-                                </span>
-                              )}
-                            </p>
-                          </div>
+                          <span className="font-medium text-sm">{data.participant.name}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            {ps.selections.some(s => s.selectionType === "dating" || s.selectionType === "both") && (
-                              <Badge variant="secondary" className={getMatchTypeBadgeStyle("dating")}>💕</Badge>
-                            )}
-                            {ps.selections.some(s => s.selectionType === "friendship" || s.selectionType === "both") && (
-                              <Badge variant="secondary" className={getMatchTypeBadgeStyle("friendship")}>😊</Badge>
-                            )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {data.selectionsMade.length}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {data.selectionsReceived.length}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {data.matchCount > 0 ? (
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 text-xs">
+                            {data.matchCount}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Expanded row */}
+                    {isExpanded && (
+                      <TableRow key={`${data.participant.id}-expanded`}>
+                        <TableCell colSpan={5} className="p-0 bg-muted/30">
+                          <div className="p-4">
+                            <Tabs defaultValue="made" className="w-full">
+                              <TabsList className="grid w-full grid-cols-2 max-w-xs">
+                                <TabsTrigger value="made" className="text-xs">
+                                  Seleccionó ({data.selectionsMade.length})
+                                </TabsTrigger>
+                                <TabsTrigger value="received" className="text-xs">
+                                  Le seleccionaron ({data.selectionsReceived.length})
+                                </TabsTrigger>
+                              </TabsList>
+                              
+                              <TabsContent value="made" className="mt-3">
+                                {data.selectionsMade.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground italic">No ha seleccionado a nadie</p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {data.selectionsMade.map((sel, idx) => (
+                                      <div 
+                                        key={idx}
+                                        className={`flex items-center justify-between p-2 rounded-lg border bg-background ${sel.isMatch ? "ring-1 ring-green-500/50" : ""}`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="w-6 h-6">
+                                            <AvatarFallback className="text-xs bg-muted">
+                                              {sel.selected.name.charAt(0)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm">{sel.selected.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-sm">{getTypeLabel(sel.selectionType)}</span>
+                                          {sel.isMatch && (
+                                            <Badge className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 text-xs h-5">
+                                              ✓
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </TabsContent>
+                              
+                              <TabsContent value="received" className="mt-3">
+                                {data.selectionsReceived.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground italic">Nadie le ha seleccionado</p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {data.selectionsReceived.map((rec, idx) => (
+                                      <div 
+                                        key={idx}
+                                        className={`flex items-center justify-between p-2 rounded-lg border bg-background ${rec.isMatch ? "ring-1 ring-green-500/50" : ""}`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="w-6 h-6">
+                                            <AvatarFallback className="text-xs bg-muted">
+                                              {rec.selector.name.charAt(0)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm">{rec.selector.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-sm">{getTypeLabel(rec.selectionType)}</span>
+                                          {rec.isMatch && (
+                                            <Badge className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 text-xs h-5">
+                                              ✓
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </TabsContent>
+                            </Tabs>
                           </div>
-                          <ChevronDown className={`w-5 h-5 transition-transform ${openSelectors[ps.participant.id] ? "rotate-180" : ""}`} />
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-4">
-                      <div className="space-y-2 pl-13">
-                        {ps.selections.map((selInfo, index) => {
-                          const selType = selInfo.selectionType === "both" ? "both" : 
-                                          selInfo.selectionType === "dating" ? "dating" : "friendship";
-                          return (
-                            <div 
-                              key={index}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${getSectionStyle(selType as MatchType)} ${selInfo.isMatch ? "ring-2 ring-green-500/50" : ""}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <Avatar className="w-8 h-8">
-                                  <AvatarFallback className="bg-muted text-muted-foreground text-sm">
-                                    {selInfo.selected.name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium text-sm flex items-center gap-2">
-                                    {selInfo.selected.name}
-                                    {selInfo.isMatch && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 text-xs">
-                                        ✓ Match mutuo
-                                      </Badge>
-                                    )}
-                                  </p>
-                                  <Badge variant="secondary" className={`text-xs ${getMatchTypeBadgeStyle(selType as MatchType)}`}>
-                                    {selType === "both" ? "Amistad + Ligue 💕😊" : 
-                                     selType === "dating" ? "Ligue 💕" : "Amistad 😊"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Selecciones recibidas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5" />
-            Selecciones recibidas ({receivedSelections.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {receivedSelections.map((rs) => (
-              <Collapsible
-                key={rs.participant.id}
-                open={openReceivers[rs.participant.id]}
-                onOpenChange={() => toggleReceiver(rs.participant.id)}
-              >
-                <Card className="overflow-hidden">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 bg-gradient-to-br from-pink-400 to-rose-500">
-                            <AvatarFallback className="bg-transparent text-white font-medium">
-                              {rs.participant.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{rs.participant.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Le seleccionaron {rs.receivedFrom.length} {rs.receivedFrom.length === 1 ? "persona" : "personas"}
-                              {rs.receivedFrom.filter(r => r.isMatch).length > 0 && (
-                                <span className="ml-2 text-green-600 dark:text-green-400">
-                                  ({rs.receivedFrom.filter(r => r.isMatch).length} match{rs.receivedFrom.filter(r => r.isMatch).length !== 1 ? "es" : ""})
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            {rs.receivedFrom.some(r => r.selectionType === "dating" || r.selectionType === "both") && (
-                              <Badge variant="secondary" className={getMatchTypeBadgeStyle("dating")}>💕</Badge>
-                            )}
-                            {rs.receivedFrom.some(r => r.selectionType === "friendship" || r.selectionType === "both") && (
-                              <Badge variant="secondary" className={getMatchTypeBadgeStyle("friendship")}>😊</Badge>
-                            )}
-                          </div>
-                          <ChevronDown className={`w-5 h-5 transition-transform ${openReceivers[rs.participant.id] ? "rotate-180" : ""}`} />
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-4">
-                      <div className="space-y-2 pl-13">
-                        {rs.receivedFrom.map((recInfo, index) => {
-                          const selType = recInfo.selectionType === "both" ? "both" : 
-                                          recInfo.selectionType === "dating" ? "dating" : "friendship";
-                          return (
-                            <div 
-                              key={index}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${getSectionStyle(selType as MatchType)} ${recInfo.isMatch ? "ring-2 ring-green-500/50" : ""}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <Avatar className="w-8 h-8">
-                                  <AvatarFallback className="bg-muted text-muted-foreground text-sm">
-                                    {recInfo.selector.name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium text-sm flex items-center gap-2">
-                                    {recInfo.selector.name}
-                                    {recInfo.isMatch && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 text-xs">
-                                        ✓ Match mutuo
-                                      </Badge>
-                                    )}
-                                  </p>
-                                  <Badge variant="secondary" className={`text-xs ${getMatchTypeBadgeStyle(selType as MatchType)}`}>
-                                    {selType === "both" ? "Amistad + Ligue 💕😊" : 
-                                     selType === "dating" ? "Ligue 💕" : "Amistad 😊"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

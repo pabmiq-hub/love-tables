@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, Send, AlertCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CheckCircle2, Clock, Send, AlertCircle, ChevronDown } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -29,6 +31,8 @@ const SelectionProgress = ({
   onSendReminder,
   isSendingReminder,
 }: SelectionProgressProps) => {
+  const [isPendingListOpen, setIsPendingListOpen] = useState(false);
+
   // Get unique selectors (participants who have submitted)
   const selectorIds = new Set(selections.map(s => s.selector_id));
   
@@ -80,11 +84,16 @@ const SelectionProgress = ({
           </div>
         </div>
 
-        {/* Pending Participants List */}
+        {/* Collapsible Pending Participants List */}
         {pendingParticipants.length > 0 && (
-          <div className="space-y-3">
+          <Collapsible open={isPendingListOpen} onOpenChange={setIsPendingListOpen}>
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-sm">Participantes pendientes</h4>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 px-2 hover:bg-muted/50">
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isPendingListOpen ? "rotate-180" : ""}`} />
+                  <span className="font-medium text-sm">Ver pendientes ({pendingParticipants.length})</span>
+                </Button>
+              </CollapsibleTrigger>
               {pendingWithEmail.length > 0 && (
                 <Button
                   variant="outline"
@@ -97,20 +106,22 @@ const SelectionProgress = ({
                 </Button>
               )}
             </div>
-            <div className="max-h-48 overflow-y-auto space-y-2">
-              {pendingParticipants.map(participant => (
-                <div 
-                  key={participant.id} 
-                  className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm"
-                >
-                  <span>{participant.name}</span>
-                  <span className={`text-xs ${participant.email ? 'text-muted-foreground' : 'text-destructive'}`}>
-                    {participant.email ? participant.email : 'Sin email'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+            <CollapsibleContent>
+              <div className="max-h-48 overflow-y-auto space-y-2 mt-3">
+                {pendingParticipants.map(participant => (
+                  <div 
+                    key={participant.id} 
+                    className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm"
+                  >
+                    <span>{participant.name}</span>
+                    <span className={`text-xs ${participant.email ? 'text-muted-foreground' : 'text-destructive'}`}>
+                      {participant.email ? participant.email : 'Sin email'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         {/* All responded */}
