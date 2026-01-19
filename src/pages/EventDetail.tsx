@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History } from "lucide-react";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -33,6 +33,7 @@ import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
 import { supabase } from "@/integrations/supabase/client";
+import { useGlobalParticipants } from "@/hooks/useGlobalParticipants";
 
 interface ParticipantExclusion {
   id: string;
@@ -65,6 +66,8 @@ interface EventData {
   tables: any;
   rotation_mode: "fixed_host" | "all_rotate";
   gender_parity: boolean;
+  avoid_previous_encounters: boolean;
+  avoid_encounters_mode: "preference" | "strict";
   email_template: EmailTemplate | null;
   emails_sent_at: string | null;
   scheduled_email_at: string | null;
@@ -90,6 +93,7 @@ interface DbParticipant {
   phone: string | null;
   checked_in: boolean;
   selection_submitted_at?: string | null;
+  global_participant_id?: string | null;
 }
 
 interface Match {
@@ -117,6 +121,7 @@ const EventDetail = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { linkParticipantsToGlobal, loadPreviousEncounters, recordEncounters } = useGlobalParticipants();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
@@ -146,6 +151,7 @@ const EventDetail = () => {
   const [completedRounds, setCompletedRounds] = useState<number[]>([]);
   const [showExclusionsManager, setShowExclusionsManager] = useState(false);
   const [exclusions, setExclusions] = useState<ParticipantExclusion[]>([]);
+  const [previousEncounters, setPreviousEncounters] = useState<Map<string, Set<string>>>(new Map());
   
   // Participant filters
   const [filterGender, setFilterGender] = useState<string>("all");
@@ -181,6 +187,8 @@ const EventDetail = () => {
       ...event,
       rotation_mode: (event.rotation_mode as "fixed_host" | "all_rotate") || "fixed_host",
       gender_parity: event.gender_parity || false,
+      avoid_previous_encounters: event.avoid_previous_encounters || false,
+      avoid_encounters_mode: (event.avoid_encounters_mode as "preference" | "strict") || "preference",
       email_template: event.email_template as unknown as EmailTemplate | null,
       emails_sent_at: event.emails_sent_at,
       scheduled_email_at: event.scheduled_email_at,
@@ -312,8 +320,86 @@ const EventDetail = () => {
       return;
     }
 
-    // Generate smart tables based on preferences
-    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, false, eventData?.gender_parity || false);
+    // Link participants to global participants and load previous encounters if enabled
+    let encountersMap = new Map<string, Set<string>>();
+    
+    if (eventData?.avoid_previous_encounters) {
+      toast({
+        title: "Preparando...",
+        description: "Vinculando participantes y cargando historial de encuentros",
+      });
+      
+      // Link all checked-in participants to global participants
+      const linkMap = await linkParticipantsToGlobal(
+        checkedInParticipants.map(p => ({
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          phone: p.phone
+        }))
+      );
+      
+      // Update local participants with global_participant_id
+      const updatedParticipants = checkedInParticipants.map(p => ({
+        ...p,
+        global_participant_id: linkMap.get(p.id) || null
+      }));
+      
+      // Load previous encounters for the global participant IDs
+      const globalIds = Array.from(linkMap.values()).filter(Boolean);
+      if (globalIds.length > 0) {
+        const globalEncounters = await loadPreviousEncounters(globalIds);
+        
+        // Convert global encounters to event participant encounters
+        // We need to map global IDs back to event participant IDs
+        const globalToEventMap = new Map<string, string>();
+        linkMap.forEach((globalId, eventId) => {
+          if (globalId) globalToEventMap.set(globalId, eventId);
+        });
+        
+        // Build encounters map using event participant IDs
+        globalEncounters.forEach((partners, globalId) => {
+          const eventId = globalToEventMap.get(globalId);
+          if (eventId) {
+            const eventPartners = new Set<string>();
+            partners.forEach(partnerGlobalId => {
+              const partnerEventId = globalToEventMap.get(partnerGlobalId);
+              if (partnerEventId) eventPartners.add(partnerEventId);
+            });
+            if (eventPartners.size > 0) {
+              encountersMap.set(eventId, eventPartners);
+            }
+          }
+        });
+        
+        setPreviousEncounters(encountersMap);
+        
+        if (encountersMap.size > 0) {
+          const totalPairs = Array.from(encountersMap.values()).reduce((sum, set) => sum + set.size, 0) / 2;
+          toast({
+            title: "Historial cargado",
+            description: `Se encontraron ${Math.round(totalPairs)} pares de participantes que ya coincidieron`,
+          });
+        }
+      }
+      
+      // Update checked-in participants with global IDs
+      setParticipants(prev => prev.map(p => ({
+        ...p,
+        global_participant_id: linkMap.get(p.id) || p.global_participant_id
+      })));
+    }
+
+    // Generate smart tables based on preferences, passing previous encounters
+    const result = generateSmartTables(
+      checkedInParticipants, 
+      eventData?.rounds || 5, 
+      eventData?.table_size || 2, 
+      false, 
+      eventData?.gender_parity || false,
+      eventData?.avoid_previous_encounters ? encountersMap : undefined,
+      eventData?.avoid_encounters_mode || "preference"
+    );
     
     if (result.hasIncomplete) {
       // Show confirmation dialog asking what to do
@@ -475,14 +561,16 @@ const EventDetail = () => {
     numRounds: number, 
     tableSize: number,
     relaxConstraints: boolean = false,
-    genderParity: boolean = false
+    genderParity: boolean = false,
+    previousEncountersMap?: Map<string, Set<string>>,
+    avoidEncountersMode: "preference" | "strict" = "preference"
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
     }
   };
 
@@ -640,7 +728,9 @@ const EventDetail = () => {
     numRounds: number, 
     tableSize: number,
     relaxConstraints: boolean = false,
-    genderParity: boolean = false
+    genderParity: boolean = false,
+    previousEncountersMap?: Map<string, Set<string>>,
+    avoidEncountersMode: "preference" | "strict" = "preference"
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -658,8 +748,12 @@ const EventDetail = () => {
     const tableSizes = distribution.sizes;
     
     // Track who has been paired with whom across all rounds
+    // Pre-populate with previous encounters if available
     const pairedHistory = new Map<string, Set<string>>();
-    participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
+    participantsList.forEach(p => {
+      const prevEncounters = previousEncountersMap?.get(p.id);
+      pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
+    });
     
     let hasIncomplete = false;
     
@@ -795,7 +889,9 @@ const EventDetail = () => {
     numRounds: number, 
     tableSize: number,
     relaxConstraints: boolean = false,
-    genderParity: boolean = false
+    genderParity: boolean = false,
+    previousEncountersMap?: Map<string, Set<string>>,
+    avoidEncountersMode: "preference" | "strict" = "preference"
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -806,8 +902,12 @@ const EventDetail = () => {
     const tableSizes = distribution.sizes;
     
     // Track who has been paired with whom across all rounds
+    // Pre-populate with previous encounters if available
     const pairedHistory = new Map<string, Set<string>>();
-    participantsList.forEach(p => pairedHistory.set(p.id, new Set()));
+    participantsList.forEach(p => {
+      const prevEncounters = previousEncountersMap?.get(p.id);
+      pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
+    });
     
     // Group by age range first for better host selection
     const ageGroups = groupParticipantsByAgeRange(participantsList);

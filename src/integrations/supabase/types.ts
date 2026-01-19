@@ -64,6 +64,8 @@ export type Database = {
       }
       events: {
         Row: {
+          avoid_encounters_mode: string
+          avoid_previous_encounters: boolean
           completed_rounds: number[] | null
           created_at: string
           current_round: number | null
@@ -93,6 +95,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avoid_encounters_mode?: string
+          avoid_previous_encounters?: boolean
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
@@ -122,6 +126,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avoid_encounters_mode?: string
+          avoid_previous_encounters?: boolean
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
@@ -151,6 +157,94 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      global_participants: {
+        Row: {
+          created_at: string
+          display_name: string
+          email: string | null
+          events_attended: number
+          id: string
+          organizer_id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          email?: string | null
+          events_attended?: number
+          id?: string
+          organizer_id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          email?: string | null
+          events_attended?: number
+          id?: string
+          organizer_id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      participant_encounters: {
+        Row: {
+          encountered_at: string
+          event_id: string
+          global_participant_1_id: string
+          global_participant_2_id: string
+          id: string
+          organizer_id: string
+          round_number: number
+          table_number: number
+        }
+        Insert: {
+          encountered_at?: string
+          event_id: string
+          global_participant_1_id: string
+          global_participant_2_id: string
+          id?: string
+          organizer_id: string
+          round_number: number
+          table_number: number
+        }
+        Update: {
+          encountered_at?: string
+          event_id?: string
+          global_participant_1_id?: string
+          global_participant_2_id?: string
+          id?: string
+          organizer_id?: string
+          round_number?: number
+          table_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_encounters_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_encounters_global_participant_1_id_fkey"
+            columns: ["global_participant_1_id"]
+            isOneToOne: false
+            referencedRelation: "global_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_encounters_global_participant_2_id_fkey"
+            columns: ["global_participant_2_id"]
+            isOneToOne: false
+            referencedRelation: "global_participants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participant_exclusions: {
         Row: {
@@ -260,6 +354,7 @@ export type Database = {
           email: string | null
           event_id: string
           gender: string | null
+          global_participant_id: string | null
           id: string
           name: string
           phone: string | null
@@ -276,6 +371,7 @@ export type Database = {
           email?: string | null
           event_id: string
           gender?: string | null
+          global_participant_id?: string | null
           id?: string
           name: string
           phone?: string | null
@@ -292,6 +388,7 @@ export type Database = {
           email?: string | null
           event_id?: string
           gender?: string | null
+          global_participant_id?: string | null
           id?: string
           name?: string
           phone?: string | null
@@ -305,6 +402,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participants_global_participant_id_fkey"
+            columns: ["global_participant_id"]
+            isOneToOne: false
+            referencedRelation: "global_participants"
             referencedColumns: ["id"]
           },
         ]
