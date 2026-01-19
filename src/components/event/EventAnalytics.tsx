@@ -63,6 +63,7 @@ interface EventAnalyticsProps {
   selections: Selection[];
   matches: Match[];
   tables: any[][] | TableRound[];
+  originalParticipantsCount?: number | null;
 }
 
 const GENDER_COLORS: Record<string, string> = {
@@ -94,14 +95,15 @@ const normalizeAgeRange = (range: string | null | undefined): string => {
   return cleaned;
 };
 
-const EventAnalytics = ({ participants, selections, matches, tables }: EventAnalyticsProps) => {
+const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount }: EventAnalyticsProps) => {
   // ========== INSCRIPTIONS STATS ==========
   const inscriptionStats = useMemo(() => {
-    const total = participants.length;
-    const checkedIn = participants.filter(p => p.checked_in).length;
-    const noShows = total - checkedIn;
-    const noShowRate = total > 0 ? ((noShows / total) * 100).toFixed(1) : "0";
-    const checkinRate = total > 0 ? ((checkedIn / total) * 100).toFixed(1) : "0";
+    // Use original count if available (for accurate no-show tracking after event started)
+    const originalTotal = originalParticipantsCount ?? participants.length;
+    const checkedIn = participants.length; // After event starts, all remaining are checked-in
+    const noShows = originalTotal - checkedIn;
+    const noShowRate = originalTotal > 0 ? ((noShows / originalTotal) * 100).toFixed(1) : "0";
+    const checkinRate = originalTotal > 0 ? ((checkedIn / originalTotal) * 100).toFixed(1) : "0";
 
     // Gender distribution
     const byGender = participants.reduce((acc, p) => {
@@ -133,7 +135,7 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
     }
 
     return {
-      total,
+      total: originalTotal,
       checkedIn,
       noShows,
       noShowRate,
@@ -142,7 +144,7 @@ const EventAnalytics = ({ participants, selections, matches, tables }: EventAnal
       ageData,
       byGender
     };
-  }, [participants]);
+  }, [participants, originalParticipantsCount]);
 
   // ========== MATCHES STATS ==========
   const matchStats = useMemo(() => {
