@@ -342,14 +342,9 @@ const ParticipantSelect = () => {
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <h2 className="font-display text-xl font-bold mb-2">Evento finalizado</h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground">
               Este evento ya ha sido cerrado. El periodo de selecciones ha terminado.
             </p>
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                Volver al inicio
-              </Button>
-            </Link>
           </CardContent>
         </Card>
       )}
