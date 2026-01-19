@@ -197,15 +197,24 @@ const handler = async (req: Request): Promise<Response> => {
       const html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
 
       try {
+        console.log(`Sending email to ${participant.name} (${participant.email}), hasMatches: ${hasMatches}`);
         const res = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({ from: "Konektum <hola@konektum.com>", to: [participant.email], subject, html }),
         });
-        if (res.ok) { hasMatches ? stats.withMatches++ : stats.withoutMatches++; }
-        else { const err = await res.text(); errors.push(`${participant.name}: ${err}`); stats.failed++; }
+        if (res.ok) { 
+          console.log(`Email sent successfully to ${participant.name}`);
+          hasMatches ? stats.withMatches++ : stats.withoutMatches++; 
+        } else { 
+          const err = await res.text(); 
+          console.error(`Failed to send email to ${participant.name}: ${err}`);
+          errors.push(`${participant.name}: ${err}`); 
+          stats.failed++; 
+        }
       } catch (e: unknown) {
         const errMsg = e instanceof Error ? e.message : String(e);
+        console.error(`Exception sending email to ${participant.name}: ${errMsg}`);
         errors.push(`${participant.name}: ${errMsg}`); stats.failed++;
       }
     }
