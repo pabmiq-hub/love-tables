@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -15,6 +15,7 @@ import EventPreferencesEditor, { EventPreferences, DEFAULT_PREFERENCES } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { Switch } from "@/components/ui/switch";
 
 type ParticipantMode = "manual" | "excel" | "both";
 
@@ -30,6 +31,8 @@ const CreateEvent = () => {
   const [matchPreference, setMatchPreference] = useState("both");
   const [rotationMode, setRotationMode] = useState<"fixed_host" | "all_rotate">("fixed_host");
   const [genderParity, setGenderParity] = useState(false);
+  const [avoidPreviousEncounters, setAvoidPreviousEncounters] = useState(false);
+  const [avoidEncountersMode, setAvoidEncountersMode] = useState<"preference" | "strict">("preference");
   const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -132,6 +135,8 @@ const CreateEvent = () => {
         organizer_id: user.id,
         rotation_mode: rotationMode,
         gender_parity: genderParity,
+        avoid_previous_encounters: avoidPreviousEncounters,
+        avoid_encounters_mode: avoidEncountersMode,
         custom_age_ranges: hasCustomPreferences ? eventPreferences.ageRanges : null,
         custom_genders: hasCustomPreferences ? eventPreferences.genders : null,
         custom_preferences: hasCustomPreferences ? eventPreferences.preferences : null,
@@ -426,6 +431,51 @@ const CreateEvent = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Avoid previous encounters option */}
+                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                        <History className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <div>
+                        <Label htmlFor="avoid-encounters" className="font-medium cursor-pointer">
+                          Evitar coincidencias de eventos anteriores
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Participantes que ya se conocen no se sentarán juntos
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="avoid-encounters"
+                      checked={avoidPreviousEncounters}
+                      onCheckedChange={setAvoidPreviousEncounters}
+                    />
+                  </div>
+                  
+                  {avoidPreviousEncounters && (
+                    <div className="ml-[52px] space-y-2">
+                      <Label className="text-sm">Intensidad</Label>
+                      <Select value={avoidEncountersMode} onValueChange={(v) => setAvoidEncountersMode(v as "preference" | "strict")}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="preference">Preferencia (evitar si es posible)</SelectItem>
+                          <SelectItem value="strict">Estricto (nunca repetir)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {avoidEncountersMode === "preference" 
+                          ? "El algoritmo priorizará evitar coincidencias, pero las permitirá si es necesario"
+                          : "El algoritmo nunca sentará juntos a participantes que ya coincidieron (puede limitar opciones)"
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* Event Preferences Editor */}
                 <div className="pt-2">
