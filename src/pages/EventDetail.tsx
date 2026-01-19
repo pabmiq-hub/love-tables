@@ -156,6 +156,7 @@ const EventDetail = () => {
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   useEffect(() => {
     loadEventData();
@@ -1871,31 +1872,61 @@ const EventDetail = () => {
               {participants.length} participantes • {participants.filter(p => p.checked_in).length} check-in ✅
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {eventStatus === "pending" && (
-              <Button variant="outline" onClick={() => setShowJoinQR(true)}>
-                <QrCode className="w-4 h-4 mr-2" />
-                QR Registro
-              </Button>
-            )}
-            {eventStatus === "pending" && (
-              <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
-                <QrCode className="w-4 h-4 mr-2" />
-                QR Check-in
-              </Button>
-            )}
-            {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
-              <Button variant="outline" onClick={() => setShowExclusionsManager(true)}>
-                <Ban className="w-4 h-4 mr-2" />
-                Exclusiones {exclusions.length > 0 && `(${exclusions.length})`}
-              </Button>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <TooltipProvider>
+              {eventStatus === "pending" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowJoinQR(true)}>
+                      <QrCode className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">QR Registro</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">QR Registro</TooltipContent>
+                </Tooltip>
+              )}
+              {eventStatus === "pending" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowCheckinQR(true)}>
+                      <QrCode className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">QR Check-in</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">QR Check-in</TooltipContent>
+                </Tooltip>
+              )}
+              {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowExclusionsManager(true)}>
+                      <Ban className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Exclusiones</span>
+                      {exclusions.length > 0 && <span className="ml-1">({exclusions.length})</span>}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">Exclusiones</TooltipContent>
+                </Tooltip>
+              )}
+              {eventStatus === "pending" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowEmailEditor(true)}>
+                      <Mail className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Email</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">Personalizar email</TooltipContent>
+                </Tooltip>
+              )}
+            </TooltipProvider>
             {eventStatus === "pending" && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="hero">
-                    <Play className="w-4 h-4 mr-2" />
-                    Cerrar inscripciones e iniciar
+                  <Button variant="hero" size="sm">
+                    <Play className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Iniciar evento</span>
+                    <span className="sm:hidden">Iniciar</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -1914,66 +1945,76 @@ const EventDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {eventStatus === "active" && (
-              <>
-                <Button variant="outline" onClick={() => setShowQR(true)}>
-                  <QrCode className="w-4 h-4 mr-2" />
-                  QR Selección
-                </Button>
-                <Button variant="hero" onClick={() => setShowCloseEventDialog(true)}>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Cerrar evento y enviar emails
-                </Button>
-              </>
-            )}
-            {eventStatus === "completed" && (
-              <Button variant="outline" onClick={() => setShowQR(true)}>
-                <QrCode className="w-4 h-4 mr-2" />
-                QR Matches
-              </Button>
-            )}
-            {eventStatus === "pending" && (
-              <Button variant="outline" onClick={() => setShowEmailEditor(true)}>
-                <Mail className="w-4 h-4 mr-2" />
-                Personalizar email
-              </Button>
-            )}
+            <TooltipProvider>
+              {eventStatus === "active" && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setShowQR(true)}>
+                        <QrCode className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">QR Selección</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="sm:hidden">QR Selección</TooltipContent>
+                  </Tooltip>
+                  <Button variant="hero" size="sm" onClick={() => setShowCloseEventDialog(true)}>
+                    <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Cerrar evento</span>
+                    <span className="sm:hidden">Cerrar</span>
+                  </Button>
+                </>
+              )}
+              {eventStatus === "completed" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowQR(true)}>
+                      <QrCode className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">QR Matches</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">QR Matches</TooltipContent>
+                </Tooltip>
+              )}
+            </TooltipProvider>
           </div>
         </div>
 
         <Tabs defaultValue="participants" className="space-y-6">
-          <TabsList className="bg-card border">
-            <TabsTrigger value="participants" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Users className="w-4 h-4 mr-2" />
-              Participantes
-            </TabsTrigger>
-            <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Table2 className="w-4 h-4 mr-2" />
-              Mesas
-            </TabsTrigger>
-            <TabsTrigger value="matches" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Heart className="w-4 h-4 mr-2" />
-              Matches ({matches.length})
-            </TabsTrigger>
-            {(eventStatus === "active" || eventStatus === "completed") && (
-              <TabsTrigger value="selections" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Selecciones
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+            <TabsList className="bg-card border w-max flex-nowrap">
+              <TabsTrigger value="participants" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                <Users className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Participantes</span>
               </TabsTrigger>
-            )}
-            {(eventStatus === "active" || eventStatus === "completed") && (
-              <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Mail className="w-4 h-4 mr-2" />
-                Emails
+              <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                <Table2 className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Mesas</span>
               </TabsTrigger>
-            )}
-            {(eventStatus === "active" || eventStatus === "completed") && (
-              <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Análisis
+              <TabsTrigger value="matches" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                <Heart className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Matches</span>
+                <span className="ml-1">({matches.length})</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              {(eventStatus === "active" || eventStatus === "completed") && (
+                <TabsTrigger value="selections" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <ClipboardList className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Selecciones</span>
+                </TabsTrigger>
+              )}
+              {(eventStatus === "active" || eventStatus === "completed") && (
+                <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <Mail className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Emails</span>
+                </TabsTrigger>
+              )}
+              {(eventStatus === "active" || eventStatus === "completed") && (
+                <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <BarChart3 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Análisis</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           {/* Participants Tab */}
           <TabsContent value="participants">
@@ -1991,183 +2032,215 @@ const EventDetail = () => {
                       </CardDescription>
                     </div>
                   <div className="flex flex-wrap gap-2">
-                    {eventStatus === "pending" && participants.length > 0 && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleCheckInAll}
-                        >
-                          <UserCheck className="w-4 h-4 mr-2" />
-                          Check-in todos
-                        </Button>
-                        {participants.some(p => p.checked_in) && (
+                    <TooltipProvider>
+                      {eventStatus === "pending" && participants.length > 0 && (
+                        <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="outline" size="sm" onClick={handleCheckInAll}>
+                                <UserCheck className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Check-in todos</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="sm:hidden">Check-in todos</TooltipContent>
+                          </Tooltip>
+                          {participants.some(p => p.checked_in) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <RotateCcw className="w-4 h-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Deshacer</span>
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Deshacer check-in de todos?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción deshará el check-in de los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleUncheckInAll}>
+                                    Confirmar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <RotateCcw className="w-4 h-4 mr-2" />
-                                Deshacer check-in
+                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                                <UserX className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Eliminar todos</span>
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>¿Deshacer check-in de todos?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar todos los participantes?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta acción deshará el check-in de los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                                  Esta acción eliminará a los {participants.length} participantes del evento. No se puede deshacer.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleUncheckInAll}>
-                                  Confirmar
+                                <AlertDialogAction 
+                                  onClick={handleDeleteAllParticipants}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar todos
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                              <UserX className="w-4 h-4 mr-2" />
-                              Eliminar todos
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar todos los participantes?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción eliminará a los {participants.length} participantes del evento. No se puede deshacer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={handleDeleteAllParticipants}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Eliminar todos
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="excel-upload"
-                    />
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isLoadingExcel}
-                    >
-                      <FileSpreadsheet className="w-4 h-4 mr-2" />
-                      {isLoadingExcel ? "Cargando..." : "Cargar Excel"}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir manual
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={exportToCSV}
-                      disabled={participants.length === 0}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Exportar
-                    </Button>
+                        </>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="excel-upload"
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isLoadingExcel}
+                          >
+                            <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{isLoadingExcel ? "Cargando..." : "Excel"}</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Cargar Excel</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                            <Plus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Añadir</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Añadir manual</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={exportToCSV}
+                            disabled={participants.length === 0}
+                          >
+                            <Download className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Exportar</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   </div>
                   
                   {/* Search and Filters */}
                   {participants.length > 0 && (
                     <div className="space-y-3 pt-2 border-t">
-                      {/* Search bar */}
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          placeholder="Buscar participante..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full h-9 pl-9 pr-4 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        />
-                        {searchTerm && (
-                          <button
-                            onClick={() => setSearchTerm("")}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
+                      {/* Search bar and mobile filter toggle */}
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Buscar participante..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full h-9 pl-9 pr-4 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                          {searchTerm && (
+                            <button
+                              onClick={() => setSearchTerm("")}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Mobile filter toggle */}
+                        <Button
+                          variant={showFilters ? "default" : "outline"}
+                          size="sm"
+                          className="sm:hidden h-9"
+                          onClick={() => setShowFilters(!showFilters)}
+                        >
+                          <Filter className="w-4 h-4" />
+                        </Button>
                       </div>
                       
-                      {/* Filters row */}
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {/* Filters row - always visible on sm+, toggle on mobile */}
+                      <div className={`${showFilters ? "flex" : "hidden"} sm:flex flex-wrap items-center gap-2 sm:gap-3`}>
+                        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
                           <Filter className="w-4 h-4" />
                           <span>Filtrar:</span>
                         </div>
                         
-                        <select
-                          value={filterCheckin}
-                          onChange={(e) => setFilterCheckin(e.target.value as "all" | "confirmed" | "pending")}
-                          className="h-8 px-2 text-sm border rounded-md bg-background"
-                        >
-                          <option value="all">Check-in: Todos</option>
-                          <option value="confirmed">Confirmados</option>
-                          <option value="pending">Pendientes</option>
-                        </select>
-                        
-                        <select
-                          value={filterGender}
-                          onChange={(e) => setFilterGender(e.target.value)}
-                          className="h-8 px-2 text-sm border rounded-md bg-background"
-                        >
-                          <option value="all">Género: Todos</option>
-                          {uniqueGenders.map(g => (
-                            <option key={g} value={g!}>{g}</option>
-                          ))}
-                        </select>
-                        
-                        <select
-                          value={filterAgeRange}
-                          onChange={(e) => setFilterAgeRange(e.target.value)}
-                          className="h-8 px-2 text-sm border rounded-md bg-background"
-                        >
-                          <option value="all">Rango edad: Todos</option>
-                          {uniqueAgeRanges.map(ar => (
-                            <option key={ar} value={ar!}>{ar}</option>
-                          ))}
-                        </select>
-                        
-                        <select
-                          value={filterPreferredAgeRange}
-                          onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
-                          className="h-8 px-2 text-sm border rounded-md bg-background"
-                        >
-                          <option value="all">Busca rango: Todos</option>
-                          {uniquePreferredAgeRanges.map(par => (
-                            <option key={par} value={par}>{par}</option>
-                          ))}
-                        </select>
-                        
-                        <select
-                          value={filterPreference}
-                          onChange={(e) => setFilterPreference(e.target.value)}
-                          className="h-8 px-2 text-sm border rounded-md bg-background"
-                        >
-                          <option value="all">Conexión: Todas</option>
-                          {uniquePreferences.map(pref => (
-                            <option key={pref} value={pref!}>{pref}</option>
-                          ))}
-                        </select>
+                        {/* Filters grid on mobile, flex on desktop */}
+                        <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+                          <select
+                            value={filterCheckin}
+                            onChange={(e) => setFilterCheckin(e.target.value as "all" | "confirmed" | "pending")}
+                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                          >
+                            <option value="all">Check-in</option>
+                            <option value="confirmed">Confirmados</option>
+                            <option value="pending">Pendientes</option>
+                          </select>
+                          
+                          <select
+                            value={filterGender}
+                            onChange={(e) => setFilterGender(e.target.value)}
+                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                          >
+                            <option value="all">Género</option>
+                            {uniqueGenders.map(g => (
+                              <option key={g} value={g!}>{g}</option>
+                            ))}
+                          </select>
+                          
+                          <select
+                            value={filterAgeRange}
+                            onChange={(e) => setFilterAgeRange(e.target.value)}
+                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                          >
+                            <option value="all">Rango edad</option>
+                            {uniqueAgeRanges.map(ar => (
+                              <option key={ar} value={ar!}>{ar}</option>
+                            ))}
+                          </select>
+                          
+                          <select
+                            value={filterPreferredAgeRange}
+                            onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
+                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                          >
+                            <option value="all">Busca rango</option>
+                            {uniquePreferredAgeRanges.map(par => (
+                              <option key={par} value={par}>{par}</option>
+                            ))}
+                          </select>
+                          
+                          <select
+                            value={filterPreference}
+                            onChange={(e) => setFilterPreference(e.target.value)}
+                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background col-span-2 sm:col-span-1"
+                          >
+                            <option value="all">Conexión</option>
+                            {uniquePreferences.map(pref => (
+                              <option key={pref} value={pref!}>{pref}</option>
+                            ))}
+                          </select>
+                        </div>
                         
                         {(filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all" || filterCheckin !== "all" || searchTerm) && (
                           <Button
@@ -2184,50 +2257,51 @@ const EventDetail = () => {
                             className="h-8 px-2 text-xs"
                           >
                             <X className="w-3 h-3 mr-1" />
-                            Limpiar
+                            <span className="hidden sm:inline">Limpiar</span>
                           </Button>
                         )}
-                        
-                        {/* Sorting buttons */}
-                        <div className="flex items-center gap-1 ml-auto">
-                          <Button
-                            variant={sortByCheckin === "confirmed-first" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSortByCheckin(sortByCheckin === "confirmed-first" ? "none" : "confirmed-first")}
-                            className="h-8 px-2"
-                            title="Confirmados primero"
-                          >
-                            <UserCheck className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant={sortByCheckin === "pending-first" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSortByCheckin(sortByCheckin === "pending-first" ? "none" : "pending-first")}
-                            className="h-8 px-2"
-                            title="Pendientes primero"
-                          >
-                            <UserMinus className="w-4 h-4" />
-                          </Button>
-                          <div className="w-px h-6 bg-border mx-1" />
-                          <Button
-                            variant={sortOrder === "asc" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
-                            className="h-8 px-2"
-                            title="Ordenar A-Z"
-                          >
-                            <ArrowUpAZ className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant={sortOrder === "desc" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSortOrder(sortOrder === "desc" ? "none" : "desc")}
-                            className="h-8 px-2"
-                            title="Ordenar Z-A"
-                          >
-                            <ArrowDownZA className="w-4 h-4" />
-                          </Button>
-                        </div>
+                      </div>
+                      
+                      {/* Sorting buttons - separate row on mobile */}
+                      <div className="flex items-center gap-1 justify-end sm:justify-start">
+                        <span className="text-xs text-muted-foreground mr-2 hidden sm:inline">Ordenar:</span>
+                        <Button
+                          variant={sortByCheckin === "confirmed-first" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortByCheckin(sortByCheckin === "confirmed-first" ? "none" : "confirmed-first")}
+                          className="h-8 px-2"
+                          title="Confirmados primero"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={sortByCheckin === "pending-first" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortByCheckin(sortByCheckin === "pending-first" ? "none" : "pending-first")}
+                          className="h-8 px-2"
+                          title="Pendientes primero"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </Button>
+                        <div className="w-px h-6 bg-border mx-1" />
+                        <Button
+                          variant={sortOrder === "asc" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
+                          className="h-8 px-2"
+                          title="Ordenar A-Z"
+                        >
+                          <ArrowUpAZ className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={sortOrder === "desc" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSortOrder(sortOrder === "desc" ? "none" : "desc")}
+                          className="h-8 px-2"
+                          title="Ordenar Z-A"
+                        >
+                          <ArrowDownZA className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -2253,63 +2327,61 @@ const EventDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="grid gap-2 sm:gap-3">
                     {filteredParticipants.map((participant, index) => (
                       <div 
                         key={participant.id}
-                        className={`flex items-center justify-between p-4 rounded-lg animate-fade-in cursor-pointer hover:shadow-md transition-shadow ${
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg animate-fade-in cursor-pointer hover:shadow-md transition-shadow gap-2 sm:gap-4 ${
                           participant.checked_in ? "bg-primary/10 border border-primary/20" : "bg-muted/50"
                         }`}
                         style={{ animationDelay: `${index * 0.05}s` }}
                         onClick={() => setSelectedParticipant(participant)}
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium shrink-0 text-sm sm:text-base ${
                             participant.checked_in 
                               ? "bg-primary text-primary-foreground" 
                               : "bg-gradient-primary text-primary-foreground"
                           }`}>
                             {participant.checked_in ? "✓" : participant.name.charAt(0)}
                           </div>
-                          <div>
-                            <p className="font-medium flex items-center gap-2">
-                              {participant.name}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium flex items-center gap-2 text-sm sm:text-base truncate">
+                              <span className="truncate">{participant.name}</span>
                               {participant.checked_in && (
-                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Check-in ✅</span>
+                                <span className="text-xs bg-primary/20 text-primary px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 hidden sm:inline">✅</span>
                               )}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              {participant.age_range || "Sin rango"} • {participant.preference}
-                              {participant.dating_preference && ` • ${participant.dating_preference}`}
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 sm:gap-3" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedParticipant(participant)}>
+                        <div className="flex items-center gap-1 sm:gap-2 justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedParticipant(participant)}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <div className="hidden sm:block">
+                          <div className="hidden md:block">
                             <InlineEmailEditor
                               participantId={participant.id}
                               currentEmail={participant.email}
                               onEmailUpdated={(newEmail) => handleUpdateParticipantEmail(participant.id, newEmail)}
                             />
                           </div>
-                          {getGenderBadge(participant.gender)}
+                          <span className="hidden sm:block">{getGenderBadge(participant.gender)}</span>
                           {eventStatus === "pending" && (
                             <Button
                               variant={participant.checked_in ? "default" : "outline"}
                               size="sm"
                               onClick={() => handleToggleCheckin(participant.id, participant.checked_in)}
-                              className={participant.checked_in ? "bg-primary hover:bg-primary/90" : ""}
+                              className={`h-8 px-2 ${participant.checked_in ? "bg-primary hover:bg-primary/90" : ""}`}
                             >
-                              <UserCheck className="w-4 h-4 mr-1" />
-                              <span className="hidden sm:inline">{participant.checked_in ? "Confirmado" : "Check-in"}</span>
+                              <UserCheck className="w-4 h-4" />
                             </Button>
                           )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </AlertDialogTrigger>
