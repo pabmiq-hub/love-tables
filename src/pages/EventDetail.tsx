@@ -437,6 +437,39 @@ const EventDetail = () => {
       })
       .eq("id", id);
     
+    // Record encounters for intelligent exclusions in future events
+    if (eventData?.avoid_previous_encounters && id) {
+      // Build table data with global participant IDs for recording
+      const tableDataForRecording: Array<{
+        round: number;
+        tableNumber: number;
+        participants: Array<{ id: string; global_participant_id?: string | null }>;
+      }> = [];
+      
+      for (const roundData of generatedTables) {
+        for (let tableIdx = 0; tableIdx < roundData.tables.length; tableIdx++) {
+          const tableParticipants = roundData.tables[tableIdx].map((p: { id: string }) => {
+            const fullParticipant = checkedInParticipants.find(cp => cp.id === p.id);
+            return {
+              id: p.id,
+              global_participant_id: fullParticipant?.global_participant_id || null
+            };
+          });
+          
+          tableDataForRecording.push({
+            round: roundData.round,
+            tableNumber: tableIdx + 1,
+            participants: tableParticipants
+          });
+        }
+      }
+      
+      const recordSuccess = await recordEncounters(id, tableDataForRecording);
+      if (recordSuccess) {
+        console.log("Encounters recorded successfully for future events");
+      }
+    }
+    
     setCurrentRound(1);
 
     setParticipants(checkedInParticipants);
@@ -460,7 +493,16 @@ const EventDetail = () => {
     
     const checkedInParticipants = participants.filter(p => p.checked_in);
     // Generate tables with relaxed constraints (fill with similar preferences)
-    const result = generateSmartTables(checkedInParticipants, eventData?.rounds || 5, eventData?.table_size || 2, true, eventData?.gender_parity || false);
+    // Pass previous encounters if enabled
+    const result = generateSmartTables(
+      checkedInParticipants, 
+      eventData?.rounds || 5, 
+      eventData?.table_size || 2, 
+      true, 
+      eventData?.gender_parity || false,
+      eventData?.avoid_previous_encounters ? previousEncounters : undefined,
+      eventData?.avoid_encounters_mode || "preference"
+    );
     await finalizeTableGeneration(result.tables, checkedInParticipants);
   };
 
