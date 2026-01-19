@@ -1457,9 +1457,12 @@ const EventDetail = () => {
       // Reload event data to get updated emails_sent_at
       await loadEventData();
 
+      const totalSent = (data?.stats?.withMatches || 0) + (data?.stats?.withoutMatches || 0);
+      const totalFailed = data?.stats?.failed || 0;
+      
       toast({
         title: "Emails enviados",
-        description: `Se enviaron ${data?.sent || 0} emails correctamente${data?.failed > 0 ? `. ${data.failed} fallidos.` : "."}`,
+        description: `Se enviaron ${totalSent} emails correctamente${totalFailed > 0 ? `. ${totalFailed} fallidos.` : "."}`,
       });
     } catch (error: any) {
       console.error("Error sending emails:", error);
