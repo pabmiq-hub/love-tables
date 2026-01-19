@@ -128,6 +128,29 @@ const sendEmailWithRetry = async (
   return { success: false, error: "Max retries exceeded" };
 };
 
+// Log email result to database
+const logEmailResult = async (
+  supabase: any,
+  eventId: string,
+  participantId: string,
+  emailType: string,
+  status: string,
+  errorMessage?: string
+) => {
+  try {
+    await supabase.from("email_logs").insert({
+      event_id: eventId,
+      participant_id: participantId,
+      email_type: emailType,
+      status: status,
+      error_message: errorMessage || null,
+      sent_at: status === 'sent' ? new Date().toISOString() : null,
+    });
+  } catch (e) {
+    console.error("Failed to log email result:", e);
+  }
+};
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-match-emails function called");
   
@@ -165,8 +188,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Authenticated user:", user.id);
 
-    const { event_id, email_template } = await req.json();
-    console.log("Processing event:", event_id);
+    const { event_id, email_template, participant_ids } = await req.json();
+    console.log("Processing event:", event_id, "Selective participants:", participant_ids?.length || "all");
 
     if (!event_id) {
       return new Response(JSON.stringify({ error: "event_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -196,8 +219,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Authorization verified - user is event organizer");
 
     const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || DEFAULT_TEMPLATE;
-    const { data: participants } = await supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
+    
+    // Get participants - either all or specific ones
+    let participantsQuery = supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
+    if (participant_ids && participant_ids.length > 0) {
+      participantsQuery = participantsQuery.in("id", participant_ids);
+    }
+    const { data: participants } = await participantsQuery;
+    
     const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type").eq("event_id", event_id);
+
+    // Get all participants for match calculation (even if sending to subset)
+    const { data: allParticipants } = await supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
 
     // Find mutual matches
     const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null }[]; dating: { name: string; phone: string | null }[] }>();
@@ -210,8 +243,8 @@ const handler = async (req: Request): Promise<Response> => {
       if (reverse) {
         const sel1Type = sel.selection_type || 'friendship';
         const sel2Type = reverse.selection_type || 'friendship';
-        const matchedWith = participants?.find(p => p.id === sel.selected_id);
-        const selector = participants?.find(p => p.id === sel.selector_id);
+        const matchedWith = allParticipants?.find(p => p.id === sel.selected_id);
+        const selector = allParticipants?.find(p => p.id === sel.selector_id);
         if (matchedWith && selector) {
           const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
           const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
@@ -261,6 +294,16 @@ const handler = async (req: Request): Promise<Response> => {
         participant.name
       );
 
+      // Log the result to email_logs table
+      await logEmailResult(
+        supabase,
+        event_id,
+        participant.id,
+        'match',
+        result.success ? 'sent' : 'failed',
+        result.error
+      );
+
       if (result.success) {
         hasMatches ? stats.withMatches++ : stats.withoutMatches++;
       } else {
@@ -279,7 +322,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    await supabase.from("events").update({ emails_sent_at: new Date().toISOString() }).eq("id", event_id);
+    // Only update emails_sent_at if sending to all participants
+    if (!participant_ids || participant_ids.length === 0) {
+      await supabase.from("events").update({ emails_sent_at: new Date().toISOString() }).eq("id", event_id);
+    }
     console.log("Email sending completed:", stats);
 
     return new Response(JSON.stringify({ success: true, stats, errors: errors.length > 0 ? errors : undefined }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
