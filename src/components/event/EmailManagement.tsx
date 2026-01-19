@@ -105,20 +105,22 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
     }
   });
 
-  // Filter participants based on status
-  const filteredParticipants = participants.filter(p => {
-    if (filterStatus === "no_email") return !p.email;
-    if (!p.email && filterStatus !== "all") return false;
-    
-    const log = getParticipantEmailStatus(p.id);
-    
-    switch (filterStatus) {
-      case "sent": return log?.status === 'sent';
-      case "failed": return log?.status === 'failed';
-      case "pending": return !log || log.status === 'pending';
-      default: return true;
-    }
-  });
+  // Filter and sort participants alphabetically
+  const filteredParticipants = participants
+    .filter(p => {
+      if (filterStatus === "no_email") return !p.email;
+      if (!p.email && filterStatus !== "all") return false;
+      
+      const log = getParticipantEmailStatus(p.id);
+      
+      switch (filterStatus) {
+        case "sent": return log?.status === 'sent';
+        case "failed": return log?.status === 'failed';
+        case "pending": return !log || log.status === 'pending';
+        default: return true;
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
   // Resend to a single participant
   const handleResend = async (participantId: string) => {
