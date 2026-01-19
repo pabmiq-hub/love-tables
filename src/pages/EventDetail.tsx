@@ -15,6 +15,8 @@ import {
 import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemplateEditor";
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
+import SelectionsViewer from "@/components/event/SelectionsViewer";
+import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
@@ -2683,6 +2685,13 @@ const EventDetail = () => {
                 selections={selections}
                 onSendReminder={handleSendReminder}
                 isSendingReminder={isSendingReminder}
+              />
+
+              {/* Selections Viewer - moved from Matches tab */}
+              <SelectionsViewer
+                selections={selections}
+                participants={participants}
+                matches={matches}
               />
 
               {/* Export Matches Button */}
