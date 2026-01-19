@@ -2898,6 +2898,13 @@ const EventDetail = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Email Management - Individual tracking */}
+            <EmailManagement
+              eventId={id || ""}
+              participants={participants}
+              onRefresh={loadEventData}
+            />
           </TabsContent>
 
           {/* Analytics Tab */}
