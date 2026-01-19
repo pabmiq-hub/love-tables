@@ -40,7 +40,7 @@ interface ExistingSelection {
 
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
-  const [step, setStep] = useState<"identify" | "select" | "done" | "error" | "not_started">("identify");
+  const [step, setStep] = useState<"identify" | "select" | "done" | "error" | "not_started" | "completed">("identify");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [availableParticipants, setAvailableParticipants] = useState<Participant[]>([]);
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
@@ -86,8 +86,10 @@ const ParticipantSelect = () => {
       setEventStatus(status);
       setCurrentRound(round);
       
-      // Check if event has started
-      if (status === 'pending' || round === 0) {
+      // Check event status
+      if (status === 'completed') {
+        setStep("completed");
+      } else if (status === 'pending' || round === 0) {
         setStep("not_started");
       }
       
@@ -331,6 +333,26 @@ const ParticipantSelect = () => {
       <div className="mb-8 animate-fade-in">
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
+
+      {/* Completed state */}
+      {step === "completed" && (
+        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
+          <CardContent className="pt-8 pb-8">
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            <h2 className="font-display text-xl font-bold mb-2">Evento finalizado</h2>
+            <p className="text-muted-foreground mb-6">
+              Este evento ya ha sido cerrado. El periodo de selecciones ha terminado.
+            </p>
+            <Link to="/">
+              <Button variant="outline" className="w-full">
+                Volver al inicio
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Not started state */}
       {step === "not_started" && (
