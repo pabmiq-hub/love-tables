@@ -78,6 +78,55 @@ const generateEmailHtml = (
   }
 };
 
+// Rate limiting helpers
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
+const RATE_LIMIT_RETRY_DELAY = 2000; // Wait 2 seconds if rate limited
+const MAX_RETRIES = 3;
+
+const sendEmailWithRetry = async (
+  resendApiKey: string,
+  emailData: { from: string; to: string[]; subject: string; html: string },
+  participantName: string
+): Promise<{ success: boolean; error?: string }> => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Sending email to ${participantName} (attempt ${attempt}/${MAX_RETRIES})`);
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(emailData),
+      });
+      
+      if (res.ok) {
+        console.log(`Email sent successfully to ${participantName}`);
+        return { success: true };
+      }
+      
+      const errorText = await res.text();
+      
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        console.log(`Rate limit hit for ${participantName}, waiting ${RATE_LIMIT_RETRY_DELAY}ms before retry...`);
+        await delay(RATE_LIMIT_RETRY_DELAY);
+        continue;
+      }
+      
+      console.error(`Failed to send email to ${participantName}: ${errorText}`);
+      return { success: false, error: errorText };
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      if (attempt < MAX_RETRIES) {
+        console.log(`Exception for ${participantName}, retrying: ${errMsg}`);
+        await delay(RATE_LIMIT_RETRY_DELAY);
+        continue;
+      }
+      console.error(`Exception sending email to ${participantName}: ${errMsg}`);
+      return { success: false, error: errMsg };
+    }
+  }
+  return { success: false, error: "Max retries exceeded" };
+};
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-scheduled-emails function called");
   
@@ -171,9 +220,16 @@ const handler = async (req: Request): Promise<Response> => {
       const stats = { total: 0, withMatches: 0, withoutMatches: 0, noEmail: 0, failed: 0 };
       const errors: string[] = [];
 
-      for (const participant of participants || []) {
+      console.log(`Starting to send emails to ${participants?.length || 0} participants with rate limiting...`);
+
+      for (let i = 0; i < (participants || []).length; i++) {
+        const participant = participants![i];
         stats.total++;
-        if (!participant.email) { stats.noEmail++; continue; }
+        
+        if (!participant.email) { 
+          stats.noEmail++; 
+          continue; 
+        }
 
         const pm = matchesByParticipant.get(participant.id);
         const friendshipMatches = pm?.friendship || [];
@@ -184,17 +240,27 @@ const handler = async (req: Request): Promise<Response> => {
           : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
         const html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
 
-        try {
-          const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ from: "Konektum <hola@konektum.com>", to: [participant.email], subject, html }),
-          });
-          if (res.ok) { hasMatches ? stats.withMatches++ : stats.withoutMatches++; }
-          else { const err = await res.text(); errors.push(`${participant.name}: ${err}`); stats.failed++; }
-        } catch (e: unknown) {
-          const errMsg = e instanceof Error ? e.message : String(e);
-          errors.push(`${participant.name}: ${errMsg}`); stats.failed++;
+        const result = await sendEmailWithRetry(
+          resendApiKey,
+          { from: "Konektum <hola@konektum.com>", to: [participant.email], subject, html },
+          participant.name
+        );
+
+        if (result.success) {
+          hasMatches ? stats.withMatches++ : stats.withoutMatches++;
+        } else {
+          errors.push(`${participant.name}: ${result.error}`);
+          stats.failed++;
+        }
+
+        // Rate limiting: wait between emails (except for the last one)
+        if (i < (participants || []).length - 1) {
+          await delay(DELAY_BETWEEN_EMAILS);
+        }
+        
+        // Log progress every 10 emails
+        if ((i + 1) % 10 === 0) {
+          console.log(`Progress: ${i + 1}/${participants?.length} emails processed for event ${event.name}`);
         }
       }
 

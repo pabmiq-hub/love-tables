@@ -6,6 +6,55 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting helpers
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
+const RATE_LIMIT_RETRY_DELAY = 2000; // Wait 2 seconds if rate limited
+const MAX_RETRIES = 3;
+
+const sendEmailWithRetry = async (
+  resendApiKey: string,
+  emailData: { from: string; to: string[]; subject: string; html: string },
+  participantName: string
+): Promise<{ success: boolean; error?: string }> => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Sending reminder to ${participantName} (attempt ${attempt}/${MAX_RETRIES})`);
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(emailData),
+      });
+      
+      if (res.ok) {
+        console.log(`Reminder sent successfully to ${participantName}`);
+        return { success: true };
+      }
+      
+      const errorText = await res.text();
+      
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        console.log(`Rate limit hit for ${participantName}, waiting ${RATE_LIMIT_RETRY_DELAY}ms before retry...`);
+        await delay(RATE_LIMIT_RETRY_DELAY);
+        continue;
+      }
+      
+      console.error(`Failed to send reminder to ${participantName}: ${errorText}`);
+      return { success: false, error: errorText };
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      if (attempt < MAX_RETRIES) {
+        console.log(`Exception for ${participantName}, retrying: ${errMsg}`);
+        await delay(RATE_LIMIT_RETRY_DELAY);
+        continue;
+      }
+      console.error(`Exception sending reminder to ${participantName}: ${errMsg}`);
+      return { success: false, error: errMsg };
+    }
+  }
+  return { success: false, error: "Max retries exceeded" };
+};
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-reminder-email function called");
   
@@ -112,7 +161,10 @@ const handler = async (req: Request): Promise<Response> => {
     const projectRef = supabaseUrl.replace("https://", "").split(".")[0];
     const baseUrl = `https://${projectRef}.lovable.app`;
 
-    for (const participant of participants || []) {
+    console.log(`Starting to send reminders to ${participants?.length || 0} participants with rate limiting...`);
+
+    for (let i = 0; i < (participants || []).length; i++) {
+      const participant = participants![i];
       stats.total++;
       
       if (!participant.email) {
@@ -168,35 +220,32 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
 
-      try {
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Konektum <hola@konektum.com>",
-            to: [participant.email],
-            subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`,
-            html,
-          }),
-        });
+      const result = await sendEmailWithRetry(
+        resendApiKey,
+        { 
+          from: "Konektum <hola@konektum.com>", 
+          to: [participant.email], 
+          subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`, 
+          html 
+        },
+        participant.name
+      );
 
-        if (res.ok) {
-          stats.sent++;
-          console.log(`Reminder sent to ${participant.name}`);
-        } else {
-          const errorText = await res.text();
-          errors.push(`${participant.name}: ${errorText}`);
-          stats.failed++;
-          console.error(`Failed to send to ${participant.name}:`, errorText);
-        }
-      } catch (e: unknown) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        errors.push(`${participant.name}: ${errMsg}`);
+      if (result.success) {
+        stats.sent++;
+      } else {
+        errors.push(`${participant.name}: ${result.error}`);
         stats.failed++;
-        console.error(`Error sending to ${participant.name}:`, errMsg);
+      }
+
+      // Rate limiting: wait between emails (except for the last one)
+      if (i < (participants || []).length - 1) {
+        await delay(DELAY_BETWEEN_EMAILS);
+      }
+      
+      // Log progress every 10 emails
+      if ((i + 1) % 10 === 0) {
+        console.log(`Progress: ${i + 1}/${participants?.length} reminders processed`);
       }
     }
 
