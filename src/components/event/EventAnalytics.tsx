@@ -78,7 +78,7 @@ const AGE_RANGE_ORDER = [
   "18-24", "18-25", 
   "25-32", "26-30", "26-32",
   "31-35", "33-40", 
-  "36-40", "41-45", "41-50",
+  "36-40", "41+", "41-45", "41-50",
   "46-50", "50+", "+50", "51-60"
 ];
 
@@ -87,8 +87,9 @@ const normalizeAgeRange = (range: string | null | undefined): string => {
   // Normalizar guiones (– → -) y espacios
   let cleaned = range.replace(/–/g, "-").replace(/\s+/g, "").replace("años", "").trim();
   
-  // Mapear rangos a formato estándar
+  // Mapear rangos a formato estándar - mantener 41+ como está
   if (cleaned === "+50" || cleaned === "51-60") return "50+";
+  if (cleaned === "41+" || cleaned === "+41") return "41+";
   
   return cleaned;
 };

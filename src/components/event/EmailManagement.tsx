@@ -122,7 +122,7 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
-  // Resend to a single participant
+  // Resend to a single participant - optimistic update without full refresh
   const handleResend = async (participantId: string) => {
     setSendingIds(prev => new Set(prev).add(participantId));
     
@@ -139,19 +139,45 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
 
       if (error) throw error;
 
+      // Optimistic update: add/update log locally without full refresh
+      const now = new Date().toISOString();
+      setEmailLogs(prev => {
+        // Remove old log for this participant if exists
+        const filtered = prev.filter(
+          log => !(log.participant_id === participantId && log.email_type === 'match')
+        );
+        // Add new log entry
+        return [
+          {
+            id: `temp-${Date.now()}`,
+            participant_id: participantId,
+            email_type: 'match',
+            status: 'sent',
+            error_message: null,
+            sent_at: now,
+            created_at: now,
+          },
+          ...filtered,
+        ];
+      });
+
       toast({
         title: "Email enviado",
         description: `Email enviado correctamente`,
       });
       
-      loadEmailLogs();
-      onRefresh();
+      // Background refresh after a delay to sync with server
+      setTimeout(() => {
+        loadEmailLogs();
+      }, 2000);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "No se pudo enviar el email",
         variant: "destructive",
       });
+      // Refresh to get actual state on error
+      loadEmailLogs();
     } finally {
       setSendingIds(prev => {
         const next = new Set(prev);
