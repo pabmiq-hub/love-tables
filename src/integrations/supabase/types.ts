@@ -78,6 +78,7 @@ export type Database = {
           id: string
           name: string
           organizer_id: string | null
+          original_participants_count: number | null
           participants_count: number
           rotation_mode: string
           round_duration: number
@@ -106,6 +107,7 @@ export type Database = {
           id?: string
           name: string
           organizer_id?: string | null
+          original_participants_count?: number | null
           participants_count?: number
           rotation_mode?: string
           round_duration?: number
@@ -134,6 +136,7 @@ export type Database = {
           id?: string
           name?: string
           organizer_id?: string | null
+          original_participants_count?: number | null
           participants_count?: number
           rotation_mode?: string
           round_duration?: number

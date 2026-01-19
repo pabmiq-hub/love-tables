@@ -60,6 +60,7 @@ interface EventData {
   table_size: number;
   round_duration: number;
   participants_count: number;
+  original_participants_count: number | null;
   status: string;
   tables: any;
   rotation_mode: "fixed_host" | "all_rotate";
@@ -324,6 +325,9 @@ const EventDetail = () => {
   };
 
   const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
+    // Store original participants count BEFORE deleting non-checked-in
+    const originalCount = participants.length;
+    
     // Remove non-checked-in participants from database
     const nonCheckedInIds = participants.filter(p => !p.checked_in).map(p => p.id);
     if (nonCheckedInIds.length > 0) {
@@ -334,12 +338,14 @@ const EventDetail = () => {
     }
 
     // Save tables and update status, set current_round to 1 to start
+    // Also save original_participants_count for no-show analytics
     await supabase
       .from("events")
       .update({ 
         tables: generatedTables,
         status: "active",
         participants_count: checkedInParticipants.length,
+        original_participants_count: originalCount,
         current_round: 1
       })
       .eq("id", id);
@@ -347,7 +353,12 @@ const EventDetail = () => {
     setCurrentRound(1);
 
     setParticipants(checkedInParticipants);
-    setEventData(prev => prev ? { ...prev, tables: generatedTables, participants_count: checkedInParticipants.length } : prev);
+    setEventData(prev => prev ? { 
+      ...prev, 
+      tables: generatedTables, 
+      participants_count: checkedInParticipants.length,
+      original_participants_count: originalCount 
+    } : prev);
     setEventStatus("active");
     setPendingTableGeneration(null);
     setShowTableConfirmDialog(false);
@@ -2914,6 +2925,7 @@ const EventDetail = () => {
               tables={tables}
               matches={matches}
               selections={selections}
+              originalParticipantsCount={eventData?.original_participants_count}
             />
           </TabsContent>
         </Tabs>
