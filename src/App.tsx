@@ -8,6 +8,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminRegister from "./pages/AdminRegister";
 import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminDashboard from "./pages/AdminDashboard";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/admin/register" element={<AdminRegister />} />
           <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/super-admin" element={<SuperAdminDashboard />} />
           <Route path="/admin/events/new" element={<CreateEvent />} />
           <Route path="/admin/events/:id" element={<EventDetail />} />
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
