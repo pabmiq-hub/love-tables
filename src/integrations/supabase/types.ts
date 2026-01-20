@@ -78,6 +78,7 @@ export type Database = {
           emails_sent_at: string | null
           gender_parity: boolean | null
           id: string
+          module: string | null
           name: string
           organizer_id: string | null
           original_participants_count: number | null
@@ -109,6 +110,7 @@ export type Database = {
           emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
+          module?: string | null
           name: string
           organizer_id?: string | null
           original_participants_count?: number | null
@@ -140,6 +142,7 @@ export type Database = {
           emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
+          module?: string | null
           name?: string
           organizer_id?: string | null
           original_participants_count?: number | null
@@ -155,6 +158,36 @@ export type Database = {
           table_size?: number
           tables?: Json | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      features: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          module: string
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          module?: string
+          name: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          module?: string
+          name?: string
         }
         Relationships: []
       }
@@ -190,6 +223,95 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      modules: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          requires_plans: string[] | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          requires_plans?: string[] | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          requires_plans?: string[] | null
+        }
+        Relationships: []
+      }
+      organizers: {
+        Row: {
+          active_modules: string[] | null
+          company_name: string | null
+          contact_email: string
+          contact_phone: string | null
+          created_at: string | null
+          id: string
+          plan_id: string | null
+          status: string
+          stripe_customer_id: string | null
+          subscription_ends_at: string | null
+          subscription_starts_at: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          active_modules?: string[] | null
+          company_name?: string | null
+          contact_email: string
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_starts_at?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          active_modules?: string[] | null
+          company_name?: string | null
+          contact_email?: string
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          subscription_ends_at?: string | null
+          subscription_starts_at?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizers_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participant_encounters: {
         Row: {
@@ -348,53 +470,74 @@ export type Database = {
         Row: {
           age: number | null
           age_range: string | null
+          business_interests: string[] | null
           checked_in: boolean | null
+          company_name: string | null
+          company_size: string | null
           created_at: string
           dating_preference: string | null
           email: string | null
+          entity_type: string | null
           event_id: string
           gender: string | null
           global_participant_id: string | null
           id: string
           name: string
+          needs: string[] | null
           phone: string | null
           preference: string | null
           preferred_age_range: string | null
+          sector: string | null
           selection_submitted_at: string | null
+          solutions: string[] | null
         }
         Insert: {
           age?: number | null
           age_range?: string | null
+          business_interests?: string[] | null
           checked_in?: boolean | null
+          company_name?: string | null
+          company_size?: string | null
           created_at?: string
           dating_preference?: string | null
           email?: string | null
+          entity_type?: string | null
           event_id: string
           gender?: string | null
           global_participant_id?: string | null
           id?: string
           name: string
+          needs?: string[] | null
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
+          sector?: string | null
           selection_submitted_at?: string | null
+          solutions?: string[] | null
         }
         Update: {
           age?: number | null
           age_range?: string | null
+          business_interests?: string[] | null
           checked_in?: boolean | null
+          company_name?: string | null
+          company_size?: string | null
           created_at?: string
           dating_preference?: string | null
           email?: string | null
+          entity_type?: string | null
           event_id?: string
           gender?: string | null
           global_participant_id?: string | null
           id?: string
           name?: string
+          needs?: string[] | null
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
+          sector?: string | null
           selection_submitted_at?: string | null
+          solutions?: string[] | null
         }
         Relationships: [
           {
@@ -412,6 +555,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plan_features: {
+        Row: {
+          feature_code: string
+          id: string
+          is_limited: boolean | null
+          limit_value: number | null
+          plan_id: string
+        }
+        Insert: {
+          feature_code: string
+          id?: string
+          is_limited?: boolean | null
+          limit_value?: number | null
+          plan_id: string
+        }
+        Update: {
+          feature_code?: string
+          id?: string
+          is_limited?: boolean | null
+          limit_value?: number | null
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_features_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          max_active_events: number | null
+          max_events: number | null
+          max_participants_per_event: number | null
+          name: string
+          price_monthly: number | null
+          price_yearly: number | null
+          sort_order: number | null
+          stripe_price_id_monthly: string | null
+          stripe_price_id_yearly: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_active_events?: number | null
+          max_events?: number | null
+          max_participants_per_event?: number | null
+          name: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          sort_order?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_active_events?: number | null
+          max_events?: number | null
+          max_participants_per_event?: number | null
+          name?: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          sort_order?: number | null
+          stripe_price_id_monthly?: string | null
+          stripe_price_id_yearly?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -439,14 +668,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_event_limits: { Args: { _user_id: string }; Returns: boolean }
+      get_organizer_id: { Args: { _user_id: string }; Returns: string }
+      get_organizer_status: { Args: { _user_id: string }; Returns: string }
+      has_feature: {
+        Args: { _feature_code: string; _user_id: string }
+        Returns: boolean
+      }
+      has_module: {
+        Args: { _module_code: string; _user_id: string }
+        Returns: boolean
+      }
       increment_participants: { Args: { event_id: string }; Returns: undefined }
       is_event_organizer: {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "super_admin" | "organizer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -574,7 +815,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "super_admin", "organizer"],
     },
   },
 } as const
