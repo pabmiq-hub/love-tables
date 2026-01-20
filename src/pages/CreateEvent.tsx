@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -14,8 +14,10 @@ import AddParticipantModal from "@/components/event/AddParticipantModal";
 import EventPreferencesEditor, { EventPreferences, DEFAULT_PREFERENCES } from "@/components/event/EventPreferencesEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useFeatures } from "@/hooks/useFeatures";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 type ParticipantMode = "manual" | "excel" | "both";
 
@@ -44,6 +46,9 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading } = useAuth();
+  const { hasFeature, isSuperAdmin } = useFeatures();
+
+  const canUseExcel = hasFeature("excel_import") || isSuperAdmin;
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -527,40 +532,62 @@ const CreateEvent = () => {
                 </div>
 
                 <div
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    participantMode === "excel" 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:border-primary/50"
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    !canUseExcel 
+                      ? "opacity-50 cursor-not-allowed border-border"
+                      : participantMode === "excel" 
+                        ? "border-primary bg-primary/5 cursor-pointer" 
+                        : "border-border hover:border-primary/50 cursor-pointer"
                   }`}
-                  onClick={() => setParticipantMode("excel")}
+                  onClick={() => canUseExcel && setParticipantMode("excel")}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                       <FileSpreadsheet className="w-5 h-5 text-accent" />
                     </div>
-                    <div>
-                      <p className="font-medium">Solo Excel</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Solo Excel</p>
+                        {!canUseExcel && (
+                          <Badge variant="outline" className="text-xs">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Pro
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">Cargar participantes desde un archivo</p>
                     </div>
+                    {!canUseExcel && <Lock className="w-4 h-4 text-muted-foreground" />}
                   </div>
                 </div>
 
                 <div
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    participantMode === "both" 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:border-primary/50"
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    !canUseExcel 
+                      ? "opacity-50 cursor-not-allowed border-border"
+                      : participantMode === "both" 
+                        ? "border-primary bg-primary/5 cursor-pointer" 
+                        : "border-border hover:border-primary/50 cursor-pointer"
                   }`}
-                  onClick={() => setParticipantMode("both")}
+                  onClick={() => canUseExcel && setParticipantMode("both")}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Users className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <p className="font-medium">Excel + Manual</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Excel + Manual</p>
+                        {!canUseExcel && (
+                          <Badge variant="outline" className="text-xs">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Pro
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">Cargar Excel y añadir más manualmente</p>
                     </div>
+                    {!canUseExcel && <Lock className="w-4 h-4 text-muted-foreground" />}
                   </div>
                 </div>
               </div>

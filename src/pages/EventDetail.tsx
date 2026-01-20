@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles } from "lucide-react";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -34,6 +34,8 @@ import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
 import { supabase } from "@/integrations/supabase/client";
 import { useGlobalParticipants } from "@/hooks/useGlobalParticipants";
+import { useFeatures } from "@/hooks/useFeatures";
+import { FeatureGate } from "@/components/FeatureGate";
 
 interface ParticipantExclusion {
   id: string;
@@ -122,6 +124,7 @@ const EventDetail = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { linkParticipantsToGlobal, loadPreviousEncounters, recordEncounters } = useGlobalParticipants();
+  const { hasFeature, isSuperAdmin } = useFeatures();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
@@ -2149,11 +2152,28 @@ const EventDetail = () => {
                   <span className="hidden sm:inline">Emails</span>
                 </TabsTrigger>
               )}
-              {(eventStatus === "active" || eventStatus === "completed") && (
+              {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("analytics") || isSuperAdmin) && (
                 <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <BarChart3 className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Análisis</span>
                 </TabsTrigger>
+              )}
+              {(eventStatus === "active" || eventStatus === "completed") && !hasFeature("analytics") && !isSuperAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all opacity-50 cursor-not-allowed">
+                      <BarChart3 className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Análisis</span>
+                      <Lock className="w-3 h-3 ml-1 text-muted-foreground" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span>Disponible en planes superiores</span>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </TabsList>
           </div>
@@ -2245,20 +2265,43 @@ const EventDetail = () => {
                         className="hidden"
                         id="excel-upload"
                       />
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isLoadingExcel}
-                          >
-                            <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{isLoadingExcel ? "Cargando..." : "Excel"}</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Cargar Excel</TooltipContent>
-                      </Tooltip>
+                      {(hasFeature("excel_import") || isSuperAdmin) ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={isLoadingExcel}
+                            >
+                              <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">{isLoadingExcel ? "Cargando..." : "Excel"}</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="sm:hidden">Cargar Excel</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              disabled
+                              className="opacity-50"
+                            >
+                              <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Excel</span>
+                              <Lock className="w-3 h-3 ml-1" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-primary" />
+                              <span>Disponible en planes superiores</span>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
