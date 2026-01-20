@@ -9,6 +9,7 @@ import AdminRegister from "./pages/AdminRegister";
 import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminDashboard from "./pages/AdminDashboard";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import PendingApproval from "./pages/PendingApproval";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<AdminRegister />} />
           <Route path="/admin/reset-password" element={<AdminResetPassword />} />
+          <Route path="/admin/pending-approval" element={<PendingApproval />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/super-admin" element={<SuperAdminDashboard />} />
           <Route path="/admin/events/new" element={<CreateEvent />} />
