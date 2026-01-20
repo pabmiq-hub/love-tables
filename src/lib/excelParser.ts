@@ -25,7 +25,46 @@ export interface Participant {
   gender: string;
   phone?: string;
   email?: string;
+  // Professional/B2B fields (optional)
+  companyName?: string;
+  entityType?: 'client' | 'provider';
+  sector?: string;
+  companySize?: string;
+  needs?: string[];
+  solutions?: string[];
+  businessInterests?: string;
 }
+
+// Entity types for professional events
+export const ENTITY_TYPES = ['Cliente', 'Proveedor'] as const;
+
+// Company sizes for professional events
+export const COMPANY_SIZES = [
+  'Autónomo',
+  'Startup (1-10)',
+  'PYME (11-50)',
+  'Mediana (51-250)',
+  'Gran empresa (+250)'
+] as const;
+
+// Default sectors for professional events
+export const DEFAULT_SECTORS = [
+  'Tecnología',
+  'Finanzas',
+  'Salud',
+  'Educación',
+  'Retail',
+  'Industria',
+  'Servicios profesionales',
+  'Marketing y publicidad',
+  'Consultoría',
+  'Recursos humanos',
+  'Legal',
+  'Inmobiliario',
+  'Logística',
+  'Turismo y hostelería',
+  'Otro'
+] as const;
 
 export interface ParseResult {
   success: boolean;
@@ -86,6 +125,42 @@ const columnMappingsOrdered: Array<{
     key: 'email',
     exact: ['email', 'e-mail', 'e mail', 'correo', 'correo electrónico', 'correo electronico', 'mail', 'direccion de correo', 'direccion email'],
     partial: ['email', 'e-mail', 'e mail', 'mail', '@', 'correo']
+  },
+  // Professional/B2B fields
+  {
+    key: 'companyName',
+    exact: ['empresa', 'company', 'compañía', 'compania', 'nombre empresa', 'company name', 'organización', 'organizacion'],
+    partial: ['empresa', 'company', 'org']
+  },
+  {
+    key: 'entityType',
+    exact: ['tipo entidad', 'tipo de entidad', 'entity type', 'tipo'],
+    partial: ['cliente', 'proveedor', 'client', 'provider']
+  },
+  {
+    key: 'sector',
+    exact: ['sector', 'industry', 'industria'],
+    partial: ['sector', 'industria']
+  },
+  {
+    key: 'companySize',
+    exact: ['tamaño empresa', 'tamaño', 'company size', 'size', 'empleados'],
+    partial: ['tamaño', 'size', 'empleados']
+  },
+  {
+    key: 'needs',
+    exact: ['necesidades', 'needs', 'busca', 'que necesita'],
+    partial: ['necesidad', 'need', 'busca']
+  },
+  {
+    key: 'solutions',
+    exact: ['soluciones', 'solutions', 'ofrece', 'que ofrece'],
+    partial: ['solucion', 'solution', 'ofrece']
+  },
+  {
+    key: 'businessInterests',
+    exact: ['intereses', 'interests', 'intereses de negocio', 'business interests'],
+    partial: ['interes', 'interest']
   },
 ];
 
@@ -271,6 +346,35 @@ function normalizeGender(value: string): string {
   return 'Prefiero no decirlo';
 }
 
+// Normalize entity type for professional events
+function normalizeEntityType(value: string): 'client' | 'provider' | undefined {
+  const lower = value.toLowerCase().trim();
+  if (lower.includes('cliente') || lower.includes('client') || lower === 'c') {
+    return 'client';
+  }
+  if (lower.includes('proveedor') || lower.includes('provider') || lower === 'p') {
+    return 'provider';
+  }
+  return undefined;
+}
+
+// Detect if the Excel file is for a professional/B2B event
+export function detectExcelType(columnMap: Record<string, number>): 'social' | 'professional' {
+  const professionalFields = ['companyName', 'entityType', 'sector', 'companySize', 'needs', 'solutions'];
+  const socialFields = ['ageRange', 'gender', 'preference', 'datingPreference', 'preferredAgeRange'];
+  
+  const hasProfessionalFields = professionalFields.some(field => field in columnMap);
+  const hasSocialFields = socialFields.some(field => field in columnMap);
+  
+  // If has professional fields and no social fields, it's professional
+  // If has both, default to professional (B2B takes precedence)
+  if (hasProfessionalFields && !hasSocialFields) {
+    return 'professional';
+  }
+  
+  return 'social';
+}
+
 export function parseExcelFile(file: File): Promise<ParseResult> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -368,6 +472,56 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
               const rawDatingPref = String(row[columnMap.datingPreference] || '').trim();
               if (rawDatingPref) {
                 participant.datingPreference = normalizeDatingPreference(rawDatingPref);
+              }
+            }
+            
+            // Add professional/B2B fields if present
+            if (columnMap.companyName !== undefined) {
+              const companyValue = row[columnMap.companyName];
+              if (companyValue !== undefined && companyValue !== null && String(companyValue).trim() !== '') {
+                participant.companyName = String(companyValue).trim();
+              }
+            }
+            
+            if (columnMap.entityType !== undefined) {
+              const entityValue = row[columnMap.entityType];
+              if (entityValue !== undefined && entityValue !== null) {
+                participant.entityType = normalizeEntityType(String(entityValue));
+              }
+            }
+            
+            if (columnMap.sector !== undefined) {
+              const sectorValue = row[columnMap.sector];
+              if (sectorValue !== undefined && sectorValue !== null && String(sectorValue).trim() !== '') {
+                participant.sector = String(sectorValue).trim();
+              }
+            }
+            
+            if (columnMap.companySize !== undefined) {
+              const sizeValue = row[columnMap.companySize];
+              if (sizeValue !== undefined && sizeValue !== null && String(sizeValue).trim() !== '') {
+                participant.companySize = String(sizeValue).trim();
+              }
+            }
+            
+            if (columnMap.needs !== undefined) {
+              const needsValue = row[columnMap.needs];
+              if (needsValue !== undefined && needsValue !== null && String(needsValue).trim() !== '') {
+                participant.needs = String(needsValue).split(',').map(n => n.trim()).filter(Boolean);
+              }
+            }
+            
+            if (columnMap.solutions !== undefined) {
+              const solutionsValue = row[columnMap.solutions];
+              if (solutionsValue !== undefined && solutionsValue !== null && String(solutionsValue).trim() !== '') {
+                participant.solutions = String(solutionsValue).split(',').map(s => s.trim()).filter(Boolean);
+              }
+            }
+            
+            if (columnMap.businessInterests !== undefined) {
+              const interestsValue = row[columnMap.businessInterests];
+              if (interestsValue !== undefined && interestsValue !== null && String(interestsValue).trim() !== '') {
+                participant.businessInterests = String(interestsValue).trim();
               }
             }
             
