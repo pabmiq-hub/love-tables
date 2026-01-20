@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake } from "lucide-react";
+import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake, Shield, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganizer } from "@/hooks/useOrganizer";
+import { useFeatures } from "@/hooks/useFeatures";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
   AlertDialog,
@@ -19,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface Event {
   id: string;
@@ -26,6 +29,7 @@ interface Event {
   date: string;
   participants_count: number;
   status: string;
+  module: string | null;
 }
 
 const AdminDashboard = () => {
@@ -33,18 +37,35 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { organizer, plan, limits, loading: orgLoading, isActive, isPending, isSuspended, canCreateEvent } = useOrganizer();
+  const { isSuperAdmin } = useFeatures();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate("/admin/login");
       return;
     }
-    
-    if (user) {
-      loadEvents();
+  }, [user, authLoading, navigate]);
+
+  // Handle organizer status
+  useEffect(() => {
+    if (!orgLoading && organizer) {
+      if (isPending) {
+        navigate("/admin/pending-approval");
+        return;
+      }
+      if (isSuspended) {
+        toast({
+          title: "Cuenta suspendida",
+          description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
+          variant: "destructive",
+        });
+        signOut();
+        return;
+      }
     }
-  }, [user, loading, navigate]);
+  }, [organizer, orgLoading, isPending, isSuspended, navigate]);
 
   const loadEvents = async () => {
     const { data, error } = await supabase
@@ -57,6 +78,12 @@ const AdminDashboard = () => {
     }
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (user && (isActive || isSuperAdmin)) {
+      loadEvents();
+    }
+  }, [user, isActive, isSuperAdmin]);
 
   const handleLogout = async () => {
     await signOut();
@@ -102,9 +129,21 @@ const AdminDashboard = () => {
     }
   };
 
+  const getModuleBadge = (module: string | null) => {
+    if (!module) return null;
+    switch (module) {
+      case "social":
+        return <Badge variant="secondary" className="bg-pink-500/10 text-pink-500">Social</Badge>;
+      case "professional":
+        return <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">Profesional</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const totalParticipants = events.reduce((acc, e) => acc + (e.participants_count || 0), 0);
 
-  if (loading || isLoading) {
+  if (authLoading || orgLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

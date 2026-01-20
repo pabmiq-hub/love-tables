@@ -41,12 +41,54 @@ const AdminLogin = () => {
     }
   };
 
+  // Check organizer status and redirect accordingly
+  const checkOrganizerAndRedirect = async () => {
+    if (!user) return;
+    
+    // First check if super admin
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "super_admin")
+      .maybeSingle();
+    
+    if (roleData) {
+      navigate("/super-admin");
+      return;
+    }
+    
+    // Check organizer profile
+    const { data: orgData } = await supabase
+      .from("organizers")
+      .select("status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (orgData) {
+      if (orgData.status === "active") {
+        navigate("/admin/dashboard");
+      } else if (orgData.status === "pending") {
+        navigate("/admin/pending-approval");
+      } else if (orgData.status === "suspended") {
+        toast({
+          title: "Cuenta suspendida",
+          description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // No organizer profile, maybe old user - redirect to complete registration
+      navigate("/admin/complete-registration");
+    }
+  };
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!loading && user) {
-      navigate("/admin/dashboard");
+      checkOrganizerAndRedirect();
     }
-  }, [user, loading, navigate]);
+  }, [user, loading]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +122,7 @@ const AdminLogin = () => {
       title: "Bienvenido",
       description: "Has iniciado sesión correctamente",
     });
-    navigate("/admin/dashboard");
+    // The useEffect will handle proper redirection based on organizer status
     setIsLoading(false);
   };
 
