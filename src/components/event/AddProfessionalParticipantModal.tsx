@@ -28,16 +28,25 @@ export interface ProfessionalParticipant {
   businessInterests?: string;
 }
 
+interface ProfessionalConfig {
+  rotation_type?: "client_fixed" | "provider_fixed";
+  sectors?: string[];
+  predefined_needs?: string[];
+  predefined_solutions?: string[];
+}
+
 interface AddProfessionalParticipantModalProps {
   onClose: () => void;
   onAdd: (participant: ProfessionalParticipant) => void;
   customPreferences?: Partial<ProfessionalPreferences>;
+  professionalConfig?: ProfessionalConfig;
 }
 
 const AddProfessionalParticipantModal = ({
   onClose,
   onAdd,
-  customPreferences
+  customPreferences,
+  professionalConfig
 }: AddProfessionalParticipantModalProps) => {
   // Contact info
   const [name, setName] = useState("");
@@ -55,8 +64,8 @@ const AddProfessionalParticipantModal = ({
   const [solutionsText, setSolutionsText] = useState("");
   const [businessInterests, setBusinessInterests] = useState("");
 
-  // Use custom or default preferences
-  const sectors = customPreferences?.sectors || [...DEFAULT_SECTORS];
+  // Use professionalConfig sectors if available, otherwise customPreferences or defaults
+  const sectors = professionalConfig?.sectors || customPreferences?.sectors || [...DEFAULT_SECTORS];
   const companySizes = customPreferences?.companySizes || [...DEFAULT_COMPANY_SIZES];
 
   const handleSubmit = () => {

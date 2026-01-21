@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
+import AddProfessionalParticipantModal, { ProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
@@ -55,6 +56,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+interface ProfessionalConfig {
+  rotation_type: "client_fixed" | "provider_fixed";
+  sectors?: string[];
+  predefined_needs?: string[];
+  predefined_solutions?: string[];
+}
+
 interface EventData {
   id: string;
   name: string;
@@ -80,6 +88,8 @@ interface EventData {
   round_started_at: string | null;
   round_paused_at: string | null;
   round_elapsed_seconds: number;
+  module: "social" | "professional";
+  professional_config: ProfessionalConfig | null;
 }
 
 interface DbParticipant {
@@ -96,6 +106,14 @@ interface DbParticipant {
   checked_in: boolean;
   selection_submitted_at?: string | null;
   global_participant_id?: string | null;
+  // Professional fields
+  company_name?: string | null;
+  entity_type?: string | null;
+  sector?: string | null;
+  company_size?: string | null;
+  needs?: string[] | null;
+  solutions?: string[] | null;
+  business_interests?: string[] | null;
 }
 
 interface Match {
@@ -156,7 +174,7 @@ const EventDetail = () => {
   const [exclusions, setExclusions] = useState<ParticipantExclusion[]>([]);
   const [previousEncounters, setPreviousEncounters] = useState<Map<string, Set<string>>>(new Map());
   
-  // Participant filters
+  // Participant filters - Social
   const [filterGender, setFilterGender] = useState<string>("all");
   const [filterAgeRange, setFilterAgeRange] = useState<string>("all");
   const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
@@ -166,6 +184,13 @@ const EventDetail = () => {
   const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  
+  // Participant filters - Professional
+  const [filterEntityType, setFilterEntityType] = useState<string>("all");
+  const [filterSector, setFilterSector] = useState<string>("all");
+  
+  // Helper to determine if this is a professional event
+  const isProfessionalEvent = eventData?.module === "professional";
 
   useEffect(() => {
     loadEventData();
@@ -202,6 +227,8 @@ const EventDetail = () => {
       round_started_at: event.round_started_at || null,
       round_paused_at: event.round_paused_at || null,
       round_elapsed_seconds: event.round_elapsed_seconds || 0,
+      module: (event.module as "social" | "professional") || "social",
+      professional_config: event.professional_config as unknown as ProfessionalConfig | null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -1430,6 +1457,56 @@ const EventDetail = () => {
     });
   };
 
+  const handleAddProfessionalParticipant = async (participant: ProfessionalParticipant) => {
+    if (!id) return;
+
+    // Auto check-in if event is already active
+    const autoCheckin = eventStatus === "active";
+
+    const { data: newParticipant, error } = await supabase
+      .from("participants")
+      .insert({
+        event_id: id,
+        name: participant.name,
+        email: participant.email || null,
+        phone: participant.phone || null,
+        company_name: participant.companyName || null,
+        entity_type: participant.entityType || null,
+        sector: participant.sector || null,
+        company_size: participant.companySize || null,
+        needs: participant.needs || null,
+        solutions: participant.solutions || null,
+        business_interests: participant.businessInterests ? [participant.businessInterests] : null,
+        checked_in: autoCheckin,
+      })
+      .select()
+      .single();
+
+    if (error || !newParticipant) {
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el participante",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants([...participants, newParticipant]);
+    
+    // Update participant count
+    await supabase
+      .from("events")
+      .update({ participants_count: participants.length + 1 })
+      .eq("id", id);
+    
+    toast({
+      title: "Participante añadido",
+      description: autoCheckin 
+        ? `${participant.companyName} ha sido añadido y confirmado automáticamente (evento activo)`
+        : `${participant.companyName} ha sido añadido al evento`,
+    });
+  };
+
   const handleDeleteParticipant = async (participantId: string) => {
     const { error } = await supabase
       .from("participants")
@@ -1849,16 +1926,28 @@ const EventDetail = () => {
   // Filter and sort participants
   const filteredParticipants = participants
     .filter(p => {
-      // Search by name
-      if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      // Search by name or company name (for professional)
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const nameMatch = p.name.toLowerCase().includes(searchLower);
+        const companyMatch = p.company_name?.toLowerCase().includes(searchLower) || false;
+        if (!nameMatch && !companyMatch) return false;
+      }
       // Filter by check-in status
       if (filterCheckin === "confirmed" && !p.checked_in) return false;
       if (filterCheckin === "pending" && p.checked_in) return false;
-      // Existing filters
-      if (filterGender !== "all" && p.gender !== filterGender) return false;
-      if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
-      if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
-      if (filterPreference !== "all" && p.preference !== filterPreference) return false;
+      
+      // Social filters
+      if (!isProfessionalEvent) {
+        if (filterGender !== "all" && p.gender !== filterGender) return false;
+        if (filterAgeRange !== "all" && p.age_range !== filterAgeRange) return false;
+        if (filterPreferredAgeRange !== "all" && !p.preferred_age_range?.includes(filterPreferredAgeRange)) return false;
+        if (filterPreference !== "all" && p.preference !== filterPreference) return false;
+      } else {
+        // Professional filters
+        if (filterEntityType !== "all" && p.entity_type !== filterEntityType) return false;
+        if (filterSector !== "all" && p.sector !== filterSector) return false;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -1900,13 +1989,17 @@ const EventDetail = () => {
     });
   };
 
-  // Get unique values for filter options
+  // Get unique values for filter options - Social
   const uniqueGenders = [...new Set(participants.map(p => p.gender).filter(Boolean))];
   const uniqueAgeRanges = [...new Set(participants.map(p => p.age_range).filter(Boolean))];
   const uniquePreferredAgeRanges = [...new Set(
     participants.flatMap(p => p.preferred_age_range?.split(', ') || []).filter(Boolean)
   )];
   const uniquePreferences = [...new Set(participants.map(p => p.preference).filter(Boolean))];
+  
+  // Get unique values for filter options - Professional
+  const uniqueEntityTypes = [...new Set(participants.map(p => p.entity_type).filter(Boolean))];
+  const uniqueSectors = [...new Set(participants.map(p => p.sector).filter(Boolean))];
 
   const handleExportMatches = async (format: 'csv' | 'excel') => {
     if (matches.length === 0) {
@@ -2382,52 +2475,86 @@ const EventDetail = () => {
                             <option value="pending">Pendientes</option>
                           </select>
                           
-                          <select
-                            value={filterGender}
-                            onChange={(e) => setFilterGender(e.target.value)}
-                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
-                          >
-                            <option value="all">Género</option>
-                            {uniqueGenders.map(g => (
-                              <option key={g} value={g!}>{g}</option>
-                            ))}
-                          </select>
+                          {/* Social filters */}
+                          {!isProfessionalEvent && (
+                            <>
+                              <select
+                                value={filterGender}
+                                onChange={(e) => setFilterGender(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                              >
+                                <option value="all">Género</option>
+                                {uniqueGenders.map(g => (
+                                  <option key={g} value={g!}>{g}</option>
+                                ))}
+                              </select>
+                              
+                              <select
+                                value={filterAgeRange}
+                                onChange={(e) => setFilterAgeRange(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                              >
+                                <option value="all">Rango edad</option>
+                                {uniqueAgeRanges.map(ar => (
+                                  <option key={ar} value={ar!}>{ar}</option>
+                                ))}
+                              </select>
+                              
+                              <select
+                                value={filterPreferredAgeRange}
+                                onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                              >
+                                <option value="all">Busca rango</option>
+                                {uniquePreferredAgeRanges.map(par => (
+                                  <option key={par} value={par}>{par}</option>
+                                ))}
+                              </select>
+                              
+                              <select
+                                value={filterPreference}
+                                onChange={(e) => setFilterPreference(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background col-span-2 sm:col-span-1"
+                              >
+                                <option value="all">Conexión</option>
+                                {uniquePreferences.map(pref => (
+                                  <option key={pref} value={pref!}>{pref}</option>
+                                ))}
+                              </select>
+                            </>
+                          )}
                           
-                          <select
-                            value={filterAgeRange}
-                            onChange={(e) => setFilterAgeRange(e.target.value)}
-                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
-                          >
-                            <option value="all">Rango edad</option>
-                            {uniqueAgeRanges.map(ar => (
-                              <option key={ar} value={ar!}>{ar}</option>
-                            ))}
-                          </select>
-                          
-                          <select
-                            value={filterPreferredAgeRange}
-                            onChange={(e) => setFilterPreferredAgeRange(e.target.value)}
-                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
-                          >
-                            <option value="all">Busca rango</option>
-                            {uniquePreferredAgeRanges.map(par => (
-                              <option key={par} value={par}>{par}</option>
-                            ))}
-                          </select>
-                          
-                          <select
-                            value={filterPreference}
-                            onChange={(e) => setFilterPreference(e.target.value)}
-                            className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background col-span-2 sm:col-span-1"
-                          >
-                            <option value="all">Conexión</option>
-                            {uniquePreferences.map(pref => (
-                              <option key={pref} value={pref!}>{pref}</option>
-                            ))}
-                          </select>
+                          {/* Professional filters */}
+                          {isProfessionalEvent && (
+                            <>
+                              <select
+                                value={filterEntityType}
+                                onChange={(e) => setFilterEntityType(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                              >
+                                <option value="all">Tipo</option>
+                                {uniqueEntityTypes.map(et => (
+                                  <option key={et} value={et!}>{et}</option>
+                                ))}
+                              </select>
+                              
+                              <select
+                                value={filterSector}
+                                onChange={(e) => setFilterSector(e.target.value)}
+                                className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                              >
+                                <option value="all">Sector</option>
+                                {uniqueSectors.map(s => (
+                                  <option key={s} value={s!}>{s}</option>
+                                ))}
+                              </select>
+                            </>
+                          )}
                         </div>
                         
-                        {(filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all" || filterCheckin !== "all" || searchTerm) && (
+                        {/* Clear filters button - adapted for both modules */}
+                        {((isProfessionalEvent && (filterEntityType !== "all" || filterSector !== "all" || filterCheckin !== "all" || searchTerm)) ||
+                          (!isProfessionalEvent && (filterGender !== "all" || filterAgeRange !== "all" || filterPreferredAgeRange !== "all" || filterPreference !== "all" || filterCheckin !== "all" || searchTerm))) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -2436,6 +2563,8 @@ const EventDetail = () => {
                               setFilterAgeRange("all");
                               setFilterPreferredAgeRange("all");
                               setFilterPreference("all");
+                              setFilterEntityType("all");
+                              setFilterSector("all");
                               setFilterCheckin("all");
                               setSearchTerm("");
                             }}
@@ -2538,7 +2667,15 @@ const EventDetail = () => {
                               )}
                             </p>
                             <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
+                              {isProfessionalEvent ? (
+                                <>
+                                  {participant.company_name || "Sin empresa"} • {participant.entity_type === "client" ? "Cliente" : participant.entity_type === "provider" ? "Proveedor" : participant.entity_type || ""}
+                                </>
+                              ) : (
+                                <>
+                                  {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -2553,7 +2690,18 @@ const EventDetail = () => {
                               onEmailUpdated={(newEmail) => handleUpdateParticipantEmail(participant.id, newEmail)}
                             />
                           </div>
-                          <span className="hidden sm:block">{getGenderBadge(participant.gender)}</span>
+                          {/* Show gender badge for social events, entity type for professional */}
+                          <span className="hidden sm:block">
+                            {isProfessionalEvent ? (
+                              participant.entity_type && (
+                                <Badge variant="secondary" className={participant.entity_type === "client" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"}>
+                                  {participant.entity_type === "client" ? "Cliente" : "Proveedor"}
+                                </Badge>
+                              )
+                            ) : (
+                              getGenderBadge(participant.gender)
+                            )}
+                          </span>
                           {eventStatus === "pending" && (
                             <Button
                               variant={participant.checked_in ? "default" : "outline"}
@@ -3224,16 +3372,24 @@ const EventDetail = () => {
 
         {/* Add Participant Modal */}
         {showAddModal && (
-          <AddParticipantModal
-            onClose={() => setShowAddModal(false)}
-            onAdd={handleAddParticipant}
-            customPreferences={eventData ? {
-              ageRanges: eventData.custom_age_ranges || undefined,
-              genders: eventData.custom_genders || undefined,
-              preferences: eventData.custom_preferences || undefined,
-              datingPreferences: eventData.custom_dating_preferences || undefined,
-            } : undefined}
-          />
+          isProfessionalEvent ? (
+            <AddProfessionalParticipantModal
+              onClose={() => setShowAddModal(false)}
+              onAdd={handleAddProfessionalParticipant}
+              professionalConfig={eventData?.professional_config || undefined}
+            />
+          ) : (
+            <AddParticipantModal
+              onClose={() => setShowAddModal(false)}
+              onAdd={handleAddParticipant}
+              customPreferences={eventData ? {
+                ageRanges: eventData.custom_age_ranges || undefined,
+                genders: eventData.custom_genders || undefined,
+                preferences: eventData.custom_preferences || undefined,
+                datingPreferences: eventData.custom_dating_preferences || undefined,
+              } : undefined}
+            />
+          )
         )}
 
         {/* Excel Preview Modal */}
