@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit } from "lucide-react";
+import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb } from "lucide-react";
 
 interface ParticipantData {
   id: string;
@@ -17,6 +17,14 @@ interface ParticipantData {
   phone: string | null;
   checked_in: boolean;
   selection_submitted_at?: string | null;
+  // Professional fields
+  company_name?: string | null;
+  entity_type?: "client" | "provider" | null;
+  sector?: string | null;
+  company_size?: string | null;
+  needs?: string[] | null;
+  solutions?: string[] | null;
+  business_interests?: string[] | null;
 }
 
 interface TableData {
@@ -38,6 +46,7 @@ interface ParticipantDetailModalProps {
   onClose: () => void;
   onEdit: () => void;
   canEdit: boolean;
+  isProfessional?: boolean;
 }
 
 const ParticipantDetailModal = ({
@@ -48,6 +57,7 @@ const ParticipantDetailModal = ({
   onClose,
   onEdit,
   canEdit,
+  isProfessional = false,
 }: ParticipantDetailModalProps) => {
   // Find tables where this participant sat
   const getParticipantTables = () => {
@@ -102,7 +112,22 @@ const ParticipantDetailModal = ({
     }
   };
 
+  const getEntityTypeBadge = (entityType: string | null | undefined) => {
+    if (!entityType) return null;
+    switch (entityType) {
+      case "client":
+        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Cliente</Badge>;
+      case "provider":
+        return <Badge variant="secondary" className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">Proveedor</Badge>;
+      default:
+        return <Badge variant="secondary">{entityType}</Badge>;
+    }
+  };
+
   const getSelectionTypeBadge = (type: string | null) => {
+    if (isProfessional) {
+      return <Badge className="bg-emerald-500 text-white"><Briefcase className="w-3 h-3 mr-1" />Conexión</Badge>;
+    }
     switch (type) {
       case "dating":
         return <Badge className="bg-pink-500 text-white"><Heart className="w-3 h-3 mr-1" />Ligue</Badge>;
@@ -117,6 +142,130 @@ const ParticipantDetailModal = ({
         return <Badge className="bg-blue-500 text-white"><Users className="w-3 h-3 mr-1" />Amistad</Badge>;
     }
   };
+
+  const renderSocialDetails = () => (
+    <div className="grid gap-3">
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <User className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Género</p>
+          <div>{getGenderBadge(participant.gender) || "No especificado"}</div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Calendar className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Rango de edad</p>
+          <p className="font-medium">{participant.age_range || "No especificado"}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Calendar className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Busca rango</p>
+          <p className="font-medium">{participant.preferred_age_range || "Sin preferencia"}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Users className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Tipo de conexión</p>
+          <p className="font-medium">{participant.preference || "No especificado"}</p>
+        </div>
+      </div>
+
+      {participant.dating_preference && (
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <Heart className="w-5 h-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm text-muted-foreground">Preferencia de ligue</p>
+            <p className="font-medium">{participant.dating_preference}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderProfessionalDetails = () => (
+    <div className="grid gap-3">
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Building2 className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Empresa</p>
+          <p className="font-medium">{participant.company_name || "No especificado"}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Briefcase className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Tipo de entidad</p>
+          <div>{getEntityTypeBadge(participant.entity_type) || "No especificado"}</div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Briefcase className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Sector</p>
+          <p className="font-medium">{participant.sector || "No especificado"}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Building2 className="w-5 h-5 text-muted-foreground" />
+        <div>
+          <p className="text-sm text-muted-foreground">Tamaño empresa</p>
+          <p className="font-medium">{participant.company_size || "No especificado"}</p>
+        </div>
+      </div>
+
+      {participant.entity_type === "client" && participant.needs && participant.needs.length > 0 && (
+        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+          <Target className="w-5 h-5 text-muted-foreground mt-0.5" />
+          <div>
+            <p className="text-sm text-muted-foreground">Necesidades</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {participant.needs.map((need, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs">{need}</Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {participant.entity_type === "provider" && participant.solutions && participant.solutions.length > 0 && (
+        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+          <Lightbulb className="w-5 h-5 text-muted-foreground mt-0.5" />
+          <div>
+            <p className="text-sm text-muted-foreground">Soluciones</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {participant.solutions.map((solution, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs">{solution}</Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {participant.business_interests && participant.business_interests.length > 0 && (
+        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+          <Briefcase className="w-5 h-5 text-muted-foreground mt-0.5" />
+          <div>
+            <p className="text-sm text-muted-foreground">Intereses de negocio</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {participant.business_interests.map((interest, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs">{interest}</Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -135,6 +284,9 @@ const ParticipantDetailModal = ({
                 <span className="text-xl">{participant.name}</span>
                 {participant.checked_in && (
                   <Badge variant="outline" className="ml-2 text-xs">Check-in ✅</Badge>
+                )}
+                {isProfessional && participant.company_name && (
+                  <p className="text-sm text-muted-foreground">{participant.company_name}</p>
                 )}
               </div>
             </div>
@@ -155,71 +307,35 @@ const ParticipantDetailModal = ({
             </TabsTrigger>
             <TabsTrigger value="tables" className="flex-1">
               <Table2 className="w-4 h-4 mr-1" />
-              Mesas
+              {isProfessional ? "Reuniones" : "Mesas"}
             </TabsTrigger>
             <TabsTrigger value="selections" className="flex-1">
-              <Heart className="w-4 h-4 mr-1" />
-              Selecciones
+              {isProfessional ? <Briefcase className="w-4 h-4 mr-1" /> : <Heart className="w-4 h-4 mr-1" />}
+              {isProfessional ? "Conexiones" : "Selecciones"}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="mt-4 space-y-4">
-            <div className="grid gap-3">
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <User className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Género</p>
-                  <div>{getGenderBadge(participant.gender) || "No especificado"}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Rango de edad</p>
-                  <p className="font-medium">{participant.age_range || "No especificado"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Busca rango</p>
-                  <p className="font-medium">{participant.preferred_age_range || "Sin preferencia"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Users className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Tipo de conexión</p>
-                  <p className="font-medium">{participant.preference || "No especificado"}</p>
-                </div>
-              </div>
-
-              {participant.dating_preference && (
+            {isProfessional ? renderProfessionalDetails() : renderSocialDetails()}
+            
+            {/* Contact info - shown for both types */}
+            <div className="border-t pt-3 mt-3">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Contacto</p>
+              <div className="grid gap-3">
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Heart className="w-5 h-5 text-muted-foreground" />
+                  <Mail className="w-5 h-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Preferencia de ligue</p>
-                    <p className="font-medium">{participant.dating_preference}</p>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{participant.email || "No registrado"}</p>
                   </div>
                 </div>
-              )}
 
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Mail className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{participant.email || "No registrado"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Phone className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-medium">{participant.phone || "No registrado"}</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <Phone className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Teléfono</p>
+                    <p className="font-medium">{participant.phone || "No registrado"}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,7 +345,7 @@ const ParticipantDetailModal = ({
             {participantTables.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Table2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No hay mesas asignadas</p>
+                <p>{isProfessional ? "No hay reuniones asignadas" : "No hay mesas asignadas"}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -252,9 +368,13 @@ const ParticipantDetailModal = ({
           <TabsContent value="selections" className="mt-4 space-y-4">
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium mb-2 text-sm text-muted-foreground">Seleccionó a ({selectionsBy.length})</h4>
+                <h4 className="font-medium mb-2 text-sm text-muted-foreground">
+                  {isProfessional ? "Conectó con" : "Seleccionó a"} ({selectionsBy.length})
+                </h4>
                 {selectionsBy.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hizo selecciones</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isProfessional ? "No hizo conexiones" : "No hizo selecciones"}
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {selectionsBy.map(s => (
@@ -268,9 +388,13 @@ const ParticipantDetailModal = ({
               </div>
 
               <div>
-                <h4 className="font-medium mb-2 text-sm text-muted-foreground">Le seleccionaron ({selectionsOf.length})</h4>
+                <h4 className="font-medium mb-2 text-sm text-muted-foreground">
+                  {isProfessional ? "Le conectaron" : "Le seleccionaron"} ({selectionsOf.length})
+                </h4>
                 {selectionsOf.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nadie le seleccionó</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isProfessional ? "Nadie le conectó" : "Nadie le seleccionó"}
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {selectionsOf.map(s => (
