@@ -3460,20 +3460,30 @@ const EventDetail = () => {
         {/* Participant Detail Modal */}
         {selectedParticipant && !editingParticipant && (
           <ParticipantDetailModal
-            participant={selectedParticipant}
+            participant={{
+              ...selectedParticipant,
+              entity_type: selectedParticipant.entity_type as "client" | "provider" | null | undefined,
+            }}
             tables={tables}
             selections={selections}
-            participants={participants}
+            participants={participants.map(p => ({
+              ...p,
+              entity_type: p.entity_type as "client" | "provider" | null | undefined,
+            }))}
             onClose={() => setSelectedParticipant(null)}
             onEdit={() => setEditingParticipant(selectedParticipant)}
             canEdit={eventStatus === "pending"}
+            isProfessional={eventData?.module === "professional"}
           />
         )}
 
         {/* Edit Participant Modal */}
         {editingParticipant && (
           <EditParticipantModal
-            participant={editingParticipant}
+            participant={{
+              ...editingParticipant,
+              entity_type: editingParticipant.entity_type as "client" | "provider" | null | undefined,
+            }}
             onClose={() => setEditingParticipant(null)}
             onSave={handleUpdateParticipant}
             customPreferences={eventData ? {
@@ -3481,6 +3491,12 @@ const EventDetail = () => {
               genders: eventData.custom_genders || undefined,
               preferences: eventData.custom_preferences || undefined,
               datingPreferences: eventData.custom_dating_preferences || undefined,
+            } : undefined}
+            isProfessional={eventData?.module === "professional"}
+            professionalConfig={eventData?.professional_config ? {
+              sectors: eventData.professional_config.sectors,
+              companySizes: undefined,
+              rotationType: eventData.professional_config.rotation_type,
             } : undefined}
           />
         )}
