@@ -26,6 +26,25 @@ interface EmailTemplate {
   primaryColor: string;
 }
 
+interface ProfessionalEmailTemplate {
+  withConnections: {
+    subject: string;
+    greeting: string;
+    intro: string;
+    connectionsTitle: string;
+    closing: string;
+    signature: string;
+  };
+  withoutConnections: {
+    subject: string;
+    greeting: string;
+    message: string;
+    closing: string;
+    signature: string;
+  };
+  primaryColor: string;
+}
+
 const DEFAULT_TEMPLATE: EmailTemplate = {
   withMatches: {
     subject: "¡Tienes matches en {{evento}}! 🎉",
@@ -44,6 +63,25 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
+};
+
+const DEFAULT_PROFESSIONAL_TEMPLATE: ProfessionalEmailTemplate = {
+  withConnections: {
+    subject: "Nuevas conexiones profesionales de {{evento}}",
+    greeting: "Estimado/a {{nombre}},",
+    intro: "Es un placer informarle que, como resultado del evento de networking {{evento}}, hemos identificado las siguientes oportunidades de colaboración profesional para su empresa:",
+    connectionsTitle: "🤝 Sus conexiones profesionales:",
+    closing: "Le animamos a ponerse en contacto con estas empresas para explorar posibles sinergias y oportunidades de negocio. Quedamos a su disposición para facilitar cualquier introducción adicional.",
+    signature: "Atentamente,\nEl equipo organizador",
+  },
+  withoutConnections: {
+    subject: "Gracias por participar en {{evento}}",
+    greeting: "Estimado/a {{nombre}},",
+    message: "Agradecemos sinceramente su participación en nuestro evento de networking profesional {{evento}}. Aunque en esta ocasión no se han generado conexiones específicas, le mantendremos informado de futuras oportunidades de networking empresarial.",
+    closing: "Esperamos poder conectarle con nuevos contactos profesionales en próximas ediciones.",
+    signature: "Atentamente,\nEl equipo organizador",
+  },
+  primaryColor: "#059669",
 };
 
 const replaceVariables = (text: string, variables: Record<string, string>) => {

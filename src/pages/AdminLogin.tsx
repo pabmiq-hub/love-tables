@@ -78,8 +78,8 @@ const AdminLogin = () => {
         });
       }
     } else {
-      // No organizer profile, maybe old user - redirect to complete registration
-      navigate("/admin/complete-registration");
+      // No organizer profile, maybe old user - redirect to register
+      navigate("/admin/register");
     }
   };
 

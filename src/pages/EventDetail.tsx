@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
-import AddProfessionalParticipantModal, { ProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
+import AddProfessionalParticipantModal, { type ProfessionalParticipant as ModalProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGlobalParticipants } from "@/hooks/useGlobalParticipants";
 import { useFeatures } from "@/hooks/useFeatures";
 import { FeatureGate } from "@/components/FeatureGate";
+import { generateB2BTables, b2bToStandardTableFormat, validateB2BParticipants, type ProfessionalParticipant as B2BParticipant } from "@/lib/b2bTableGenerator";
 
 interface ParticipantExclusion {
   id: string;
@@ -420,7 +421,56 @@ const EventDetail = () => {
       })));
     }
 
-    // Generate smart tables based on preferences, passing previous encounters
+    // Check if this is a professional event - use B2B generator
+    if (isProfessionalEvent) {
+      // Validate B2B participants
+      const b2bParticipants: B2BParticipant[] = checkedInParticipants.map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        phone: p.phone,
+        company_name: p.company_name,
+        entity_type: p.entity_type as "client" | "provider" | null,
+        sector: p.sector,
+        company_size: p.company_size,
+        needs: p.needs,
+        solutions: p.solutions,
+        business_interests: p.business_interests,
+        checked_in: p.checked_in,
+        global_participant_id: p.global_participant_id,
+      }));
+
+      const validation = validateB2BParticipants(b2bParticipants);
+      if (!validation.valid) {
+        toast({
+          title: "Validación B2B fallida",
+          description: validation.warnings.join(". "),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const rotationType = eventData?.professional_config?.rotation_type || "client_fixed";
+      const b2bResult = generateB2BTables(
+        b2bParticipants,
+        eventData?.rounds || 5,
+        rotationType,
+        eventData?.avoid_previous_encounters ? encountersMap : undefined
+      );
+
+      if (b2bResult.warnings.length > 0) {
+        toast({
+          title: "Advertencias en generación",
+          description: b2bResult.warnings.slice(0, 3).join(". "),
+        });
+      }
+
+      const standardTables = b2bToStandardTableFormat(b2bResult);
+      await finalizeTableGeneration(standardTables, checkedInParticipants);
+      return;
+    }
+
+    // Generate smart tables based on preferences, passing previous encounters (Social mode)
     const result = generateSmartTables(
       checkedInParticipants, 
       eventData?.rounds || 5, 
@@ -1457,7 +1507,7 @@ const EventDetail = () => {
     });
   };
 
-  const handleAddProfessionalParticipant = async (participant: ProfessionalParticipant) => {
+  const handleAddProfessionalParticipant = async (participant: ModalProfessionalParticipant) => {
     if (!id) return;
 
     // Auto check-in if event is already active
@@ -3083,13 +3133,14 @@ const EventDetail = () => {
 
           <TabsContent value="matches">
             <MatchesDashboard
-              matches={matches}
+              matches={matches as any}
               selections={selections}
-              participants={participants}
+              participants={participants as any}
               eventName={eventData?.name || ""}
               eventStatus={eventStatus}
               onShowQR={() => setShowQR(true)}
               onRefresh={loadEventData}
+              isProfessional={isProfessionalEvent}
             />
           </TabsContent>
 
