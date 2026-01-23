@@ -14,7 +14,10 @@ import {
   QrCode,
   User,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Building2,
+  Briefcase,
+  Handshake
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +32,10 @@ interface DbParticipant {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  // Professional fields
+  company_name?: string | null;
+  entity_type?: "client" | "provider" | null;
+  sector?: string | null;
 }
 
 interface Match {
@@ -54,6 +61,7 @@ interface MatchesDashboardProps {
   eventStatus: string;
   onShowQR: () => void;
   onRefresh: () => void;
+  isProfessional?: boolean;
 }
 
 type ViewMode = "byMatch" | "byParticipant";
@@ -67,7 +75,7 @@ interface ParticipantMatches {
   }>;
 }
 
-const MatchesDashboard = ({ matches, selections, participants, eventName, eventStatus, onShowQR, onRefresh }: MatchesDashboardProps) => {
+const MatchesDashboard = ({ matches, selections, participants, eventName, eventStatus, onShowQR, onRefresh, isProfessional = false }: MatchesDashboardProps) => {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("byMatch");
   const [copied, setCopied] = useState(false);
@@ -75,6 +83,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
     dating: true,
     friendship: true,
     both: true,
+    professional: true,
   });
   const [openParticipants, setOpenParticipants] = useState<Record<string, boolean>>({});
 
@@ -148,29 +157,45 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
 
   // Copy all matches to clipboard
   const handleCopyMatches = async () => {
-    const lines: string[] = [`MATCHES - ${eventName}`, ""];
+    const lines: string[] = [isProfessional ? `CONEXIONES PROFESIONALES - ${eventName}` : `MATCHES - ${eventName}`, ""];
 
-    if (groupedMatches.both.length > 0) {
-      lines.push("💕😊 CONEXIONES COMPLETAS:");
-      groupedMatches.both.forEach(m => {
-        lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+    if (isProfessional) {
+      // Professional format
+      lines.push("🤝 CONEXIONES:");
+      matches.forEach(m => {
+        const p1Company = m.participant1.company_name || m.participant1.name;
+        const p2Company = m.participant2.company_name || m.participant2.name;
+        const p1Sector = m.participant1.sector || "";
+        const p2Sector = m.participant2.sector || "";
+        lines.push(`  ${p1Company} (${p1Sector}) ↔ ${p2Company} (${p2Sector})`);
+        lines.push(`    Contacto: ${m.participant1.name} - ${m.participant1.phone || "N/A"}`);
+        lines.push(`    Contacto: ${m.participant2.name} - ${m.participant2.phone || "N/A"}`);
+        lines.push("");
       });
-      lines.push("");
-    }
+    } else {
+      // Social format
+      if (groupedMatches.both.length > 0) {
+        lines.push("💕😊 CONEXIONES COMPLETAS:");
+        groupedMatches.both.forEach(m => {
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+        });
+        lines.push("");
+      }
 
-    if (groupedMatches.dating.length > 0) {
-      lines.push("💕 LIGUES:");
-      groupedMatches.dating.forEach(m => {
-        lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
-      });
-      lines.push("");
-    }
+      if (groupedMatches.dating.length > 0) {
+        lines.push("💕 LIGUES:");
+        groupedMatches.dating.forEach(m => {
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+        });
+        lines.push("");
+      }
 
-    if (groupedMatches.friendship.length > 0) {
-      lines.push("😊 AMISTADES:");
-      groupedMatches.friendship.forEach(m => {
-        lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
-      });
+      if (groupedMatches.friendship.length > 0) {
+        lines.push("😊 AMISTADES:");
+        groupedMatches.friendship.forEach(m => {
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+        });
+      }
     }
 
     try {
@@ -178,7 +203,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       setCopied(true);
       toast({
         title: "Copiado al portapapeles",
-        description: `${matches.length} matches copiados`,
+        description: isProfessional ? `${matches.length} conexiones copiadas` : `${matches.length} matches copiados`,
       });
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -238,19 +263,31 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Coincidencias</CardTitle>
-          <CardDescription>Matches mutuos entre participantes</CardDescription>
+          <CardTitle>{isProfessional ? "Conexiones Profesionales" : "Coincidencias"}</CardTitle>
+          <CardDescription>
+            {isProfessional ? "Conexiones de networking entre empresas" : "Matches mutuos entre participantes"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-8 h-8 text-muted-foreground" />
+              {isProfessional ? (
+                <Handshake className="w-8 h-8 text-muted-foreground" />
+              ) : (
+                <Heart className="w-8 h-8 text-muted-foreground" />
+              )}
             </div>
-            <h3 className="font-display text-lg font-semibold mb-2">Sin matches todavía</h3>
+            <h3 className="font-display text-lg font-semibold mb-2">
+              {isProfessional ? "Sin conexiones todavía" : "Sin matches todavía"}
+            </h3>
             <p className="text-muted-foreground">
-              {eventStatus === "completed" 
-                ? "Espera a que los participantes voten usando el código QR"
-                : "Finaliza el evento y comparte el código QR para que los participantes voten"
+              {isProfessional
+                ? eventStatus === "completed" 
+                  ? "Las conexiones se generan automáticamente en eventos profesionales"
+                  : "Finaliza el evento para ver las conexiones entre participantes"
+                : eventStatus === "completed" 
+                  ? "Espera a que los participantes voten usando el código QR"
+                  : "Finaliza el evento y comparte el código QR para que los participantes voten"
               }
             </p>
             <div className="flex gap-2 justify-center mt-4">
@@ -258,7 +295,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Actualizar
               </Button>
-              {eventStatus === "completed" && (
+              {eventStatus === "completed" && !isProfessional && (
                 <Button variant="default" onClick={onShowQR}>
                   <QrCode className="w-4 h-4 mr-2" />
                   QR Selección
@@ -276,8 +313,15 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       {/* Header with actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-display font-bold">Coincidencias</h2>
-          <p className="text-muted-foreground">{matches.length} matches mutuos encontrados</p>
+          <h2 className="text-2xl font-display font-bold">
+            {isProfessional ? "Conexiones Profesionales" : "Coincidencias"}
+          </h2>
+          <p className="text-muted-foreground">
+            {isProfessional 
+              ? `${matches.length} conexiones de networking encontradas`
+              : `${matches.length} matches mutuos encontrados`
+            }
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -288,7 +332,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
             {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
             {copied ? "Copiado" : "Copiar todo"}
           </Button>
-          {eventStatus === "completed" && (
+          {eventStatus === "completed" && !isProfessional && (
             <Button variant="default" size="sm" onClick={onShowQR}>
               <QrCode className="w-4 h-4 mr-2" />
               QR Selección
@@ -297,58 +341,118 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800">
-          <CardContent className="p-4 text-center">
-            <Heart className="w-6 h-6 mx-auto mb-2 text-pink-500" />
-            <div className="text-2xl font-bold text-pink-700 dark:text-pink-300">{stats.dating}</div>
-            <div className="text-xs text-pink-600 dark:text-pink-400">Ligues</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-4 text-center">
-            <Users className="w-6 h-6 mx-auto mb-2 text-blue-500" />
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.friendship}</div>
-            <div className="text-xs text-blue-600 dark:text-blue-400">Amistades</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
-          <CardContent className="p-4 text-center">
-            <Sparkles className="w-6 h-6 mx-auto mb-2 text-purple-500" />
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.both}</div>
-            <div className="text-xs text-purple-600 dark:text-purple-400">Ambos</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-muted/50 border-border">
-          <CardContent className="p-4 text-center">
-            <User className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-            <div className="text-2xl font-bold">{participantsWithMatches}</div>
-            <div className="text-xs text-muted-foreground">Con match</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Statistics Cards - Different for Professional vs Social */}
+      {isProfessional ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
+            <CardContent className="p-4 text-center">
+              <Handshake className="w-6 h-6 mx-auto mb-2 text-emerald-500" />
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{matches.length}</div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-400">Conexiones</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-sky-50/50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-800">
+            <CardContent className="p-4 text-center">
+              <Building2 className="w-6 h-6 mx-auto mb-2 text-sky-500" />
+              <div className="text-2xl font-bold text-sky-700 dark:text-sky-300">{participantsWithMatches}</div>
+              <div className="text-xs text-sky-600 dark:text-sky-400">Empresas conectadas</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-muted/50 border-border">
+            <CardContent className="p-4 text-center">
+              <Briefcase className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold">{participants.length}</div>
+              <div className="text-xs text-muted-foreground">Total participantes</div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800">
+            <CardContent className="p-4 text-center">
+              <Heart className="w-6 h-6 mx-auto mb-2 text-pink-500" />
+              <div className="text-2xl font-bold text-pink-700 dark:text-pink-300">{stats.dating}</div>
+              <div className="text-xs text-pink-600 dark:text-pink-400">Ligues</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-4 text-center">
+              <Users className="w-6 h-6 mx-auto mb-2 text-blue-500" />
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.friendship}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400">Amistades</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+            <CardContent className="p-4 text-center">
+              <Sparkles className="w-6 h-6 mx-auto mb-2 text-purple-500" />
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.both}</div>
+              <div className="text-xs text-purple-600 dark:text-purple-400">Ambos</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-muted/50 border-border">
+            <CardContent className="p-4 text-center">
+              <User className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold">{participantsWithMatches}</div>
+              <div className="text-xs text-muted-foreground">Con match</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* View Mode Toggle */}
-      <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit flex-wrap">
-        <Button
-          variant={viewMode === "byMatch" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setViewMode("byMatch")}
-        >
-          Por tipo de match
-        </Button>
-        <Button
-          variant={viewMode === "byParticipant" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setViewMode("byParticipant")}
-        >
-          Por participante
-        </Button>
-      </div>
+      {/* View Mode Toggle - Only for Social mode */}
+      {!isProfessional && (
+        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit flex-wrap">
+          <Button
+            variant={viewMode === "byMatch" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("byMatch")}
+          >
+            Por tipo de match
+          </Button>
+          <Button
+            variant={viewMode === "byParticipant" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("byParticipant")}
+          >
+            Por participante
+          </Button>
+        </div>
+      )}
 
-      {/* View by Match Type */}
-      {viewMode === "byMatch" && (
+      {/* Professional Mode - Simple list of connections */}
+      {isProfessional && (
+        <div className="space-y-4">
+          <Collapsible open={openSections.professional} onOpenChange={() => toggleSection("professional")}>
+            <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-background/50 transition-colors rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Handshake className="w-5 h-5 text-emerald-500" />
+                      <CardTitle className="text-lg">Conexiones de Networking 🤝</CardTitle>
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                        {matches.length}
+                      </Badge>
+                    </div>
+                    <ChevronDown className={`w-5 h-5 transition-transform ${openSections.professional ? "rotate-180" : ""}`} />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <div className="grid gap-3">
+                    {matches.map((match, index) => (
+                      <ProfessionalMatchCard key={index} match={match} />
+                    ))}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        </div>
+      )}
+      {/* View by Match Type - Social mode only */}
+      {!isProfessional && viewMode === "byMatch" && (
         <div className="space-y-4">
           {/* Both (Dating + Friendship) */}
           {groupedMatches.both.length > 0 && (
@@ -445,8 +549,8 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
         </div>
       )}
 
-      {/* View by Participant */}
-      {viewMode === "byParticipant" && (
+      {/* View by Participant - Social mode only */}
+      {!isProfessional && viewMode === "byParticipant" && (
         <div className="space-y-3">
           {participantMatches.map((pm) => (
             <Collapsible
@@ -603,6 +707,91 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
             {match.participant2.name.split(' ')[0]}
           </a>
         )}
+      </div>
+    </div>
+  );
+};
+
+// Professional Match Card Component
+const ProfessionalMatchCard = ({ match }: { match: Match }) => {
+  return (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-background/80 border border-border/50 hover:shadow-md transition-shadow animate-fade-in">
+      {/* Company Avatars with handshake icon */}
+      <div className="flex items-center gap-2">
+        <Avatar className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 ring-2 ring-background">
+          <AvatarFallback className="bg-transparent text-white font-semibold">
+            {(match.participant1.company_name || match.participant1.name).charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/50">
+          <Handshake className="w-4 h-4 text-emerald-500" />
+        </div>
+        <Avatar className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 ring-2 ring-background">
+          <AvatarFallback className="bg-transparent text-white font-semibold">
+            {(match.participant2.company_name || match.participant2.name).charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
+      {/* Company info */}
+      <div className="flex-1 space-y-1">
+        <p className="font-medium">
+          {match.participant1.company_name || match.participant1.name}{" "}
+          <span className="text-muted-foreground">↔</span>{" "}
+          {match.participant2.company_name || match.participant2.name}
+        </p>
+        <div className="flex flex-wrap gap-2 text-xs">
+          {match.participant1.sector && (
+            <Badge variant="outline" className="bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800">
+              <Building2 className="w-3 h-3 mr-1" />
+              {match.participant1.sector}
+            </Badge>
+          )}
+          {match.participant2.sector && match.participant2.sector !== match.participant1.sector && (
+            <Badge variant="outline" className="bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800">
+              <Building2 className="w-3 h-3 mr-1" />
+              {match.participant2.sector}
+            </Badge>
+          )}
+          {match.participant1.entity_type && (
+            <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+              {match.participant1.entity_type === "client" ? "Cliente" : "Proveedor"}
+            </Badge>
+          )}
+          {match.participant2.entity_type && (
+            <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+              {match.participant2.entity_type === "client" ? "Cliente" : "Proveedor"}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Contact info */}
+      <div className="flex flex-col gap-1 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">{match.participant1.name}:</span>
+          {match.participant1.phone && (
+            <a 
+              href={`tel:${match.participant1.phone}`} 
+              className="flex items-center gap-1 text-primary hover:underline"
+            >
+              <Phone className="w-3 h-3" />
+              {match.participant1.phone}
+            </a>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">{match.participant2.name}:</span>
+          {match.participant2.phone && (
+            <a 
+              href={`tel:${match.participant2.phone}`} 
+              className="flex items-center gap-1 text-primary hover:underline"
+            >
+              <Phone className="w-3 h-3" />
+              {match.participant2.phone}
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
