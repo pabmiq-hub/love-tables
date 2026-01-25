@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Eye, RotateCcw, Mail, Heart, Users, Handshake } from "lucide-react";
+import { X, Eye, RotateCcw, Mail, Heart, Users, Handshake, Briefcase, Building2 } from "lucide-react";
 
 export interface EmailTemplate {
   withMatches: {
@@ -18,6 +18,25 @@ export interface EmailTemplate {
     signature: string;
   };
   withoutMatches: {
+    subject: string;
+    greeting: string;
+    message: string;
+    closing: string;
+    signature: string;
+  };
+  primaryColor: string;
+}
+
+export interface ProfessionalEmailTemplate {
+  withConnections: {
+    subject: string;
+    greeting: string;
+    intro: string;
+    connectionsTitle: string;
+    closing: string;
+    signature: string;
+  };
+  withoutConnections: {
     subject: string;
     greeting: string;
     message: string;
@@ -47,39 +66,76 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
   primaryColor: "#e11d48",
 };
 
+const DEFAULT_PROFESSIONAL_TEMPLATE: ProfessionalEmailTemplate = {
+  withConnections: {
+    subject: "Nuevas conexiones profesionales de {{evento}}",
+    greeting: "Estimado/a {{nombre}},",
+    intro: "Es un placer informarle que, como resultado del evento de networking {{evento}}, hemos identificado las siguientes oportunidades de colaboración profesional para su empresa {{empresa}}:",
+    connectionsTitle: "🤝 Sus conexiones profesionales:",
+    closing: "Le animamos a ponerse en contacto con estas empresas para explorar posibles sinergias y oportunidades de negocio. Quedamos a su disposición para facilitar cualquier introducción adicional.",
+    signature: "Atentamente,\nEl equipo organizador",
+  },
+  withoutConnections: {
+    subject: "Gracias por participar en {{evento}}",
+    greeting: "Estimado/a {{nombre}},",
+    message: "Agradecemos sinceramente su participación en nuestro evento de networking profesional {{evento}}. Aunque en esta ocasión no se han generado conexiones específicas, le mantendremos informado de futuras oportunidades de networking empresarial.",
+    closing: "Esperamos poder conectarle con nuevos contactos profesionales en próximas ediciones.",
+    signature: "Atentamente,\nEl equipo organizador",
+  },
+  primaryColor: "#059669",
+};
+
 interface EmailTemplateEditorProps {
   template: EmailTemplate | null;
+  professionalTemplate?: ProfessionalEmailTemplate | null;
   eventName: string;
-  onSave: (template: EmailTemplate) => void;
+  isProfessional?: boolean;
+  onSave: (template: EmailTemplate, professionalTemplate?: ProfessionalEmailTemplate) => void;
   onClose: () => void;
 }
 
-const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemplateEditorProps) => {
+const EmailTemplateEditor = ({ 
+  template, 
+  professionalTemplate,
+  eventName, 
+  isProfessional = false,
+  onSave, 
+  onClose 
+}: EmailTemplateEditorProps) => {
   const [currentTemplate, setCurrentTemplate] = useState<EmailTemplate>(template || DEFAULT_TEMPLATE);
+  const [currentProfTemplate, setCurrentProfTemplate] = useState<ProfessionalEmailTemplate>(professionalTemplate || DEFAULT_PROFESSIONAL_TEMPLATE);
   const [previewTab, setPreviewTab] = useState<"with" | "without">("with");
 
   useEffect(() => {
     if (template) {
       setCurrentTemplate(template);
     }
-  }, [template]);
+    if (professionalTemplate) {
+      setCurrentProfTemplate(professionalTemplate);
+    }
+  }, [template, professionalTemplate]);
 
   const handleReset = () => {
-    setCurrentTemplate(DEFAULT_TEMPLATE);
+    if (isProfessional) {
+      setCurrentProfTemplate(DEFAULT_PROFESSIONAL_TEMPLATE);
+    } else {
+      setCurrentTemplate(DEFAULT_TEMPLATE);
+    }
   };
 
   const handleSave = () => {
-    onSave(currentTemplate);
+    onSave(currentTemplate, currentProfTemplate);
     onClose();
   };
 
-  const replaceVariables = (text: string, hasMatches: boolean = true) => {
+  const replaceVariables = (text: string) => {
     return text
-      .replace(/\{\{nombre\}\}/g, "María García")
-      .replace(/\{\{evento\}\}/g, eventName || "Speed Dating");
+      .replace(/\{\{nombre\}\}/g, isProfessional ? "Juan García" : "María García")
+      .replace(/\{\{evento\}\}/g, eventName || (isProfessional ? "Business Networking 2024" : "Speed Dating"))
+      .replace(/\{\{empresa\}\}/g, "TechSoft Solutions");
   };
 
-  const renderPreviewWithMatches = () => {
+  const renderSocialPreviewWithMatches = () => {
     const t = currentTemplate.withMatches;
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
@@ -111,7 +167,7 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
     );
   };
 
-  const renderPreviewWithoutMatches = () => {
+  const renderSocialPreviewWithoutMatches = () => {
     const t = currentTemplate.withoutMatches;
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
@@ -119,13 +175,364 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
           <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
           <h2 className="font-bold text-lg">Konektum</h2>
         </div>
-        <h1 className="text-xl font-bold">{replaceVariables(t.greeting, false)}</h1>
-        <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message, false)}</p>
-        <p className="text-muted-foreground">{replaceVariables(t.closing, false)}</p>
+        <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
+        <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
+        <p className="text-muted-foreground">{replaceVariables(t.closing)}</p>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{t.signature}</p>
       </div>
     );
   };
+
+  const renderProfessionalPreviewWithConnections = () => {
+    const t = currentProfTemplate.withConnections;
+    return (
+      <div className="bg-background rounded-lg p-6 border space-y-4">
+        <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
+          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum Business</h2>
+          <p className="text-sm text-muted-foreground">Networking Profesional</p>
+        </div>
+        <p className="text-base">{replaceVariables(t.greeting)}</p>
+        <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
+        
+        <div className="space-y-2">
+          <h3 className="font-semibold" style={{ color: currentProfTemplate.primaryColor }}>{t.connectionsTitle}</h3>
+          <div className="bg-muted/30 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ backgroundColor: currentProfTemplate.primaryColor }} className="text-white">
+                  <th className="p-2 text-left">Empresa</th>
+                  <th className="p-2 text-left">Sector</th>
+                  <th className="p-2 text-left">Contacto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-muted">
+                  <td className="p-2 font-medium">ConsultingPro</td>
+                  <td className="p-2 text-muted-foreground">Consultoría</td>
+                  <td className="p-2">María López</td>
+                </tr>
+                <tr className="border-b border-muted">
+                  <td className="p-2 font-medium">InnovateTech</td>
+                  <td className="p-2 text-muted-foreground">Tecnología</td>
+                  <td className="p-2">Pedro Sánchez</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <p className="text-muted-foreground">{replaceVariables(t.closing)}</p>
+        <div className="border-t pt-4">
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{t.signature}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderProfessionalPreviewWithoutConnections = () => {
+    const t = currentProfTemplate.withoutConnections;
+    return (
+      <div className="bg-background rounded-lg p-6 border space-y-4">
+        <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
+          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum Business</h2>
+          <p className="text-sm text-muted-foreground">Networking Profesional</p>
+        </div>
+        <p className="text-base">{replaceVariables(t.greeting)}</p>
+        <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
+        <p className="text-muted-foreground">{replaceVariables(t.closing)}</p>
+        <div className="border-t pt-4">
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{t.signature}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSocialEditor = () => (
+    <Tabs defaultValue="with" className="w-full">
+      <TabsList className="w-full">
+        <TabsTrigger value="with" className="flex-1">
+          <Heart className="w-4 h-4 mr-2" />
+          Con Matches
+        </TabsTrigger>
+        <TabsTrigger value="without" className="flex-1">
+          <Users className="w-4 h-4 mr-2" />
+          Sin Matches
+        </TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="with" className="space-y-4 mt-4">
+        <div className="space-y-2">
+          <Label>Asunto</Label>
+          <Input
+            value={currentTemplate.withMatches.subject}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withMatches: { ...currentTemplate.withMatches, subject: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Saludo</Label>
+          <Input
+            value={currentTemplate.withMatches.greeting}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withMatches: { ...currentTemplate.withMatches, greeting: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Introducción</Label>
+          <Textarea
+            value={currentTemplate.withMatches.intro}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withMatches: { ...currentTemplate.withMatches, intro: e.target.value }
+            })}
+            rows={3}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Título Amistad</Label>
+            <Input
+              value={currentTemplate.withMatches.friendshipTitle}
+              onChange={(e) => setCurrentTemplate({
+                ...currentTemplate,
+                withMatches: { ...currentTemplate.withMatches, friendshipTitle: e.target.value }
+              })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Título Ligue</Label>
+            <Input
+              value={currentTemplate.withMatches.datingTitle}
+              onChange={(e) => setCurrentTemplate({
+                ...currentTemplate,
+                withMatches: { ...currentTemplate.withMatches, datingTitle: e.target.value }
+              })}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Cierre</Label>
+          <Textarea
+            value={currentTemplate.withMatches.closing}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withMatches: { ...currentTemplate.withMatches, closing: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Firma</Label>
+          <Textarea
+            value={currentTemplate.withMatches.signature}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withMatches: { ...currentTemplate.withMatches, signature: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="without" className="space-y-4 mt-4">
+        <div className="space-y-2">
+          <Label>Asunto</Label>
+          <Input
+            value={currentTemplate.withoutMatches.subject}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withoutMatches: { ...currentTemplate.withoutMatches, subject: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Saludo</Label>
+          <Input
+            value={currentTemplate.withoutMatches.greeting}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withoutMatches: { ...currentTemplate.withoutMatches, greeting: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Mensaje</Label>
+          <Textarea
+            value={currentTemplate.withoutMatches.message}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withoutMatches: { ...currentTemplate.withoutMatches, message: e.target.value }
+            })}
+            rows={6}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cierre</Label>
+          <Input
+            value={currentTemplate.withoutMatches.closing}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withoutMatches: { ...currentTemplate.withoutMatches, closing: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Firma</Label>
+          <Textarea
+            value={currentTemplate.withoutMatches.signature}
+            onChange={(e) => setCurrentTemplate({
+              ...currentTemplate,
+              withoutMatches: { ...currentTemplate.withoutMatches, signature: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
+
+  const renderProfessionalEditor = () => (
+    <Tabs defaultValue="with" className="w-full">
+      <TabsList className="w-full">
+        <TabsTrigger value="with" className="flex-1">
+          <Briefcase className="w-4 h-4 mr-2" />
+          Con Conexiones
+        </TabsTrigger>
+        <TabsTrigger value="without" className="flex-1">
+          <Building2 className="w-4 h-4 mr-2" />
+          Sin Conexiones
+        </TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="with" className="space-y-4 mt-4">
+        <div className="space-y-2">
+          <Label>Asunto</Label>
+          <Input
+            value={currentProfTemplate.withConnections.subject}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, subject: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Saludo</Label>
+          <Input
+            value={currentProfTemplate.withConnections.greeting}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, greeting: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Introducción</Label>
+          <Textarea
+            value={currentProfTemplate.withConnections.intro}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, intro: e.target.value }
+            })}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">Variables: {"{{nombre}}"}, {"{{evento}}"}, {"{{empresa}}"}</p>
+        </div>
+        <div className="space-y-2">
+          <Label>Título Conexiones</Label>
+          <Input
+            value={currentProfTemplate.withConnections.connectionsTitle}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, connectionsTitle: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cierre</Label>
+          <Textarea
+            value={currentProfTemplate.withConnections.closing}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, closing: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Firma</Label>
+          <Textarea
+            value={currentProfTemplate.withConnections.signature}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withConnections: { ...currentProfTemplate.withConnections, signature: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="without" className="space-y-4 mt-4">
+        <div className="space-y-2">
+          <Label>Asunto</Label>
+          <Input
+            value={currentProfTemplate.withoutConnections.subject}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withoutConnections: { ...currentProfTemplate.withoutConnections, subject: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Saludo</Label>
+          <Input
+            value={currentProfTemplate.withoutConnections.greeting}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withoutConnections: { ...currentProfTemplate.withoutConnections, greeting: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Mensaje</Label>
+          <Textarea
+            value={currentProfTemplate.withoutConnections.message}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withoutConnections: { ...currentProfTemplate.withoutConnections, message: e.target.value }
+            })}
+            rows={6}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Cierre</Label>
+          <Input
+            value={currentProfTemplate.withoutConnections.closing}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withoutConnections: { ...currentProfTemplate.withoutConnections, closing: e.target.value }
+            })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Firma</Label>
+          <Textarea
+            value={currentProfTemplate.withoutConnections.signature}
+            onChange={(e) => setCurrentProfTemplate({
+              ...currentProfTemplate,
+              withoutConnections: { ...currentProfTemplate.withoutConnections, signature: e.target.value }
+            })}
+            rows={2}
+          />
+        </div>
+      </TabsContent>
+    </Tabs>
+  );
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -140,12 +547,26 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
             <X className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Mail className="w-5 h-5 text-primary" />
+            <div 
+              className={`w-10 h-10 rounded-lg flex items-center justify-center ${!isProfessional ? "bg-primary/10" : ""}`}
+              style={isProfessional ? { backgroundColor: '#05966920' } : undefined}
+            >
+              {isProfessional ? (
+                <Building2 className="w-5 h-5" style={{ color: '#059669' }} />
+              ) : (
+                <Mail className="w-5 h-5 text-primary" />
+              )}
             </div>
             <div>
-              <CardTitle>Personalizar Plantilla de Email</CardTitle>
-              <CardDescription>Variables disponibles: {"{{nombre}}"}, {"{{evento}}"}</CardDescription>
+              <CardTitle>
+                {isProfessional ? "Plantilla Email Profesional" : "Personalizar Plantilla de Email"}
+              </CardTitle>
+              <CardDescription>
+                {isProfessional 
+                  ? "Variables disponibles: {{nombre}}, {{evento}}, {{empresa}}"
+                  : "Variables disponibles: {{nombre}}, {{evento}}"
+                }
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -154,170 +575,32 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Editor */}
             <div className="space-y-6">
-              <Tabs defaultValue="with" className="w-full">
-                <TabsList className="w-full">
-                  <TabsTrigger value="with" className="flex-1">
-                    <Heart className="w-4 h-4 mr-2" />
-                    Con Matches
-                  </TabsTrigger>
-                  <TabsTrigger value="without" className="flex-1">
-                    <Users className="w-4 h-4 mr-2" />
-                    Sin Matches
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="with" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Asunto</Label>
-                    <Input
-                      value={currentTemplate.withMatches.subject}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withMatches: { ...currentTemplate.withMatches, subject: e.target.value }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Saludo</Label>
-                    <Input
-                      value={currentTemplate.withMatches.greeting}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withMatches: { ...currentTemplate.withMatches, greeting: e.target.value }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Introducción</Label>
-                    <Textarea
-                      value={currentTemplate.withMatches.intro}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withMatches: { ...currentTemplate.withMatches, intro: e.target.value }
-                      })}
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Título Amistad</Label>
-                      <Input
-                        value={currentTemplate.withMatches.friendshipTitle}
-                        onChange={(e) => setCurrentTemplate({
-                          ...currentTemplate,
-                          withMatches: { ...currentTemplate.withMatches, friendshipTitle: e.target.value }
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Título Ligue</Label>
-                      <Input
-                        value={currentTemplate.withMatches.datingTitle}
-                        onChange={(e) => setCurrentTemplate({
-                          ...currentTemplate,
-                          withMatches: { ...currentTemplate.withMatches, datingTitle: e.target.value }
-                        })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cierre</Label>
-                    <Textarea
-                      value={currentTemplate.withMatches.closing}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withMatches: { ...currentTemplate.withMatches, closing: e.target.value }
-                      })}
-                      rows={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Firma</Label>
-                    <Textarea
-                      value={currentTemplate.withMatches.signature}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withMatches: { ...currentTemplate.withMatches, signature: e.target.value }
-                      })}
-                      rows={2}
-                    />
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="without" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Asunto</Label>
-                    <Input
-                      value={currentTemplate.withoutMatches.subject}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withoutMatches: { ...currentTemplate.withoutMatches, subject: e.target.value }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Saludo</Label>
-                    <Input
-                      value={currentTemplate.withoutMatches.greeting}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withoutMatches: { ...currentTemplate.withoutMatches, greeting: e.target.value }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Mensaje</Label>
-                    <Textarea
-                      value={currentTemplate.withoutMatches.message}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withoutMatches: { ...currentTemplate.withoutMatches, message: e.target.value }
-                      })}
-                      rows={6}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cierre</Label>
-                    <Input
-                      value={currentTemplate.withoutMatches.closing}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withoutMatches: { ...currentTemplate.withoutMatches, closing: e.target.value }
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Firma</Label>
-                    <Textarea
-                      value={currentTemplate.withoutMatches.signature}
-                      onChange={(e) => setCurrentTemplate({
-                        ...currentTemplate,
-                        withoutMatches: { ...currentTemplate.withoutMatches, signature: e.target.value }
-                      })}
-                      rows={2}
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+              {isProfessional ? renderProfessionalEditor() : renderSocialEditor()}
               
               <div className="space-y-2">
                 <Label>Color Principal</Label>
                 <div className="flex gap-2">
                   <Input
                     type="color"
-                    value={currentTemplate.primaryColor}
-                    onChange={(e) => setCurrentTemplate({
-                      ...currentTemplate,
-                      primaryColor: e.target.value
-                    })}
+                    value={isProfessional ? currentProfTemplate.primaryColor : currentTemplate.primaryColor}
+                    onChange={(e) => {
+                      if (isProfessional) {
+                        setCurrentProfTemplate({ ...currentProfTemplate, primaryColor: e.target.value });
+                      } else {
+                        setCurrentTemplate({ ...currentTemplate, primaryColor: e.target.value });
+                      }
+                    }}
                     className="w-12 h-10 p-1 cursor-pointer"
                   />
                   <Input
-                    value={currentTemplate.primaryColor}
-                    onChange={(e) => setCurrentTemplate({
-                      ...currentTemplate,
-                      primaryColor: e.target.value
-                    })}
+                    value={isProfessional ? currentProfTemplate.primaryColor : currentTemplate.primaryColor}
+                    onChange={(e) => {
+                      if (isProfessional) {
+                        setCurrentProfTemplate({ ...currentProfTemplate, primaryColor: e.target.value });
+                      } else {
+                        setCurrentTemplate({ ...currentTemplate, primaryColor: e.target.value });
+                      }
+                    }}
                     className="flex-1"
                   />
                 </div>
@@ -337,20 +620,23 @@ const EmailTemplateEditor = ({ template, eventName, onSave, onClose }: EmailTemp
                     size="sm"
                     onClick={() => setPreviewTab("with")}
                   >
-                    Con matches
+                    {isProfessional ? "Con conexiones" : "Con matches"}
                   </Button>
                   <Button
                     variant={previewTab === "without" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPreviewTab("without")}
                   >
-                    Sin matches
+                    {isProfessional ? "Sin conexiones" : "Sin matches"}
                   </Button>
                 </div>
               </div>
               
               <div className="bg-muted/30 rounded-lg p-4 min-h-[400px]">
-                {previewTab === "with" ? renderPreviewWithMatches() : renderPreviewWithoutMatches()}
+                {isProfessional 
+                  ? (previewTab === "with" ? renderProfessionalPreviewWithConnections() : renderProfessionalPreviewWithoutConnections())
+                  : (previewTab === "with" ? renderSocialPreviewWithMatches() : renderSocialPreviewWithoutMatches())
+                }
               </div>
             </div>
           </div>

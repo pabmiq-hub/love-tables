@@ -3390,7 +3390,9 @@ const EventDetail = () => {
         {showEmailEditor && (
           <EmailTemplateEditor
             template={eventData?.email_template || null}
+            professionalTemplate={(eventData as any)?.professional_email_template || null}
             eventName={eventData?.name || ""}
+            isProfessional={isProfessionalEvent}
             onSave={handleSaveEmailTemplate}
             onClose={() => setShowEmailEditor(false)}
           />

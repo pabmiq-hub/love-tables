@@ -116,6 +116,75 @@ const generateEmailHtml = (
   }
 };
 
+// Generate professional B2B email HTML
+const generateProfessionalEmailHtml = (
+  template: ProfessionalEmailTemplate,
+  participantName: string,
+  companyName: string,
+  eventName: string,
+  connections: { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[]
+): string => {
+  const hasConnections = connections.length > 0;
+  const variables = { nombre: participantName, empresa: companyName, evento: eventName };
+  
+  if (hasConnections) {
+    const t = template.withConnections;
+    const connectionsList = connections.map(c => 
+      `<tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 8px;font-weight:500;">${c.company}</td>
+        <td style="padding:12px 8px;color:#6b7280;">${c.sector}</td>
+        <td style="padding:12px 8px;">${c.contactPerson}</td>
+        <td style="padding:12px 8px;">${c.phone || '-'}</td>
+        <td style="padding:12px 8px;"><span style="background:${c.entityType === 'client' ? '#dbeafe' : '#d1fae5'};color:${c.entityType === 'client' ? '#1e40af' : '#047857'};padding:2px 8px;border-radius:4px;font-size:12px;">${c.entityType === 'client' ? 'Cliente' : 'Proveedor'}</span></td>
+      </tr>`
+    ).join('');
+    
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
+        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+        <p style="color:#6b7280;margin:4px 0 0 0;font-size:14px;">Networking Profesional</p>
+      </div>
+      <div style="padding:24px 0;">
+        <p style="font-size:16px;margin:0 0 16px 0;">${replaceVariables(t.greeting, variables)}</p>
+        <p style="color:#4b5563;line-height:1.6;">${replaceVariables(t.intro, variables)}</p>
+        
+        <div style="margin:24px 0;">
+          <h3 style="color:#059669;margin:0 0 16px 0;">${t.connectionsTitle}</h3>
+          <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden;">
+            <thead>
+              <tr style="background:#059669;color:white;">
+                <th style="padding:12px 8px;text-align:left;font-weight:500;">Empresa</th>
+                <th style="padding:12px 8px;text-align:left;font-weight:500;">Sector</th>
+                <th style="padding:12px 8px;text-align:left;font-weight:500;">Contacto</th>
+                <th style="padding:12px 8px;text-align:left;font-weight:500;">Teléfono</th>
+                <th style="padding:12px 8px;text-align:left;font-weight:500;">Tipo</th>
+              </tr>
+            </thead>
+            <tbody>${connectionsList}</tbody>
+          </table>
+        </div>
+        
+        <p style="color:#4b5563;line-height:1.6;">${replaceVariables(t.closing, variables)}</p>
+      </div>
+      <div style="border-top:1px solid #e5e7eb;padding-top:16px;color:#6b7280;font-size:14px;white-space:pre-line;">${t.signature}</div>
+    </body></html>`;
+  } else {
+    const t = template.withoutConnections;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
+        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+        <p style="color:#6b7280;margin:4px 0 0 0;font-size:14px;">Networking Profesional</p>
+      </div>
+      <div style="padding:24px 0;">
+        <p style="font-size:16px;margin:0 0 16px 0;">${replaceVariables(t.greeting, variables)}</p>
+        <p style="color:#4b5563;line-height:1.6;white-space:pre-line;">${replaceVariables(t.message, variables)}</p>
+        <p style="color:#4b5563;margin-top:16px;">${replaceVariables(t.closing, variables)}</p>
+      </div>
+      <div style="border-top:1px solid #e5e7eb;padding-top:16px;color:#6b7280;font-size:14px;white-space:pre-line;">${t.signature}</div>
+    </body></html>`;
+  }
+};
+
 // Rate limiting helpers
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
@@ -240,11 +309,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Verify user is the event organizer
-    const { data: event } = await supabase.from("events").select("name, email_template, organizer_id").eq("id", event_id).single();
+    // Verify user is the event organizer - include module and professional template
+    const { data: event } = await supabase
+      .from("events")
+      .select("name, email_template, organizer_id, module, professional_email_template")
+      .eq("id", event_id)
+      .single();
     if (!event) {
       return new Response(JSON.stringify({ error: "Event not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const isProfessional = event.module === 'professional';
+    console.log("Event type:", isProfessional ? "Professional" : "Social");
 
     if (event.organizer_id !== user.id) {
       console.log("User is not the organizer. User:", user.id, "Organizer:", event.organizer_id);
@@ -257,59 +333,158 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Authorization verified - user is event organizer");
 
     const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || DEFAULT_TEMPLATE;
+    const professionalTemplate: ProfessionalEmailTemplate = (event.professional_email_template as ProfessionalEmailTemplate) || DEFAULT_PROFESSIONAL_TEMPLATE;
     
     // Get participants - either all or specific ones
-    let participantsQuery = supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
-    if (participant_ids && participant_ids.length > 0) {
-      participantsQuery = participantsQuery.in("id", participant_ids);
+    interface BaseParticipant {
+      id: string;
+      name: string;
+      email: string | null;
+      phone: string | null;
     }
-    const { data: participants } = await participantsQuery;
-    
-    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type").eq("event_id", event_id);
+    interface ProfessionalParticipant extends BaseParticipant {
+      company_name: string | null;
+      entity_type: string | null;
+      sector: string | null;
+    }
 
-    // Get all participants for match calculation (even if sending to subset)
+    let participants: (BaseParticipant | ProfessionalParticipant)[] = [];
+    
+    if (isProfessional) {
+      let query = supabase
+        .from("participants")
+        .select("id, name, email, phone, company_name, entity_type, sector")
+        .eq("event_id", event_id);
+      if (participant_ids && participant_ids.length > 0) {
+        query = query.in("id", participant_ids);
+      }
+      const { data } = await query;
+      participants = (data || []) as ProfessionalParticipant[];
+    } else {
+      let query = supabase
+        .from("participants")
+        .select("id, name, email, phone")
+        .eq("event_id", event_id);
+      if (participant_ids && participant_ids.length > 0) {
+        query = query.in("id", participant_ids);
+      }
+      const { data } = await query;
+      participants = (data || []) as BaseParticipant[];
+    }
+    
+    // For social events, get selections for mutual match calculation
+    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type").eq("event_id", event_id);
+    
+    // For professional events, get table assignments to find connections
+    const { data: tableAssignments } = isProfessional 
+      ? await supabase.from("table_assignments").select("participant_id, table_number, round").eq("event_id", event_id)
+      : { data: null };
+
+    // Get all participants for match/connection calculation (even if sending to subset)
+    let allParticipantsMap = new Map<string, ProfessionalParticipant>();
+    if (isProfessional) {
+      const { data: allProf } = await supabase
+        .from("participants")
+        .select("id, name, email, phone, company_name, entity_type, sector")
+        .eq("event_id", event_id);
+      (allProf || []).forEach((p: any) => allParticipantsMap.set(p.id, p as ProfessionalParticipant));
+    }
+
     const { data: allParticipants } = await supabase.from("participants").select("id, name, email, phone").eq("event_id", event_id);
 
-    // Find mutual matches
+    // For professional events: build connections based on table assignments (who shared a table)
+    const connectionsByParticipant = new Map<string, { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[]>();
+    
+    if (isProfessional && tableAssignments) {
+      // Group assignments by table+round
+      const tableGroups = new Map<string, string[]>();
+      for (const ta of tableAssignments) {
+        const key = `${ta.table_number}-${ta.round}`;
+        if (!tableGroups.has(key)) tableGroups.set(key, []);
+        tableGroups.get(key)!.push(ta.participant_id);
+      }
+      
+      // For each group, create connections between participants
+      for (const [_, participantIds] of tableGroups) {
+        if (participantIds.length < 2) continue;
+        for (let i = 0; i < participantIds.length; i++) {
+          for (let j = i + 1; j < participantIds.length; j++) {
+            const p1 = allParticipantsMap.get(participantIds[i]);
+            const p2 = allParticipantsMap.get(participantIds[j]);
+            if (!p1 || !p2) continue;
+            
+            // Add p2 as connection for p1
+            if (!connectionsByParticipant.has(p1.id)) connectionsByParticipant.set(p1.id, []);
+            const existing1 = connectionsByParticipant.get(p1.id)!;
+            if (!existing1.some(c => c.contactPerson === p2.name && c.company === (p2.company_name || ''))) {
+              existing1.push({
+                company: p2.company_name || 'N/A',
+                sector: p2.sector || 'N/A',
+                contactPerson: p2.name,
+                phone: p2.phone,
+                entityType: p2.entity_type || 'client'
+              });
+            }
+            
+            // Add p1 as connection for p2
+            if (!connectionsByParticipant.has(p2.id)) connectionsByParticipant.set(p2.id, []);
+            const existing2 = connectionsByParticipant.get(p2.id)!;
+            if (!existing2.some(c => c.contactPerson === p1.name && c.company === (p1.company_name || ''))) {
+              existing2.push({
+                company: p1.company_name || 'N/A',
+                sector: p1.sector || 'N/A',
+                contactPerson: p1.name,
+                phone: p1.phone,
+                entityType: p1.entity_type || 'client'
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Find mutual matches (for social events)
     const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null }[]; dating: { name: string; phone: string | null }[] }>();
     const processed = new Set<string>();
 
-    for (const sel of selections || []) {
-      const key = [sel.selector_id, sel.selected_id].sort().join('-');
-      if (processed.has(key)) continue;
-      const reverse = selections?.find(s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id);
-      if (reverse) {
-        const sel1Type = sel.selection_type || 'friendship';
-        const sel2Type = reverse.selection_type || 'friendship';
-        const matchedWith = allParticipants?.find(p => p.id === sel.selected_id);
-        const selector = allParticipants?.find(p => p.id === sel.selector_id);
-        if (matchedWith && selector) {
-          const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
-          const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
-          
-          if (!matchesByParticipant.has(sel.selector_id)) matchesByParticipant.set(sel.selector_id, { friendship: [], dating: [] });
-          if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
-          
-          if (hasFriendship) {
-            matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone });
-            matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone });
+    if (!isProfessional) {
+      for (const sel of selections || []) {
+        const key = [sel.selector_id, sel.selected_id].sort().join('-');
+        if (processed.has(key)) continue;
+        const reverse = selections?.find(s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id);
+        if (reverse) {
+          const sel1Type = sel.selection_type || 'friendship';
+          const sel2Type = reverse.selection_type || 'friendship';
+          const matchedWith = allParticipants?.find(p => p.id === sel.selected_id);
+          const selector = allParticipants?.find(p => p.id === sel.selector_id);
+          if (matchedWith && selector) {
+            const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
+            const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
+            
+            if (!matchesByParticipant.has(sel.selector_id)) matchesByParticipant.set(sel.selector_id, { friendship: [], dating: [] });
+            if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
+            
+            if (hasFriendship) {
+              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone });
+              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone });
+            }
+            if (hasDating) {
+              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone });
+              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone });
+            }
           }
-          if (hasDating) {
-            matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone });
-            matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone });
-          }
+          processed.add(key);
         }
-        processed.add(key);
       }
     }
 
     const stats = { total: 0, withMatches: 0, withoutMatches: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
-    console.log(`Starting to send emails to ${participants?.length || 0} participants with rate limiting...`);
+    console.log(`Starting to send emails to ${participants.length} participants with rate limiting...`);
     
-    for (let i = 0; i < (participants || []).length; i++) {
-      const participant = participants![i];
+    for (let i = 0; i < participants.length; i++) {
+      const participant = participants[i];
       stats.total++;
       
       if (!participant.email) { 
@@ -317,14 +492,41 @@ const handler = async (req: Request): Promise<Response> => {
         continue; 
       }
 
-      const pm = matchesByParticipant.get(participant.id);
-      const friendshipMatches = pm?.friendship || [];
-      const datingMatches = pm?.dating || [];
-      const hasMatches = friendshipMatches.length > 0 || datingMatches.length > 0;
-      const subject = hasMatches 
-        ? replaceVariables(template.withMatches.subject, { nombre: participant.name, evento: event.name }) 
-        : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
-      const html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
+      let subject: string;
+      let html: string;
+
+      if (isProfessional) {
+        // Professional event: use connections and professional template
+        const profParticipant = participant as ProfessionalParticipant;
+        const connections = connectionsByParticipant.get(participant.id) || [];
+        const hasConnections = connections.length > 0;
+        
+        subject = hasConnections
+          ? replaceVariables(professionalTemplate.withConnections.subject, { nombre: participant.name, empresa: profParticipant.company_name || '', evento: event.name })
+          : replaceVariables(professionalTemplate.withoutConnections.subject, { nombre: participant.name, empresa: profParticipant.company_name || '', evento: event.name });
+        
+        html = generateProfessionalEmailHtml(
+          professionalTemplate,
+          participant.name,
+          profParticipant.company_name || '',
+          event.name,
+          connections
+        );
+        
+        if (hasConnections) stats.withMatches++;
+        else stats.withoutMatches++;
+      } else {
+        // Social event: use matches and social template
+        const pm = matchesByParticipant.get(participant.id);
+        const friendshipMatches = pm?.friendship || [];
+        const datingMatches = pm?.dating || [];
+        const hasMatches = friendshipMatches.length > 0 || datingMatches.length > 0;
+        
+        subject = hasMatches 
+          ? replaceVariables(template.withMatches.subject, { nombre: participant.name, evento: event.name }) 
+          : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
+        html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
+      }
 
       const result = await sendEmailWithRetry(
         resendApiKey,
@@ -337,26 +539,24 @@ const handler = async (req: Request): Promise<Response> => {
         supabase,
         event_id,
         participant.id,
-        'match',
+        isProfessional ? 'connection' : 'match',
         result.success ? 'sent' : 'failed',
         result.error
       );
 
-      if (result.success) {
-        hasMatches ? stats.withMatches++ : stats.withoutMatches++;
-      } else {
+      if (!result.success) {
         errors.push(`${participant.name}: ${result.error}`);
         stats.failed++;
       }
 
       // Rate limiting: wait between emails (except for the last one)
-      if (i < (participants || []).length - 1) {
+      if (i < participants.length - 1) {
         await delay(DELAY_BETWEEN_EMAILS);
       }
       
       // Log progress every 10 emails
       if ((i + 1) % 10 === 0) {
-        console.log(`Progress: ${i + 1}/${participants?.length} emails processed`);
+        console.log(`Progress: ${i + 1}/${participants.length} emails processed`);
       }
     }
 
