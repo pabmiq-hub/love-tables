@@ -1,16 +1,14 @@
 import { Footer } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
-
 const TerminosCondiciones = () => {
-  return (
-    <>
+  return <>
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <h1 className="text-4xl font-display font-bold mb-8">Términos y Condiciones</h1>
           
           <div className="prose prose-gray max-w-none space-y-6">
-            <p className="text-muted-foreground">Última actualización: Diciembre 2024</p>
+            <p className="text-muted-foreground">Última actualización: 26 de enero de 2026</p>
             
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">1. Aceptación de los términos</h2>
@@ -59,14 +57,12 @@ const TerminosCondiciones = () => {
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">8. Contacto</h2>
-              <p className="text-muted-foreground">Para cualquier consulta sobre estos términos, contacta con [TU_EMAIL].</p>
+              <p className="text-muted-foreground">Para cualquier consulta sobre estos términos, contacta con hola@konektum.com</p>
             </section>
           </div>
         </div>
       </main>
       <Footer />
-    </>
-  );
+    </>;
 };
-
 export default TerminosCondiciones;
