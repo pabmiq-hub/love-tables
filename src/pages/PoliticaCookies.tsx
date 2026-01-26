@@ -1,16 +1,14 @@
 import { Footer } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
-
 const PoliticaCookies = () => {
-  return (
-    <>
+  return <>
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <h1 className="text-4xl font-display font-bold mb-8">Política de Cookies</h1>
           
           <div className="prose prose-gray max-w-none space-y-6">
-            <p className="text-muted-foreground">Última actualización: Diciembre 2024</p>
+            <p className="text-muted-foreground">Última actualización: 26 de enero de 2026</p>
             
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">1. ¿Qué son las cookies?</h2>
@@ -50,8 +48,6 @@ const PoliticaCookies = () => {
         </div>
       </main>
       <Footer />
-    </>
-  );
+    </>;
 };
-
 export default PoliticaCookies;
