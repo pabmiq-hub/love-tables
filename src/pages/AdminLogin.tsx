@@ -41,54 +41,63 @@ const AdminLogin = () => {
     }
   };
 
-  // Check organizer status and redirect accordingly
-  const checkOrganizerAndRedirect = async () => {
-    if (!user) return;
-    
-    // First check if super admin
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "super_admin")
-      .maybeSingle();
-    
-    if (roleData) {
-      navigate("/super-admin");
-      return;
-    }
-    
-    // Check organizer profile
-    const { data: orgData } = await supabase
-      .from("organizers")
-      .select("status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    
-    if (orgData) {
-      if (orgData.status === "active") {
-        navigate("/admin/dashboard");
-      } else if (orgData.status === "pending") {
-        navigate("/admin/pending-approval");
-      } else if (orgData.status === "suspended") {
-        toast({
-          title: "Cuenta suspendida",
-          description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // No organizer profile, maybe old user - redirect to register
-      navigate("/admin/register");
-    }
-  };
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
+    const checkOrganizerAndRedirect = async () => {
+      if (!user || isRedirecting) return;
+      
+      setIsRedirecting(true);
+      
+      try {
+        // First check if super admin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "super_admin")
+          .maybeSingle();
+        
+        if (roleData) {
+          navigate("/super-admin", { replace: true });
+          return;
+        }
+        
+        // Check organizer profile
+        const { data: orgData } = await supabase
+          .from("organizers")
+          .select("status")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        if (orgData) {
+          if (orgData.status === "active") {
+            navigate("/admin/dashboard", { replace: true });
+          } else if (orgData.status === "pending") {
+            navigate("/admin/pending-approval", { replace: true });
+          } else if (orgData.status === "suspended") {
+            toast({
+              title: "Cuenta suspendida",
+              description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
+              variant: "destructive",
+            });
+            setIsRedirecting(false);
+          }
+        } else {
+          // No organizer profile, maybe old user - redirect to register
+          navigate("/admin/register", { replace: true });
+        }
+      } catch (error) {
+        console.error("Error checking organizer status:", error);
+        setIsRedirecting(false);
+      }
+    };
+
     if (!loading && user) {
       checkOrganizerAndRedirect();
     }
-  }, [user, loading]);
+  }, [user, loading, navigate, toast, isRedirecting]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
