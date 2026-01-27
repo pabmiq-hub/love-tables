@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Heart, Briefcase, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, Briefcase, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Module {
@@ -15,28 +16,73 @@ interface ModuleSelectorProps {
   onModulesChange: (modules: string[]) => void;
 }
 
+const FALLBACK_MODULES: Module[] = [
+  { 
+    code: "social", 
+    name: "Módulo Social", 
+    description: "Eventos de speed dating con preferencias personales y matching romántico" 
+  },
+  { 
+    code: "professional", 
+    name: "Módulo Profesional", 
+    description: "Networking B2B con matching cliente-proveedor por sector y necesidades" 
+  }
+];
+
 export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelectorProps) {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadModules();
   }, []);
 
   const loadModules = async () => {
-    const { data } = await supabase
-      .from("modules")
-      .select("code, name, description")
-      .eq("is_active", true);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("modules")
+        .select("code, name, description")
+        .eq("is_active", true);
 
-    if (data) {
-      setModules(data);
-      // Default to social if nothing selected
-      if (selectedModules.length === 0 && data.length > 0) {
+      if (fetchError) {
+        console.error("Error fetching modules:", fetchError);
+        setError("Error cargando módulos");
+        // Use fallback modules
+        setModules(FALLBACK_MODULES);
+        if (selectedModules.length === 0) {
+          onModulesChange(["social"]);
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setModules(data);
+        if (selectedModules.length === 0) {
+          onModulesChange(["social"]);
+        }
+      } else {
+        // No modules in DB, use fallback
+        console.warn("No modules found in database, using fallback");
+        setModules(FALLBACK_MODULES);
+        if (selectedModules.length === 0) {
+          onModulesChange(["social"]);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading modules:", err);
+      setError("Error de conexión");
+      // Use fallback modules even on error
+      setModules(FALLBACK_MODULES);
+      if (selectedModules.length === 0) {
         onModulesChange(["social"]);
       }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const toggleModule = (code: string) => {
@@ -74,7 +120,7 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
 
   if (loading) {
     return (
-      <div className="flex justify-center py-4">
+      <div className="flex justify-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -85,6 +131,21 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
       <p className="text-sm text-muted-foreground text-center mb-4">
         Selecciona los módulos que deseas utilizar
       </p>
+      
+      {error && (
+        <div className="flex items-center justify-center gap-2 text-amber-600 text-sm mb-4">
+          <span>{error} - Mostrando opciones disponibles</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={loadModules}
+            className="h-6 px-2"
+          >
+            <RefreshCw className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+      
       <div className="grid gap-3">
         {modules.map((module) => {
           const isSelected = selectedModules.includes(module.code);
