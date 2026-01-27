@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,14 +41,14 @@ const AdminLogin = () => {
     }
   };
 
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const isRedirecting = useRef(false);
 
   // Redirect if already authenticated
   useEffect(() => {
     const checkOrganizerAndRedirect = async () => {
-      if (!user || isRedirecting) return;
+      if (!user || isRedirecting.current) return;
       
-      setIsRedirecting(true);
+      isRedirecting.current = true;
       
       try {
         // First check if super admin
@@ -82,7 +82,7 @@ const AdminLogin = () => {
               description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
               variant: "destructive",
             });
-            setIsRedirecting(false);
+            isRedirecting.current = false;
           }
         } else {
           // No organizer profile, maybe old user - redirect to register
@@ -90,14 +90,14 @@ const AdminLogin = () => {
         }
       } catch (error) {
         console.error("Error checking organizer status:", error);
-        setIsRedirecting(false);
+        isRedirecting.current = false;
       }
     };
 
     if (!loading && user) {
       checkOrganizerAndRedirect();
     }
-  }, [user, loading, navigate, toast, isRedirecting]);
+  }, [user, loading, navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
