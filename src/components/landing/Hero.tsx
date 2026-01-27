@@ -60,7 +60,7 @@ export const Hero = () => {
       }}>
           <Link to="/admin/register" className="w-full sm:w-auto">
             <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity gap-2 text-sm sm:text-base px-6 sm:px-8">
-              Crear mi primer evento
+              Crear cuenta   
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
