@@ -1,38 +1,55 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Heart, Briefcase, Layers, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Heart, Briefcase, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Module {
-  code: string;
+interface ModuleOption {
+  id: string;
   name: string;
-  description: string | null;
+  description: string;
+  modules: string[];
+  icon: React.ReactNode;
+  color: string;
 }
+
+const MODULE_OPTIONS: ModuleOption[] = [
+  {
+    id: "social",
+    name: "Social",
+    description: "Eventos de speed dating con preferencias personales y matching romántico",
+    modules: ["social"],
+    icon: <Heart className="w-6 h-6" />,
+    color: "text-pink-500 bg-pink-500/10"
+  },
+  {
+    id: "professional",
+    name: "Profesional",
+    description: "Networking B2B con matching cliente-proveedor por sector y necesidades",
+    modules: ["professional"],
+    icon: <Briefcase className="w-6 h-6" />,
+    color: "text-blue-500 bg-blue-500/10"
+  },
+  {
+    id: "both",
+    name: "Social y Profesional",
+    description: "Acceso completo a ambos módulos para máxima flexibilidad en tus eventos",
+    modules: ["social", "professional"],
+    icon: <Layers className="w-6 h-6" />,
+    color: "text-purple-500 bg-purple-500/10"
+  }
+];
 
 interface ModuleSelectorProps {
   selectedModules: string[];
   onModulesChange: (modules: string[]) => void;
 }
 
-const FALLBACK_MODULES: Module[] = [
-  { 
-    code: "social", 
-    name: "Módulo Social", 
-    description: "Eventos de speed dating con preferencias personales y matching romántico" 
-  },
-  { 
-    code: "professional", 
-    name: "Módulo Profesional", 
-    description: "Networking B2B con matching cliente-proveedor por sector y necesidades" 
-  }
-];
-
 export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelectorProps) {
-  const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableModuleCodes, setAvailableModuleCodes] = useState<string[]>([]);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     loadModules();
@@ -45,77 +62,50 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
     try {
       const { data, error: fetchError } = await supabase
         .from("modules")
-        .select("code, name, description")
+        .select("code")
         .eq("is_active", true);
 
       if (fetchError) {
         console.error("Error fetching modules:", fetchError);
         setError("Error cargando módulos");
-        // Use fallback modules
-        setModules(FALLBACK_MODULES);
-        if (selectedModules.length === 0) {
-          onModulesChange(["social"]);
-        }
-        return;
-      }
-
-      if (data && data.length > 0) {
-        setModules(data);
-        if (selectedModules.length === 0) {
-          onModulesChange(["social"]);
-        }
+        setAvailableModuleCodes(["social", "professional"]);
+      } else if (data && data.length > 0) {
+        setAvailableModuleCodes(data.map(m => m.code));
       } else {
-        // No modules in DB, use fallback
-        console.warn("No modules found in database, using fallback");
-        setModules(FALLBACK_MODULES);
-        if (selectedModules.length === 0) {
-          onModulesChange(["social"]);
-        }
+        setAvailableModuleCodes(["social", "professional"]);
       }
     } catch (err) {
       console.error("Error loading modules:", err);
       setError("Error de conexión");
-      // Use fallback modules even on error
-      setModules(FALLBACK_MODULES);
-      if (selectedModules.length === 0) {
-        onModulesChange(["social"]);
-      }
+      setAvailableModuleCodes(["social", "professional"]);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleModule = (code: string) => {
-    if (selectedModules.includes(code)) {
-      // Don't allow deselecting if it's the only one
-      if (selectedModules.length > 1) {
-        onModulesChange(selectedModules.filter(m => m !== code));
-      }
-    } else {
-      onModulesChange([...selectedModules, code]);
+  // Set default selection only once after loading, without causing re-renders
+  useEffect(() => {
+    if (!loading && !hasInitialized.current && selectedModules.length === 0) {
+      hasInitialized.current = true;
+      // Use setTimeout to break the synchronous update cycle
+      setTimeout(() => {
+        onModulesChange(["social"]);
+      }, 0);
     }
+  }, [loading, selectedModules.length, onModulesChange]);
+
+  const getSelectedOptionId = (): string => {
+    if (selectedModules.includes("social") && selectedModules.includes("professional")) {
+      return "both";
+    }
+    if (selectedModules.includes("professional")) {
+      return "professional";
+    }
+    return "social";
   };
 
-  const getModuleIcon = (code: string) => {
-    switch (code) {
-      case "social":
-        return <Heart className="w-6 h-6" />;
-      case "professional":
-        return <Briefcase className="w-6 h-6" />;
-      default:
-        return <Heart className="w-6 h-6" />;
-    }
-  };
-
-  const getModuleColor = (code: string) => {
-    switch (code) {
-      case "social":
-        return "text-pink-500 bg-pink-500/10";
-      case "professional":
-        return "text-blue-500 bg-blue-500/10";
-      default:
-        return "text-primary bg-primary/10";
-    }
+  const handleSelect = (option: ModuleOption) => {
+    onModulesChange(option.modules);
   };
 
   if (loading) {
@@ -126,10 +116,12 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
     );
   }
 
+  const selectedOptionId = getSelectedOptionId();
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground text-center mb-4">
-        Selecciona los módulos que deseas utilizar
+        Selecciona el tipo de eventos que organizarás
       </p>
       
       {error && (
@@ -147,37 +139,38 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
       )}
       
       <div className="grid gap-3">
-        {modules.map((module) => {
-          const isSelected = selectedModules.includes(module.code);
+        {MODULE_OPTIONS.map((option) => {
+          const isSelected = selectedOptionId === option.id;
           return (
             <Card 
-              key={module.code}
+              key={option.id}
               className={`cursor-pointer transition-all duration-200 ${
                 isSelected 
                   ? "ring-2 ring-primary bg-primary/5" 
                   : "hover:bg-muted/50"
               }`}
-              onClick={() => toggleModule(module.code)}
+              onClick={() => handleSelect(option)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getModuleColor(module.code)}`}>
-                    {getModuleIcon(module.code)}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${option.color}`}>
+                    {option.icon}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium">{module.name}</h4>
-                      <Checkbox 
-                        checked={isSelected}
-                        onCheckedChange={() => toggleModule(module.code)}
-                      />
+                      <h4 className="font-medium">{option.name}</h4>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        isSelected 
+                          ? "border-primary bg-primary" 
+                          : "border-muted-foreground"
+                      }`}>
+                        {isSelected && (
+                          <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {module.description || (
-                        module.code === "social" 
-                          ? "Eventos de speed dating con preferencias personales y matching romántico"
-                          : "Networking B2B con matching cliente-proveedor por sector y necesidades"
-                      )}
+                      {option.description}
                     </p>
                   </div>
                 </div>
@@ -186,9 +179,6 @@ export function ModuleSelector({ selectedModules, onModulesChange }: ModuleSelec
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground text-center mt-2">
-        Puedes activar ambos módulos para mayor flexibilidad
-      </p>
     </div>
   );
 }
