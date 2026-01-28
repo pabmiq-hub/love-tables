@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Shield } from "lucide-react";
 import konektumLogo from "@/assets/konektum-logo.png";
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -90,12 +91,21 @@ export const Footer = () => {
           <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             © {currentYear} Konektum. Todos los derechos reservados.
           </p>
-          <button onClick={() => {
-          // Trigger cookie settings modal
-          window.dispatchEvent(new CustomEvent('open-cookie-settings'));
-        }} className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Configurar cookies
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => {
+              // Trigger cookie settings modal
+              window.dispatchEvent(new CustomEvent('open-cookie-settings'));
+            }} className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Configurar cookies
+            </button>
+            <Link 
+              to="/super-admin/login" 
+              className="text-xs text-muted-foreground/40 hover:text-muted-foreground transition-colors flex items-center gap-1"
+            >
+              <Shield className="w-3 h-3" />
+              Admin
+            </Link>
+          </div>
         </div>
       </div>
     </footer>;

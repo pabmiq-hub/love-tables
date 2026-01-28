@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import AdminLogin from "./pages/AdminLogin";
+import SuperAdminLogin from "./pages/SuperAdminLogin";
 import AdminRegister from "./pages/AdminRegister";
 import AdminResetPassword from "./pages/AdminResetPassword";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/admin/pending-approval" element={<PendingApproval />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/super-admin" element={<SuperAdminDashboard />} />
+          <Route path="/super-admin/login" element={<SuperAdminLogin />} />
           <Route path="/admin/events/new" element={<CreateEvent />} />
           <Route path="/admin/events/:id" element={<EventDetail />} />
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
