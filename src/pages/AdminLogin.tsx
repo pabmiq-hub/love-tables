@@ -45,57 +45,74 @@ const AdminLogin = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    const checkOrganizerAndRedirect = async () => {
+    const checkAndRedirect = async () => {
       if (!user || isRedirecting.current) return;
       
       isRedirecting.current = true;
       
       try {
-        // First check if super admin
-        const { data: roleData } = await supabase
+        // 1. FIRST check if Super Admin
+        const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .eq("role", "super_admin")
           .maybeSingle();
         
+        if (roleError) {
+          console.error("Error checking super admin role:", roleError);
+        }
+        
         if (roleData) {
+          console.log("Super Admin detected, redirecting...");
           navigate("/super-admin", { replace: true });
           return;
         }
         
-        // Check organizer profile
-        const { data: orgData } = await supabase
+        // 2. THEN check organizer profile
+        const { data: orgData, error: orgError } = await supabase
           .from("organizers")
           .select("status")
           .eq("user_id", user.id)
           .maybeSingle();
         
+        if (orgError) {
+          console.error("Error checking organizer profile:", orgError);
+          isRedirecting.current = false;
+          return;
+        }
+        
         if (orgData) {
-          if (orgData.status === "active") {
-            navigate("/admin/dashboard", { replace: true });
-          } else if (orgData.status === "pending") {
-            navigate("/admin/pending-approval", { replace: true });
-          } else if (orgData.status === "suspended") {
-            toast({
-              title: "Cuenta suspendida",
-              description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
-              variant: "destructive",
-            });
-            isRedirecting.current = false;
+          switch (orgData.status) {
+            case "active":
+              navigate("/admin/dashboard", { replace: true });
+              break;
+            case "pending":
+              navigate("/admin/pending-approval", { replace: true });
+              break;
+            case "suspended":
+              toast({
+                title: "Cuenta suspendida",
+                description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
+                variant: "destructive",
+              });
+              isRedirecting.current = false;
+              break;
+            default:
+              isRedirecting.current = false;
           }
         } else {
-          // No organizer profile, maybe old user - redirect to register
+          // No organizer profile - redirect to register to complete
           navigate("/admin/register", { replace: true });
         }
       } catch (error) {
-        console.error("Error checking organizer status:", error);
+        console.error("Error in redirect check:", error);
         isRedirecting.current = false;
       }
     };
 
     if (!loading && user) {
-      checkOrganizerAndRedirect();
+      checkAndRedirect();
     }
   }, [user, loading, navigate, toast]);
 
