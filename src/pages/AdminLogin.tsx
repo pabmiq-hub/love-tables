@@ -42,13 +42,12 @@ const AdminLogin = () => {
   };
 
   const isRedirecting = useRef(false);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated AND has proper profile
   useEffect(() => {
     const checkAndRedirect = async () => {
       if (!user || isRedirecting.current) return;
-      
-      isRedirecting.current = true;
       
       try {
         // 1. FIRST check if Super Admin
@@ -65,6 +64,7 @@ const AdminLogin = () => {
         
         if (roleData) {
           console.log("Super Admin detected, redirecting...");
+          isRedirecting.current = true;
           navigate("/super-admin", { replace: true });
           return;
         }
@@ -78,11 +78,12 @@ const AdminLogin = () => {
         
         if (orgError) {
           console.error("Error checking organizer profile:", orgError);
-          isRedirecting.current = false;
           return;
         }
         
         if (orgData) {
+          // User has organizer profile - redirect based on status
+          isRedirecting.current = true;
           switch (orgData.status) {
             case "active":
               navigate("/admin/dashboard", { replace: true });
@@ -96,18 +97,20 @@ const AdminLogin = () => {
                 description: "Tu cuenta ha sido suspendida. Contacta con soporte.",
                 variant: "destructive",
               });
+              // Sign out suspended users
+              await supabase.auth.signOut();
               isRedirecting.current = false;
               break;
             default:
               isRedirecting.current = false;
           }
         } else {
-          // No organizer profile - redirect to register to complete
-          navigate("/admin/register", { replace: true });
+          // User is authenticated but has NO organizer profile
+          // Show a message suggesting they complete registration
+          setNeedsRegistration(true);
         }
       } catch (error) {
         console.error("Error in redirect check:", error);
-        isRedirecting.current = false;
       }
     };
 
@@ -129,6 +132,7 @@ const AdminLogin = () => {
     }
 
     setIsLoading(true);
+    setNeedsRegistration(false);
 
     const { error } = await signIn(email, password);
     
@@ -270,6 +274,32 @@ const AdminLogin = () => {
                 </Button>
               </form>
             )
+          ) : needsRegistration ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
+                <p className="text-sm text-warning-foreground">
+                  Tu cuenta existe pero no tienes un perfil de organizador. 
+                  Por favor, completa tu registro para continuar.
+                </p>
+              </div>
+              <Button 
+                variant="hero" 
+                className="w-full"
+                onClick={() => navigate("/admin/register")}
+              >
+                Completar registro
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  setNeedsRegistration(false);
+                }}
+              >
+                Cerrar sesión y usar otra cuenta
+              </Button>
+            </div>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
