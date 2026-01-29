@@ -28,22 +28,29 @@ const SuperAdminLogin = () => {
       
       hasCheckedAuth.current = true;
       
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .eq("role", "super_admin")
-          .maybeSingle();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (roleData) {
-          isRedirecting.current = true;
-          navigate("/super-admin", { replace: true });
-          return;
+        if (session?.user) {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .eq("role", "super_admin")
+            .maybeSingle();
+          
+          if (roleData) {
+            isRedirecting.current = true;
+            setIsCheckingAuth(false); // Set before navigate to prevent flash
+            navigate("/super-admin", { replace: true });
+            return;
+          }
         }
+      } catch (error) {
+        console.error("Error checking session:", error);
+        hasCheckedAuth.current = false;
       }
+      
       setIsCheckingAuth(false);
     };
 
