@@ -80,7 +80,7 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) {
-      navigate("/admin/login");
+      navigate("/super-admin/login", { replace: true });
     }
   }, [loading, isSuperAdmin, navigate]);
 
@@ -95,7 +95,7 @@ export default function SuperAdminDashboard() {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/admin/login");
+    navigate("/super-admin/login", { replace: true });
   };
 
   const handleStatusChange = async (organizerId: string, status: string) => {

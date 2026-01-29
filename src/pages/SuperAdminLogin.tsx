@@ -18,13 +18,19 @@ const SuperAdminLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isRedirecting = useRef(false);
+  const hasCheckedAuth = useRef(false);
 
   // Check if already authenticated as super admin
   useEffect(() => {
     const checkExistingSession = async () => {
+      // Prevent multiple executions
+      if (isRedirecting.current || hasCheckedAuth.current) return;
+      
+      hasCheckedAuth.current = true;
+      
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session?.user && !isRedirecting.current) {
+      if (session?.user) {
         const { data: roleData } = await supabase
           .from("user_roles")
           .select("role")

@@ -42,12 +42,26 @@ const AdminLogin = () => {
   };
 
   const isRedirecting = useRef(false);
+  const hasCheckedAuth = useRef(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const [needsRegistration, setNeedsRegistration] = useState(false);
+
+  // Reset flags when user changes (logout/login with different account)
+  useEffect(() => {
+    hasCheckedAuth.current = false;
+    isRedirecting.current = false;
+    setNeedsRegistration(false);
+    setIsCheckingAuth(false);
+  }, [user?.id]);
 
   // Redirect if already authenticated AND has proper profile
   useEffect(() => {
     const checkAndRedirect = async () => {
-      if (!user || isRedirecting.current) return;
+      // Prevent multiple executions
+      if (!user || isRedirecting.current || hasCheckedAuth.current) return;
+      
+      hasCheckedAuth.current = true;
+      setIsCheckingAuth(true);
       
       try {
         // 1. FIRST check if Super Admin
@@ -78,6 +92,8 @@ const AdminLogin = () => {
         
         if (orgError) {
           console.error("Error checking organizer profile:", orgError);
+          hasCheckedAuth.current = false;
+          setIsCheckingAuth(false);
           return;
         }
         
@@ -99,9 +115,11 @@ const AdminLogin = () => {
               });
               // Sign out suspended users
               await supabase.auth.signOut();
+              hasCheckedAuth.current = false;
               isRedirecting.current = false;
               break;
             default:
+              hasCheckedAuth.current = false;
               isRedirecting.current = false;
           }
         } else {
@@ -111,6 +129,9 @@ const AdminLogin = () => {
         }
       } catch (error) {
         console.error("Error in redirect check:", error);
+        hasCheckedAuth.current = false;
+      } finally {
+        setIsCheckingAuth(false);
       }
     };
 
@@ -186,7 +207,7 @@ const AdminLogin = () => {
     setIsLoading(false);
   };
 
-  if (loading) {
+  if (loading || isCheckingAuth) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

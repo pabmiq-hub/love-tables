@@ -8,12 +8,17 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let initialLoadDone = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        // Only set loading false for subsequent auth changes, not initial load
+        if (initialLoadDone) {
+          // Auth state changed after initial load - no need to update loading
+        }
       }
     );
 
@@ -21,7 +26,8 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
+      initialLoadDone = true;
+      setLoading(false); // Only set loading false here
     });
 
     return () => subscription.unsubscribe();
