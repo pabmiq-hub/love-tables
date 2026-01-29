@@ -52,7 +52,7 @@ interface GlobalMetrics {
 }
 
 export function useSuperAdmin() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [organizers, setOrganizers] = useState<OrganizerWithPlan[]>([]);
@@ -61,6 +61,12 @@ export function useSuperAdmin() {
   const [metrics, setMetrics] = useState<GlobalMetrics | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading first
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
     if (!user) {
       setIsSuperAdmin(false);
       setLoading(false);
@@ -68,7 +74,7 @@ export function useSuperAdmin() {
     }
 
     checkSuperAdminStatus();
-  }, [user]);
+  }, [user, authLoading]);
 
   const checkSuperAdminStatus = async () => {
     if (!user) return;
