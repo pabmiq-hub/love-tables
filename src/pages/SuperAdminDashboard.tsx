@@ -50,10 +50,12 @@ import {
   BarChart3,
   Settings,
   Loader2,
+  Sliders,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { OrganizerFeaturesModal } from "@/components/admin/OrganizerFeaturesModal";
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -66,17 +68,27 @@ export default function SuperAdminDashboard() {
     plans,
     modules,
     metrics,
+    features,
+    organizerFeatures,
+    planFeatures,
     loadOrganizers,
     loadPlans,
     loadModules,
     loadMetrics,
+    loadFeatures,
+    loadPlanFeatures,
+    loadOrganizerFeatures,
     updateOrganizerStatus,
     updateOrganizerPlan,
     updateOrganizerModules,
     setTrialPeriod,
+    updateOrganizerFeature,
+    removeOrganizerFeatureOverride,
   } = useSuperAdmin();
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedOrganizer, setSelectedOrganizer] = useState<typeof organizers[0] | null>(null);
+  const [featuresModalOpen, setFeaturesModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) {
@@ -90,6 +102,9 @@ export default function SuperAdminDashboard() {
       loadPlans();
       loadModules();
       loadMetrics();
+      loadFeatures();
+      loadPlanFeatures();
+      loadOrganizerFeatures();
     }
   }, [isSuperAdmin]);
 
@@ -435,6 +450,16 @@ export default function SuperAdminDashboard() {
                               )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedOrganizer(org);
+                                  setFeaturesModalOpen(true);
+                                }}
+                              >
+                                <Sliders className="h-4 w-4 mr-2" />
+                                Gestionar Features
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
                                 onClick={() => handleSetTrial(org.id, 7)}
                               >
                                 <Clock className="h-4 w-4 mr-2" />
@@ -513,6 +538,20 @@ export default function SuperAdminDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Features Modal */}
+      {selectedOrganizer && (
+        <OrganizerFeaturesModal
+          open={featuresModalOpen}
+          onOpenChange={setFeaturesModalOpen}
+          organizer={selectedOrganizer}
+          features={features}
+          planFeatures={planFeatures}
+          organizerOverrides={organizerFeatures[selectedOrganizer.id] || []}
+          onUpdateFeature={updateOrganizerFeature}
+          onRemoveOverride={removeOrganizerFeatureOverride}
+        />
+      )}
     </div>
   );
 }

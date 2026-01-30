@@ -51,6 +51,21 @@ interface GlobalMetrics {
   totalParticipants: number;
 }
 
+interface Feature {
+  code: string;
+  name: string;
+  description: string | null;
+  module: string;
+  category: string | null;
+}
+
+interface OrganizerFeatureOverride {
+  id: string;
+  organizer_id: string;
+  feature_code: string;
+  is_enabled: boolean;
+}
+
 export function useSuperAdmin() {
   const { user, loading: authLoading } = useAuth();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -59,6 +74,9 @@ export function useSuperAdmin() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [metrics, setMetrics] = useState<GlobalMetrics | null>(null);
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [organizerFeatures, setOrganizerFeatures] = useState<Record<string, OrganizerFeatureOverride[]>>({});
+  const [planFeatures, setPlanFeatures] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     // Wait for auth to finish loading first
@@ -262,6 +280,147 @@ export function useSuperAdmin() {
     }
   };
 
+  const loadFeatures = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("features")
+        .select("code, name, description, module, category");
+
+      if (error) throw error;
+      setFeatures((data as Feature[]) || []);
+    } catch (err) {
+      console.error("Error loading features:", err);
+    }
+  };
+
+  const loadPlanFeatures = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("plan_features")
+        .select("plan_id, feature_code");
+
+      if (error) throw error;
+
+      // Group by plan_id
+      const grouped: Record<string, string[]> = {};
+      data?.forEach((pf) => {
+        if (!grouped[pf.plan_id]) {
+          grouped[pf.plan_id] = [];
+        }
+        grouped[pf.plan_id].push(pf.feature_code);
+      });
+
+      setPlanFeatures(grouped);
+    } catch (err) {
+      console.error("Error loading plan features:", err);
+    }
+  };
+
+  const loadOrganizerFeatures = async () => {
+    if (!isSuperAdmin) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("organizer_features")
+        .select("*");
+
+      if (error) throw error;
+
+      // Group by organizer_id
+      const grouped: Record<string, OrganizerFeatureOverride[]> = {};
+      data?.forEach((of) => {
+        if (!grouped[of.organizer_id]) {
+          grouped[of.organizer_id] = [];
+        }
+        grouped[of.organizer_id].push(of as OrganizerFeatureOverride);
+      });
+
+      setOrganizerFeatures(grouped);
+    } catch (err) {
+      console.error("Error loading organizer features:", err);
+    }
+  };
+
+  const updateOrganizerFeature = async (
+    organizerId: string,
+    featureCode: string,
+    isEnabled: boolean
+  ): Promise<boolean> => {
+    try {
+      // Check if override exists
+      const existingOverrides = organizerFeatures[organizerId] || [];
+      const existingOverride = existingOverrides.find(
+        (of) => of.feature_code === featureCode
+      );
+
+      if (existingOverride) {
+        // Update existing override
+        const { error } = await supabase
+          .from("organizer_features")
+          .update({ is_enabled: isEnabled })
+          .eq("id", existingOverride.id);
+
+        if (error) throw error;
+      } else {
+        // Create new override
+        const { error } = await supabase
+          .from("organizer_features")
+          .insert({
+            organizer_id: organizerId,
+            feature_code: featureCode,
+            is_enabled: isEnabled,
+          });
+
+        if (error) throw error;
+      }
+
+      await loadOrganizerFeatures();
+      return true;
+    } catch (err) {
+      console.error("Error updating organizer feature:", err);
+      return false;
+    }
+  };
+
+  const removeOrganizerFeatureOverride = async (
+    organizerId: string,
+    featureCode: string
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from("organizer_features")
+        .delete()
+        .eq("organizer_id", organizerId)
+        .eq("feature_code", featureCode);
+
+      if (error) throw error;
+      await loadOrganizerFeatures();
+      return true;
+    } catch (err) {
+      console.error("Error removing organizer feature override:", err);
+      return false;
+    }
+  };
+
+  // Get effective features for an organizer (plan features + overrides)
+  const getOrganizerEffectiveFeatures = (organizerId: string, planId: string | null): Record<string, boolean> => {
+    const result: Record<string, boolean> = {};
+    
+    // Start with plan features
+    const planFeatureCodes = planId ? planFeatures[planId] || [] : [];
+    planFeatureCodes.forEach((code) => {
+      result[code] = true;
+    });
+
+    // Apply overrides
+    const overrides = organizerFeatures[organizerId] || [];
+    overrides.forEach((override) => {
+      result[override.feature_code] = override.is_enabled;
+    });
+
+    return result;
+  };
+
   return {
     isSuperAdmin,
     loading,
@@ -269,20 +428,32 @@ export function useSuperAdmin() {
     plans,
     modules,
     metrics,
+    features,
+    organizerFeatures,
+    planFeatures,
     loadOrganizers,
     loadPlans,
     loadModules,
     loadMetrics,
+    loadFeatures,
+    loadPlanFeatures,
+    loadOrganizerFeatures,
     updateOrganizerStatus,
     updateOrganizerPlan,
     updateOrganizerModules,
     setTrialPeriod,
+    updateOrganizerFeature,
+    removeOrganizerFeatureOverride,
+    getOrganizerEffectiveFeatures,
     refresh: async () => {
       await Promise.all([
         loadOrganizers(),
         loadPlans(),
         loadModules(),
         loadMetrics(),
+        loadFeatures(),
+        loadPlanFeatures(),
+        loadOrganizerFeatures(),
       ]);
     },
   };
