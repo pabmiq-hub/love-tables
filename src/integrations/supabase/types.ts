@@ -257,6 +257,38 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_features: {
+        Row: {
+          created_at: string | null
+          feature_code: string
+          id: string
+          is_enabled: boolean | null
+          organizer_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          feature_code: string
+          id?: string
+          is_enabled?: boolean | null
+          organizer_id: string
+        }
+        Update: {
+          created_at?: string | null
+          feature_code?: string
+          id?: string
+          is_enabled?: boolean | null
+          organizer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_features_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizers: {
         Row: {
           active_modules: string[] | null

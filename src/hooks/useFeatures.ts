@@ -16,11 +16,17 @@ interface PlanFeature {
   limit_value: number | null;
 }
 
+interface FeatureOverride {
+  feature_code: string;
+  is_enabled: boolean;
+}
+
 export function useFeatures() {
   const { user } = useAuth();
   const [features, setFeatures] = useState<string[]>([]);
   const [allFeatures, setAllFeatures] = useState<Feature[]>([]);
   const [planFeatures, setPlanFeatures] = useState<PlanFeature[]>([]);
+  const [featureOverrides, setFeatureOverrides] = useState<FeatureOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -68,29 +74,56 @@ export function useFeatures() {
         return;
       }
 
-      // Get organizer's plan features
+      // Get organizer's plan features and overrides
       const { data: orgData } = await supabase
         .from("organizers")
-        .select("plan_id, status")
+        .select("id, plan_id, status")
         .eq("user_id", user.id)
         .single();
 
-      if (!orgData || orgData.status !== "active" || !orgData.plan_id) {
+      if (!orgData || orgData.status !== "active") {
         setFeatures([]);
         setLoading(false);
         return;
       }
 
       // Load plan features
-      const { data: pfData } = await supabase
-        .from("plan_features")
-        .select("feature_code, is_limited, limit_value")
-        .eq("plan_id", orgData.plan_id);
+      let planFeatureCodes: string[] = [];
+      if (orgData.plan_id) {
+        const { data: pfData } = await supabase
+          .from("plan_features")
+          .select("feature_code, is_limited, limit_value")
+          .eq("plan_id", orgData.plan_id);
 
-      if (pfData) {
-        setPlanFeatures(pfData as PlanFeature[]);
-        setFeatures(pfData.map((pf) => pf.feature_code));
+        if (pfData) {
+          setPlanFeatures(pfData as PlanFeature[]);
+          planFeatureCodes = pfData.map((pf) => pf.feature_code);
+        }
       }
+
+      // Load feature overrides for this organizer
+      const { data: overridesData } = await supabase
+        .from("organizer_features")
+        .select("feature_code, is_enabled")
+        .eq("organizer_id", orgData.id);
+
+      if (overridesData) {
+        setFeatureOverrides(overridesData as FeatureOverride[]);
+      }
+
+      // Calculate effective features: plan features + overrides
+      const effectiveFeatures = new Set(planFeatureCodes);
+      
+      // Apply overrides
+      overridesData?.forEach((override) => {
+        if (override.is_enabled) {
+          effectiveFeatures.add(override.feature_code);
+        } else {
+          effectiveFeatures.delete(override.feature_code);
+        }
+      });
+
+      setFeatures(Array.from(effectiveFeatures));
     } catch (err) {
       console.error("Error loading features:", err);
     } finally {
