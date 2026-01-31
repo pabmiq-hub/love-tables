@@ -165,13 +165,13 @@ Deno.serve(async (req) => {
         u => !existingUserIds.has(u.id) && !superAdminUserIds.has(u.id) && u.email
       );
 
-      // Create pending organizer profiles
+      // Create pending organizer profiles with default social module
       const profilesToCreate = usersWithoutProfile.map(u => ({
         user_id: u.id,
         contact_email: u.email!,
         status: "pending",
         plan_id: defaultPlan?.id || null,
-        active_modules: [],
+        active_modules: ["social"], // Default module
       }));
 
       if (profilesToCreate.length > 0) {
