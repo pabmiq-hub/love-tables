@@ -89,6 +89,9 @@ const CreateEvent = () => {
     }
   }, [user, loading, navigate]);
 
+  // Check if organizer has no modules assigned
+  const hasNoModules = !hasSocialModule && !hasProfessionalModule && !loading && !isSuperAdmin;
+
   // Calculate total steps based on module availability
   const totalSteps = hasBothModules ? 5 : 4;
   const displayStep = hasBothModules ? step : step; // Adjust display for progress indicator
@@ -331,6 +334,42 @@ const CreateEvent = () => {
     }
     return [1, 2, 3, 4];
   };
+
+  // Show error if organizer has no modules
+  if (hasNoModules) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+            <Link to="/admin/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              Volver al dashboard
+            </Link>
+            <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-destructive" />
+                Sin acceso a módulos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Tu cuenta no tiene módulos asignados. Contacta con el administrador para activar 
+                los módulos de Speed Dating o Networking B2B.
+              </p>
+              <Button asChild>
+                <Link to="/admin/dashboard">Volver al dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

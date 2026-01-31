@@ -382,7 +382,10 @@ export default function SuperAdminDashboard() {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex items-center gap-1">
+                            {org.active_modules.length === 0 && (
+                              <span className="text-xs text-destructive mr-1" title="Sin módulos asignados">⚠️</span>
+                            )}
                             {modules.map((mod) => (
                               <Badge
                                 key={mod.code}
@@ -392,6 +395,7 @@ export default function SuperAdminDashboard() {
                                     : "outline"
                                 }
                                 className="cursor-pointer"
+                                title={`${mod.code === "social" ? "Speed Dating" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
                                 onClick={() =>
                                   handleModuleToggle(
                                     org.id,
