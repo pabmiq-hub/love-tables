@@ -31,24 +31,42 @@ const CreateEvent = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const { hasFeature, isSuperAdmin } = useFeatures();
-  const { hasModule, organizer } = useOrganizer();
+  const { hasModule, organizer, loading: organizerLoading } = useOrganizer();
 
   // Detect available modules
   const hasSocialModule = hasModule("social") || isSuperAdmin;
   const hasProfessionalModule = hasModule("professional") || isSuperAdmin;
   const hasBothModules = hasSocialModule && hasProfessionalModule;
 
-  // Determine the effective starting step based on modules
-  const getInitialStep = () => hasBothModules ? 0 : 1;
-  const getDefaultModule = (): EventModule => {
-    if (hasSocialModule) return "social";
-    if (hasProfessionalModule) return "professional";
-    return "social";
-  };
-
   // Step state - step 0 is module selector (only if both modules available)
-  const [step, setStep] = useState(getInitialStep());
-  const [eventModule, setEventModule] = useState<EventModule>(getDefaultModule());
+  const [step, setStep] = useState(1); // Default to step 1, will be adjusted after loading
+  const [eventModule, setEventModule] = useState<EventModule>("social");
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Initialize step and module based on organizer's available modules
+  useEffect(() => {
+    if (!organizerLoading && organizer && !hasInitialized) {
+      const hasSocial = organizer.active_modules?.includes("social") || isSuperAdmin;
+      const hasProfessional = organizer.active_modules?.includes("professional") || isSuperAdmin;
+      const hasBoth = hasSocial && hasProfessional;
+      
+      // Set initial step based on available modules
+      if (hasBoth) {
+        setStep(0); // Show module selector
+      } else {
+        setStep(1); // Skip to basic info
+      }
+      
+      // Set default module
+      if (hasProfessional && !hasSocial) {
+        setEventModule("professional");
+      } else {
+        setEventModule("social");
+      }
+      
+      setHasInitialized(true);
+    }
+  }, [organizerLoading, organizer, hasInitialized, isSuperAdmin]);
   
   // Common fields
   const [eventName, setEventName] = useState("");
@@ -90,11 +108,13 @@ const CreateEvent = () => {
   }, [user, loading, navigate]);
 
   // Check if organizer has no modules assigned
-  const hasNoModules = !hasSocialModule && !hasProfessionalModule && !loading && !isSuperAdmin;
+  const hasNoModules = !hasSocialModule && !hasProfessionalModule && !organizerLoading && !isSuperAdmin;
+
+  // Show loading while checking modules
+  const isInitializing = organizerLoading || (!hasInitialized && !hasNoModules);
 
   // Calculate total steps based on module availability
   const totalSteps = hasBothModules ? 5 : 4;
-  const displayStep = hasBothModules ? step : step; // Adjust display for progress indicator
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -334,6 +354,18 @@ const CreateEvent = () => {
     }
     return [1, 2, 3, 4];
   };
+
+  // Show loading while initializing
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Cargando configuración...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show error if organizer has no modules
   if (hasNoModules) {
