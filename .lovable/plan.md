@@ -1,173 +1,163 @@
 
-# Plan: Configurar Super Admin y Mejorar Gestión de Organizadores
+# Plan: Corregir Selección de Módulo en Creación de Eventos
 
-## Resumen del Estado Actual
+## Diagnóstico del Problema
 
-### Base de Datos
-| Tabla | Registros | Problema |
-|-------|-----------|----------|
-| `auth.users` | 6 usuarios | Solo 1 tiene perfil organizador |
-| `user_roles` | 6 registros | kleffbcn tiene `super_admin`, otros tienen `admin` |
-| `organizers` | 1 registro | Solo kleffbcn@gmail.com tiene perfil |
+### Estado Actual de la Base de Datos
+| Email | active_modules | Status | Resultado |
+|-------|----------------|--------|-----------|
+| kleffbcn@gmail.com | ["social", "professional"] | active | Puede ver selector |
+| pabmiq@gmail.com | [] (vacío) | active | Solo ve Social (sin selector) |
 
-### Usuarios Actuales
-| Email | user_id | Tiene perfil organizador? |
-|-------|---------|---------------------------|
-| kleffbcn@gmail.com | ee3f0f4a... | Si (activo, Enterprise) |
-| pabmiq@gmail.com | a094f0c0... | No |
-| test21@test.com | fd829470... | No |
-| testeando@testeando.com | 82a0daa7... | No |
-| paumarti.docusign@gmail.com | d5fc22bb... | No |
-| kevinmofe@gmail.com | 912e554f... | No |
+### Problema Principal
+El organizador con `active_modules: []` no puede acceder al módulo profesional porque:
+1. `hasModule("professional")` retorna `false`
+2. `hasBothModules` es `false` 
+3. El paso 0 (selector de módulo) no se muestra
+4. Se inicia directamente en paso 1 con módulo "social" por defecto
 
----
-
-## Fase 1: Crear Nuevo Super Admin (hola@konektum.com)
-
-### Pasos necesarios (manual desde el backend):
-
-1. **Crear usuario** en `auth.users` con email `hola@konektum.com` y contraseña `Kleff123+`
-2. **Insertar rol** en `user_roles` con `role = 'super_admin'`
-3. **Opcional**: Crear perfil organizador activo con plan Enterprise si también necesita acceso de organizador
-
-Nota: Dado que no podemos ejecutar código de modificación en este modo de plan, estas operaciones se harán mediante el panel de Lovable Cloud o edge function.
+### Causa Raíz
+Los perfiles de organizador creados automáticamente por la edge function `setup-super-admin` tienen `active_modules: []` vacío.
 
 ---
 
-## Fase 2: Convertir kleffbcn@gmail.com a Usuario Normal
+## Solución Propuesta
 
-1. **Eliminar** el rol `super_admin` de `user_roles` para este usuario
-2. **Mantener** su perfil de organizador activo con acceso completo (Enterprise, ambos módulos)
+### Fase 1: Corregir Edge Function para Asignar Módulos por Defecto
 
----
+**Archivo:** `supabase/functions/setup-super-admin/index.ts`
 
-## Fase 3: Crear Perfiles para Usuarios Pendientes
+Modificar la creación de perfiles para incluir al menos el módulo "social" por defecto:
 
-El problema de "no ver solicitudes" es porque los usuarios registrados abandonaron el proceso o hubo un error al crear su perfil.
+```typescript
+// En lugar de:
+INSERT INTO organizers (user_id, contact_email, status, plan_id)
 
-**Opción A - Crear perfiles automáticamente:**
-Crear un perfil en `organizers` para cada usuario que tenga rol `admin` pero no tenga perfil, con status `pending`.
+// Cambiar a:
+INSERT INTO organizers (user_id, contact_email, status, plan_id, active_modules)
+SELECT u.id, u.email, 'pending', 
+  (SELECT id FROM subscription_plans WHERE is_default = true),
+  ARRAY['social']  -- Módulo por defecto
+```
 
-**Opción B - Mejorar el flujo:**
-Modificar el dashboard para mostrar también usuarios de `auth.users` que tienen rol `admin` pero no perfil organizador.
+### Fase 2: Migración para Corregir Organizadores Existentes
 
-Recomiendo **Opción A** ya que es más limpio y respeta el modelo de datos actual.
-
----
-
-## Fase 4: Mejorar Gestión de Features por Organizador
-
-### Cambio 1: Nueva tabla `organizer_features` (override de plan)
+**Archivo:** Nueva migración SQL
 
 ```sql
-CREATE TABLE organizer_features (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organizer_id UUID REFERENCES organizers(id) ON DELETE CASCADE NOT NULL,
-  feature_code TEXT NOT NULL,
-  is_enabled BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (organizer_id, feature_code)
-);
+-- Asignar módulo social a organizadores sin módulos
+UPDATE organizers 
+SET active_modules = ARRAY['social']
+WHERE active_modules IS NULL OR active_modules = '{}';
 ```
 
-Esta tabla permite:
-- Habilitar features que el plan no incluye
-- Deshabilitar features que el plan sí incluye (override)
+### Fase 3: Mejorar UI del SuperAdmin para Gestión de Módulos
 
-### Cambio 2: Actualizar `useSuperAdmin.ts`
+**Archivo:** `src/pages/SuperAdminDashboard.tsx`
 
-Añadir funciones para:
-- `updateOrganizerFeatures(organizerId, featureCode, enabled)`
-- Cargar features por organizador
-
-### Cambio 3: Actualizar `SuperAdminDashboard.tsx`
-
-Añadir UI para:
-- Ver features disponibles de cada organizador
-- Toggle individual de features
-- Modal de gestión detallada de permisos
-
----
-
-## Fase 5: UI Mejorada del Dashboard Super Admin
-
-### Nueva pestaña "Features" en el perfil de organizador
+1. **Mostrar advertencia visual** cuando un organizador activo no tiene módulos asignados
+2. **Botón de acción rápida** para asignar módulos predeterminados
+3. **Tooltip explicativo** en los badges de módulos
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ Organizador: Konektum (kleffbcn@gmail.com)              │
-├─────────────────────────────────────────────────────────┤
-│ Plan: Enterprise  |  Módulos: Social, Professional     │
-├─────────────────────────────────────────────────────────┤
-│ Features                                                │
-│ ┌─────────────────────┬─────────────┬──────────────┐   │
-│ │ Feature             │ Por Plan    │ Override     │   │
-│ ├─────────────────────┼─────────────┼──────────────┤   │
-│ │ Excel Import        │ ✓ Incluido  │ [✓] Activo   │   │
-│ │ Analytics           │ ✓ Incluido  │ [✓] Activo   │   │
-│ │ Auto Emails         │ ✓ Incluido  │ [ ] Desact.  │   │
-│ │ Custom Branding     │ ✓ Incluido  │ [✓] Activo   │   │
-│ └─────────────────────┴─────────────┴──────────────┘   │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Organizers                                                              │
+├──────────────────────────────────────┬─────────┬──────────┬────────────┤
+│ Email                                │ Estado  │ Módulos  │ Acciones   │
+├──────────────────────────────────────┼─────────┼──────────┼────────────┤
+│ pabmiq@gmail.com                     │ Activo  │ ⚠️ Ninguno│ [···]     │
+│  ↳ Sin módulos asignados             │         │ [S] [P]  │            │
+├──────────────────────────────────────┼─────────┼──────────┼────────────┤
+│ kleffbcn@gmail.com                   │ Activo  │ [S] [P]  │ [···]      │
+└──────────────────────────────────────┴─────────┴──────────┴────────────┘
+
+Leyenda: [S] = Social activo, [P] = Professional activo
+```
+
+### Fase 4: Mejora Preventiva en CreateEvent.tsx
+
+**Archivo:** `src/pages/CreateEvent.tsx`
+
+Añadir validación cuando el organizador no tiene ningún módulo:
+
+```typescript
+// Si el organizador no tiene módulos, mostrar mensaje de error
+if (!hasSocialModule && !hasProfessionalModule && !loading) {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Sin acceso a módulos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Tu cuenta no tiene módulos asignados. Contacta con el administrador.</p>
+          <Button asChild className="mt-4">
+            <Link to="/admin/dashboard">Volver al dashboard</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 ```
 
 ---
 
-## Archivos a Modificar/Crear
+## Funcionalidades Clave del Módulo Profesional (B2B)
+
+Para referencia, estas son las diferencias principales entre módulos:
+
+| Aspecto | Social (Speed Dating) | Professional (B2B Networking) |
+|---------|----------------------|-------------------------------|
+| **Tamaño mesa** | Configurable (2-6) | Siempre 1:1 (2 personas) |
+| **Participantes** | Individuos | Empresas (Cliente/Proveedor) |
+| **Datos requeridos** | Nombre, edad, género, preferencia | Empresa, sector, tamaño, necesidades/soluciones |
+| **Tipo de rotación** | Host fijo o todos rotan | Cliente fijo o proveedor fijo |
+| **Matching** | Por preferencia romántica/amistad | Por sector, necesidades vs soluciones |
+| **Preferencias evento** | Géneros, rangos edad, preferencias dating | Sectores, tamaños empresa, necesidades, soluciones |
+| **Paridad de género** | Disponible | No aplica |
+| **Modal añadir** | AddParticipantModal | AddProfessionalParticipantModal |
+| **Algoritmo mesas** | generateTables (lib/tableGenerator) | generateB2BTables (lib/b2bTableGenerator) |
+| **Scoring matches** | Mutual selection | professionalMatching.ts (sector, need/solution) |
+
+---
+
+## Archivos a Modificar
 
 | Archivo | Acción | Descripción |
 |---------|--------|-------------|
-| `supabase/migrations/` | Crear | Tabla `organizer_features` + RLS |
-| `src/hooks/useSuperAdmin.ts` | Modificar | Añadir gestión de features |
-| `src/pages/SuperAdminDashboard.tsx` | Modificar | UI para gestión de features y módulos |
-| `src/hooks/useFeatures.ts` | Modificar | Considerar overrides de `organizer_features` |
-| Edge function | Crear | Para crear el Super Admin de forma segura |
+| Nueva migración SQL | Crear | Actualizar organizadores sin módulos |
+| `supabase/functions/setup-super-admin/index.ts` | Modificar | Asignar módulo por defecto |
+| `src/pages/SuperAdminDashboard.tsx` | Modificar | Advertencia visual para organizadores sin módulos |
+| `src/pages/CreateEvent.tsx` | Modificar | Validación cuando no hay módulos |
 
 ---
 
-## Operaciones de Base de Datos Requeridas
+## Corrección Inmediata de Datos
 
-### 1. Crear Super Admin (hola@konektum.com)
-```sql
--- Se ejecutará via edge function o API de Supabase Auth
--- 1. Crear usuario con supabase.auth.admin.createUser()
--- 2. Insertar rol super_admin
--- 3. Opcional: crear perfil organizador
-```
+Para el usuario `pabmiq@gmail.com` que tiene `active_modules: []`, se puede corregir desde el SuperAdminDashboard:
+1. Hacer clic en los badges [S] y/o [P] para activar los módulos deseados
 
-### 2. Degradar kleffbcn@gmail.com
-```sql
-DELETE FROM user_roles 
-WHERE user_id = 'ee3f0f4a-9a62-4562-8b41-7c4bb04696b3' 
-AND role = 'super_admin';
-```
-
-### 3. Crear perfiles pendientes para usuarios sin perfil
-```sql
-INSERT INTO organizers (user_id, contact_email, status, plan_id)
-SELECT u.id, u.email, 'pending', 
-  (SELECT id FROM subscription_plans WHERE is_default = true)
-FROM auth.users u
-LEFT JOIN organizers o ON o.user_id = u.id
-WHERE o.id IS NULL
-AND u.email != 'hola@konektum.com'; -- Excluir al super admin
-```
+O ejecutar la migración para corregir todos los organizadores sin módulos automáticamente.
 
 ---
 
-## Flujo de Implementación
+## Flujo Corregido de Creación de Eventos
 
-1. **Crear edge function** para setup del Super Admin (operación privilegiada)
-2. **Ejecutar migración** para crear tabla `organizer_features`
-3. **Actualizar hook** `useSuperAdmin` con funciones de gestión de features
-4. **Actualizar dashboard** con UI mejorada
-5. **Actualizar hook** `useFeatures` para considerar overrides
-
----
-
-## Consideraciones de Seguridad
-
-- El Super Admin solo puede ser creado mediante edge function con service_role_key
-- Las operaciones de cambio de rol requieren verificación de Super Admin existente
-- RLS en `organizer_features` solo permite acceso a super_admin
-
+```text
+Usuario accede a /admin/create-event
+         |
+         v
+useOrganizer.hasModule() verifica módulos activos
+         |
+         ├── Tiene ambos módulos → Paso 0: Selector Social/Professional
+         │                              |
+         │                              v
+         │                         Paso 1: Información básica
+         │
+         ├── Tiene solo Social → Paso 1 directamente (Social)
+         │
+         ├── Tiene solo Professional → Paso 1 directamente (Professional)
+         │
+         └── Sin módulos → Mensaje de error + link a dashboard
+```
