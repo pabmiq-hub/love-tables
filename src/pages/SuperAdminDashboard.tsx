@@ -51,6 +51,9 @@ import {
   Settings,
   Loader2,
   Sliders,
+  AlertCircle,
+  Mail,
+  Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -297,6 +300,113 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pending Requests Section */}
+        {organizers.filter(org => org.status === "pending").length > 0 && (
+          <Card className="mb-8 border-yellow-500/30 bg-yellow-500/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <CardTitle className="text-lg">
+                    Solicitudes Pendientes ({organizers.filter(org => org.status === "pending").length})
+                  </CardTitle>
+                </div>
+              </div>
+              <CardDescription>
+                Estos organizadores están esperando aprobación para acceder a la plataforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {organizers
+                  .filter(org => org.status === "pending")
+                  .map(org => (
+                    <Card key={org.id} className="border-muted">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="font-semibold text-base">
+                              {org.company_name || "Sin nombre de empresa"}
+                            </h4>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                              <Mail className="h-3 w-3" />
+                              {org.contact_email}
+                            </div>
+                            {org.contact_phone && (
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                {org.contact_phone}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Registrado: {format(new Date(org.created_at), "dd MMM yyyy, HH:mm", { locale: es })}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={org.plan_id || "none"}
+                              onValueChange={(value) => handlePlanChange(org.id, value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs flex-1">
+                                <SelectValue placeholder="Asignar plan" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {plans.map((plan) => (
+                                  <SelectItem key={plan.id} value={plan.id}>
+                                    {plan.display_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Módulos:</span>
+                            {modules.map((mod) => (
+                              <Badge
+                                key={mod.code}
+                                variant={
+                                  org.active_modules.includes(mod.code)
+                                    ? "default"
+                                    : "outline"
+                                }
+                                className="cursor-pointer text-xs"
+                                title={`${mod.code === "social" ? "Speed Dating" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
+                                onClick={() =>
+                                  handleModuleToggle(org.id, mod.code, org.active_modules)
+                                }
+                              >
+                                {mod.code === "social" ? "S" : "P"}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleStatusChange(org.id, "active")}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Aprobar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="flex-1"
+                              onClick={() => handleStatusChange(org.id, "cancelled")}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Rechazar
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs defaultValue="organizers" className="space-y-4">
