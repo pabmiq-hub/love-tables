@@ -61,26 +61,56 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, participantId } = await req.json();
+    const { eventId, participantId, verificationCode } = await req.json();
     
-    console.log(`[checkin-participant] Check-in request for participant: ${participantId} in event: ${eventId}`);
+    console.log(`[checkin-participant] Check-in request for event: ${eventId}, code: ${verificationCode ? 'provided' : 'not provided'}`);
 
-    if (!eventId || !participantId) {
-      console.error('[checkin-participant] Missing eventId or participantId');
+    if (!eventId) {
+      console.error('[checkin-participant] Missing eventId');
       return new Response(
-        JSON.stringify({ error: 'eventId and participantId are required' }),
+        JSON.stringify({ error: 'eventId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate UUID format to prevent injection
+    // Validate UUID format for eventId
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(eventId) || !uuidRegex.test(participantId)) {
-      console.error('[checkin-participant] Invalid UUID format');
+    if (!uuidRegex.test(eventId)) {
+      console.error('[checkin-participant] Invalid eventId UUID format');
       return new Response(
         JSON.stringify({ error: 'Invalid request format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Must provide either participantId or verificationCode
+    if (!participantId && !verificationCode) {
+      console.error('[checkin-participant] Missing participantId or verificationCode');
+      return new Response(
+        JSON.stringify({ error: 'participantId or verificationCode is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate participantId UUID format if provided
+    if (participantId && !uuidRegex.test(participantId)) {
+      console.error('[checkin-participant] Invalid participantId UUID format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate verification code format (6 digits) if provided
+    if (verificationCode) {
+      const codeRegex = /^\d{6}$/;
+      if (!codeRegex.test(verificationCode)) {
+        console.error('[checkin-participant] Invalid verification code format');
+        return new Response(
+          JSON.stringify({ error: 'Invalid verification code format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Create Supabase client with service role to bypass RLS
@@ -111,18 +141,25 @@ serve(async (req) => {
       );
     }
 
-    // Verify the participant belongs to the event and isn't already checked in
-    const { data: participant, error: participantError } = await supabase
+    // Find participant - either by ID or by verification code
+    let participantQuery = supabase
       .from('participants')
-      .select('id, event_id, checked_in')
-      .eq('id', participantId)
-      .eq('event_id', eventId)
-      .single();
+      .select('id, event_id, checked_in, name, email, gender, age_range')
+      .eq('event_id', eventId);
+
+    if (verificationCode) {
+      participantQuery = participantQuery.eq('verification_code', verificationCode);
+    } else {
+      participantQuery = participantQuery.eq('id', participantId);
+    }
+
+    const { data: participant, error: participantError } = await participantQuery.maybeSingle();
 
     if (participantError || !participant) {
       console.error('[checkin-participant] Participant not found:', participantError);
+      // Generic error to not reveal if code/ID exists
       return new Response(
-        JSON.stringify({ error: 'Participant not found in this event' }),
+        JSON.stringify({ error: 'Participante no encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -130,7 +167,14 @@ serve(async (req) => {
     if (participant.checked_in) {
       console.log('[checkin-participant] Participant already checked in');
       return new Response(
-        JSON.stringify({ error: 'Participant already checked in' }),
+        JSON.stringify({ 
+          error: 'Ya has realizado el check-in',
+          participant: {
+            id: participant.id,
+            name: participant.name,
+            alreadyCheckedIn: true
+          }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -139,19 +183,28 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('participants')
       .update({ checked_in: true })
-      .eq('id', participantId);
+      .eq('id', participant.id);
 
     if (updateError) {
       console.error('[checkin-participant] Error updating participant:', updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to check in participant' }),
+        JSON.stringify({ error: 'Error al realizar el check-in' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('[checkin-participant] Check-in successful');
+    console.log('[checkin-participant] Check-in successful for participant:', participant.id);
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        participant: {
+          id: participant.id,
+          name: participant.name,
+          email: participant.email,
+          gender: participant.gender,
+          ageRange: participant.age_range
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
