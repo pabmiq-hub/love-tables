@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { eventId, type } = await req.json();
+    const { eventId, type, verificationCode } = await req.json();
     
     console.log(`[get-event-participants] Request for event: ${eventId}, type: ${type}`);
 
@@ -55,6 +55,53 @@ serve(async (req) => {
       );
     }
 
+    // Type: verify - verify a participant by their code and return their info
+    if (type === 'verify') {
+      if (!verificationCode) {
+        return new Response(
+          JSON.stringify({ error: 'verificationCode is required for verify type' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate verification code format (6 digits)
+      const codeRegex = /^\d{6}$/;
+      if (!codeRegex.test(verificationCode)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid verification code format' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: participant, error: participantError } = await supabase
+        .from('participants')
+        .select('id, name, email, gender, age_range, checked_in')
+        .eq('event_id', eventId)
+        .eq('verification_code', verificationCode)
+        .maybeSingle();
+
+      if (participantError || !participant) {
+        return new Response(
+          JSON.stringify({ error: 'Participant not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          participant: {
+            id: participant.id,
+            name: participant.name,
+            email: participant.email,
+            gender: participant.gender,
+            ageRange: participant.age_range,
+            alreadyCheckedIn: participant.checked_in
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Return different data based on type
     if (type === 'checkin') {
       // For check-in: return only names, phone and IDs of participants NOT yet checked in
@@ -78,7 +125,7 @@ serve(async (req) => {
         JSON.stringify({ participants: participants || [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } 
+    }
     
     if (type === 'select') {
       // For selection: return names, phone and IDs only, plus who has already submitted

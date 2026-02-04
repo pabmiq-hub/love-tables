@@ -16,6 +16,7 @@ import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantCheckin from "./pages/ParticipantCheckin";
+import ParticipantTables from "./pages/ParticipantTables";
 import NotFound from "./pages/NotFound";
 import AvisoLegal from "./pages/AvisoLegal";
 import PoliticaPrivacidad from "./pages/PoliticaPrivacidad";
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
           <Route path="/event/:id/join" element={<ParticipantJoin />} />
           <Route path="/event/:id/checkin" element={<ParticipantCheckin />} />
+          <Route path="/event/:id/tables" element={<ParticipantTables />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
           <Route path="/politica-cookies" element={<PoliticaCookies />} />
