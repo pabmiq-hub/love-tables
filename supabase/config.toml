@@ -17,3 +17,12 @@ verify_jwt = true
 
 [functions.send-scheduled-emails]
 verify_jwt = false
+
+[functions.register-participant]
+verify_jwt = false
+
+[functions.send-verification-email]
+verify_jwt = false
+
+[functions.get-table-assignments]
+verify_jwt = false

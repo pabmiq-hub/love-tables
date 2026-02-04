@@ -84,6 +84,7 @@ export type Database = {
           original_participants_count: number | null
           participants_count: number
           professional_config: Json | null
+          registration_requirements_enabled: boolean | null
           rotation_mode: string
           round_duration: number
           round_elapsed_seconds: number | null
@@ -91,6 +92,7 @@ export type Database = {
           round_started_at: string | null
           rounds: number
           scheduled_email_at: string | null
+          slot_quotas: Json | null
           status: string
           table_size: number
           tables: Json | null
@@ -117,6 +119,7 @@ export type Database = {
           original_participants_count?: number | null
           participants_count?: number
           professional_config?: Json | null
+          registration_requirements_enabled?: boolean | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
@@ -124,6 +127,7 @@ export type Database = {
           round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
+          slot_quotas?: Json | null
           status?: string
           table_size?: number
           tables?: Json | null
@@ -150,6 +154,7 @@ export type Database = {
           original_participants_count?: number | null
           participants_count?: number
           professional_config?: Json | null
+          registration_requirements_enabled?: boolean | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
@@ -157,6 +162,7 @@ export type Database = {
           round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
+          slot_quotas?: Json | null
           status?: string
           table_size?: number
           tables?: Json | null
@@ -505,6 +511,7 @@ export type Database = {
         Row: {
           age: number | null
           age_range: string | null
+          birth_date: string | null
           business_interests: string[] | null
           checked_in: boolean | null
           company_name: string | null
@@ -517,6 +524,7 @@ export type Database = {
           gender: string | null
           global_participant_id: string | null
           id: string
+          is_returning_participant: boolean | null
           name: string
           needs: string[] | null
           phone: string | null
@@ -525,10 +533,13 @@ export type Database = {
           sector: string | null
           selection_submitted_at: string | null
           solutions: string[] | null
+          verification_code: string | null
+          verification_email_sent_at: string | null
         }
         Insert: {
           age?: number | null
           age_range?: string | null
+          birth_date?: string | null
           business_interests?: string[] | null
           checked_in?: boolean | null
           company_name?: string | null
@@ -541,6 +552,7 @@ export type Database = {
           gender?: string | null
           global_participant_id?: string | null
           id?: string
+          is_returning_participant?: boolean | null
           name: string
           needs?: string[] | null
           phone?: string | null
@@ -549,10 +561,13 @@ export type Database = {
           sector?: string | null
           selection_submitted_at?: string | null
           solutions?: string[] | null
+          verification_code?: string | null
+          verification_email_sent_at?: string | null
         }
         Update: {
           age?: number | null
           age_range?: string | null
+          birth_date?: string | null
           business_interests?: string[] | null
           checked_in?: boolean | null
           company_name?: string | null
@@ -565,6 +580,7 @@ export type Database = {
           gender?: string | null
           global_participant_id?: string | null
           id?: string
+          is_returning_participant?: boolean | null
           name?: string
           needs?: string[] | null
           phone?: string | null
@@ -573,6 +589,8 @@ export type Database = {
           sector?: string | null
           selection_submitted_at?: string | null
           solutions?: string[] | null
+          verification_code?: string | null
+          verification_email_sent_at?: string | null
         }
         Relationships: [
           {
