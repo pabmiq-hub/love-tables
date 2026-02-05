@@ -13,8 +13,10 @@ import { parseExcelFile, Participant } from "@/lib/excelParser";
 import AddParticipantModal from "@/components/event/AddParticipantModal";
 import AddProfessionalParticipantModal, { ProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
 import EventPreferencesEditor, { EventPreferences, DEFAULT_PREFERENCES } from "@/components/event/EventPreferencesEditor";
+import EventQuotasEditor, { SlotQuota } from "@/components/event/EventQuotasEditor";
 import ProfessionalPreferencesEditor, { ProfessionalPreferences, DEFAULT_PROFESSIONAL_PREFERENCES } from "@/components/event/ProfessionalPreferencesEditor";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useFeatures } from "@/hooks/useFeatures";
 import { useOrganizer } from "@/hooks/useOrganizer";
@@ -84,6 +86,8 @@ const CreateEvent = () => {
   const [rotationMode, setRotationMode] = useState<"fixed_host" | "all_rotate">("fixed_host");
   const [genderParity, setGenderParity] = useState(false);
   const [eventPreferences, setEventPreferences] = useState<EventPreferences>({ ...DEFAULT_PREFERENCES });
+  const [registrationRequirementsEnabled, setRegistrationRequirementsEnabled] = useState(false);
+  const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
   
   // Professional-specific fields
   const [b2bRotationType, setB2bRotationType] = useState<B2BRotationType>("client_fixed");
@@ -223,30 +227,34 @@ const CreateEvent = () => {
     } : null;
     
     // Create event in database with organizer_id
+    const eventInsertData = {
+      name: eventName,
+      date: eventDate.split('T')[0],
+      rounds,
+      table_size: eventModule === "professional" ? 2 : tableSize, // B2B always 1:1
+      round_duration: roundDuration * 60 + roundDurationSeconds,
+      participants_count: participants.length,
+      status: "pending" as const,
+      organizer_id: user.id,
+      module: eventModule,
+      rotation_mode: eventModule === "professional" 
+        ? (b2bRotationType === "client_fixed" ? "fixed_host" : "all_rotate")
+        : rotationMode,
+      gender_parity: eventModule === "social" ? genderParity : false,
+      avoid_previous_encounters: avoidPreviousEncounters,
+      avoid_encounters_mode: avoidEncountersMode,
+      custom_age_ranges: hasCustomPreferences ? eventPreferences.ageRanges : null,
+      custom_genders: hasCustomPreferences ? eventPreferences.genders : null,
+      custom_preferences: hasCustomPreferences ? eventPreferences.preferences : null,
+      custom_dating_preferences: hasCustomPreferences ? eventPreferences.datingPreferences : null,
+      professional_config: professionalConfig,
+      registration_requirements_enabled: eventModule === "social" ? registrationRequirementsEnabled : false,
+      slot_quotas: (eventModule === "social" && registrationRequirementsEnabled ? slotQuotas : null) as unknown as Json,
+    };
+
     const { data: eventData, error: eventError } = await supabase
       .from("events")
-      .insert({
-        name: eventName,
-        date: eventDate.split('T')[0],
-        rounds,
-        table_size: eventModule === "professional" ? 2 : tableSize, // B2B always 1:1
-        round_duration: roundDuration * 60 + roundDurationSeconds,
-        participants_count: participants.length,
-        status: "pending",
-        organizer_id: user.id,
-        module: eventModule,
-        rotation_mode: eventModule === "professional" 
-          ? (b2bRotationType === "client_fixed" ? "fixed_host" : "all_rotate")
-          : rotationMode,
-        gender_parity: eventModule === "social" ? genderParity : false,
-        avoid_previous_encounters: avoidPreviousEncounters,
-        avoid_encounters_mode: avoidEncountersMode,
-        custom_age_ranges: hasCustomPreferences ? eventPreferences.ageRanges : null,
-        custom_genders: hasCustomPreferences ? eventPreferences.genders : null,
-        custom_preferences: hasCustomPreferences ? eventPreferences.preferences : null,
-        custom_dating_preferences: hasCustomPreferences ? eventPreferences.datingPreferences : null,
-        professional_config: professionalConfig,
-      })
+      .insert([eventInsertData])
       .select()
       .single();
     
@@ -750,6 +758,18 @@ const CreateEvent = () => {
                   <EventPreferencesEditor
                     value={eventPreferences}
                     onChange={setEventPreferences}
+                  />
+                </div>
+
+                {/* Registration Quotas Editor */}
+                <div className="pt-2">
+                  <EventQuotasEditor
+                    enabled={registrationRequirementsEnabled}
+                    onEnabledChange={setRegistrationRequirementsEnabled}
+                    quotas={slotQuotas}
+                    onQuotasChange={setSlotQuotas}
+                    availableGenders={eventPreferences.genders}
+                    availableAgeRanges={eventPreferences.ageRanges}
                   />
                 </div>
               </div>

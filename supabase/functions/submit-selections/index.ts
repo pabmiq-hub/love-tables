@@ -59,20 +59,20 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, selectorId, selections } = await req.json();
+    const { eventId, selectorId: rawSelectorId, verificationCode, selections } = await req.json();
     
-    console.log(`[submit-selections] Request for event: ${eventId}, selector: ${selectorId}, selections count: ${selections?.length || 0}`);
+    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}`);
 
     // Validate required fields
-    if (!eventId || !selectorId) {
-      console.error('[submit-selections] Missing eventId or selectorId');
+    if (!eventId || (!rawSelectorId && !verificationCode)) {
+      console.error('[submit-selections] Missing eventId or (selectorId/verificationCode)');
       return new Response(
         JSON.stringify({ error: 'Datos incompletos' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate UUID formats to prevent injection
+    // Validate UUID format for eventId
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(eventId)) {
       console.error('[submit-selections] Invalid UUID format for eventId');
@@ -81,12 +81,51 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    if (!uuidRegex.test(selectorId)) {
+
+    // If selectorId is provided, validate UUID format
+    let selectorId = rawSelectorId;
+    if (selectorId && !uuidRegex.test(selectorId)) {
       console.error('[submit-selections] Invalid UUID format for selectorId');
       return new Response(
         JSON.stringify({ error: 'Formato de solicitud inválido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Validate verification code format (6 digits)
+    if (verificationCode && !/^\d{6}$/.test(verificationCode)) {
+      console.error('[submit-selections] Invalid verification code format');
+      return new Response(
+        JSON.stringify({ error: 'Código de verificación inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client with service role to bypass RLS
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Resolve selectorId from verification code if needed
+    if (verificationCode && !selectorId) {
+      console.log('[submit-selections] Resolving selectorId from verification code');
+      const { data: participant, error: codeError } = await supabase
+        .from('participants')
+        .select('id, name')
+        .eq('event_id', eventId)
+        .eq('verification_code', verificationCode)
+        .single();
+      
+      if (codeError || !participant) {
+        console.error('[submit-selections] Invalid verification code:', codeError);
+        return new Response(
+          JSON.stringify({ error: 'Código de verificación incorrecto' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      selectorId = participant.id;
+      console.log(`[submit-selections] Resolved participant: ${participant.name} (${selectorId})`);
     }
 
     // Validate selections array
@@ -116,10 +155,7 @@ serve(async (req) => {
       }
     }
 
-    // Create Supabase client with service role to bypass RLS
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Supabase client already created above
 
     // Verify the event exists
     const { data: event, error: eventError } = await supabase

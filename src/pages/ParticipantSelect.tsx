@@ -2,17 +2,19 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatAnonymousName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import konektumLogo from "@/assets/konektum-logo.png";
 
 interface Participant {
   id: string;
   name: string;
+  email?: string;
   phone?: string;
   preference?: string;
   dating_preference?: string;
@@ -23,7 +25,7 @@ interface MatchSelection {
   friendship: boolean;
   dating: boolean;
   canShowDating: boolean;
-  alreadySelected: boolean; // Whether already selected in a previous round
+  alreadySelected: boolean;
   previousSelectionType?: string;
 }
 
@@ -38,12 +40,16 @@ interface ExistingSelection {
   selection_type: string;
 }
 
+type Step = "verify_code" | "confirm_identity" | "select" | "done" | "error" | "not_started" | "completed";
+
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
-  const [step, setStep] = useState<"identify" | "select" | "done" | "error" | "not_started" | "completed">("identify");
+  const [step, setStep] = useState<Step>("verify_code");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verifiedParticipant, setVerifiedParticipant] = useState<Participant | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [availableParticipants, setAvailableParticipants] = useState<Participant[]>([]);
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,20 +60,103 @@ const ParticipantSelect = () => {
   const [currentRound, setCurrentRound] = useState<number>(0);
   const { toast } = useToast();
 
+  // Initial data load - only check event status
   useEffect(() => {
-    const loadData = async () => {
+    const checkEventStatus = async () => {
       if (!eventId) {
         setStep("error");
         setIsLoading(false);
         return;
       }
 
+      try {
+        const { data: event, error } = await supabase
+          .from('events')
+          .select('status, current_round')
+          .eq('id', eventId)
+          .single();
+
+        if (error || !event) {
+          setStep("error");
+          setIsLoading(false);
+          return;
+        }
+
+        setEventStatus(event.status);
+        setCurrentRound(event.current_round || 0);
+
+        if (event.status === 'completed') {
+          setStep("completed");
+        } else if (event.status === 'pending' || event.current_round === 0) {
+          setStep("not_started");
+        }
+        // else stay on verify_code
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error checking event status:', err);
+        setStep("error");
+        setIsLoading(false);
+      }
+    };
+
+    checkEventStatus();
+  }, [eventId]);
+
+  // Verify the code and get participant info
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      toast({
+        title: "Código incompleto",
+        description: "Por favor, introduce los 6 dígitos del código",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('get-event-participants', {
+        body: { eventId, type: 'verify', verificationCode }
+      });
+
+      if (error || data?.error || !data?.participant) {
+        toast({
+          title: "Código inválido",
+          description: "El código introducido no es válido o ha expirado",
+          variant: "destructive",
+        });
+        setIsVerifying(false);
+        return;
+      }
+
+      setVerifiedParticipant(data.participant);
+      setStep("confirm_identity");
+    } catch (err) {
+      console.error('Error verifying code:', err);
+      toast({
+        title: "Error",
+        description: "No se pudo verificar el código. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Confirm identity and load full data
+  const handleConfirmIdentity = async () => {
+    if (!verifiedParticipant || !eventId) return;
+
+    setIsLoading(true);
+
+    try {
       const { data, error } = await supabase.functions.invoke('get-event-participants', {
         body: { eventId, type: 'select' }
       });
 
-      if (error || data?.error || !data?.participants || data.participants.length === 0) {
-        console.error('Error loading participants:', error || data?.error);
+      if (error || data?.error || !data?.participants) {
         setStep("error");
         setIsLoading(false);
         return;
@@ -76,147 +165,87 @@ const ParticipantSelect = () => {
       const participantsData = data.participants;
       const tables = data.tables || [];
       const allExistingSelections = data.existingSelections || [];
-      const status = data.eventStatus || 'pending';
-      const round = data.currentRound || 0;
 
       setParticipants(participantsData);
-      setAvailableParticipants(participantsData);
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
-      setEventStatus(status);
-      setCurrentRound(round);
-      
-      // Check event status
-      if (status === 'completed') {
-        setStep("completed");
-      } else if (status === 'pending' || round === 0) {
-        setStep("not_started");
-      }
-      
+
+      // Setup match selections
+      const userPreference = verifiedParticipant.preference || null;
+      setCurrentUserPreference(userPreference);
+
+      const tablemates = getTablemates(verifiedParticipant.id, tables, participantsData);
+      const userExistingSelections = getUserExistingSelections(verifiedParticipant.id, allExistingSelections);
+
+      const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') ||
+        userPreference?.toLowerCase().includes('pareja') ||
+        userPreference?.toLowerCase().includes('ligue');
+
+      setMatchSelections(tablemates.map(p => {
+        const targetPreference = p.preference?.toLowerCase() || '';
+        const targetInterestedInDating = targetPreference.includes('sentimental') ||
+          targetPreference.includes('pareja') ||
+          targetPreference.includes('ligue');
+
+        const existingSelection = userExistingSelections.get(p.id);
+        const alreadySelected = !!existingSelection;
+
+        return {
+          participantId: p.id,
+          friendship: false,
+          dating: false,
+          canShowDating: userInterestedInDating && targetInterestedInDating,
+          alreadySelected,
+          previousSelectionType: existingSelection,
+        };
+      }));
+
+      setStep("select");
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setStep("error");
+    } finally {
       setIsLoading(false);
-    };
+    }
+  };
 
-    loadData();
-  }, [eventId]);
+  // Helper functions
+  const getTablemates = (participantId: string, tables: TableData[], allParticipants: Participant[]): Participant[] => {
+    const tablematesIds = new Set<string>();
 
-  // Find participants who sat at the same table as the selected participant
-  const getTablemates = (participantId: string): Set<string> => {
-    const tablemates = new Set<string>();
-    
-    tablesData.forEach(round => {
+    tables.forEach(round => {
       round.tables.forEach(table => {
         const participantAtTable = table.some(p => p.id === participantId);
         if (participantAtTable) {
           table.forEach(p => {
             if (p.id !== participantId) {
-              tablemates.add(p.id);
+              tablematesIds.add(p.id);
             }
           });
         }
       });
     });
-    
-    return tablemates;
-  };
 
-  // Filter participants to only show tablemates
-  const getFilteredParticipants = (): Participant[] => {
-    if (!selectedParticipant) return [];
-    
-    const tablemates = getTablemates(selectedParticipant);
-    
-    // If no tables data, fall back to all participants
-    if (tablemates.size === 0 && tablesData.length === 0) {
-      return participants.filter(p => p.id !== selectedParticipant);
+    if (tablematesIds.size === 0 && tables.length === 0) {
+      return allParticipants.filter(p => p.id !== participantId);
     }
-    
-    return participants.filter(p => tablemates.has(p.id));
+
+    return allParticipants.filter(p => tablematesIds.has(p.id));
   };
 
-  // Get user's existing selections
-  const getUserExistingSelections = (): Map<string, string> => {
+  const getUserExistingSelections = (participantId: string, selections: ExistingSelection[]): Map<string, string> => {
     const userSelections = new Map<string, string>();
-    if (!selectedParticipant) return userSelections;
-    
-    existingSelections
-      .filter(s => s.selector_id === selectedParticipant)
+    selections
+      .filter(s => s.selector_id === participantId)
       .forEach(s => {
         userSelections.set(s.selected_id, s.selection_type);
       });
-    
     return userSelections;
   };
 
-  // Check if two dating preferences are compatible
-  const areDatingPreferencesCompatible = (pref1?: string | null, pref2?: string | null): boolean => {
-    if (!pref1 || !pref2) return true;
-    
-    const p1 = pref1.toLowerCase();
-    const p2 = pref2.toLowerCase();
-    
-    if (p1.includes('abierto a todo') || p2.includes('abierto a todo')) return true;
-    if (p1.includes('no binario') || p2.includes('no binario')) return true;
-    if (p1.includes('prefiero no contestar') || p2.includes('prefiero no contestar')) return true;
-    
-    const isManSeekingWoman = (p: string) => p.includes('hombre') && p.includes('busco una mujer');
-    const isManSeekingMan = (p: string) => p.includes('hombre') && p.includes('busco un hombre');
-    const isWomanSeekingMan = (p: string) => p.includes('mujer') && p.includes('busco un hombre');
-    const isWomanSeekingWoman = (p: string) => p.includes('mujer') && p.includes('busco una mujer');
-    
-    if (isManSeekingWoman(p1) && isWomanSeekingMan(p2)) return true;
-    if (isWomanSeekingMan(p1) && isManSeekingWoman(p2)) return true;
-    if (isManSeekingMan(p1) && isManSeekingMan(p2)) return true;
-    if (isWomanSeekingWoman(p1) && isWomanSeekingWoman(p2)) return true;
-    
-    return false;
-  };
-
-  const handleIdentify = () => {
-    if (!selectedParticipant) {
-      toast({
-        title: "Selecciona tu nombre",
-        description: "Por favor, selecciona tu nombre de la lista",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const currentUser = participants.find(p => p.id === selectedParticipant);
-    const userPreference = currentUser?.preference || null;
-    setCurrentUserPreference(userPreference);
-    
-    const tablemates = getFilteredParticipants();
-    const userExistingSelections = getUserExistingSelections();
-    
-    const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') || 
-                                   userPreference?.toLowerCase().includes('pareja') ||
-                                   userPreference?.toLowerCase().includes('ligue');
-    
-    setMatchSelections(tablemates.map(p => {
-      const targetPreference = p.preference?.toLowerCase() || '';
-      const targetInterestedInDating = targetPreference.includes('sentimental') || 
-                                        targetPreference.includes('pareja') ||
-                                        targetPreference.includes('ligue');
-      
-      const existingSelection = userExistingSelections.get(p.id);
-      const alreadySelected = !!existingSelection;
-      
-      return {
-        participantId: p.id,
-        friendship: false,
-        dating: false,
-        canShowDating: userInterestedInDating && targetInterestedInDating,
-        alreadySelected,
-        previousSelectionType: existingSelection,
-      };
-    }));
-    
-    setStep("select");
-  };
-
   const toggleSelection = (participantId: string, type: 'friendship' | 'dating') => {
-    setMatchSelections(prev => 
-      prev.map(ms => 
+    setMatchSelections(prev =>
+      prev.map(ms =>
         ms.participantId === participantId && !ms.alreadySelected
           ? { ...ms, [type]: !ms[type] }
           : ms
@@ -224,16 +253,45 @@ const ParticipantSelect = () => {
     );
   };
 
-  const tablematesForSelection = getFilteredParticipants();
+  const getSelectionState = (participantId: string): MatchSelection => {
+    return matchSelections.find(ms => ms.participantId === participantId) || {
+      participantId,
+      friendship: false,
+      dating: false,
+      canShowDating: false,
+      alreadySelected: false
+    };
+  };
+
+  const hasAnySelection = (participantId: string) => {
+    const state = getSelectionState(participantId);
+    return state.friendship || state.dating || state.alreadySelected;
+  };
+
+  const getPreviousSelectionLabel = (type?: string): string => {
+    switch (type) {
+      case 'friendship': return 'Amistad';
+      case 'dating': return 'Ligue';
+      case 'both': return 'Amistad y Ligue';
+      default: return 'Seleccionado';
+    }
+  };
+
+  // Get tablemates for the verified participant
+  const getTablematesForSelection = (): Participant[] => {
+    if (!verifiedParticipant) return [];
+    return getTablemates(verifiedParticipant.id, tablesData, participants);
+  };
+
+  const tablematesForSelection = getTablematesForSelection();
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
   const alreadySelectedCount = matchSelections.filter(ms => ms.alreadySelected).length;
 
   const handleSubmit = async () => {
-    if (!selectedParticipant || !eventId) return;
+    if (!verifiedParticipant || !eventId) return;
 
     setIsSubmitting(true);
 
-    // Filter only NEW selections where at least one option is selected
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
     if (activeSelections.length === 0) {
@@ -253,7 +311,7 @@ const ParticipantSelect = () => {
       } else if (ms.dating) {
         selectionType = 'dating';
       }
-      
+
       return {
         selected_id: ms.participantId,
         selection_type: selectionType,
@@ -261,10 +319,10 @@ const ParticipantSelect = () => {
     });
 
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { 
-        eventId, 
-        selectorId: selectedParticipant, 
-        selections 
+      body: {
+        eventId,
+        verificationCode, // Use verification code instead of selectorId
+        selections
       }
     });
 
@@ -287,30 +345,6 @@ const ParticipantSelect = () => {
     setStep("done");
   };
 
-  const getSelectionState = (participantId: string): MatchSelection => {
-    return matchSelections.find(ms => ms.participantId === participantId) || { 
-      participantId, 
-      friendship: false, 
-      dating: false, 
-      canShowDating: false,
-      alreadySelected: false
-    };
-  };
-
-  const hasAnySelection = (participantId: string) => {
-    const state = getSelectionState(participantId);
-    return state.friendship || state.dating || state.alreadySelected;
-  };
-
-  const getPreviousSelectionLabel = (type?: string): string => {
-    switch (type) {
-      case 'friendship': return 'Amistad';
-      case 'dating': return 'Ligue';
-      case 'both': return 'Amistad y Ligue';
-      default: return 'Seleccionado';
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
@@ -321,8 +355,8 @@ const ParticipantSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link 
-        to="/" 
+      <Link
+        to="/"
         className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -378,7 +412,7 @@ const ParticipantSelect = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">Evento no disponible</h2>
             <p className="text-muted-foreground mb-6">
-              Este evento no tiene participantes registrados o el enlace es inválido.
+              Este evento no existe o el enlace es inválido.
             </p>
             <Link to="/">
               <Button variant="outline" className="w-full">
@@ -389,39 +423,112 @@ const ParticipantSelect = () => {
         </Card>
       )}
 
-      {/* Step: Identify */}
-      {step === "identify" && participants.length > 0 && (
+      {/* Step: Verify Code */}
+      {step === "verify_code" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">¡Hola! 👋</CardTitle>
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <KeyRound className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Introduce tu código</CardTitle>
             <CardDescription>
-              Selecciona tu nombre de la lista para continuar
+              Introduce el código de 6 dígitos que recibiste por email al registrarte.
             </CardDescription>
             {currentRound > 0 && (
               <Badge variant="secondary" className="mx-auto mt-2">
-                Ronda {currentRound} {eventStatus === 'completed' ? '(Evento finalizado)' : 'en curso'}
+                Ronda {currentRound} en curso
               </Badge>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2 max-h-80 overflow-y-auto">
-              {availableParticipants.map((participant) => (
-                <button
-                  key={participant.id}
-                  onClick={() => setSelectedParticipant(participant.id)}
-                  className={`w-full p-4 rounded-lg text-left transition-all ${
-                    selectedParticipant === participant.id
-                      ? 'bg-primary text-primary-foreground shadow-soft'
-                      : 'bg-muted hover:bg-muted/80'
-                  }`}
-                >
-                  <span className="font-medium">{formatAnonymousName(participant.name, participant.phone)}</span>
-                </button>
-              ))}
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={verificationCode}
+                onChange={setVerificationCode}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
             </div>
-            <Button variant="hero" className="w-full" onClick={handleIdentify}>
-              Continuar
+            <Button
+              variant="hero"
+              className="w-full"
+              onClick={handleVerifyCode}
+              disabled={verificationCode.length !== 6 || isVerifying}
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verificando...
+                </>
+              ) : (
+                "Verificar código"
+              )}
             </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              ¿No tienes código? Búscalo en el email que recibiste al registrarte.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step: Confirm Identity */}
+      {step === "confirm_identity" && verifiedParticipant && (
+        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">¿Eres tú?</CardTitle>
+            <CardDescription>
+              Confirma que estos datos son correctos antes de continuar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-4 rounded-lg bg-muted space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nombre:</span>
+                <span className="font-medium">{verifiedParticipant.name}</span>
+              </div>
+              {verifiedParticipant.email && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{verifiedParticipant.email}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setStep("verify_code");
+                  setVerificationCode("");
+                  setVerifiedParticipant(null);
+                }}
+              >
+                No, volver
+              </Button>
+              <Button
+                variant="hero"
+                className="flex-1"
+                onClick={handleConfirmIdentity}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Sí, soy yo"
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -453,17 +560,16 @@ const ParticipantSelect = () => {
                   const selectionState = getSelectionState(person.id);
                   const isSelected = hasAnySelection(person.id);
                   const isAlreadySelected = selectionState.alreadySelected;
-                  
+
                   return (
                     <div
                       key={person.id}
-                      className={`p-4 rounded-lg transition-all ${
-                        isAlreadySelected
+                      className={`p-4 rounded-lg transition-all ${isAlreadySelected
                           ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
                           : isSelected
-                          ? 'bg-primary/10 border-2 border-primary shadow-soft'
-                          : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
-                      }`}
+                            ? 'bg-primary/10 border-2 border-primary shadow-soft'
+                            : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">{formatAnonymousName(person.name, person.phone)}</span>
@@ -474,7 +580,7 @@ const ParticipantSelect = () => {
                           </Badge>
                         )}
                       </div>
-                      
+
                       {isAlreadySelected ? (
                         <p className="text-xs text-muted-foreground">
                           Ya seleccionado en una ronda anterior
@@ -511,9 +617,9 @@ const ParticipantSelect = () => {
             <p className="text-sm text-center text-muted-foreground">
               Si ambos os seleccionáis mutuamente, ¡es un match! 💕
             </p>
-            <Button 
-              variant="hero" 
-              className="w-full" 
+            <Button
+              variant="hero"
+              className="w-full"
               onClick={handleSubmit}
               disabled={isSubmitting}
             >
@@ -525,8 +631,8 @@ const ParticipantSelect = () => {
               ) : (
                 <>
                   <Heart className="w-4 h-4 mr-2" />
-                  {newSelectionsCount > 0 
-                    ? `Enviar ${newSelectionsCount} selección(es)` 
+                  {newSelectionsCount > 0
+                    ? `Enviar ${newSelectionsCount} selección(es)`
                     : 'Continuar sin seleccionar'}
                 </>
               )}
@@ -544,7 +650,7 @@ const ParticipantSelect = () => {
             </div>
             <h2 className="font-display text-2xl font-bold mb-2">¡Gracias por participar!</h2>
             <p className="text-muted-foreground mb-6">
-              {eventStatus === 'completed' 
+              {eventStatus === 'completed'
                 ? 'Tus selecciones han sido guardadas. Te notificaremos si hay matches.'
                 : 'Tus selecciones han sido guardadas. Puedes volver a escanear el QR en las siguientes rondas para añadir más selecciones.'}
             </p>
