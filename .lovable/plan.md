@@ -1,287 +1,242 @@
 
-# Plan: Mejoras del Módulo Social - Sistema de Códigos y Cuotas
+# Plan: Completar el Sistema de Códigos de Verificación y Cuotas
 
-## Resumen de Cambios
+## Resumen
 
-### 1. Sistema de Códigos de Verificación
-- Código único de 6 dígitos por participante
-- Enviado por email al registrarse
-- Usado para: check-in, ver mesas, enviar selecciones
+Completaremos las 4 tareas pendientes del plan de mejoras del módulo social:
 
-### 2. Sistema de Cuotas por Género/Edad
-- Definir plazas disponibles por combinación género+edad
-- Mostrar plazas restantes en tiempo real
-- Bloquear registro si no hay plazas
-
-### 3. Cambio a Fecha de Nacimiento
-- Reemplazar selector de rango de edad por input de fecha
-- Calcular rango automáticamente
-- Pregunta de participación anterior
+1. **Flujo de selecciones con código** - Modificar `ParticipantSelect.tsx` y `submit-selections`
+2. **Editor de cuotas** - Crear `EventQuotasEditor.tsx` 
+3. **Paso de cuotas en CreateEvent** - Integrar el editor en la creación de eventos
+4. **Pruebas del flujo completo** - Verificar que todo funciona correctamente
 
 ---
 
-## Fase 1: Cambios en Base de Datos
+## Fase 1: Flujo de Selecciones con Código
 
-### 1.1 Modificar tabla `participants`
-```sql
--- Añadir columnas de verificación
-ALTER TABLE participants 
-  ADD COLUMN verification_code TEXT UNIQUE,
-  ADD COLUMN birth_date DATE,
-  ADD COLUMN is_returning_participant BOOLEAN DEFAULT false,
-  ADD COLUMN verification_email_sent_at TIMESTAMPTZ;
+### 1.1 Actualizar `ParticipantSelect.tsx`
 
--- Crear índice para búsqueda por código
-CREATE UNIQUE INDEX idx_participants_verification_code ON participants(verification_code) WHERE verification_code IS NOT NULL;
+Cambios principales:
+- Eliminar lista de nombres para identificarse
+- Añadir input de código de verificación de 6 dígitos
+- Validar código contra la edge function antes de continuar
+- Mostrar pantalla de confirmación de identidad
+
+**Flujo nuevo:**
+```text
+┌────────────────────────────────────────────────────────┐
+│                 Introduce tu código                     │
+│─────────────────────────────────────────────────────────│
+│                                                         │
+│    Introduce el código de 6 dígitos que recibiste      │
+│    por email al registrarte.                           │
+│                                                         │
+│    ┌─────────────────────────────────┐                 │
+│    │        [ 8 4 7 2 9 3 ]          │                 │
+│    └─────────────────────────────────┘                 │
+│                                                         │
+│    [        Verificar código        ]                  │
+│                                                         │
+└────────────────────────────────────────────────────────┘
+                         ↓
+┌────────────────────────────────────────────────────────┐
+│                 ¿Eres tú?                              │
+│─────────────────────────────────────────────────────────│
+│                                                         │
+│    Nombre: María García López                          │
+│    Email: maria@email.com                              │
+│                                                         │
+│    [Sí, soy yo]    [No, volver]                       │
+│                                                         │
+└────────────────────────────────────────────────────────┘
+                         ↓
+               (Flujo de selecciones actual)
 ```
 
-### 1.2 Modificar tabla `events`
-```sql
--- Añadir configuración de cuotas y requisitos
-ALTER TABLE events
-  ADD COLUMN registration_requirements_enabled BOOLEAN DEFAULT false,
-  ADD COLUMN slot_quotas JSONB DEFAULT '[]';
+### 1.2 Actualizar `submit-selections` Edge Function
 
--- Formato de slot_quotas:
--- [
---   { "gender": "Hombre", "ageRange": "25-32", "maxSlots": 10, "currentCount": 0 },
---   { "gender": "Mujer", "ageRange": "25-32", "maxSlots": 10, "currentCount": 0 }
--- ]
+Cambios:
+- Añadir opción de recibir `verificationCode` en lugar de `selectorId`
+- Resolver el código a un participante válido
+- Mantener compatibilidad con `selectorId` para casos existentes
+
+```typescript
+// Nuevo parámetro opcional
+const { eventId, selectorId, verificationCode, selections } = await req.json();
+
+// Si viene verificationCode, resolver a participante
+if (verificationCode && !selectorId) {
+  const participant = await resolveByCode(eventId, verificationCode);
+  selectorId = participant.id;
+}
 ```
 
 ---
 
-## Fase 2: Edge Functions
+## Fase 2: Editor de Cuotas para Admin
 
-### 2.1 Nueva función: `register-participant`
-Flujo seguro de registro con:
-1. Validación de cuotas disponibles
-2. Generación de código de verificación único (6 dígitos)
-3. Envío de email de confirmación con código
-4. Actualización de contador de cuotas
+### 2.1 Crear `EventQuotasEditor.tsx`
 
-**Archivo:** `supabase/functions/register-participant/index.ts`
+Nuevo componente que permite configurar límites de plazas por combinación género + edad.
 
-### 2.2 Modificar: `checkin-participant`
-- Ahora recibe `verificationCode` en lugar de `participantId`
-- Valida código y retorna datos del participante
-- Auto check-in si falta menos de 1 hora para evento
-
-### 2.3 Nueva función: `get-table-assignments`
-- Recibe `eventId` + `verificationCode`
-- Solo funciona si evento está en estado `active` o `completed`
-- Retorna las mesas donde está asignado el participante
-
-### 2.4 Modificar: `submit-selections`
-- Ahora identifica al participante por `verificationCode`
-- Elimina necesidad de seleccionar nombre de lista
-
-### 2.5 Nueva función: `send-verification-email`
-- Envía email con código de verificación
-- Template incluye: código, link de check-in, link de mesas
-
----
-
-## Fase 3: Flujo de Configuración de Evento (Admin)
-
-### 3.1 Paso Previo: Requisitos de Registro
-Nuevo paso opcional en creación de evento:
-
-```
+**Interfaz:**
+```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Requisitos de Registro                        │
-│─────────────────────────────────────────────────────────────────│
+│  ☐ Establecer requisitos de registro                            │
+│────────────────────────────────────────────────────────────────│
 │                                                                  │
-│  ¿Quieres establecer límites de plazas por género y edad?       │
+│  Configura cuántas plazas disponibles hay para cada grupo:      │
 │                                                                  │
-│  ○ No, aceptar todos los registros                              │
-│  ● Sí, configurar cuotas                                        │
+│  ┌───────────────┬─────────────┬──────────────┬──────────────┐  │
+│  │    Género     │  Rango edad │  Plazas máx  │   Acciones   │  │
+│  ├───────────────┼─────────────┼──────────────┼──────────────┤  │
+│  │ [Hombre ▼]   │  [25-32 ▼]  │     [10]     │    [🗑️]     │  │
+│  │ [Mujer ▼]    │  [25-32 ▼]  │     [10]     │    [🗑️]     │  │
+│  │ [Hombre ▼]   │  [33-40 ▼]  │     [8]      │    [🗑️]     │  │
+│  │ [Mujer ▼]    │  [33-40 ▼]  │     [8]      │    [🗑️]     │  │
+│  └───────────────┴─────────────┴──────────────┴──────────────┘  │
 │                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Configurar cuotas por grupo:                              │  │
-│  │                                                            │  │
-│  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │ Género     │ Rango edad │ Plazas máx │ Acciones   │  │  │
-│  │  ├────────────┼────────────┼────────────┼────────────┤  │  │
-│  │  │ Hombre     │ 25-32      │ [10]       │ [🗑️]       │  │  │
-│  │  │ Mujer      │ 25-32      │ [10]       │ [🗑️]       │  │  │
-│  │  │ Hombre     │ 33-40      │ [8]        │ [🗑️]       │  │  │
-│  │  │ Mujer      │ 33-40      │ [8]        │ [🗑️]       │  │  │
-│  │  └─────────────────────────────────────────────────────┘  │  │
-│  │  [+ Añadir cuota]                                          │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│  [+ Añadir cuota]                                               │
+│                                                                  │
+│  Total plazas configuradas: 36                                  │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Archivos a modificar:
-- `src/pages/CreateEvent.tsx` - Añadir paso de requisitos
-- `src/components/event/EventQuotasEditor.tsx` - Nuevo componente
+**Props del componente:**
+```typescript
+interface SlotQuota {
+  gender: string;
+  ageRange: string;
+  maxSlots: number;
+}
 
----
-
-## Fase 4: Flujo de Registro Público (ParticipantJoin)
-
-### 4.1 Cambios en formulario:
-1. **Fecha de nacimiento** → reemplaza selector de rango edad
-2. **¿Has participado antes?** → nuevo campo booleano
-3. **Validación de cuotas** → mostrar plazas disponibles y bloquear si lleno
-
-### 4.2 Nuevo flujo:
-```
-1. Usuario accede a /event/{id}/join
-2. Se cargan cuotas disponibles del evento
-3. Usuario introduce fecha nacimiento → se calcula rango edad
-4. Se muestra disponibilidad de su combinación género+edad
-5. Si hay plazas → continúa formulario
-6. Si NO hay plazas → mensaje "No hay plazas para tu perfil"
-7. Al enviar → edge function genera código y envía email
-8. Pantalla de confirmación con instrucciones
-```
-
-### 4.3 Pantalla de confirmación:
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ✓ ¡Registro completado!                   │
-│─────────────────────────────────────────────────────────────│
-│                                                              │
-│  Hemos enviado un email a maria@email.com con tu código     │
-│  personal de verificación.                                   │
-│                                                              │
-│  Con este código podrás:                                     │
-│  • Hacer check-in al llegar al evento                        │
-│  • Ver en qué mesas estás asignado                          │
-│  • Enviar tus selecciones después del evento                │
-│                                                              │
-│  ⚠️ Guarda tu código, lo necesitarás para participar        │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+interface EventQuotasEditorProps {
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  quotas: SlotQuota[];
+  onQuotasChange: (quotas: SlotQuota[]) => void;
+  availableGenders: string[];
+  availableAgeRanges: string[];
+}
 ```
 
 ---
 
-## Fase 5: Flujo de Check-in (ParticipantCheckin)
+## Fase 3: Integración en CreateEvent
 
-### 5.1 Nuevo flujo basado en código:
-```
-1. Usuario accede a /event/{id}/checkin
-2. Introduce su código de 6 dígitos
-3. Sistema valida código y muestra:
-   "¿Eres María García López?"
-   [Sí, confirmar check-in] [No, volver]
-4. Al confirmar → check-in completado
-```
+### 3.1 Modificar `CreateEvent.tsx`
 
-### 5.2 Email automático:
-- Si se registra faltando < 1 hora para evento → auto check-in
-- Email incluye código igualmente
+Añadir el editor de cuotas en el Step 2 (configuración) para eventos sociales, después del editor de preferencias.
 
----
+**Cambios:**
+1. Nuevo estado: `registrationRequirementsEnabled` y `slotQuotas`
+2. Integrar `EventQuotasEditor` en Step 2 (social)
+3. Guardar `slot_quotas` y `registration_requirements_enabled` al crear evento
 
-## Fase 6: Ver Asignación de Mesas
+```typescript
+// Nuevos estados
+const [registrationRequirementsEnabled, setRegistrationRequirementsEnabled] = useState(false);
+const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
 
-### 6.1 Nueva página: `/event/{id}/tables`
-- Usuario introduce código de verificación
-- Solo disponible cuando evento está en `active` o `completed`
-- Muestra lista de mesas por ronda
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Tus mesas asignadas                        │
-│─────────────────────────────────────────────────────────────│
-│                                                              │
-│  Ronda 1: Mesa 3                                            │
-│  Ronda 2: Mesa 7                                            │
-│  Ronda 3: Mesa 2                                            │
-│  Ronda 4: Mesa 5                                            │
-│                                                              │
-│  Busca el número de tu mesa en el local.                    │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Fase 7: Selecciones con Código (ParticipantSelect)
-
-### 7.1 Cambio en identificación:
-- Ya no muestra lista de nombres
-- Usuario introduce código de verificación
-- Sistema carga automáticamente sus datos y compañeros de mesa
-
----
-
-## Fase 8: Template de Email
-
-### 8.1 Email de confirmación de registro:
-```html
-Asunto: Tu código de acceso para [Nombre Evento]
-
-Hola [Nombre],
-
-¡Tu registro está confirmado!
-
-Tu código personal: 847293
-
-Con este código podrás:
-• Hacer check-in cuando llegues al evento
-• Ver tus mesas asignadas una vez inicie el evento
-• Enviar tus selecciones después del evento
-
-Links directos:
-• Check-in: [URL]/event/{id}/checkin?code=847293
-• Mis mesas: [URL]/event/{id}/tables?code=847293
-• Selecciones: [URL]/event/{id}/select?code=847293
-
-¡Nos vemos en el evento!
-Equipo Konektum
+// Al crear evento, incluir:
+registration_requirements_enabled: registrationRequirementsEnabled,
+slot_quotas: registrationRequirementsEnabled ? slotQuotas : null,
 ```
 
 ---
 
 ## Archivos a Crear/Modificar
 
-### Nuevos archivos:
-| Archivo | Descripción |
-|---------|-------------|
-| `supabase/functions/register-participant/index.ts` | Registro seguro con código |
-| `supabase/functions/get-table-assignments/index.ts` | Consulta mesas por código |
-| `supabase/functions/send-verification-email/index.ts` | Envío de email con código |
-| `src/components/event/EventQuotasEditor.tsx` | Editor de cuotas para admin |
-| `src/pages/ParticipantTables.tsx` | Ver asignación de mesas |
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/ParticipantSelect.tsx` | Modificar | Cambiar identificación de lista a código |
+| `supabase/functions/submit-selections/index.ts` | Modificar | Añadir soporte para `verificationCode` |
+| `src/components/event/EventQuotasEditor.tsx` | **Crear** | Editor de cuotas por género/edad |
+| `src/pages/CreateEvent.tsx` | Modificar | Integrar editor de cuotas |
 
-### Archivos a modificar:
-| Archivo | Cambios |
-|---------|---------|
-| `src/pages/ParticipantJoin.tsx` | Fecha nacimiento, cuotas, email de confirmación |
-| `src/pages/ParticipantCheckin.tsx` | Identificación por código |
-| `src/pages/ParticipantSelect.tsx` | Identificación por código |
-| `src/pages/CreateEvent.tsx` | Paso de requisitos previos |
-| `supabase/functions/checkin-participant/index.ts` | Validar por código |
-| `supabase/functions/submit-selections/index.ts` | Validar por código |
-| `src/App.tsx` | Nueva ruta /event/{id}/tables |
+---
+
+## Detalles Técnicos
+
+### ParticipantSelect.tsx - Cambios clave
+
+```typescript
+// Nuevos estados
+const [verificationCode, setVerificationCode] = useState("");
+const [verifiedParticipant, setVerifiedParticipant] = useState<Participant | null>(null);
+const [isVerifying, setIsVerifying] = useState(false);
+
+// Nueva función para verificar código
+const handleVerifyCode = async () => {
+  const { data, error } = await supabase.functions.invoke('get-event-participants', {
+    body: { eventId, type: 'verify', verificationCode }
+  });
+  // Si válido, mostrar pantalla de confirmación
+  // Si inválido, mostrar error
+};
+
+// Nuevo step: "verify_code" antes de "select"
+// Step flow: verify_code → confirm_identity → select → done
+```
+
+### submit-selections - Cambios clave
+
+```typescript
+// Aceptar verificationCode como alternativa a selectorId
+const { eventId, selectorId: rawSelectorId, verificationCode, selections } = await req.json();
+
+let selectorId = rawSelectorId;
+
+// Resolver código a participante si se proporciona
+if (verificationCode && !selectorId) {
+  const { data: participant } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('verification_code', verificationCode)
+    .single();
+  
+  if (!participant) {
+    return error('Código de verificación inválido');
+  }
+  selectorId = participant.id;
+}
+```
+
+### EventQuotasEditor.tsx - Estructura
+
+```typescript
+const EventQuotasEditor = ({
+  enabled,
+  onEnabledChange,
+  quotas,
+  onQuotasChange,
+  availableGenders,
+  availableAgeRanges,
+}: EventQuotasEditorProps) => {
+  // Toggle para habilitar/deshabilitar cuotas
+  // Lista editable de cuotas
+  // Botón para añadir nueva cuota
+  // Cálculo de total de plazas
+};
+```
 
 ---
 
 ## Orden de Implementación
 
-1. **Migración DB** - Añadir columnas necesarias
-2. **Edge functions base** - register-participant, send-verification-email
-3. **ParticipantJoin** - Nuevo formulario con fecha nacimiento
-4. **Verificación email** - Template y envío
-5. **ParticipantCheckin** - Cambiar a identificación por código
-6. **get-table-assignments** - Nueva edge function
-7. **ParticipantTables** - Nueva página
-8. **ParticipantSelect** - Cambiar a identificación por código
-9. **EventQuotasEditor** - Componente admin
-10. **CreateEvent** - Integrar paso de cuotas
+1. **EventQuotasEditor.tsx** - Crear el componente de UI primero
+2. **CreateEvent.tsx** - Integrar el editor en la creación de eventos
+3. **submit-selections** - Añadir soporte para verificationCode
+4. **ParticipantSelect.tsx** - Cambiar flujo de identificación a código
 
 ---
 
-## Consideraciones de Seguridad
+## Validaciones de Seguridad
 
-1. **Códigos únicos**: 6 dígitos = 1 millón combinaciones, suficiente para eventos de <1000 personas
-2. **Rate limiting**: En edge functions para prevenir fuerza bruta
-3. **Validación UUID**: Mantener validación de formato para eventId
-4. **Expiración**: Códigos válidos hasta 48h después del evento
-5. **No revelar datos**: Si código inválido, no indicar si participante existe
+- Códigos de 6 dígitos validados contra la base de datos
+- No revelar si un código existe o no (mensaje genérico de error)
+- Rate limiting en edge functions ya implementado
+- Verificación de que el participante pertenece al evento
+
