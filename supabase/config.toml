@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.get-table-assignments]
 verify_jwt = false
+
+[functions.send-registration-confirmation]
+verify_jwt = false
+
+[functions.send-checkin-code]
+verify_jwt = false

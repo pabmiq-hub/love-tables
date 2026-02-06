@@ -178,7 +178,7 @@ serve(async (req) => {
     // Get event details
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module')
+      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id')
       .eq('id', eventId)
       .single();
 
@@ -245,15 +245,33 @@ serve(async (req) => {
       );
     }
 
-    // Generate unique verification code
-    const verificationCode = await generateUniqueCode(supabase);
-
-    // Check if event starts within 1 hour - auto check-in
+    // Check if event starts within 1 hour - auto check-in with code
     const eventDate = new Date(event.date);
     const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
     const shouldAutoCheckin = new Date() >= oneHourBefore;
 
-    // Create participant
+    // Only generate code if auto check-in (event is imminent)
+    let verificationCode: string | null = null;
+    if (shouldAutoCheckin) {
+      verificationCode = await generateUniqueCode(supabase);
+    }
+
+    // Check if this participant has attended previous events from this organizer
+    let isActuallyReturning = false;
+    if (event.organizer_id) {
+      const { data: globalParticipant } = await supabase
+        .from('global_participants')
+        .select('id, events_attended')
+        .eq('organizer_id', event.organizer_id)
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle();
+      
+      if (globalParticipant && globalParticipant.events_attended > 0) {
+        isActuallyReturning = true;
+      }
+    }
+
+    // Create participant - NO verification_code unless auto check-in
     const { data: participant, error: insertError } = await supabase
       .from('participants')
       .insert({
@@ -266,8 +284,8 @@ serve(async (req) => {
         age_range: ageRange,
         dating_preference: datingPreference || null,
         preferred_age_range: preferredAgeRange || null,
-        is_returning_participant: isReturningParticipant,
-        verification_code: verificationCode,
+        is_returning_participant: isReturningParticipant || isActuallyReturning,
+        verification_code: verificationCode, // null unless auto check-in
         checked_in: shouldAutoCheckin
       })
       .select()
@@ -284,18 +302,19 @@ serve(async (req) => {
     // Increment participants count
     await supabase.rpc('increment_participants', { event_id: eventId });
 
-    console.log(`[register-participant] Participant registered successfully: ${participant.id}, code: ${verificationCode}`);
+    console.log(`[register-participant] Participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
-    // Return success with participant info (but not the full code for security)
+    // Return success with participant info
     return new Response(
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: verificationCode,
+        verificationCode: shouldAutoCheckin ? verificationCode : null, // Only return code if auto check-in
         autoCheckedIn: shouldAutoCheckin,
+        isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 
-          ? 'Registro completado. Se ha realizado el check-in automático.'
-          : 'Registro completado. Recibirás un email con tu código de verificación.'
+          ? 'Registro completado. Se ha realizado el check-in automático. Recibirás un email con tu código de acceso.'
+          : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

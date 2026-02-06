@@ -38,6 +38,32 @@ setInterval(() => {
   }
 }, 300000);
 
+// Generate unique 6-digit verification code
+async function generateUniqueCode(supabase: any): Promise<string> {
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    // Generate 6-digit code (100000 - 999999)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Check if code already exists
+    const { data: existing } = await supabase
+      .from('participants')
+      .select('id')
+      .eq('verification_code', code)
+      .maybeSingle();
+    
+    if (!existing) {
+      return code;
+    }
+    
+    attempts++;
+  }
+  
+  throw new Error('Could not generate unique verification code');
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -61,9 +87,9 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, participantId, verificationCode } = await req.json();
+    const { eventId, participantId, verificationCode, sendEmail = true, baseUrl } = await req.json();
     
-    console.log(`[checkin-participant] Check-in request for event: ${eventId}, code: ${verificationCode ? 'provided' : 'not provided'}`);
+    console.log(`[checkin-participant] Check-in request for event: ${eventId}, participantId: ${participantId || 'N/A'}, code: ${verificationCode ? 'provided' : 'not provided'}`);
 
     if (!eventId) {
       console.error('[checkin-participant] Missing eventId');
@@ -121,7 +147,7 @@ serve(async (req) => {
     // Verify the event exists and is in pending status (registrations still open)
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status')
+      .select('id, status, name')
       .eq('id', eventId)
       .single();
 
@@ -144,7 +170,7 @@ serve(async (req) => {
     // Find participant - either by ID or by verification code
     let participantQuery = supabase
       .from('participants')
-      .select('id, event_id, checked_in, name, email, gender, age_range')
+      .select('id, event_id, checked_in, name, email, gender, age_range, verification_code')
       .eq('event_id', eventId);
 
     if (verificationCode) {
@@ -172,6 +198,7 @@ serve(async (req) => {
           participant: {
             id: participant.id,
             name: participant.name,
+            verificationCode: participant.verification_code,
             alreadyCheckedIn: true
           }
         }),
@@ -179,10 +206,21 @@ serve(async (req) => {
       );
     }
 
-    // Update the participant's check-in status
+    // Generate verification code if participant doesn't have one yet
+    // This is the key change - code is generated at CHECK-IN time
+    let newVerificationCode = participant.verification_code;
+    if (!newVerificationCode) {
+      newVerificationCode = await generateUniqueCode(supabase);
+      console.log(`[checkin-participant] Generated new verification code for participant: ${participant.id}`);
+    }
+
+    // Update the participant's check-in status and verification code
     const { error: updateError } = await supabase
       .from('participants')
-      .update({ checked_in: true })
+      .update({ 
+        checked_in: true,
+        verification_code: newVerificationCode
+      })
       .eq('id', participant.id);
 
     if (updateError) {
@@ -194,6 +232,35 @@ serve(async (req) => {
     }
 
     console.log('[checkin-participant] Check-in successful for participant:', participant.id);
+
+    // Send check-in code email if participant has email and sendEmail is true
+    let emailSent = false;
+    if (sendEmail && participant.email && baseUrl) {
+      try {
+        const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-checkin-code`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            participantId: participant.id,
+            eventId,
+            baseUrl
+          })
+        });
+
+        if (emailResponse.ok) {
+          emailSent = true;
+          console.log('[checkin-participant] Check-in code email sent successfully');
+        } else {
+          console.warn('[checkin-participant] Failed to send check-in code email');
+        }
+      } catch (emailError) {
+        console.error('[checkin-participant] Error sending check-in code email:', emailError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,
@@ -202,8 +269,13 @@ serve(async (req) => {
           name: participant.name,
           email: participant.email,
           gender: participant.gender,
-          ageRange: participant.age_range
-        }
+          ageRange: participant.age_range,
+          verificationCode: newVerificationCode
+        },
+        emailSent,
+        message: emailSent 
+          ? 'Check-in completado. Se ha enviado un email con el código de acceso.'
+          : 'Check-in completado.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
