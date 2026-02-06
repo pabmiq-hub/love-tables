@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, Loader2, Heart, AlertCircle, Mail, KeyRound } from "lucide-react";
+import { CheckCircle2, Loader2, Heart, AlertCircle, Mail, Users, Clock } from "lucide-react";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
@@ -24,6 +24,14 @@ interface SlotQuota {
   maxSlots: number;
 }
 
+interface QuotaStatus {
+  gender: string;
+  ageRange: string;
+  current: number;
+  max: number;
+  available: number;
+}
+
 const ParticipantJoin = () => {
   const { id: eventId } = useParams();
   const { toast } = useToast();
@@ -39,11 +47,12 @@ const ParticipantJoin = () => {
   const [isReturningParticipant, setIsReturningParticipant] = useState<string>("");
   
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
   const [autoCheckedIn, setAutoCheckedIn] = useState(false);
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
   
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [eventName, setEventName] = useState("");
+  const [eventDate, setEventDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,7 +65,7 @@ const ParticipantJoin = () => {
   // Quota system
   const [quotasEnabled, setQuotasEnabled] = useState(false);
   const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
-  const [currentCounts, setCurrentCounts] = useState<Record<string, number>>({});
+  const [quotaStatuses, setQuotaStatuses] = useState<QuotaStatus[]>([]);
   const [calculatedAgeRange, setCalculatedAgeRange] = useState<string>("");
 
   useEffect(() => {
@@ -69,7 +78,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, status, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas")
+        .select("id, name, date, status, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas")
         .eq("id", eventId)
         .single();
 
@@ -87,6 +96,7 @@ const ParticipantJoin = () => {
 
       setEventExists(true);
       setEventName(data.name);
+      setEventDate(new Date(data.date));
       
       // Load custom preferences if they exist
       if (data.custom_age_ranges && Array.isArray(data.custom_age_ranges)) {
@@ -102,14 +112,14 @@ const ParticipantJoin = () => {
         setEventDatingPreferences(data.custom_dating_preferences as string[]);
       }
       
-      // Load quota configuration
+      // Load quota configuration and current counts
       if (data.registration_requirements_enabled && data.slot_quotas) {
         setQuotasEnabled(true);
         const quotas = data.slot_quotas as unknown as SlotQuota[];
         setSlotQuotas(quotas);
         
-        // Load current counts for each quota
-        await loadCurrentCounts(eventId, quotas);
+        // Load current counts for ALL quotas upfront
+        await loadAllQuotaCounts(eventId, quotas);
       }
       
       setIsLoading(false);
@@ -118,9 +128,9 @@ const ParticipantJoin = () => {
     checkEvent();
   }, [eventId]);
 
-  // Load current registration counts for quotas
-  const loadCurrentCounts = async (eventId: string, quotas: SlotQuota[]) => {
-    const counts: Record<string, number> = {};
+  // Load ALL quota counts upfront to display before form
+  const loadAllQuotaCounts = async (eventId: string, quotas: SlotQuota[]) => {
+    const statuses: QuotaStatus[] = [];
     
     for (const quota of quotas) {
       const { count } = await supabase
@@ -130,10 +140,17 @@ const ParticipantJoin = () => {
         .eq('gender', quota.gender)
         .eq('age_range', quota.ageRange);
       
-      counts[`${quota.gender}-${quota.ageRange}`] = count || 0;
+      const current = count || 0;
+      statuses.push({
+        gender: quota.gender,
+        ageRange: quota.ageRange,
+        current,
+        max: quota.maxSlots,
+        available: quota.maxSlots - current
+      });
     }
     
-    setCurrentCounts(counts);
+    setQuotaStatuses(statuses);
   };
 
   // Calculate age range from birth date
@@ -180,13 +197,10 @@ const ParticipantJoin = () => {
   const getAvailableSlots = (): { available: boolean; remaining: number; total: number } | null => {
     if (!quotasEnabled || !gender || !calculatedAgeRange) return null;
     
-    const quota = slotQuotas.find(q => q.gender === gender && q.ageRange === calculatedAgeRange);
-    if (!quota) return null;
+    const status = quotaStatuses.find(q => q.gender === gender && q.ageRange === calculatedAgeRange);
+    if (!status) return null;
     
-    const current = currentCounts[`${gender}-${calculatedAgeRange}`] || 0;
-    const remaining = quota.maxSlots - current;
-    
-    return { available: remaining > 0, remaining, total: quota.maxSlots };
+    return { available: status.available > 0, remaining: status.available, total: status.max };
   };
 
   // Computed preferred age ranges (event age ranges + "Cualquier rango de edad")
@@ -281,17 +295,28 @@ const ParticipantJoin = () => {
       return;
     }
 
-    // Send verification email
+    // Send confirmation email (different depending on auto check-in)
     const baseUrl = window.location.origin;
-    await supabase.functions.invoke('send-verification-email', {
-      body: {
-        participantId: data.participantId,
-        eventId,
-        baseUrl
-      }
-    });
+    if (data.autoCheckedIn && data.verificationCode) {
+      // Auto check-in: send email with code
+      await supabase.functions.invoke('send-checkin-code', {
+        body: {
+          participantId: data.participantId,
+          eventId,
+          baseUrl
+        }
+      });
+      setVerificationCode(data.verificationCode);
+    } else {
+      // Normal registration: send confirmation email without code
+      await supabase.functions.invoke('send-registration-confirmation', {
+        body: {
+          participantId: data.participantId,
+          eventId
+        }
+      });
+    }
 
-    setVerificationCode(data.verificationCode);
     setAutoCheckedIn(data.autoCheckedIn);
     setIsSubmitted(true);
     setIsSubmitting(false);
@@ -335,44 +360,65 @@ const ParticipantJoin = () => {
             <div>
               <h2 className="font-display text-xl font-semibold mb-2">¡Registro completado!</h2>
               <p className="text-muted-foreground">
-                Hemos enviado un email a <strong>{email}</strong> con tu código personal de verificación.
+                Hemos enviado un email a <strong>{email}</strong> con la confirmación de tu registro.
               </p>
             </div>
 
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <KeyRound className="w-4 h-4 text-primary" />
-                <span>Tu código personal:</span>
-              </div>
-              <div className="text-3xl font-mono font-bold tracking-widest text-primary">
-                {verificationCode}
-              </div>
-            </div>
+            {autoCheckedIn && verificationCode ? (
+              // Auto check-in: show code
+              <>
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-3 flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                  <p className="text-sm text-green-700 dark:text-green-400 text-left">
+                    Se ha realizado el <strong>check-in automático</strong> porque el evento está próximo a comenzar.
+                  </p>
+                </div>
 
-            {autoCheckedIn && (
-              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-3 flex items-start gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-                <p className="text-sm text-green-700 dark:text-green-400 text-left">
-                  Se ha realizado el check-in automáticamente porque el evento está próximo a comenzar.
-                </p>
-              </div>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <span>Tu código personal de acceso:</span>
+                  </div>
+                  <div className="text-3xl font-mono font-bold tracking-widest text-primary">
+                    {verificationCode}
+                  </div>
+                </div>
+
+                <div className="text-left space-y-2 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Con este código podrás:</p>
+                  <ul className="space-y-1 ml-4">
+                    <li>🪑 Ver en qué mesas estás asignado/a</li>
+                    <li>💕 Enviar tus selecciones después del evento</li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400 text-left">
+                    <strong>Importante:</strong> Guarda este código, lo necesitarás para participar.
+                  </p>
+                </div>
+              </>
+            ) : (
+              // Normal registration: no code yet
+              <>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="text-5xl mb-2">🎉</div>
+                  <p className="text-foreground font-medium">¡Ya tienes tu plaza reservada!</p>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 text-left">
+                  <p className="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    ¿Qué pasará el día del evento?
+                  </p>
+                  <ol className="text-sm text-blue-700 dark:text-blue-400 space-y-2 ml-4 list-decimal">
+                    <li>Cuando llegues, el organizador hará tu <strong>check-in</strong></li>
+                    <li>Recibirás un <strong>código de 6 dígitos</strong> por email</li>
+                    <li>Con ese código podrás ver tus mesas y enviar tus selecciones</li>
+                  </ol>
+                </div>
+              </>
             )}
-
-            <div className="text-left space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Con este código podrás:</p>
-              <ul className="space-y-1 ml-4">
-                <li>✅ Hacer check-in cuando llegues al evento</li>
-                <li>🪑 Ver en qué mesas estás asignado/a</li>
-                <li>💕 Enviar tus selecciones después del evento</li>
-              </ul>
-            </div>
-
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-              <p className="text-sm text-amber-700 dark:text-amber-400 text-left">
-                <strong>Importante:</strong> Guarda este código, lo necesitarás para participar en el evento.
-              </p>
-            </div>
 
             <div className="flex items-center justify-center gap-2 pt-2">
               <Mail className="w-4 h-4 text-muted-foreground" />
@@ -399,11 +445,54 @@ const ParticipantJoin = () => {
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-md">
+        {/* Show quota availability BEFORE the form */}
+        {quotasEnabled && quotaStatuses.length > 0 && (
+          <Card className="mb-6 animate-fade-in">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Plazas disponibles
+              </CardTitle>
+              <CardDescription>
+                Consulta las plazas restantes antes de registrarte
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2">
+                {quotaStatuses.map((status, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      status.available > 0 
+                        ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
+                        : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
+                    }`}
+                  >
+                    <span className="text-sm font-medium">
+                      {status.gender} ({status.ageRange})
+                    </span>
+                    <span className={`text-sm font-bold ${
+                      status.available > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                    }`}>
+                      {status.available > 0 ? `${status.available} de ${status.max}` : 'Completo'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="animate-fade-in">
           <CardHeader className="text-center">
-            <CardTitle className="font-display text-2xl">Únete al evento</CardTitle>
+            <CardTitle className="font-display text-2xl">Únete a {eventName}</CardTitle>
             <CardDescription>
               Completa tus datos para participar en el speed dating
+              {eventDate && (
+                <span className="block mt-1 text-primary font-medium">
+                  📅 {eventDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -430,7 +519,7 @@ const ParticipantJoin = () => {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Recibirás tu código de acceso en este email
+                  Recibirás la confirmación y tu código de acceso en este email
                 </p>
               </div>
 
@@ -476,7 +565,7 @@ const ParticipantJoin = () => {
                 </Select>
               </div>
 
-              {/* Show quota availability */}
+              {/* Show quota availability for selected profile */}
               {quotasEnabled && gender && calculatedAgeRange && slots && (
                 <div className={`rounded-lg p-3 flex items-start gap-2 ${
                   slots.available 
