@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 // Rate limiting helpers
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
@@ -180,10 +189,10 @@ const handler = async (req: Request): Promise<Response> => {
             <h2 style="color: #e11d48;">Konektum</h2>
           </div>
           
-          <h1 style="color: #333;">¡Hola ${participant.name}! 👋</h1>
+          <h1 style="color: #333;">¡Hola ${escapeHtml(participant.name)}! 👋</h1>
           
           <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            ¡Aún estás a tiempo de indicar tus matches para el evento <strong>${event.name}</strong>!
+            ¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!
           </p>
           
           <p style="color: #666; font-size: 16px; line-height: 1.6;">

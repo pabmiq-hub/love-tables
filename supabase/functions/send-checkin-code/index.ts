@@ -9,6 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 interface CheckinCodeRequest {
   participantId: string;
   eventId: string;
@@ -103,9 +112,9 @@ serve(async (req) => {
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${participant.name}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${escapeHtml(participant.name)}</strong>,</p>
             
-            <p>¡Tu check-in para <strong>${event.name}</strong> se ha completado!</p>
+            <p>¡Tu check-in para <strong>${escapeHtml(event.name)}</strong> se ha completado!</p>
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
               <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Tu código personal de acceso:</p>

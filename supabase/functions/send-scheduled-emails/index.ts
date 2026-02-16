@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 interface EmailTemplate {
   withMatches: {
     subject: string;
@@ -105,9 +114,9 @@ const generateEmailHtml = (
   if (hasMatches) {
     const t = template.withMatches;
     const friendshipList = friendshipMatches.length > 0 
-      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.friendshipTitle}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${m.name}${m.phone ? ` - 📞 ${m.phone}` : ''}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.friendshipTitle}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
     const datingList = datingMatches.length > 0
-      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${m.name}${m.phone ? ` - 📞 ${m.phone}` : ''}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
     
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   } else {
@@ -130,10 +139,10 @@ const generateProfessionalEmailHtml = (
     const t = template.withConnections;
     const connectionsList = connections.map(c => 
       `<tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:12px 8px;font-weight:500;">${c.company}</td>
-        <td style="padding:12px 8px;color:#6b7280;">${c.sector}</td>
-        <td style="padding:12px 8px;">${c.contactPerson}</td>
-        <td style="padding:12px 8px;">${c.phone || '-'}</td>
+        <td style="padding:12px 8px;font-weight:500;">${escapeHtml(c.company)}</td>
+        <td style="padding:12px 8px;color:#6b7280;">${escapeHtml(c.sector)}</td>
+        <td style="padding:12px 8px;">${escapeHtml(c.contactPerson)}</td>
+        <td style="padding:12px 8px;">${c.phone ? escapeHtml(c.phone) : '-'}</td>
         <td style="padding:12px 8px;"><span style="background:${c.entityType === 'client' ? '#dbeafe' : '#d1fae5'};color:${c.entityType === 'client' ? '#1e40af' : '#047857'};padding:2px 8px;border-radius:4px;font-size:12px;">${c.entityType === 'client' ? 'Cliente' : 'Proveedor'}</span></td>
       </tr>`
     ).join('');
