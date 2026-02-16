@@ -92,6 +92,8 @@ export type Database = {
           round_started_at: string | null
           rounds: number
           scheduled_email_at: string | null
+          selection_closed_at: string | null
+          selection_deadline_hours: number | null
           slot_quotas: Json | null
           status: string
           table_size: number
@@ -127,6 +129,8 @@ export type Database = {
           round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
+          selection_closed_at?: string | null
+          selection_deadline_hours?: number | null
           slot_quotas?: Json | null
           status?: string
           table_size?: number
@@ -162,6 +166,8 @@ export type Database = {
           round_started_at?: string | null
           rounds?: number
           scheduled_email_at?: string | null
+          selection_closed_at?: string | null
+          selection_deadline_hours?: number | null
           slot_quotas?: Json | null
           status?: string
           table_size?: number

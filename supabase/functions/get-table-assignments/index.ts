@@ -86,7 +86,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at')
       .eq('id', eventId)
       .single();
 
@@ -133,8 +133,9 @@ serve(async (req) => {
     }
 
     // Extract table assignments for this participant
+    // Tables are stored as an array: [{round: 1, tables: [[p1,p2],[p3,p4]]}, ...]
     const tables = event.tables as any;
-    if (!tables || !tables.rounds) {
+    if (!tables || !Array.isArray(tables) || tables.length === 0) {
       return new Response(
         JSON.stringify({ 
           participantName: participant.name,
@@ -145,25 +146,30 @@ serve(async (req) => {
       );
     }
 
-    const assignments: { round: number; table: number }[] = [];
+    const assignments: { round: number; table: number; tablemates: { id: string; name: string }[] }[] = [];
     
     // Find participant's table for each round
-    for (let roundIndex = 0; roundIndex < tables.rounds.length; roundIndex++) {
-      const round = tables.rounds[roundIndex];
-      if (!round.tables) continue;
+    for (const roundData of tables) {
+      const roundNumber = roundData.round;
+      const roundTables = roundData.tables;
+      if (!roundTables || !Array.isArray(roundTables)) continue;
       
-      for (let tableIndex = 0; tableIndex < round.tables.length; tableIndex++) {
-        const table = round.tables[tableIndex];
-        if (!table.participants) continue;
+      for (let tableIndex = 0; tableIndex < roundTables.length; tableIndex++) {
+        const table = roundTables[tableIndex];
+        if (!Array.isArray(table)) continue;
         
-        const isInTable = table.participants.some(
+        const isInTable = table.some(
           (p: any) => p.id === participant.id
         );
         
         if (isInTable) {
+          const tablemates = table
+            .filter((p: any) => p.id !== participant.id)
+            .map((p: any) => ({ id: p.id, name: p.name }));
           assignments.push({
-            round: roundIndex + 1,
-            table: tableIndex + 1
+            round: roundNumber,
+            table: tableIndex + 1,
+            tablemates
           });
           break;
         }

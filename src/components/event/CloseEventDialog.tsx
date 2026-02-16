@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { CheckCircle2, AlertTriangle, Send, Clock, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Selection {
   selector_id: string;
@@ -28,11 +30,19 @@ interface CloseEventDialogProps {
   onOpenChange: (open: boolean) => void;
   participants: Participant[];
   selections: Selection[];
-  onCloseAndSend: () => void;
-  onCloseWithoutSending: () => void;
+  onCloseAndSend: (deadlineHours: number) => void;
+  onCloseWithoutSending: (deadlineHours: number) => void;
   onWait: () => void;
   isClosing: boolean;
 }
+
+const DEADLINE_OPTIONS = [
+  { value: "24", label: "24 horas" },
+  { value: "48", label: "48 horas" },
+  { value: "72", label: "72 horas (3 días)" },
+  { value: "120", label: "120 horas (5 días)" },
+  { value: "168", label: "168 horas (7 días)" },
+];
 
 const CloseEventDialog = ({
   open,
@@ -44,7 +54,8 @@ const CloseEventDialog = ({
   onWait,
   isClosing,
 }: CloseEventDialogProps) => {
-  // Get unique selectors
+  const [deadlineHours, setDeadlineHours] = useState("48");
+
   const selectorIds = new Set(selections.map(s => s.selector_id));
   const respondedCount = participants.filter(p => selectorIds.has(p.id)).length;
   const pendingCount = participants.length - respondedCount;
@@ -104,6 +115,24 @@ const CloseEventDialog = ({
             </div>
           </div>
 
+          {/* Deadline selector */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Plazo para enviar selecciones</Label>
+            <Select value={deadlineHours} onValueChange={setDeadlineHours}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DEADLINE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Los participantes tendrán este plazo para enviar sus selecciones. Pasado el plazo, no podrán acceder al panel.
+            </p>
+          </div>
+
           {/* Email info */}
           <div className="bg-muted/50 rounded-lg p-3 text-sm text-center">
             <span className="text-muted-foreground">
@@ -116,7 +145,7 @@ const CloseEventDialog = ({
           <Button
             variant="hero"
             className="w-full"
-            onClick={onCloseAndSend}
+            onClick={() => onCloseAndSend(parseInt(deadlineHours))}
             disabled={isClosing}
           >
             {isClosing ? (
@@ -135,7 +164,7 @@ const CloseEventDialog = ({
           <Button
             variant="outline"
             className="w-full"
-            onClick={onCloseWithoutSending}
+            onClick={() => onCloseWithoutSending(parseInt(deadlineHours))}
             disabled={isClosing}
           >
             <CheckCircle2 className="w-4 h-4 mr-2" />

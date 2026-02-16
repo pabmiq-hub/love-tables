@@ -2036,7 +2036,7 @@ const EventDetail = () => {
     }
   };
 
-  const handleCloseAndSendEmails = async () => {
+  const handleCloseAndSendEmails = async (deadlineHours: number = 48) => {
     if (!id) return;
     
     setIsClosingEvent(true);
@@ -2052,7 +2052,7 @@ const EventDetail = () => {
       // First close the event
       await supabase
         .from("events")
-        .update({ status: "completed" })
+        .update({ status: "completed", selection_deadline_hours: deadlineHours })
         .eq("id", id);
 
       setEventStatus("completed");
@@ -2093,7 +2093,7 @@ const EventDetail = () => {
     }
   };
 
-  const handleCloseWithoutSending = async () => {
+  const handleCloseWithoutSending = async (deadlineHours: number = 48) => {
     if (!id) return;
     
     setIsClosingEvent(true);
@@ -2101,7 +2101,7 @@ const EventDetail = () => {
     try {
       await supabase
         .from("events")
-        .update({ status: "completed" })
+        .update({ status: "completed", selection_deadline_hours: deadlineHours })
         .eq("id", id);
 
       setEventStatus("completed");

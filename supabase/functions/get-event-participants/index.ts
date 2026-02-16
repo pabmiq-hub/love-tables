@@ -75,7 +75,7 @@ serve(async (req) => {
 
       const { data: participant, error: participantError } = await supabase
         .from('participants')
-        .select('id, name, email, gender, age_range, checked_in')
+        .select('id, name, email, gender, age_range, checked_in, preference, dating_preference')
         .eq('event_id', eventId)
         .eq('verification_code', verificationCode)
         .maybeSingle();
@@ -95,7 +95,9 @@ serve(async (req) => {
             email: participant.email,
             gender: participant.gender,
             ageRange: participant.age_range,
-            alreadyCheckedIn: participant.checked_in
+            alreadyCheckedIn: participant.checked_in,
+            preference: participant.preference,
+            dating_preference: participant.dating_preference
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
