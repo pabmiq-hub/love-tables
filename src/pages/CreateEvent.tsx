@@ -346,13 +346,8 @@ const CreateEvent = () => {
   const prevStep = () => setStep(step - 1);
 
   const canCreateEvent = () => {
-    if (participantMode === "manual" || participantMode === "both") {
-      return participants.length > 0;
-    }
-    if (participantMode === "excel") {
-      return excelFile && participants.length > 0;
-    }
-    return false;
+    // Participants are optional during creation - they can be added from the dashboard
+    return true;
   };
 
   // Get the step numbers for the progress indicator
