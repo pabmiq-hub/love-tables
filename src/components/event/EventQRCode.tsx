@@ -7,7 +7,7 @@ import { useRef } from "react";
 interface EventQRCodeProps {
   eventId: string;
   onClose: () => void;
-  type?: "join" | "select" | "checkin" | "tables"; // join = registration, select = match selection, checkin = attendance, tables = view seating
+  type?: "join" | "select" | "checkin" | "tables" | "access"; // join = registration, select = match selection, checkin = attendance, tables = view seating, access = unified panel
 }
 
 const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) => {
@@ -22,6 +22,8 @@ const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) =>
         return `${window.location.origin}/event/${eventId}/checkin`;
       case "tables":
         return `${window.location.origin}/event/${eventId}/tables`;
+      case "access":
+        return `${window.location.origin}/event/${eventId}/access`;
       default:
         return `${window.location.origin}/event/${eventId}/select`;
     }
@@ -37,6 +39,8 @@ const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) =>
         return "QR de Check-in";
       case "tables":
         return "QR de Mesas";
+      case "access":
+        return "QR Panel del Participante";
       default:
         return "QR de Selección";
     }
@@ -50,6 +54,8 @@ const EventQRCode = ({ eventId, onClose, type = "select" }: EventQRCodeProps) =>
         return "Los participantes pueden escanear para confirmar su asistencia";
       case "tables":
         return "Los participantes pueden escanear para ver sus mesas asignadas (requiere código)";
+      case "access":
+        return "Los participantes pueden ver sus mesas y enviar selecciones con su código";
       default:
         return "Los participantes pueden escanear para seleccionar sus matches (requiere código)";
     }

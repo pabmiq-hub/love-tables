@@ -187,7 +187,7 @@ const generateProfessionalEmailHtml = (
 
 // Rate limiting helpers
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
+const DELAY_BETWEEN_EMAILS = 350; // 350ms = ~2.8 emails/sec (slightly above limit but with retries)
 const RATE_LIMIT_RETRY_DELAY = 2000; // Wait 2 seconds if rate limited
 const MAX_RETRIES = 3;
 
