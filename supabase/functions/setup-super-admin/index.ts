@@ -26,7 +26,14 @@ Deno.serve(async (req) => {
     const { action, email, password, setupKey } = await req.json();
 
     // Security: Require a setup key to prevent unauthorized access
-    const expectedSetupKey = Deno.env.get("SUPER_ADMIN_SETUP_KEY") || "konektum-setup-2024";
+    const expectedSetupKey = Deno.env.get("SUPER_ADMIN_SETUP_KEY");
+    if (!expectedSetupKey) {
+      console.error("SUPER_ADMIN_SETUP_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "Service not configured" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     if (setupKey !== expectedSetupKey) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),

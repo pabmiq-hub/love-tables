@@ -9,6 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 interface VerificationEmailRequest {
   participantId: string;
   eventId: string;
@@ -114,9 +123,9 @@ serve(async (req) => {
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${participant.name}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${escapeHtml(participant.name)}</strong>,</p>
             
-            <p>Tu registro para <strong>${event.name}</strong> ha sido confirmado.</p>
+            <p>Tu registro para <strong>${escapeHtml(event.name)}</strong> ha sido confirmado.</p>
             
             <p style="margin-bottom: 5px;"><strong>📅 Fecha:</strong> ${formattedDate}</p>
             
