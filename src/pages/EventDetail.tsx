@@ -2379,36 +2379,26 @@ const EventDetail = () => {
               </AlertDialog>
             )}
             <TooltipProvider>
-              {/* ACTIVE: QR Mesas (for participants to view their tables) */}
+              {/* ACTIVE or COMPLETED: Unified QR Panel del Participante */}
+              {(eventStatus === "active" || eventStatus === "completed") && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShowQR(true)}>
+                      <QrCode className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">QR Participante</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="sm:hidden">QR Participante</TooltipContent>
+                </Tooltip>
+              )}
               {eventStatus === "active" && (
                 <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setShowTablesQR(true)}>
-                        <QrCode className="w-4 h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">QR Mesas</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="sm:hidden">QR Mesas</TooltipContent>
-                  </Tooltip>
                   <Button variant="hero" size="sm" onClick={() => setShowCloseEventDialog(true)}>
                     <CheckCircle2 className="w-4 h-4 sm:mr-2" />
                     <span className="hidden sm:inline">Cerrar evento</span>
                     <span className="sm:hidden">Cerrar</span>
                   </Button>
                 </>
-              )}
-              {/* COMPLETED: QR Selección (for participants to submit their matches) */}
-              {eventStatus === "completed" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowQR(true)}>
-                      <QrCode className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">QR Selección</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="sm:hidden">QR Selección</TooltipContent>
-                </Tooltip>
               )}
             </TooltipProvider>
           </div>
@@ -3104,7 +3094,7 @@ const EventDetail = () => {
                             onClick={() => setShowQR(true)}
                           >
                             <QrCode className="w-5 h-5 mr-2" />
-                            Mostrar QR de Selección
+                            Mostrar QR del Participante
                           </Button>
                           
                           <Button 
@@ -3605,19 +3595,14 @@ const EventDetail = () => {
           isLoading={isScheduling}
         />
 
-        {/* QR Modal - Selection/Matches */}
+        {/* QR Modal - Unified Access Panel (active/completed) */}
         {showQR && (
-          <EventQRCode eventId={id || ""} onClose={() => setShowQR(false)} type="select" />
+          <EventQRCode eventId={id || ""} onClose={() => setShowQR(false)} type="access" />
         )}
 
         {/* QR Modal - Join/Registration */}
         {showJoinQR && (
           <EventQRCode eventId={id || ""} onClose={() => setShowJoinQR(false)} type="join" />
-        )}
-
-        {/* QR Modal - Tables (for participants to view seating) */}
-        {showTablesQR && (
-          <EventQRCode eventId={id || ""} onClose={() => setShowTablesQR(false)} type="tables" />
         )}
 
         {/* Add Participant Modal */}

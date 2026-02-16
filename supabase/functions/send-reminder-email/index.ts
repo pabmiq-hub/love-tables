@@ -156,10 +156,8 @@ const handler = async (req: Request): Promise<Response> => {
     const stats = { total: 0, sent: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
-    // Get the selection page URL
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const projectRef = supabaseUrl.replace("https://", "").split(".")[0];
-    const baseUrl = `https://${projectRef}.lovable.app`;
+    // Get the selection page URL - use the published URL
+    const baseUrl = "https://love-tables.lovable.app";
 
     console.log(`Starting to send reminders to ${participants?.length || 0} participants with rate limiting...`);
 
@@ -172,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      const selectionUrl = `${baseUrl}/participant/${event_id}/select?participantId=${participant.id}`;
+      const selectionUrl = `${baseUrl}/event/${event_id}/access`;
 
       const html = `
         <!DOCTYPE html>
@@ -223,7 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
       const result = await sendEmailWithRetry(
         resendApiKey,
         { 
-          from: "Konektum <hola@konektum.com>", 
+          from: "Konektum <noreply@konektum.com>", 
           to: [participant.email], 
           subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`, 
           html 
