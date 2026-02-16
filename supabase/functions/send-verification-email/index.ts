@@ -95,7 +95,7 @@ serve(async (req) => {
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: "Konektum <noreply@konektum.es>",
+      from: "Konektum <noreply@konektum.com>",
       to: [participant.email],
       subject: `Tu código de acceso para ${event.name}`,
       html: `
