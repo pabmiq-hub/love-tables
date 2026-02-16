@@ -88,10 +88,12 @@ serve(async (req) => {
       minute: "2-digit"
     });
 
-    // Build URLs with verification code
-    const checkinUrl = `${baseUrl}/event/${eventId}/checkin?code=${participant.verification_code}`;
-    const tablesUrl = `${baseUrl}/event/${eventId}/tables?code=${participant.verification_code}`;
-    const selectUrl = `${baseUrl}/event/${eventId}/select?code=${participant.verification_code}`;
+    // Use the published domain instead of the frontend-provided baseUrl
+    const publishedBaseUrl = "https://konektum.com";
+    
+    // Build URLs with verification code - unified access panel
+    const accessUrl = `${publishedBaseUrl}/event/${eventId}/access`;
+    const checkinUrl = `${publishedBaseUrl}/event/${eventId}/checkin?code=${participant.verification_code}`;
 
     // Send email
     const emailResponse = await resend.emails.send({
@@ -133,24 +135,15 @@ serve(async (req) => {
             </ul>
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              <p style="font-weight: bold; margin-bottom: 15px;">Enlaces directos:</p>
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px;">
-                <tr>
-                  <td>
-                    <a href="${checkinUrl}" style="display: inline-block; background: #667eea; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; margin-bottom: 10px;">Check-in</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 10px;">
-                    <a href="${tablesUrl}" style="display: inline-block; background: #764ba2; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Mis mesas</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 10px;">
-                    <a href="${selectUrl}" style="display: inline-block; background: #e91e63; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px;">Enviar selecciones</a>
-                  </td>
-                </tr>
-              </table>
+              <p style="font-weight: bold; margin-bottom: 15px;">Accede a tu panel:</p>
+              <div style="text-align: center;">
+                <a href="${accessUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                  🎫 Mi panel del evento
+                </a>
+              </div>
+              <p style="color: #888; font-size: 13px; text-align: center; margin-top: 10px;">
+                Desde tu panel podrás ver tus mesas y enviar tus selecciones.
+              </p>
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">

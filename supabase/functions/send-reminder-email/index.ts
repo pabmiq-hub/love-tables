@@ -156,8 +156,8 @@ const handler = async (req: Request): Promise<Response> => {
     const stats = { total: 0, sent: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
-    // Get the selection page URL - use the published URL
-    const baseUrl = "https://love-tables.lovable.app";
+    // Get the selection page URL - use the published domain
+    const baseUrl = "https://konektum.com";
 
     console.log(`Starting to send reminders to ${participants?.length || 0} participants with rate limiting...`);
 
