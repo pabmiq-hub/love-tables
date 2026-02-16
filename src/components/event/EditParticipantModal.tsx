@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +39,8 @@ interface ParticipantData {
   phone: string | null;
   checked_in: boolean;
   verification_code?: string | null;
+  birth_date?: string | null;
+  is_returning_participant?: boolean | null;
   // Professional fields
   company_name?: string | null;
   entity_type?: "client" | "provider" | null;
@@ -102,7 +105,52 @@ const EditParticipantModal = ({
     preference: participant.preference || "",
     dating_preference: participant.dating_preference || "",
     gender: participant.gender || "",
+    birth_date: participant.birth_date || "",
+    is_returning_participant: participant.is_returning_participant === true ? "yes" : participant.is_returning_participant === false ? "no" : "",
   });
+
+  // Calculate age range from birth date
+  const [calculatedAgeRange, setCalculatedAgeRange] = useState("");
+
+  const calculateAgeRange = (dateString: string): string => {
+    if (!dateString) return "";
+    const today = new Date();
+    const birth = new Date(dateString);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    for (const range of ageRanges) {
+      const match = range.match(/(\d+)[-–]?(\d+)?/);
+      if (match) {
+        const min = parseInt(match[1]);
+        const max = match[2] ? parseInt(match[2]) : 100;
+        if (age >= min && age <= max) return range;
+      }
+    }
+    return "Otro";
+  };
+
+  const getAge = (dateString: string): number => {
+    if (!dateString) return 0;
+    const today = new Date();
+    const birth = new Date(dateString);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  useEffect(() => {
+    if (formData.birth_date) {
+      setCalculatedAgeRange(calculateAgeRange(formData.birth_date));
+    } else {
+      setCalculatedAgeRange(formData.age_range);
+    }
+  }, [formData.birth_date, ageRanges]);
 
   // Professional fields
   const [professionalData, setProfessionalData] = useState({
@@ -152,11 +200,17 @@ const EditParticipantModal = ({
         : null;
     } else {
       // Add social fields
-      updateData.age_range = formData.age_range || null;
+      const ageRange = formData.birth_date ? calculateAgeRange(formData.birth_date) : formData.age_range;
+      updateData.age_range = ageRange || null;
       updateData.preferred_age_range = formData.preferred_age_range || null;
       updateData.preference = formData.preference || null;
       updateData.dating_preference = formData.dating_preference || null;
       updateData.gender = formData.gender || null;
+      updateData.birth_date = formData.birth_date || null;
+      updateData.is_returning_participant = formData.is_returning_participant === "yes" ? true : formData.is_returning_participant === "no" ? false : null;
+      if (formData.birth_date) {
+        updateData.age = getAge(formData.birth_date);
+      }
     }
 
     const { error } = await supabase
@@ -200,17 +254,35 @@ const EditParticipantModal = ({
           ? professionalData.business_interests.split(",").map(s => s.trim()).filter(Boolean)
           : null,
       } : {
-        age_range: formData.age_range || null,
+        age_range: (formData.birth_date ? calculateAgeRange(formData.birth_date) : formData.age_range) || null,
         preferred_age_range: formData.preferred_age_range || null,
         preference: formData.preference || null,
         dating_preference: formData.dating_preference || null,
         gender: formData.gender || null,
+        birth_date: formData.birth_date || null,
+        is_returning_participant: formData.is_returning_participant === "yes" ? true : formData.is_returning_participant === "no" ? false : null,
       }),
     });
   };
 
   const renderSocialFields = () => (
     <>
+      <div className="space-y-2">
+        <Label htmlFor="birth_date">Fecha de nacimiento</Label>
+        <Input
+          id="birth_date"
+          type="date"
+          value={formData.birth_date}
+          onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+          max={new Date().toISOString().split('T')[0]}
+        />
+        {calculatedAgeRange && formData.birth_date && (
+          <p className="text-xs text-muted-foreground">
+            Rango de edad: <strong>{calculatedAgeRange}</strong>
+          </p>
+        )}
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="gender">Género</Label>
         <Select
@@ -229,20 +301,20 @@ const EditParticipantModal = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="age_range">Rango de edad</Label>
-        <Select
-          value={formData.age_range}
-          onValueChange={(value) => setFormData({ ...formData, age_range: value })}
+        <Label>¿Ha participado en algún evento anterior?</Label>
+        <RadioGroup 
+          value={formData.is_returning_participant} 
+          onValueChange={(value) => setFormData({ ...formData, is_returning_participant: value })}
         >
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar rango" />
-          </SelectTrigger>
-          <SelectContent>
-            {ageRanges.map(r => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="yes" id="edit-returning-yes" />
+            <Label htmlFor="edit-returning-yes" className="font-normal">Sí</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="no" id="edit-returning-no" />
+            <Label htmlFor="edit-returning-no" className="font-normal">No</Label>
+          </div>
+        </RadioGroup>
       </div>
 
       <div className="space-y-2">
@@ -279,22 +351,24 @@ const EditParticipantModal = ({
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="dating_preference">Preferencia de ligue</Label>
-        <Select
-          value={formData.dating_preference}
-          onValueChange={(value) => setFormData({ ...formData, dating_preference: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar preferencia" />
-          </SelectTrigger>
-          <SelectContent>
-            {datingPreferences.map(d => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {formData.preference === "Amistad y ligue" && (
+        <div className="space-y-2">
+          <Label htmlFor="dating_preference">Preferencia de ligue</Label>
+          <Select
+            value={formData.dating_preference}
+            onValueChange={(value) => setFormData({ ...formData, dating_preference: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar preferencia" />
+            </SelectTrigger>
+            <SelectContent>
+              {datingPreferences.map(d => (
+                <SelectItem key={d} value={d}>{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </>
   );
 
