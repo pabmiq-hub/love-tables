@@ -37,6 +37,7 @@ interface ParticipantData {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  verification_code?: string | null;
   // Professional fields
   company_name?: string | null;
   entity_type?: "client" | "provider" | null;
