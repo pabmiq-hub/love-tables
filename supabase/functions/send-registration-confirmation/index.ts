@@ -83,7 +83,7 @@ serve(async (req) => {
 
     // Send confirmation email WITHOUT verification code
     const emailResponse = await resend.emails.send({
-      from: "Konektum <noreply@konektum.es>",
+      from: "Konektum <noreply@konektum.com>",
       to: [participant.email],
       subject: `¡Registro confirmado! - ${event.name}`,
       html: `
