@@ -1,150 +1,75 @@
 
 
-# Plan: Codigos de Verificacion Visibles y Enviables desde el Panel de Administrador
+# Plan: Corregir emails y unificar QR de participantes
 
-## Problema Actual
+## Problemas identificados
 
-1. El `DbParticipant` no incluye `verification_code` -- el admin no puede ver los codigos
-2. `handleToggleCheckin` solo hace un `UPDATE` directo a la BD sin llamar a la edge function `checkin-participant`, por lo que no genera codigo ni envia email
-3. `handleAddParticipant` no incluye el campo `email` en el insert
-4. No hay opcion para enviar/reenviar el codigo a participantes que no lo tienen (anadidos manualmente o por Excel)
+### 1. Error en recordatorios (send-reminder-email)
+- La URL en el email usa una ruta incorrecta: `/participant/{id}/select` en vez de `/event/{id}/select`
+- La URL base se genera desde el Supabase URL (`wvmrmapnzdixesfasivs.lovable.app`) en vez de usar la URL publicada real (`love-tables.lovable.app`)
+- No hay logs de la funcion, lo que sugiere que no se desplegó correctamente o devuelve error antes de ejecutarse
 
-## Cambios Propuestos
+### 2. Error en envio de match emails
+- Con 91 participantes y 550ms de delay entre emails, el envio tarda ~50 segundos, lo que puede causar timeout en la Edge Function (limite de 60s)
+- El error en consola "Edge Function returned a non-2xx status code" confirma esto
 
-### 1. Anadir `verification_code` al modelo de datos del frontend
+### 3. QR separados para mesas y selecciones
+- Actualmente hay dos QR distintos: uno para ver mesas (`/event/{id}/tables`) y otro para enviar selecciones (`/event/{id}/select`)
+- El usuario quiere un unico QR que permita ambas acciones
+- Ademas, en la pantalla de selecciones se deberia ver con quien coincidio en cada mesa
 
-**Archivo:** `src/pages/EventDetail.tsx`
+## Solucion propuesta
 
-- Anadir `verification_code: string | null` a la interfaz `DbParticipant`
-- Incluir `verification_code` en la query SELECT de participantes
+### Parte 1: Corregir send-reminder-email
+- Corregir la URL: cambiar `/participant/{event_id}/select` a `/event/{event_id}/select`
+- Usar la URL publicada del proyecto en vez de derivarla del Supabase URL
+- Redesplegar la funcion
 
-### 2. Corregir `handleAddParticipant` -- incluir email
+### Parte 2: Corregir send-match-emails (timeout)
+- Reducir el delay entre emails a 350ms para mantenerse dentro del limite de tiempo
+- Alternativa: si hay muchos participantes, enviar sin esperar el resultado completo
 
-**Archivo:** `src/pages/EventDetail.tsx`
+### Parte 3: Unificar QR (Mesas + Selecciones)
+- Crear una nueva pagina unificada `/event/{id}/access` que sirva como panel del participante
+- El participante introduce su codigo de 6 digitos una sola vez
+- Tras verificar, ve un panel con dos secciones/tabs:
+  - **Mis mesas**: muestra las asignaciones de mesa por ronda (igual que ParticipantTables)
+  - **Enviar selecciones**: permite seleccionar matches, mostrando en que mesa coincidio con cada persona
+- Actualizar EventQRCode para que cuando el evento este activo o completado, use la URL unificada `/event/{id}/access`
+- Actualizar el componente QR del admin para mostrar un solo QR "Panel del participante" en vez de dos separados
 
-El insert actual no incluye `email`. Anadirlo:
+### Parte 4: Mostrar mesa de coincidencia en selecciones
+- En la pantalla de selecciones, junto a cada compañero de mesa, mostrar un badge indicando "Mesa X, Ronda Y" para que el participante recuerde donde coincidio con esa persona
 
-```typescript
-email: participant.email || null,
-```
+## Detalles tecnicos
 
-### 3. Modificar `handleToggleCheckin` para usar la edge function
+### Archivos a modificar:
+1. `supabase/functions/send-reminder-email/index.ts` - Corregir URL y remitente
+2. `supabase/functions/send-match-emails/index.ts` - Optimizar delay para evitar timeout
+3. `src/pages/ParticipantAccess.tsx` (nuevo) - Panel unificado del participante con tabs para mesas y selecciones
+4. `src/components/event/EventQRCode.tsx` - Añadir tipo "access" para QR unificado
+5. `src/App.tsx` - Añadir ruta `/event/:id/access`
+6. `src/pages/EventDetail.tsx` - Reemplazar los dos QR separados (mesas y selecciones) por uno solo de tipo "access"
 
-**Archivo:** `src/pages/EventDetail.tsx`
-
-Cuando el admin hace check-in (de false a true), en lugar de solo hacer un UPDATE directo, llamar a `checkin-participant` que:
-- Genera el codigo de 6 digitos
-- Envia el email con el codigo
-- Actualiza `checked_in = true`
-
-Cuando deshace check-in (de true a false), mantener el UPDATE directo.
-
-```typescript
-const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
-  if (!currentStatus) {
-    // Check-in: usar edge function para generar codigo + enviar email
-    const { data, error } = await supabase.functions.invoke('checkin-participant', {
-      body: { 
-        eventId: id, 
-        participantId, 
-        sendEmail: true, 
-        baseUrl: window.location.origin 
-      }
-    });
-    // Actualizar participante local con codigo generado
-  } else {
-    // Deshacer check-in: UPDATE directo
-  }
-};
-```
-
-### 4. Mostrar codigo en la lista de participantes
-
-**Archivo:** `src/pages/EventDetail.tsx`
-
-En cada fila de participante, si tiene `verification_code`, mostrar un badge con el codigo:
-
+### Flujo del panel unificado:
 ```text
-Maria Garcia  [25-32] [Amistad]  [Codigo: 847293]  [Check-in] [Borrar]
-Juan Lopez    [25-32] [Ligue]    [Sin codigo]       [Check-in] [Borrar]
+Participante escanea QR
+        |
+        v
+  Introduce codigo 6 digitos
+        |
+        v
+  Panel con 2 tabs:
+  +------------------+-------------------+
+  | Mis mesas        | Mis selecciones   |
+  +------------------+-------------------+
+  | Ronda 1: Mesa 3  | [Lista de         |
+  | Ronda 2: Mesa 7  |  compañeros con   |
+  | Ronda 3: Mesa 1  |  badge de mesa    |
+  |                  |  donde coincidio] |
+  +------------------+-------------------+
 ```
 
-### 5. Mostrar codigo en el modal de detalle
-
-**Archivo:** `src/components/event/ParticipantDetailModal.tsx`
-
-- Anadir `verification_code` a la interfaz `ParticipantData`
-- Mostrar el codigo en la seccion de datos del participante con opcion de copiar
-
-### 6. Boton "Enviar codigo" para participantes sin codigo
-
-**Archivo:** `src/pages/EventDetail.tsx`
-
-Para participantes que tienen check-in pero no tienen codigo (o que fueron anadidos manualmente/Excel):
-
-- Un boton individual "Enviar codigo" junto a cada participante sin codigo
-- Un boton masivo "Enviar codigos pendientes" que envia codigos a todos los participantes con check-in que no tienen codigo
-
-La logica sera:
-1. Llamar a `checkin-participant` con `participantId` (genera codigo si no tiene)
-2. Enviar el email con el codigo
-
-### 7. Boton masivo "Enviar codigos pendientes"
-
-**Archivo:** `src/pages/EventDetail.tsx`
-
-Anadir un boton en la barra de acciones junto a "Check-in todos":
-
-```text
-[Check-in todos] [Enviar codigos pendientes] [Deshacer check-in]
-```
-
-Este boton:
-- Filtra participantes con `checked_in = true` y `verification_code = null`
-- Para cada uno, llama a `checkin-participant` secuencialmente (respetando rate limits)
-- Muestra progreso: "Enviando codigos... 3/15"
-
-### 8. Permitir check-in en estado `active`
-
-**Archivo:** `supabase/functions/checkin-participant/index.ts`
-
-Cambiar la validacion para permitir check-in tanto en `pending` como en `active` (para check-ins tardios):
-
-```typescript
-if (event.status !== 'pending' && event.status !== 'active') {
-  return error('Event registrations are closed');
-}
-```
-
-## Resumen de Archivos a Modificar
-
-| Archivo | Cambios |
-|---------|---------|
-| `src/pages/EventDetail.tsx` | Anadir verification_code al modelo, corregir insert email, modificar handleToggleCheckin para usar edge function, mostrar codigos en lista, botones de enviar codigo individual y masivo |
-| `src/components/event/ParticipantDetailModal.tsx` | Anadir verification_code a la interfaz, mostrar codigo con opcion de copiar |
-| `supabase/functions/checkin-participant/index.ts` | Permitir check-in en estado `active` |
-
-## Flujo Resultante
-
-```text
-Participante sin check-in:
-  [Maria Garcia] [25-32] [Sin codigo]  [Boton Check-in]
-                                            |
-                                            v
-                                    Edge function genera codigo
-                                    + envia email
-                                            |
-                                            v
-  [Maria Garcia] [25-32] [847293]    [Check-in activo]
-
-Participante anadido por Excel (con check-in pero sin codigo):
-  [Juan Lopez]   [33-40] [Sin codigo]  [Enviar codigo]
-                                            |
-                                            v
-                                    Edge function genera codigo
-                                    + envia email
-                                            |
-                                            v
-  [Juan Lopez]   [33-40] [592841]    [Codigo enviado]
-```
-
+### Logica de selecciones con mesa visible:
+- Para cada compañero de mesa, se cruzaran los datos de `tablesData` para determinar en que ronda/mesa coincidieron
+- Se mostrara como badge: "Mesa 3, R1" junto al nombre del participante
