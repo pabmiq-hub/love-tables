@@ -2,7 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb } from "lucide-react";
+import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ParticipantData {
   id: string;
@@ -16,6 +17,7 @@ interface ParticipantData {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  verification_code: string | null;
   selection_submitted_at?: string | null;
   // Professional fields
   company_name?: string | null;
@@ -59,6 +61,7 @@ const ParticipantDetailModal = ({
   canEdit,
   isProfessional = false,
 }: ParticipantDetailModalProps) => {
+  const { toast } = useToast();
   // Find tables where this participant sat
   const getParticipantTables = () => {
     const participantTables: { round: number; tablemates: { id: string; name: string }[] }[] = [];
@@ -318,6 +321,30 @@ const ParticipantDetailModal = ({
           <TabsContent value="details" className="mt-4 space-y-4">
             {isProfessional ? renderProfessionalDetails() : renderSocialDetails()}
             
+            {/* Verification Code */}
+            {participant.verification_code && (
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Código de acceso</p>
+                <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                  <Key className="w-5 h-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Código de verificación</p>
+                    <p className="font-mono text-lg font-bold tracking-widest text-primary">{participant.verification_code}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(participant.verification_code!);
+                      toast({ title: "Copiado", description: "Código copiado al portapapeles" });
+                    }}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Contact info - shown for both types */}
             <div className="border-t pt-3 mt-3">
               <p className="text-sm font-medium text-muted-foreground mb-2">Contacto</p>

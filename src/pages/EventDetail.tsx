@@ -105,6 +105,7 @@ interface DbParticipant {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  verification_code: string | null;
   selection_submitted_at?: string | null;
   global_participant_id?: string | null;
   // Professional fields
@@ -1349,24 +1350,163 @@ const EventDetail = () => {
     "60+": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   };
 
-  const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from("participants")
-      .update({ checked_in: !currentStatus })
-      .eq("id", participantId);
+  const [isSendingCode, setIsSendingCode] = useState<string | null>(null);
+  const [isSendingBulkCodes, setIsSendingBulkCodes] = useState(false);
+  const [bulkCodeProgress, setBulkCodeProgress] = useState<{ current: number; total: number } | null>(null);
 
-    if (error) {
+  const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
+    if (!currentStatus) {
+      // Check-in: use edge function to generate code + send email
+      const participant = participants.find(p => p.id === participantId);
+      const { data, error } = await supabase.functions.invoke('checkin-participant', {
+        body: { 
+          eventId: id, 
+          participantId, 
+          sendEmail: !!participant?.email, 
+          baseUrl: window.location.origin 
+        }
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || "No se pudo realizar el check-in",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setParticipants(participants.map(p => 
+        p.id === participantId ? { 
+          ...p, 
+          checked_in: true, 
+          verification_code: data?.participant?.verificationCode || p.verification_code 
+        } : p
+      ));
+
+      if (data?.emailSent) {
+        toast({
+          title: "Check-in completado",
+          description: `Código enviado por email a ${participant?.name}`,
+        });
+      } else {
+        toast({
+          title: "Check-in completado",
+          description: participant?.email ? "Check-in realizado" : "Check-in realizado (sin email configurado)",
+        });
+      }
+    } else {
+      // Undo check-in: direct UPDATE
+      const { error } = await supabase
+        .from("participants")
+        .update({ checked_in: false })
+        .eq("id", participantId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo deshacer el check-in",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setParticipants(participants.map(p => 
+        p.id === participantId ? { ...p, checked_in: false } : p
+      ));
+    }
+  };
+
+  const handleSendCode = async (participantId: string) => {
+    setIsSendingCode(participantId);
+    try {
+      const { data, error } = await supabase.functions.invoke('checkin-participant', {
+        body: { 
+          eventId: id, 
+          participantId, 
+          sendEmail: true, 
+          baseUrl: window.location.origin 
+        }
+      });
+
+      if (error || data?.error) {
+        // If already checked in, just try to send the code email directly
+        if (data?.participant?.alreadyCheckedIn && data?.participant?.verificationCode) {
+          // Already has code, just resend email
+          await supabase.functions.invoke('send-checkin-code', {
+            body: { participantId, eventId: id, baseUrl: window.location.origin }
+          });
+          toast({ title: "Código reenviado", description: "Se ha reenviado el email con el código" });
+        } else {
+          toast({
+            title: "Error",
+            description: data?.error || "No se pudo enviar el código",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      setParticipants(participants.map(p => 
+        p.id === participantId ? { 
+          ...p, 
+          checked_in: true,
+          verification_code: data?.participant?.verificationCode || p.verification_code 
+        } : p
+      ));
+
       toast({
-        title: "Error",
-        description: "No se pudo actualizar el check-in",
-        variant: "destructive",
+        title: "Código enviado",
+        description: `Se ha enviado el código de acceso por email`,
+      });
+    } finally {
+      setIsSendingCode(null);
+    }
+  };
+
+  const handleSendBulkCodes = async () => {
+    const pendingParticipants = participants.filter(
+      p => p.checked_in && !p.verification_code && p.email
+    );
+
+    if (pendingParticipants.length === 0) {
+      toast({
+        title: "Sin códigos pendientes",
+        description: "Todos los participantes con check-in y email ya tienen código",
       });
       return;
     }
 
-    setParticipants(participants.map(p => 
-      p.id === participantId ? { ...p, checked_in: !currentStatus } : p
-    ));
+    setIsSendingBulkCodes(true);
+    setBulkCodeProgress({ current: 0, total: pendingParticipants.length });
+
+    let sent = 0;
+    for (const p of pendingParticipants) {
+      try {
+        const { data } = await supabase.functions.invoke('checkin-participant', {
+          body: { eventId: id, participantId: p.id, sendEmail: true, baseUrl: window.location.origin }
+        });
+
+        if (data?.participant?.verificationCode) {
+          setParticipants(prev => prev.map(pp => 
+            pp.id === p.id ? { ...pp, checked_in: true, verification_code: data.participant.verificationCode } : pp
+          ));
+        }
+        sent++;
+      } catch (e) {
+        console.error(`Error sending code to ${p.name}:`, e);
+      }
+      setBulkCodeProgress({ current: sent, total: pendingParticipants.length });
+      // Rate limit: wait 700ms between calls
+      await new Promise(r => setTimeout(r, 700));
+    }
+
+    setIsSendingBulkCodes(false);
+    setBulkCodeProgress(null);
+    toast({
+      title: "Códigos enviados",
+      description: `Se enviaron ${sent} de ${pendingParticipants.length} códigos`,
+    });
   };
 
   const tables = generateTables();
@@ -1471,6 +1611,7 @@ const EventDetail = () => {
       .insert({
         event_id: id,
         name: participant.name,
+        email: participant.email || null,
         age: participant.age || null,
         age_range: participant.ageRange || null,
         preferred_age_range: participant.preferredAgeRange || null,
@@ -1638,9 +1779,9 @@ const EventDetail = () => {
     });
   };
 
-  const handleUpdateParticipant = (updatedParticipant: DbParticipant) => {
+  const handleUpdateParticipant = (updatedParticipant: Partial<DbParticipant> & { id: string }) => {
     setParticipants(participants.map(p => 
-      p.id === updatedParticipant.id ? updatedParticipant : p
+      p.id === updatedParticipant.id ? { ...p, ...updatedParticipant } : p
     ));
     setEditingParticipant(null);
     setSelectedParticipant(null);
@@ -2366,6 +2507,33 @@ const EventDetail = () => {
                               </AlertDialogContent>
                             </AlertDialog>
                           )}
+                          {participants.some(p => p.checked_in && !p.verification_code && p.email) && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={handleSendBulkCodes}
+                                  disabled={isSendingBulkCodes}
+                                >
+                                  {isSendingBulkCodes ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+                                      <span className="hidden sm:inline">
+                                        {bulkCodeProgress ? `${bulkCodeProgress.current}/${bulkCodeProgress.total}` : "Enviando..."}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-4 h-4 sm:mr-2" />
+                                      <span className="hidden sm:inline">Enviar códigos</span>
+                                    </>
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Enviar códigos pendientes ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length})</TooltipContent>
+                            </Tooltip>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -2719,6 +2887,9 @@ const EventDetail = () => {
                                   {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
                                 </>
                               )}
+                              {participant.verification_code && (
+                                <span className="ml-1 font-mono text-xs text-primary">🔑 {participant.verification_code}</span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -2754,6 +2925,26 @@ const EventDetail = () => {
                             >
                               <UserCheck className="w-4 h-4" />
                             </Button>
+                          )}
+                          {participant.checked_in && !participant.verification_code && participant.email && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-2"
+                                  disabled={isSendingCode === participant.id}
+                                  onClick={() => handleSendCode(participant.id)}
+                                >
+                                  {isSendingCode === participant.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Enviar código</TooltipContent>
+                            </Tooltip>
                           )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>

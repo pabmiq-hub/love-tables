@@ -159,7 +159,7 @@ serve(async (req) => {
       );
     }
 
-    if (event.status !== 'pending') {
+    if (event.status !== 'pending' && event.status !== 'active') {
       console.log('[checkin-participant] Event registrations are closed');
       return new Response(
         JSON.stringify({ error: 'Event registrations are closed' }),
