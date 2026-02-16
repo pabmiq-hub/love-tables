@@ -1633,6 +1633,8 @@ const EventDetail = () => {
         gender: participant.gender || null,
         phone: participant.phone || null,
         checked_in: autoCheckin,
+        birth_date: participant.birthDate || null,
+        is_returning_participant: participant.isReturningParticipant || false,
       })
       .select()
       .single();

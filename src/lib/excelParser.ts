@@ -25,6 +25,8 @@ export interface Participant {
   gender: string;
   phone?: string;
   email?: string;
+  birthDate?: string;
+  isReturningParticipant?: boolean;
   // Professional/B2B fields (optional)
   companyName?: string;
   entityType?: 'client' | 'provider';

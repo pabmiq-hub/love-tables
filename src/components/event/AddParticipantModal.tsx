@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X } from "lucide-react";
 import MultiSelectAge from "@/components/ui/multi-select-age";
 import { 
@@ -28,7 +29,6 @@ interface AddParticipantModalProps {
 }
 
 const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipantModalProps) => {
-  // Use custom preferences if provided, otherwise use defaults
   const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
   const genders = customPreferences?.genders || [...GENDERS];
   const preferences = customPreferences?.preferences || [...PREFERENCES];
@@ -38,29 +38,77 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [ageRange, setAgeRange] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [calculatedAgeRange, setCalculatedAgeRange] = useState("");
   const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
   const [preference, setPreference] = useState(preferences[0] || "Amistad y ligue");
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
+  const [isReturningParticipant, setIsReturningParticipant] = useState<string>("");
+
+  const calculateAgeRange = (dateString: string): string => {
+    if (!dateString) return "";
+    const today = new Date();
+    const birth = new Date(dateString);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    for (const range of ageRanges) {
+      const match = range.match(/(\d+)[-–]?(\d+)?/);
+      if (match) {
+        const min = parseInt(match[1]);
+        const max = match[2] ? parseInt(match[2]) : 100;
+        if (age >= min && age <= max) return range;
+      }
+    }
+    return "Otro";
+  };
+
+  const getAge = (dateString: string): number => {
+    if (!dateString) return 0;
+    const today = new Date();
+    const birth = new Date(dateString);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  useEffect(() => {
+    if (birthDate) {
+      setCalculatedAgeRange(calculateAgeRange(birthDate));
+    } else {
+      setCalculatedAgeRange("");
+    }
+  }, [birthDate, ageRanges]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim()) return;
-    
+    if (!name.trim() || !birthDate || !gender) return;
+
+    const age = getAge(birthDate);
+    if (age < 18) {
+      return; // The UI already shows a warning
+    }
+
     const preferredAgeRange = selectedAgeRanges.join(', ');
     
     const participant: Participant = {
       id: Math.random().toString(36).substring(2, 11),
       name: name.trim(),
-      age: parseInt(ageRange.split('–')[0]) || 0,
-      ageRange,
+      age,
+      ageRange: calculatedAgeRange,
       preferredAgeRange,
       preference,
       gender,
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
+      birthDate,
+      isReturningParticipant: isReturningParticipant === "yes",
     };
     
     if (preference === "Amistad y ligue" && datingPreference) {
@@ -70,6 +118,9 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
     onAdd(participant);
     onClose();
   };
+
+  const age = birthDate ? getAge(birthDate) : null;
+  const isUnder18 = age !== null && age < 18;
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -100,6 +151,17 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ej: tu@email.com"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="phone">Teléfono de contacto</Label>
               <Input
                 id="phone"
@@ -111,35 +173,32 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="birthDate">Fecha de nacimiento *</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ej: tu@email.com"
+                id="birthDate"
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                required
               />
+              {calculatedAgeRange && !isUnder18 && (
+                <p className="text-xs text-muted-foreground">
+                  Rango de edad: <strong>{calculatedAgeRange}</strong>
+                </p>
+              )}
+              {isUnder18 && (
+                <p className="text-xs text-destructive font-medium">
+                  El participante debe ser mayor de 18 años
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
-              <Label>Rango de edad</Label>
-              <Select value={ageRange} onValueChange={setAgeRange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu rango de edad" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ageRanges.map((range) => (
-                    <SelectItem key={range} value={range}>{range}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Género</Label>
+              <Label>Género *</Label>
               <Select value={gender} onValueChange={setGender}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu género" />
+                  <SelectValue placeholder="Selecciona género" />
                 </SelectTrigger>
                 <SelectContent>
                   {genders.map((g) => (
@@ -147,6 +206,20 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>¿Ha participado en algún evento anterior del organizador? *</Label>
+              <RadioGroup value={isReturningParticipant} onValueChange={setIsReturningParticipant}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="returning-yes" />
+                  <Label htmlFor="returning-yes" className="font-normal">Sí</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="returning-no" />
+                  <Label htmlFor="returning-no" className="font-normal">No</Label>
+                </div>
+              </RadioGroup>
             </div>
             
             <div className="space-y-2">
@@ -193,7 +266,12 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" variant="hero" className="flex-1">
+              <Button 
+                type="submit" 
+                variant="hero" 
+                className="flex-1"
+                disabled={isUnder18 || !birthDate || !gender || !name.trim()}
+              >
                 Añadir
               </Button>
             </div>
