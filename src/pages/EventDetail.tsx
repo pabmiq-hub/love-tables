@@ -1420,6 +1420,22 @@ const EventDetail = () => {
   const handleSendCode = async (participantId: string) => {
     setIsSendingCode(participantId);
     try {
+      const participant = participants.find(p => p.id === participantId);
+      
+      // If participant already has a code, just resend the email
+      if (participant?.verification_code) {
+        const { error } = await supabase.functions.invoke('send-checkin-code', {
+          body: { participantId, eventId: id, baseUrl: window.location.origin }
+        });
+        if (error) {
+          toast({ title: "Error", description: "No se pudo reenviar el código", variant: "destructive" });
+        } else {
+          toast({ title: "Código reenviado", description: `Código enviado a ${participant.name}` });
+        }
+        return;
+      }
+
+      // No code yet: call checkin-participant to generate + send
       const { data, error } = await supabase.functions.invoke('checkin-participant', {
         body: { 
           eventId: id, 
@@ -1430,24 +1446,21 @@ const EventDetail = () => {
       });
 
       if (error || data?.error) {
-        // If already checked in, just try to send the code email directly
         if (data?.participant?.alreadyCheckedIn && data?.participant?.verificationCode) {
-          // Already has code, just resend email
           await supabase.functions.invoke('send-checkin-code', {
             body: { participantId, eventId: id, baseUrl: window.location.origin }
           });
+          setParticipants(prev => prev.map(p => 
+            p.id === participantId ? { ...p, verification_code: data.participant.verificationCode } : p
+          ));
           toast({ title: "Código reenviado", description: "Se ha reenviado el email con el código" });
         } else {
-          toast({
-            title: "Error",
-            description: data?.error || "No se pudo enviar el código",
-            variant: "destructive",
-          });
+          toast({ title: "Error", description: data?.error || "No se pudo enviar el código", variant: "destructive" });
         }
         return;
       }
 
-      setParticipants(participants.map(p => 
+      setParticipants(prev => prev.map(p => 
         p.id === participantId ? { 
           ...p, 
           checked_in: true,
@@ -2507,33 +2520,31 @@ const EventDetail = () => {
                               </AlertDialogContent>
                             </AlertDialog>
                           )}
-                          {participants.some(p => p.checked_in && !p.verification_code && p.email) && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={handleSendBulkCodes}
-                                  disabled={isSendingBulkCodes}
-                                >
-                                  {isSendingBulkCodes ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-                                      <span className="hidden sm:inline">
-                                        {bulkCodeProgress ? `${bulkCodeProgress.current}/${bulkCodeProgress.total}` : "Enviando..."}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Send className="w-4 h-4 sm:mr-2" />
-                                      <span className="hidden sm:inline">Enviar códigos</span>
-                                    </>
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Enviar códigos pendientes ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length})</TooltipContent>
-                            </Tooltip>
-                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={handleSendBulkCodes}
+                                disabled={isSendingBulkCodes}
+                              >
+                                {isSendingBulkCodes ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
+                                    <span className="hidden sm:inline">
+                                      {bulkCodeProgress ? `${bulkCodeProgress.current}/${bulkCodeProgress.total}` : "Enviando..."}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Enviar códigos ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length})</span>
+                                  </>
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Enviar códigos a participantes con check-in sin código ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length} pendientes)</TooltipContent>
+                          </Tooltip>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -2887,8 +2898,10 @@ const EventDetail = () => {
                                   {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
                                 </>
                               )}
-                              {participant.verification_code && (
+                            {participant.verification_code ? (
                                 <span className="ml-1 font-mono text-xs text-primary">🔑 {participant.verification_code}</span>
+                              ) : (
+                                <span className="ml-1 text-xs text-muted-foreground">• Sin código</span>
                               )}
                             </p>
                           </div>
@@ -2926,7 +2939,7 @@ const EventDetail = () => {
                               <UserCheck className="w-4 h-4" />
                             </Button>
                           )}
-                          {participant.checked_in && !participant.verification_code && participant.email && (
+                          {participant.email && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -2943,7 +2956,7 @@ const EventDetail = () => {
                                   )}
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Enviar código</TooltipContent>
+                              <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
                             </Tooltip>
                           )}
                           <AlertDialog>
