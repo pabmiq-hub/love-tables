@@ -28,6 +28,15 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+/** Returns "FirstName L." from a full name */
+function anonymizeName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) return fullName;
+  const firstName = parts[0];
+  const lastInitial = parts[parts.length - 1][0];
+  return `${firstName} ${lastInitial.toUpperCase()}.`;
+}
+
 interface TableAssignmentRequest {
   eventId: string;
   verificationCode: string;
@@ -61,7 +70,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(eventId)) {
       return new Response(
@@ -70,7 +78,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate verification code format (6 digits)
     const codeRegex = /^\d{6}$/;
     if (!codeRegex.test(verificationCode)) {
       return new Response(
@@ -98,7 +105,6 @@ serve(async (req) => {
       );
     }
 
-    // Only allow viewing tables when event is active or completed
     if (event.status !== 'active' && event.status !== 'completed') {
       return new Response(
         JSON.stringify({ 
@@ -109,16 +115,15 @@ serve(async (req) => {
       );
     }
 
-    // Find participant by verification code - don't reveal if code exists or not
+    // Find participant by verification code
     const { data: participant, error: participantError } = await supabase
       .from('participants')
-      .select('id, name, checked_in')
+      .select('id, name, checked_in, preference, dating_preference')
       .eq('event_id', eventId)
       .eq('verification_code', verificationCode)
       .maybeSingle();
 
     if (participantError || !participant) {
-      // Generic error to not reveal if code exists
       return new Response(
         JSON.stringify({ error: 'Código de verificación incorrecto' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -133,22 +138,26 @@ serve(async (req) => {
     }
 
     // Extract table assignments for this participant
-    // Tables are stored as an array: [{round: 1, tables: [[p1,p2],[p3,p4]]}, ...]
     const tables = event.tables as any;
     if (!tables || !Array.isArray(tables) || tables.length === 0) {
       return new Response(
         JSON.stringify({ 
-          participantName: participant.name,
+          participantName: anonymizeName(participant.name),
+          participantPreference: participant.preference,
           assignments: [],
-          message: 'Las mesas aún no han sido asignadas'
+          existingSelections: [],
+          message: 'Las mesas aún no han sido asignadas',
+          currentRound: event.current_round,
+          totalRounds: event.rounds
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const assignments: { round: number; table: number; tablemates: { id: string; name: string }[] }[] = [];
+    // Collect all tablemate IDs to fetch their preferences in bulk
+    const tablemateIds = new Set<string>();
+    const assignments: { round: number; table: number; tablemateEntries: { id: string; name: string }[] }[] = [];
     
-    // Find participant's table for each round
     for (const roundData of tables) {
       const roundNumber = roundData.round;
       const roundTables = roundData.tables;
@@ -158,30 +167,63 @@ serve(async (req) => {
         const table = roundTables[tableIndex];
         if (!Array.isArray(table)) continue;
         
-        const isInTable = table.some(
-          (p: any) => p.id === participant.id
-        );
+        const isInTable = table.some((p: any) => p.id === participant.id);
         
         if (isInTable) {
-          const tablemates = table
+          const mates = table
             .filter((p: any) => p.id !== participant.id)
             .map((p: any) => ({ id: p.id, name: p.name }));
+          mates.forEach((m: any) => tablemateIds.add(m.id));
           assignments.push({
             round: roundNumber,
             table: tableIndex + 1,
-            tablemates
+            tablemateEntries: mates
           });
           break;
         }
       }
     }
 
-    console.log(`[get-table-assignments] Found ${assignments.length} assignments for participant ${participant.id}`);
+    // Fetch preferences for all tablemates + existing selections in parallel
+    const [preferencesResult, selectionsResult] = await Promise.all([
+      tablemateIds.size > 0
+        ? supabase.from('participants').select('id, preference, dating_preference').in('id', Array.from(tablemateIds))
+        : Promise.resolve({ data: [], error: null }),
+      supabase.from('participant_selections').select('selected_id, selection_type').eq('event_id', eventId).eq('selector_id', participant.id)
+    ]);
+
+    const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null }>();
+    if (preferencesResult.data) {
+      for (const p of preferencesResult.data) {
+        preferencesMap.set(p.id, { preference: p.preference, dating_preference: p.dating_preference });
+      }
+    }
+
+    // Build final assignments with anonymized names and preferences
+    const finalAssignments = assignments.map(a => ({
+      round: a.round,
+      table: a.table,
+      tablemates: a.tablemateEntries.map(tm => ({
+        id: tm.id,
+        name: anonymizeName(tm.name),
+        preference: preferencesMap.get(tm.id)?.preference || null,
+        dating_preference: preferencesMap.get(tm.id)?.dating_preference || null,
+      }))
+    }));
+
+    const existingSelections = (selectionsResult.data || []).map((s: any) => ({
+      selected_id: s.selected_id,
+      selection_type: s.selection_type,
+    }));
+
+    console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id}`);
 
     return new Response(
       JSON.stringify({ 
-        participantName: participant.name,
-        assignments,
+        participantName: anonymizeName(participant.name),
+        participantPreference: participant.preference,
+        assignments: finalAssignments,
+        existingSelections,
         currentRound: event.current_round,
         totalRounds: event.rounds
       }),

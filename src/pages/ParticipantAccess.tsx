@@ -7,19 +7,9 @@ import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, C
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatAnonymousName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import konektumLogo from "@/assets/konektum-logo.png";
-
-interface Participant {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  preference?: string;
-  dating_preference?: string;
-}
 
 interface MatchSelection {
   participantId: string;
@@ -32,21 +22,15 @@ interface MatchSelection {
   table: number;
 }
 
-interface TableData {
-  round: number;
-  tables: { id: string; name: string }[][];
-}
-
-interface ExistingSelection {
-  selector_id: string;
-  selected_id: string;
-  selection_type: string;
-}
-
 interface TableAssignment {
   round: number;
   table: number;
-  tablemates: { id: string; name: string }[];
+  tablemates: { id: string; name: string; preference?: string | null; dating_preference?: string | null }[];
+}
+
+interface ExistingSelection {
+  selected_id: string;
+  selection_type: string;
 }
 
 type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "not_started" | "expired";
@@ -55,15 +39,12 @@ const ParticipantAccess = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
-  const [verifiedParticipant, setVerifiedParticipant] = useState<Participant | null>(null);
+  const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const [participants, setParticipants] = useState<Participant[]>([]);
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tablesData, setTablesData] = useState<TableData[]>([]);
-  const [existingSelections, setExistingSelections] = useState<ExistingSelection[]>([]);
   const [eventStatus, setEventStatus] = useState<string>("");
   const [currentRound, setCurrentRound] = useState<number>(0);
 
@@ -101,14 +82,12 @@ const ParticipantAccess = () => {
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
 
-        // Check if selection period has been manually closed
         if (event.selection_closed_at) {
           setStep("expired");
           setIsLoading(false);
           return;
         }
 
-        // Check deadline if event is completed
         if (event.status === 'completed' && event.emails_sent_at && event.selection_deadline_hours) {
           const deadline = new Date(new Date(event.emails_sent_at).getTime() + event.selection_deadline_hours * 3600000);
           setSelectionDeadline(deadline);
@@ -189,72 +168,57 @@ const ParticipantAccess = () => {
     setIsLoading(true);
 
     try {
-      const [tablesResult, selectResult] = await Promise.all([
-        supabase.functions.invoke('get-table-assignments', {
-          body: { eventId, verificationCode }
-        }),
-        supabase.functions.invoke('get-event-participants', {
-          body: { eventId, type: 'select' }
-        })
-      ]);
+      // Single call — get-table-assignments now returns everything we need
+      const { data, error } = await supabase.functions.invoke('get-table-assignments', {
+        body: { eventId, verificationCode }
+      });
 
-      // Process table assignments
-      if (!tablesResult.error && tablesResult.data && !tablesResult.data.error) {
-        setParticipantName(tablesResult.data.participantName);
-        setTableAssignments(tablesResult.data.assignments || []);
-        setTotalRounds(tablesResult.data.totalRounds);
+      if (error || !data || data.error) {
+        console.error('Error fetching table assignments:', data?.error || error);
+        setStep("error");
+        setIsLoading(false);
+        return;
       }
 
-      // Process selection data
-      if (!selectResult.error && selectResult.data && !selectResult.data.error) {
-        const participantsData = selectResult.data.participants;
-        const tables = selectResult.data.tables || [];
-        const allExistingSelections = selectResult.data.existingSelections || [];
+      setParticipantName(data.participantName);
+      const assignments: TableAssignment[] = data.assignments || [];
+      setTableAssignments(assignments);
+      setTotalRounds(data.totalRounds);
 
-        setParticipants(participantsData);
-        setTablesData(tables);
-        setExistingSelections(allExistingSelections);
+      const existingSelections: ExistingSelection[] = data.existingSelections || [];
+      const existingMap = new Map<string, string>();
+      existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
 
-        const userPreference = verifiedParticipant.preference || null;
-        const userExistingSelections = getUserExistingSelections(verifiedParticipant.id, allExistingSelections);
+      const participantPreference = data.participantPreference || verifiedParticipant.preference || '';
+      const userInterestedInDating = participantPreference.toLowerCase().includes('sentimental') ||
+        participantPreference.toLowerCase().includes('pareja') ||
+        participantPreference.toLowerCase().includes('ligue');
 
-        const userInterestedInDating = userPreference?.toLowerCase().includes('sentimental') ||
-          userPreference?.toLowerCase().includes('pareja') ||
-          userPreference?.toLowerCase().includes('ligue');
+      // Build selections from tablemates only (privacy: no other participants exposed)
+      const allSelections: MatchSelection[] = [];
+      assignments.forEach((assignment: TableAssignment) => {
+        assignment.tablemates.forEach((tm) => {
+          const targetPreference = (tm.preference || '').toLowerCase();
+          const targetInterestedInDating = targetPreference.includes('sentimental') ||
+            targetPreference.includes('pareja') ||
+            targetPreference.includes('ligue');
 
-        // Build selections grouped by round using table assignments
-        const allSelections: MatchSelection[] = [];
-        
-        // Use the table assignments which include tablemates per round
-        const assignments = tablesResult.data?.assignments || [];
-        assignments.forEach((assignment: TableAssignment) => {
-          assignment.tablemates.forEach((tm: { id: string; name: string }) => {
-            const participant = participantsData.find((p: Participant) => p.id === tm.id);
-            if (!participant) return;
-            
-            const targetPreference = participant.preference?.toLowerCase() || '';
-            const targetInterestedInDating = targetPreference.includes('sentimental') ||
-              targetPreference.includes('pareja') ||
-              targetPreference.includes('ligue');
+          const existingType = existingMap.get(tm.id);
 
-            const existingSelection = userExistingSelections.get(tm.id);
-
-            allSelections.push({
-              participantId: tm.id,
-              friendship: false,
-              dating: false,
-              canShowDating: !!(userInterestedInDating && targetInterestedInDating),
-              alreadySelected: !!existingSelection,
-              previousSelectionType: existingSelection,
-              round: assignment.round,
-              table: assignment.table,
-            });
+          allSelections.push({
+            participantId: tm.id,
+            friendship: false,
+            dating: false,
+            canShowDating: !!(userInterestedInDating && targetInterestedInDating),
+            alreadySelected: !!existingType,
+            previousSelectionType: existingType,
+            round: assignment.round,
+            table: assignment.table,
           });
         });
+      });
 
-        setMatchSelections(allSelections);
-      }
-
+      setMatchSelections(allSelections);
       setStep("panel");
     } catch (err) {
       console.error('Error loading data:', err);
@@ -262,14 +226,6 @@ const ParticipantAccess = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getUserExistingSelections = (participantId: string, selections: ExistingSelection[]): Map<string, string> => {
-    const userSelections = new Map<string, string>();
-    selections.filter(s => s.selector_id === participantId).forEach(s => {
-      userSelections.set(s.selected_id, s.selection_type);
-    });
-    return userSelections;
   };
 
   const toggleSelection = (participantId: string, round: number, type: 'friendship' | 'dating') => {
@@ -280,12 +236,6 @@ const ParticipantAccess = () => {
           : ms
       )
     );
-  };
-
-  const getSelectionState = (participantId: string, round: number): MatchSelection => {
-    return matchSelections.find(ms => ms.participantId === participantId && ms.round === round) || {
-      participantId, friendship: false, dating: false, canShowDating: false, alreadySelected: false, round, table: 0
-    };
   };
 
   const getPreviousSelectionLabel = (type?: string): string => {
@@ -304,7 +254,6 @@ const ParticipantAccess = () => {
   });
 
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
-  const alreadySelectedCount = matchSelections.filter(ms => ms.alreadySelected).length;
 
   const handleSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
@@ -588,9 +537,9 @@ const ParticipantAccess = () => {
                         ) : (
                           <div className="grid gap-2">
                             {roundSelections.map((ms) => {
-                              const person = participants.find(p => p.id === ms.participantId) || 
-                                tableAssignments.find(a => a.round === round)?.tablemates.find(t => t.id === ms.participantId);
-                              if (!person) return null;
+                              // Name comes directly from tablemates (already anonymized by server)
+                              const tablemate = tableAssignments.find(a => a.round === round)?.tablemates.find(t => t.id === ms.participantId);
+                              if (!tablemate) return null;
 
                               return (
                                 <div
@@ -603,7 +552,7 @@ const ParticipantAccess = () => {
                                   }`}
                                 >
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="font-medium text-sm">{formatAnonymousName(person.name, (person as any).phone)}</span>
+                                    <span className="font-medium text-sm">{tablemate.name}</span>
                                     {ms.alreadySelected && (
                                       <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
                                         <CheckCircle className="w-3 h-3 mr-1" />
