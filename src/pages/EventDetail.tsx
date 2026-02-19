@@ -1884,6 +1884,39 @@ const EventDetail = () => {
     await initiateTableGeneration();
   };
 
+  const handleAddEmptyTable = async () => {
+    if (!eventData?.tables || !Array.isArray(eventData.tables)) return;
+
+    // Add an empty table to all pending (non-completed) rounds
+    const updatedTables = (eventData.tables as any[]).map((roundData: any) => {
+      if (completedRounds.includes(roundData.round)) return roundData;
+      return {
+        ...roundData,
+        tables: [...roundData.tables, []],
+      };
+    });
+
+    const { error } = await supabase
+      .from("events")
+      .update({ tables: updatedTables })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo añadir la mesa",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await loadEventData();
+    toast({
+      title: "Mesa añadida",
+      description: "Se ha añadido una mesa vacía a las rondas pendientes. Ahora puedes añadir participantes a ella.",
+    });
+  };
+
   const handleEndEvent = async () => {
     await supabase
       .from("events")
@@ -3434,7 +3467,7 @@ const EventDetail = () => {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -3452,6 +3485,30 @@ const EventDetail = () => {
                           </CardTitle>
                           <CardDescription>Distribución de mesas para esta ronda</CardDescription>
                         </div>
+                        {eventStatus === "active" && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Añadir mesa vacía
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Añadir mesa vacía?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se añadirá una nueva mesa vacía a todas las rondas pendientes. Podrás asignar participantes tardíos a ella usando el botón "Añadir participante".
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleAddEmptyTable}>
+                                  Confirmar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent>
