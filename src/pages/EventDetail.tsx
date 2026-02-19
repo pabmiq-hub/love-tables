@@ -3338,16 +3338,43 @@ const EventDetail = () => {
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                       <Table2 className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <h3 className="font-display text-lg font-semibold mb-2">Inscripciones abiertas</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Las mesas se generarán automáticamente cuando cierres las inscripciones e inicies el evento.
-                      <br />
-                      <span className="text-sm">Participantes con check-in: {participants.filter(p => p.checked_in).length} de {participants.length}</span>
+                    <h3 className="font-display text-lg font-semibold mb-2">Mesas no generadas</h3>
+                    <p className="text-muted-foreground mb-1">
+                      Las mesas se generan al iniciar el evento. Los participantes sin check-in serán eliminados.
                     </p>
-                    <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
-                      <QrCode className="w-4 h-4 mr-2" />
-                      Ver QR Check-in
-                    </Button>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Participantes con check-in: <strong>{participants.filter(p => p.checked_in).length}</strong> de {participants.length}
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Button variant="outline" onClick={() => setShowCheckinQR(true)}>
+                        <QrCode className="w-4 h-4 mr-2" />
+                        Ver QR Check-in
+                      </Button>
+                      {participants.filter(p => p.checked_in).length >= 2 && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="hero">
+                              <Play className="w-4 h-4 mr-2" />
+                              Iniciar evento y generar mesas
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) serán eliminados y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleStartEvent}>
+                                Confirmar e iniciar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ) : tables.length === 0 ? (
