@@ -61,6 +61,21 @@ const ParticipantJoin = () => {
   const [eventGenders, setEventGenders] = useState<string[]>([...GENDERS]);
   const [eventPreferences, setEventPreferences] = useState<string[]>([...PREFERENCES]);
   const [eventDatingPreferences, setEventDatingPreferences] = useState<string[]>([...DATING_PREFERENCES]);
+
+  // Filter dating preferences based on selected gender
+  const getFilteredDatingPreferences = (selectedGender: string, allPrefs: string[]): string[] => {
+    if (!selectedGender) return allPrefs;
+    const genderNorm = selectedGender.toLowerCase();
+    return allPrefs.filter(pref => {
+      const prefLower = pref.toLowerCase();
+      if (prefLower.startsWith("soy un hombre")) return genderNorm === "hombre";
+      if (prefLower.startsWith("soy una mujer")) return genderNorm === "mujer";
+      if (prefLower === "no binario") return genderNorm === "no binario" || genderNorm === "prefiero no decirlo";
+      return true;
+    });
+  };
+
+  const filteredDatingPreferences = getFilteredDatingPreferences(gender, eventDatingPreferences);
   
   // Quota system
   const [quotasEnabled, setQuotasEnabled] = useState(false);
@@ -553,8 +568,17 @@ const ParticipantJoin = () => {
               </div>
               
               <div className="space-y-2">
-                <Label>Género *</Label>
-                <Select value={gender} onValueChange={setGender}>
+              <Label>Género *</Label>
+                <Select value={gender} onValueChange={(val) => {
+                  setGender(val);
+                  // Reset dating preference if it's no longer valid for the new gender
+                  if (datingPreference) {
+                    const newFiltered = getFilteredDatingPreferences(val, eventDatingPreferences);
+                    if (!newFiltered.includes(datingPreference)) {
+                      setDatingPreference("");
+                    }
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona tu género" />
                   </SelectTrigger>
@@ -623,7 +647,7 @@ const ParticipantJoin = () => {
                       <SelectValue placeholder="Selecciona tu preferencia" />
                     </SelectTrigger>
                     <SelectContent>
-                      {eventDatingPreferences.map((pref) => (
+                      {filteredDatingPreferences.map((pref) => (
                         <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                       ))}
                     </SelectContent>

@@ -1762,8 +1762,15 @@ const EventDetail = () => {
     setParticipants(participants.map(p => ({ ...p, checked_in: true })));
     toast({
       title: "Check-in completado",
-      description: `Se ha hecho check-in a ${participants.length} participantes`,
+      description: `Se ha hecho check-in a ${participants.length} participantes. Enviando códigos de acceso...`,
     });
+
+    // Automatically trigger bulk code sending for participants with email but no code
+    const pendingWithEmail = participants.filter(p => !p.verification_code && p.email);
+    if (pendingWithEmail.length > 0) {
+      // Use setTimeout to allow state update before starting bulk send
+      setTimeout(() => handleSendBulkCodes(), 500);
+    }
   };
 
   const handleDeleteAllParticipants = async () => {

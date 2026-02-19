@@ -35,6 +35,19 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
   const datingPreferences = customPreferences?.datingPreferences || [...DATING_PREFERENCES];
   const preferredAgeRanges = [...ageRanges, "Cualquier rango de edad"];
 
+  // Filter dating preferences based on selected gender
+  const getFilteredDatingPreferences = (selectedGender: string, allPrefs: string[]): string[] => {
+    if (!selectedGender) return allPrefs;
+    const genderNorm = selectedGender.toLowerCase();
+    return allPrefs.filter(pref => {
+      const prefLower = pref.toLowerCase();
+      if (prefLower.startsWith("soy un hombre")) return genderNorm === "hombre";
+      if (prefLower.startsWith("soy una mujer")) return genderNorm === "mujer";
+      if (prefLower === "no binario") return genderNorm === "no binario" || genderNorm === "prefiero no decirlo";
+      return true;
+    });
+  };
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -199,7 +212,15 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
             
             <div className="space-y-2">
               <Label>Género *</Label>
-              <Select value={gender} onValueChange={setGender}>
+              <Select value={gender} onValueChange={(val) => {
+                setGender(val);
+                if (datingPreference) {
+                  const newFiltered = getFilteredDatingPreferences(val, datingPreferences);
+                  if (!newFiltered.includes(datingPreference)) {
+                    setDatingPreference("");
+                  }
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona género" />
                 </SelectTrigger>
@@ -257,7 +278,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
                     <SelectValue placeholder="Selecciona tu preferencia" />
                   </SelectTrigger>
                   <SelectContent>
-                    {datingPreferences.map((pref) => (
+                    {getFilteredDatingPreferences(gender, datingPreferences).map((pref) => (
                       <SelectItem key={pref} value={pref}>{pref}</SelectItem>
                     ))}
                   </SelectContent>

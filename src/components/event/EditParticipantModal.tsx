@@ -87,6 +87,19 @@ const EditParticipantModal = ({
   const preferences = customPreferences?.preferences || [...PREFERENCES];
   const datingPreferences = customPreferences?.datingPreferences || [...DATING_PREFERENCES];
   const preferredAgeRanges = [...ageRanges, "Cualquier rango"];
+
+  // Filter dating preferences based on selected gender
+  const getFilteredDatingPreferences = (selectedGender: string, allPrefs: string[]): string[] => {
+    if (!selectedGender) return allPrefs;
+    const genderNorm = selectedGender.toLowerCase();
+    return allPrefs.filter(pref => {
+      const prefLower = pref.toLowerCase();
+      if (prefLower.startsWith("soy un hombre")) return genderNorm === "hombre";
+      if (prefLower.startsWith("soy una mujer")) return genderNorm === "mujer";
+      if (prefLower === "no binario") return genderNorm === "no binario" || genderNorm === "prefiero no decirlo";
+      return true;
+    });
+  };
   
   // Professional options
   const sectors = professionalConfig?.sectors || DEFAULT_SECTORS;
@@ -290,7 +303,11 @@ const EditParticipantModal = ({
         <Label htmlFor="gender">Género</Label>
         <Select
           value={formData.gender}
-          onValueChange={(value) => setFormData({ ...formData, gender: value })}
+          onValueChange={(value) => {
+            const newFiltered = getFilteredDatingPreferences(value, datingPreferences);
+            const resetDating = formData.dating_preference && !newFiltered.includes(formData.dating_preference);
+            setFormData({ ...formData, gender: value, ...(resetDating ? { dating_preference: "" } : {}) });
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar género" />
@@ -365,7 +382,7 @@ const EditParticipantModal = ({
               <SelectValue placeholder="Seleccionar preferencia" />
             </SelectTrigger>
             <SelectContent>
-              {datingPreferences.map(d => (
+              {getFilteredDatingPreferences(formData.gender, datingPreferences).map(d => (
                 <SelectItem key={d} value={d}>{d}</SelectItem>
               ))}
             </SelectContent>
