@@ -1,80 +1,61 @@
 
 
-# Mejora de privacidad en el panel del participante
+# Fix: Cálculo de franja de edad desde fecha de nacimiento
 
-## Problema actual
+## Problema detectado
 
-Cuando un participante accede a su panel (`/access`), el sistema:
-1. **`get-table-assignments`** devuelve los nombres completos de los companeros de mesa (ej. "Maria Garcia Lopez")
-2. **`get-event-participants`** con `type='select'` devuelve **TODOS** los participantes del evento, no solo los companeros de mesa -- esto es un problema de privacidad importante
+Hay un **desajuste de formato** entre cómo se guardan los rangos de edad y cómo se interpretan:
 
-## Solucion propuesta
+- **En la base de datos**, los rangos personalizados se guardan como **strings**: `["18-24", "25-32", "33-40", "41+"]`
+- **En la funcion del servidor** (`register-participant`), el codigo espera **objetos** con formato `{label, min, max}` (ej. `{label: "18-24", min: 18, max: 24}`)
 
-### 1. Edge Function `get-table-assignments` -- Anonimizar nombres de companeros
+Cuando el evento tiene rangos personalizados, el servidor intenta hacer `range.min` y `range.max` sobre un string, lo que devuelve `undefined`. La comparacion `age >= undefined` siempre es `false`, asi que siempre devuelve **"Otro"**.
 
-Modificar la respuesta para que los tablemates solo incluyan **nombre + primera letra del apellido** (ej. "Maria G.") en lugar del nombre completo.
+Ademas, hay un segundo desajuste: los rangos por defecto del **cliente** usan en-dash (`18–24`, `+ 50`) mientras que los del **servidor** usan guion normal (`18-24`, `51+`). Esto puede causar inconsistencias en cuotas y filtros.
+
+## Solucion
+
+### 1. Edge Function `register-participant` - Parsear strings correctamente
+
+Modificar `calculateAgeRange` para que detecte si los rangos son strings o objetos, y los parsee adecuadamente:
 
 ```text
-Antes:  { id: "...", name: "Maria Garcia Lopez" }
-Despues: { id: "...", name: "Maria G." }
+"18-24"  -->  min: 18, max: 24
+"41+"    -->  min: 41, max: 100
+"+ 50"   -->  min: 50, max: 100
 ```
 
-Se aplicara la logica de anonimizacion directamente en el servidor, antes de enviar los datos al cliente.
+### 2. Cliente `ParticipantJoin.tsx` - Mejorar el regex
 
-### 2. Eliminar la llamada a `get-event-participants` tipo `select` desde el panel
+El regex actual `/(\d+)[-–]?(\d+)?/` funciona para la mayoria de formatos, pero conviene asegurar que el formato `"+ 50"` (con espacio) tambien se maneje correctamente. Se mejorara para cubrir todos los formatos posibles.
 
-Actualmente, `ParticipantAccess.tsx` hace dos llamadas al confirmar identidad:
-- `get-table-assignments` (mesas)
-- `get-event-participants` tipo `select` (TODOS los participantes)
+### 3. Alinear formatos por defecto
 
-La segunda llamada es innecesaria y un riesgo de privacidad. Toda la informacion necesaria para las selecciones (companeros de mesa, ronda, mesa) ya viene de `get-table-assignments`.
-
-**Cambios:**
-- Ampliar `get-table-assignments` para incluir tambien las selecciones previas del participante (`participant_selections`) y la preferencia del participante autenticado, de modo que el panel tenga toda la informacion para mostrar las selecciones agrupadas por ronda.
-- Eliminar la llamada a `get-event-participants` tipo `select` desde `ParticipantAccess.tsx`.
-- Construir las opciones de seleccion unicamente con los datos de tablemates (ya anonimizados).
-
-### 3. Confirmar opciones de check-in
-
-Actualmente existen dos vias de check-in:
-- **Administrador**: desde el dashboard del evento (individual o masivo)
-- **Participante**: desde `/event/{id}/checkin` con su codigo de verificacion
-
-Ambas vias funcionan correctamente y no requieren cambios.
+Actualizar los rangos por defecto del servidor para que coincidan con los del cliente (`AGE_RANGES` de `excelParser.ts`), evitando discrepancias entre guion normal y en-dash.
 
 ---
 
 ## Detalle tecnico
 
-### Archivos a modificar
-
 | Archivo | Cambio |
 |---|---|
-| `supabase/functions/get-table-assignments/index.ts` | Anonimizar nombres de tablemates (nombre + inicial apellido). Anadir consulta de `participant_selections` y preferencias para devolver datos de seleccion junto con las mesas. |
-| `src/pages/ParticipantAccess.tsx` | Eliminar la llamada a `get-event-participants` tipo `select`. Usar unicamente los datos de `get-table-assignments` para construir tanto la vista de mesas como la de selecciones. |
+| `supabase/functions/register-participant/index.ts` | Reescribir `calculateAgeRange` para parsear strings (`"18-24"`, `"41+"`) ademas de objetos `{label, min, max}`. |
+| `src/pages/ParticipantJoin.tsx` | Mejorar el regex de `calculateAgeRange` para manejar todos los formatos (`+50`, `+ 50`, `50+`). |
+| `src/components/event/AddParticipantModal.tsx` | Misma correccion del regex. |
+| `src/components/event/EditParticipantModal.tsx` | Misma correccion del regex. |
 
-### Estructura de respuesta actualizada de `get-table-assignments`
+### Logica corregida del servidor
 
 ```text
-{
-  participantName: "Maria G.",
-  participantPreference: "amistad",
-  assignments: [
-    {
-      round: 1,
-      table: 3,
-      tablemates: [
-        { id: "uuid", name: "Juan P.", preference: "amistad_y_sentimental" }
-      ]
-    }
-  ],
-  existingSelections: [
-    { selected_id: "uuid", selection_type: "friendship" }
-  ],
-  currentRound: 2,
-  totalRounds: 4
+function parseRangeString(range: string): { label: string, min: number, max: number } {
+  // Handle "41+", "+ 50", "50+" formats
+  if (range.includes('+')) {
+    const num = parseInt(range.replace(/[^0-9]/g, ''));
+    return { label: range, min: num, max: 100 };
+  }
+  // Handle "18-24" or "18–24" formats
+  const parts = range.replace('–', '-').split('-').map(n => parseInt(n.trim()));
+  return { label: range, min: parts[0], max: parts[1] };
 }
 ```
-
-De esta forma, ningun dato mas alla del nombre anonimizado y la preferencia de los companeros de mesa sale del servidor, y no se expone informacion de participantes que no estuvieron en la misma mesa.
 
