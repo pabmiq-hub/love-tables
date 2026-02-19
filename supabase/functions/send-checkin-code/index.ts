@@ -129,7 +129,7 @@ serve(async (req) => {
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${escapeHtml(participant.name)}</strong>,</p>
             
-            <p>¡Tu check-in para <strong>${escapeHtml(event.name)}</strong> se ha completado!</p>
+            <p>Has sido registrado/a en el evento <strong>${escapeHtml(event.name)}</strong>. Usa este código para hacer tu check-in y acceder a tu panel.</p>
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
               <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Tu código personal de acceso:</p>
@@ -140,6 +140,7 @@ serve(async (req) => {
             
             <p style="font-weight: bold; color: #333;">Con este código puedes:</p>
             <ul style="color: #555; padding-left: 20px;">
+              <li style="margin-bottom: 10px;">✅ <strong>Hacer check-in</strong> al llegar al evento (escanea el QR)</li>
               <li style="margin-bottom: 10px;">🪑 <strong>Ver tus mesas</strong> asignadas en cada ronda</li>
               <li style="margin-bottom: 10px;">💕 <strong>Enviar tus selecciones</strong> después del evento</li>
             </ul>

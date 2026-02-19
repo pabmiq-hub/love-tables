@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy } from "lucide-react";
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
+import EventSettingsEditor from "@/components/event/EventSettingsEditor";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
   Tooltip,
@@ -1373,45 +1374,29 @@ const EventDetail = () => {
 
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
     if (!currentStatus) {
-      // Check-in: use edge function to generate code + send email
-      const participant = participants.find(p => p.id === participantId);
-      const { data, error } = await supabase.functions.invoke('checkin-participant', {
-        body: { 
-          eventId: id, 
-          participantId, 
-          sendEmail: !!participant?.email, 
-          baseUrl: window.location.origin 
-        }
-      });
+      // Check-in: just mark checked_in = true in DB (no email)
+      const { error } = await supabase
+        .from("participants")
+        .update({ checked_in: true })
+        .eq("id", participantId);
 
-      if (error || data?.error) {
+      if (error) {
         toast({
           title: "Error",
-          description: data?.error || "No se pudo realizar el check-in",
+          description: "No se pudo realizar el check-in",
           variant: "destructive",
         });
         return;
       }
 
       setParticipants(participants.map(p => 
-        p.id === participantId ? { 
-          ...p, 
-          checked_in: true, 
-          verification_code: data?.participant?.verificationCode || p.verification_code 
-        } : p
+        p.id === participantId ? { ...p, checked_in: true } : p
       ));
 
-      if (data?.emailSent) {
-        toast({
-          title: "Check-in completado",
-          description: `Código enviado por email a ${participant?.name}`,
-        });
-      } else {
-        toast({
-          title: "Check-in completado",
-          description: participant?.email ? "Check-in realizado" : "Check-in realizado (sin email configurado)",
-        });
-      }
+      toast({
+        title: "Check-in completado",
+        description: `Check-in realizado correctamente`,
+      });
     } else {
       // Undo check-in: direct UPDATE
       const { error } = await supabase
@@ -1439,50 +1424,33 @@ const EventDetail = () => {
     try {
       const participant = participants.find(p => p.id === participantId);
       
-      // If participant already has a code, just resend the email
-      if (participant?.verification_code) {
-        const { error } = await supabase.functions.invoke('send-checkin-code', {
-          body: { participantId, eventId: id, baseUrl: window.location.origin }
-        });
-        if (error) {
-          toast({ title: "Error", description: "No se pudo reenviar el código", variant: "destructive" });
-        } else {
-          toast({ title: "Código reenviado", description: `Código enviado a ${participant.name}` });
-        }
+      if (!participant?.email) {
+        toast({ title: "Sin email", description: "El participante no tiene email configurado", variant: "destructive" });
         return;
       }
 
-      // No code yet: call checkin-participant to generate + send
-      const { data, error } = await supabase.functions.invoke('checkin-participant', {
-        body: { 
-          eventId: id, 
-          participantId, 
-          sendEmail: true, 
-          baseUrl: window.location.origin 
-        }
+      // Use generate-and-send-code: generates code + sends email WITHOUT check-in
+      const { data, error } = await supabase.functions.invoke('generate-and-send-code', {
+        body: { eventId: id, participantId }
       });
 
-      if (error) {
-        toast({ title: "Error", description: "No se pudo enviar el código", variant: "destructive" });
-        return;
-      }
-
-      if (data?.error) {
-        toast({ title: "Error", description: data.error, variant: "destructive" });
+      if (error || data?.error) {
+        toast({ title: "Error", description: data?.error || "No se pudo enviar el código", variant: "destructive" });
         return;
       }
 
       setParticipants(prev => prev.map(p => 
         p.id === participantId ? { 
           ...p, 
-          checked_in: true,
-          verification_code: data?.participant?.verificationCode || p.verification_code 
+          verification_code: data?.verificationCode || p.verification_code 
         } : p
       ));
 
       toast({
-        title: "Código enviado",
-        description: `Se ha enviado el código de acceso por email`,
+        title: data?.emailSent ? "Código enviado" : "Código generado",
+        description: data?.emailSent 
+          ? `Se ha enviado el código de acceso por email` 
+          : "Código generado pero no se pudo enviar el email",
       });
     } finally {
       setIsSendingCode(null);
@@ -1490,14 +1458,15 @@ const EventDetail = () => {
   };
 
   const handleSendBulkCodes = async () => {
+    // Send codes to all participants with email but no code (regardless of check-in status)
     const pendingParticipants = participants.filter(
-      p => p.checked_in && !p.verification_code && p.email
+      p => !p.verification_code && p.email
     );
 
     if (pendingParticipants.length === 0) {
       toast({
         title: "Sin códigos pendientes",
-        description: "Todos los participantes con check-in y email ya tienen código",
+        description: "Todos los participantes con email ya tienen código",
       });
       return;
     }
@@ -1508,13 +1477,13 @@ const EventDetail = () => {
     let sent = 0;
     for (const p of pendingParticipants) {
       try {
-        const { data } = await supabase.functions.invoke('checkin-participant', {
-          body: { eventId: id, participantId: p.id, sendEmail: true, baseUrl: window.location.origin }
+        const { data } = await supabase.functions.invoke('generate-and-send-code', {
+          body: { eventId: id, participantId: p.id }
         });
 
-        if (data?.participant?.verificationCode) {
+        if (data?.verificationCode) {
           setParticipants(prev => prev.map(pp => 
-            pp.id === p.id ? { ...pp, checked_in: true, verification_code: data.participant.verificationCode } : pp
+            pp.id === p.id ? { ...pp, verification_code: data.verificationCode } : pp
           ));
         }
         sent++;
@@ -1522,7 +1491,6 @@ const EventDetail = () => {
         console.error(`Error sending code to ${p.name}:`, e);
       }
       setBulkCodeProgress({ current: sent, total: pendingParticipants.length });
-      // Rate limit: wait 700ms between calls
       await new Promise(r => setTimeout(r, 700));
     }
 
@@ -1613,14 +1581,43 @@ const EventDetail = () => {
         .from("events")
         .update({ participants_count: participants.length + newParticipants.length })
         .eq("id", id);
+
+      // Auto-send codes to participants with email
+      const withEmail = newParticipants.filter((p: any) => p.email);
+      if (withEmail.length > 0) {
+        toast({
+          title: "Participantes cargados",
+          description: `Se han añadido ${excelPreview.participants.length} participantes. Enviando códigos...`,
+        });
+        
+        // Send codes in background
+        for (const p of withEmail) {
+          try {
+            const { data } = await supabase.functions.invoke('generate-and-send-code', {
+              body: { eventId: id, participantId: p.id }
+            });
+            if (data?.verificationCode) {
+              setParticipants(prev => prev.map(pp => 
+                pp.id === p.id ? { ...pp, verification_code: data.verificationCode } : pp
+              ));
+            }
+          } catch (e) {
+            console.error(`Error sending code to ${p.name}:`, e);
+          }
+          await new Promise(r => setTimeout(r, 700));
+        }
+
+        toast({
+          title: "Códigos enviados",
+          description: `Se enviaron códigos a ${withEmail.length} participantes`,
+        });
+      } else {
+        toast({
+          title: "Participantes cargados",
+          description: `Se han añadido ${excelPreview.participants.length} participantes`,
+        });
+      }
     }
-    
-    toast({
-      title: "Participantes cargados",
-      description: eventStatus === "active"
-        ? `Se han añadido ${excelPreview.participants.length} participantes (confirmados automáticamente)`
-        : `Se han añadido ${excelPreview.participants.length} participantes`,
-    });
     
     setExcelPreview(null);
   };
@@ -1680,6 +1677,26 @@ const EventDetail = () => {
           : `${participant.name} ha sido añadido al evento`,
       });
     }
+
+    // Auto-send code if participant has email
+    if (newParticipant.email) {
+      try {
+        const { data } = await supabase.functions.invoke('generate-and-send-code', {
+          body: { eventId: id, participantId: newParticipant.id }
+        });
+        if (data?.verificationCode) {
+          setParticipants(prev => prev.map(p => 
+            p.id === newParticipant.id ? { ...p, verification_code: data.verificationCode } : p
+          ));
+          toast({
+            title: "Código enviado",
+            description: `Se ha enviado el código de acceso a ${participant.name}`,
+          });
+        }
+      } catch (e) {
+        console.error('Error sending code:', e);
+      }
+    }
   };
 
   const handleAddProfessionalParticipant = async (participant: ModalProfessionalParticipant) => {
@@ -1736,6 +1753,22 @@ const EventDetail = () => {
           : `${participant.companyName} ha sido añadido al evento`,
       });
     }
+
+    // Auto-send code if participant has email
+    if (newParticipant.email) {
+      try {
+        const { data } = await supabase.functions.invoke('generate-and-send-code', {
+          body: { eventId: id, participantId: newParticipant.id }
+        });
+        if (data?.verificationCode) {
+          setParticipants(prev => prev.map(p => 
+            p.id === newParticipant.id ? { ...p, verification_code: data.verificationCode } : p
+          ));
+        }
+      } catch (e) {
+        console.error('Error sending code:', e);
+      }
+    }
   };
 
   const handleDeleteParticipant = async (participantId: string) => {
@@ -1786,15 +1819,8 @@ const EventDetail = () => {
     setParticipants(participants.map(p => ({ ...p, checked_in: true })));
     toast({
       title: "Check-in completado",
-      description: `Se ha hecho check-in a ${participants.length} participantes. Enviando códigos de acceso...`,
+      description: `Se ha hecho check-in a ${participants.length} participantes`,
     });
-
-    // Automatically trigger bulk code sending for participants with email but no code
-    const pendingWithEmail = participants.filter(p => !p.verification_code && p.email);
-    if (pendingWithEmail.length > 0) {
-      // Use setTimeout to allow state update before starting bulk send
-      setTimeout(() => handleSendBulkCodes(), 500);
-    }
   };
 
   const handleDeleteAllParticipants = async () => {
@@ -2620,6 +2646,12 @@ const EventDetail = () => {
                   </TooltipContent>
                 </Tooltip>
               )}
+              {eventStatus === "pending" && (
+                <TabsTrigger value="settings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <Settings2 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Ajustes</span>
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -2693,12 +2725,12 @@ const EventDetail = () => {
                                 ) : (
                                   <>
                                     <Send className="w-4 h-4 sm:mr-2" />
-                                    <span className="hidden sm:inline">Enviar códigos ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length})</span>
+                                    <span className="hidden sm:inline">Enviar códigos ({participants.filter(p => !p.verification_code && p.email).length})</span>
                                   </>
                                 )}
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Enviar códigos a participantes con check-in sin código ({participants.filter(p => p.checked_in && !p.verification_code && p.email).length} pendientes)</TooltipContent>
+                            <TooltipContent>Enviar códigos a participantes sin código ({participants.filter(p => !p.verification_code && p.email).length} pendientes)</TooltipContent>
                           </Tooltip>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -3736,6 +3768,29 @@ const EventDetail = () => {
               originalParticipantsCount={eventData?.original_participants_count}
             />
           </TabsContent>
+
+          {/* Settings Tab */}
+          {eventStatus === "pending" && (
+            <TabsContent value="settings">
+              <EventSettingsEditor
+                eventId={id || ""}
+                name={eventData.name}
+                date={eventData.date}
+                rounds={eventData.rounds}
+                tableSize={eventData.table_size}
+                roundDuration={eventData.round_duration}
+                rotationMode={eventData.rotation_mode}
+                genderParity={eventData.gender_parity}
+                customAgeRanges={eventData.custom_age_ranges}
+                customGenders={eventData.custom_genders}
+                customPreferences={eventData.custom_preferences}
+                customDatingPreferences={eventData.custom_dating_preferences}
+                onUpdate={(updates) => {
+                  setEventData(prev => prev ? { ...prev, ...updates } : prev);
+                }}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Email Template Editor Modal */}
