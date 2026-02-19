@@ -164,6 +164,11 @@ const columnMappingsOrdered: Array<{
     exact: ['intereses', 'interests', 'intereses de negocio', 'business interests'],
     partial: ['interes', 'interest']
   },
+  {
+    key: 'isReturningParticipant',
+    exact: ['ha participado en algun evento anterior del organizador', 'ha participado en algun evento anterior', 'participante recurrente', 'returning participant'],
+    partial: ['participado', 'evento anterior', 'returning', 'recurrente']
+  },
 ];
 
 // Debug: log detected columns
@@ -524,6 +529,14 @@ export function parseExcelFile(file: File): Promise<ParseResult> {
               const interestsValue = row[columnMap.businessInterests];
               if (interestsValue !== undefined && interestsValue !== null && String(interestsValue).trim() !== '') {
                 participant.businessInterests = String(interestsValue).trim();
+              }
+            }
+            
+            if (columnMap.isReturningParticipant !== undefined) {
+              const returningValue = row[columnMap.isReturningParticipant];
+              if (returningValue !== undefined && returningValue !== null) {
+                const lower = String(returningValue).toLowerCase().trim();
+                participant.isReturningParticipant = lower === 'sí' || lower === 'si' || lower === 'yes' || lower === 'true' || lower === '1';
               }
             }
             
