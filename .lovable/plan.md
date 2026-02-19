@@ -1,72 +1,32 @@
 
 
-# Plan: Copiar Evento y Anadir Participante a Evento Activo
+# Plan: Permitir asignar a mesas un participante existente no asignado
 
-## 1. Copiar Evento
+## Problema detectado
 
-Se anadira un boton "Copiar evento" en la cabecera del evento (visible en cualquier estado). Al pulsarlo, aparecera un dialogo con dos opciones:
+El participante "Testeando" fue anadido al evento activo pero no se confirmo la asignacion a mesas (se cerro el modal sin pulsar "Confirmar asignacion"). El participante existe en la base de datos con check-in pero no aparece en el JSON de mesas. Actualmente no hay forma de volver a abrir el modal de asignacion para un participante ya existente.
 
-- **Solo configuracion**: Crea un nuevo evento con el mismo nombre (+ " (copia)"), fecha, rondas, tamano mesa, duracion, modo rotacion, paridad de genero, preferencias personalizadas, modulo, configuracion profesional, cuotas de registro, etc. Sin participantes.
-- **Configuracion + participantes**: Lo mismo pero copiando tambien todos los participantes del evento original, reseteando su check-in, codigo de verificacion y selecciones.
+## Solucion
 
-Tras crear el evento, se navega automaticamente a la pagina del nuevo evento.
+Anadir un boton "Asignar a mesas" en el modal de detalle del participante (ParticipantDetailModal) cuando se detecte que el participante no esta en ninguna mesa y el evento esta activo. Ademas, permitir desde la lista de participantes reasignar a mesas.
 
----
+### Cambios necesarios
 
-## 2. Anadir Participante a Evento Activo (con asignacion a mesas)
+**1. `src/components/event/ParticipantDetailModal.tsx`**
 
-Cuando el evento esta activo y ya tiene mesas generadas, al pulsar "Anadir" en la pestana de participantes, se mostrara un dialogo previo con dos secciones:
+- Anadir prop `eventStatus` y `onAssignToTables` (callback opcional)
+- En la pestana "Mesas", cuando `participantTables.length === 0` y `eventStatus === "active"`, mostrar un boton "Asignar a mesas" junto al mensaje "No hay mesas asignadas"
+- Al pulsar el boton, se llama `onAssignToTables(participant)` que reabrira el `TableAssignmentModal`
 
-### A) Rescatar participantes sin check-in
-Si hay participantes que fueron eliminados al iniciar el evento (no hicieron check-in), se mostrara una lista de participantes "originales" que no estan actualmente en el evento. El organizador podra seleccionar uno o varios para reincorporarlos. Nota: como actualmente se eliminan de la BD al iniciar, esta opcion solo estara disponible si quedan participantes sin check-in (lo cual solo ocurriria si se anadieron despues de iniciar sin hacer check-in). Como la logica actual los elimina, esta seccion se simplifica a "no hay participantes anteriores disponibles" en la mayoria de casos.
+**2. `src/pages/EventDetail.tsx`**
 
-**Alternativa practica**: En lugar de rescatar eliminados (que ya no existen en BD), ofreceremos directamente "Crear nuevo participante" que abrira el modal actual de anadir participante.
+- Pasar las nuevas props al `ParticipantDetailModal`: `eventStatus` y `onAssignToTables`
+- En el callback `onAssignToTables`, cerrar el modal de detalle, establecer `pendingNewParticipant` con los datos del participante y abrir `showTableAssignmentModal`
 
-### B) Asignacion a mesas
-Tras crear/seleccionar el participante, se mostrara un **dialogo de asignacion manual a mesas** donde:
+### Resumen de archivos a modificar
 
-- Se muestran las rondas no completadas (la activa + las futuras)
-- Para cada ronda, el organizador puede elegir en que mesa colocar al participante (mostrando el numero de participantes actuales en cada mesa)
-- Opcion "Asignacion automatica" que coloca al participante en la mesa con menos personas en cada ronda pendiente
-- Las rondas completadas no se tocan
-
----
-
-## Detalle tecnico
-
-### Archivo: `src/pages/EventDetail.tsx`
-
-**Copiar evento:**
-- Anadir estado `showCopyEventDialog` (boolean)
-- Importar `useNavigate` de react-router-dom
-- Crear funcion `handleCopyEvent(withParticipants: boolean)`:
-  1. Insertar nuevo evento con campos clonados del actual (sin `tables`, `status = 'pending'`, `current_round = 0`, `completed_rounds = []`)
-  2. Si `withParticipants`, copiar participantes con `checked_in = false`, `verification_code = null`, `selection_submitted_at = null`
-  3. Navegar a `/admin/events/{nuevoId}`
-- Anadir boton "Copiar" en la barra de acciones (junto a QR, Email, etc.) visible en todos los estados
-- Anadir `AlertDialog` con las dos opciones
-
-**Anadir participante a evento activo con asignacion:**
-- Anadir estado `showTableAssignmentModal` y `pendingNewParticipant` (DbParticipant | null)
-- Modificar `handleAddParticipant` y `handleAddProfessionalParticipant`:
-  - Despues de insertar en BD, si el evento esta activo y tiene mesas, abrir el modal de asignacion en lugar de solo mostrar toast
-- Crear componente `TableAssignmentModal` (inline o separado) que:
-  - Muestra las rondas no completadas con sus mesas
-  - Cada mesa muestra numero actual de participantes
-  - Permite seleccionar una mesa por cada ronda pendiente
-  - Boton "Asignacion automatica" que asigna a la mesa con menos personas
-  - Al confirmar, actualiza el JSON de `tables` en la BD y el estado local
-- El participante se marca con `checked_in = true` automaticamente (como ya ocurre)
-
-### Nuevo componente: `src/components/event/TableAssignmentModal.tsx`
-
-Modal que recibe:
-- `participant`: el participante recien creado
-- `tables`: las mesas actuales del evento
-- `completedRounds`: rondas ya completadas
-- `currentRound`: ronda actual
-- `onConfirm(updatedTables)`: callback con las mesas actualizadas
-- `onClose()`: cerrar sin asignar
-
-Muestra para cada ronda no completada un selector de mesa con vista previa de quienes estan en cada mesa.
+| Archivo | Cambio |
+|---|---|
+| `src/components/event/ParticipantDetailModal.tsx` | Anadir boton "Asignar a mesas" cuando no tiene mesas y evento activo |
+| `src/pages/EventDetail.tsx` | Pasar props nuevas y manejar callback para reabrir el modal de asignacion |
 
