@@ -253,6 +253,17 @@ const ParticipantAccess = () => {
     return { round: assignment.round, table: assignment.table, selections: roundSelections };
   });
 
+  // Deduplicate selections: if a person appears in multiple rounds, only show them in the first round
+  const seenParticipantIds = new Set<string>();
+  const deduplicatedSelectionsByRound = selectionsByRound.map(roundGroup => {
+    const uniqueSelections = roundGroup.selections.filter(ms => {
+      if (seenParticipantIds.has(ms.participantId)) return false;
+      seenParticipantIds.add(ms.participantId);
+      return true;
+    });
+    return { ...roundGroup, selections: uniqueSelections };
+  });
+
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
 
   const handleSubmit = async () => {
@@ -524,7 +535,9 @@ const ParticipantAccess = () => {
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[28rem] overflow-y-auto">
-                    {selectionsByRound.map(({ round, table, selections: roundSelections }) => (
+                    {deduplicatedSelectionsByRound.map(({ round, table, selections: roundSelections }) => {
+                      if (roundSelections.length === 0) return null;
+                      return (
                       <div key={round} className="space-y-2">
                         <div className="flex items-center gap-2 sticky top-0 bg-card/90 backdrop-blur-sm py-1 z-10">
                           <Badge variant="secondary" className="text-xs">Ronda {round} · Mesa {table}</Badge>
@@ -583,7 +596,8 @@ const ParticipantAccess = () => {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
