@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.send-checkin-code]
 verify_jwt = false
+
+[functions.generate-and-send-code]
+verify_jwt = false
