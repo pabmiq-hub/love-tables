@@ -1248,7 +1248,6 @@ const EventDetail = () => {
     };
   };
 
-
   // Calculate compatibility score between two participants
   const calculateCompatibilityScore = (p1: DbParticipant, p2: DbParticipant): number => {
     let score = 0;
@@ -2508,17 +2507,28 @@ const EventDetail = () => {
                 </TooltipTrigger>
                 <TooltipContent className="sm:hidden">Copiar evento</TooltipContent>
               </Tooltip>
-              {/* PENDING: QR Registro only */}
+              {/* PENDING: QR Registro + QR Check-in */}
               {eventStatus === "pending" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowJoinQR(true)}>
-                      <QrCode className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">QR Registro</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="sm:hidden">QR Registro</TooltipContent>
-                </Tooltip>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setShowJoinQR(true)}>
+                        <QrCode className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">QR Registro</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="sm:hidden">QR Registro</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setShowCheckinQR(true)}>
+                        <QrCode className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">QR Check-in</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="sm:hidden">QR Check-in</TooltipContent>
+                  </Tooltip>
+                </>
               )}
               {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
                 <Tooltip>
@@ -3823,6 +3833,11 @@ const EventDetail = () => {
         {/* QR Modal - Join/Registration */}
         {showJoinQR && (
           <EventQRCode eventId={id || ""} onClose={() => setShowJoinQR(false)} type="join" />
+        )}
+
+        {/* QR Modal - Check-in */}
+        {showCheckinQR && (
+          <EventQRCode eventId={id || ""} onClose={() => setShowCheckinQR(false)} type="checkin" />
         )}
 
         {/* Add Participant Modal */}
