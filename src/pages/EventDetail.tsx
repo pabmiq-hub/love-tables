@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy } from "lucide-react";
+import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import konektumLogo from "@/assets/konektum-logo.png";
 import {
@@ -141,6 +142,7 @@ interface TableGenerationResult {
 
 const EventDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { linkParticipantsToGlobal, loadPreviousEncounters, recordEncounters } = useGlobalParticipants();
@@ -176,6 +178,10 @@ const EventDetail = () => {
   const [showExclusionsManager, setShowExclusionsManager] = useState(false);
   const [exclusions, setExclusions] = useState<ParticipantExclusion[]>([]);
   const [previousEncounters, setPreviousEncounters] = useState<Map<string, Set<string>>>(new Map());
+  const [showCopyEventDialog, setShowCopyEventDialog] = useState(false);
+  const [isCopyingEvent, setIsCopyingEvent] = useState(false);
+  const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
+  const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
   
   // Participant filters - Social
   const [filterGender, setFilterGender] = useState<string>("all");
@@ -1662,12 +1668,18 @@ const EventDetail = () => {
       .update({ participants_count: participants.length + 1 })
       .eq("id", id);
     
-    toast({
-      title: "Participante añadido",
-      description: autoCheckin 
-        ? `${participant.name} ha sido añadido y confirmado automáticamente (evento activo)`
-        : `${participant.name} ha sido añadido al evento`,
-    });
+    // If event is active with tables, open table assignment modal
+    if (eventStatus === "active" && eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+      setPendingNewParticipant(newParticipant);
+      setShowTableAssignmentModal(true);
+    } else {
+      toast({
+        title: "Participante añadido",
+        description: autoCheckin 
+          ? `${participant.name} ha sido añadido y confirmado automáticamente (evento activo)`
+          : `${participant.name} ha sido añadido al evento`,
+      });
+    }
   };
 
   const handleAddProfessionalParticipant = async (participant: ModalProfessionalParticipant) => {
@@ -1712,12 +1724,18 @@ const EventDetail = () => {
       .update({ participants_count: participants.length + 1 })
       .eq("id", id);
     
-    toast({
-      title: "Participante añadido",
-      description: autoCheckin 
-        ? `${participant.companyName} ha sido añadido y confirmado automáticamente (evento activo)`
-        : `${participant.companyName} ha sido añadido al evento`,
-    });
+    // If event is active with tables, open table assignment modal
+    if (eventStatus === "active" && eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+      setPendingNewParticipant(newParticipant);
+      setShowTableAssignmentModal(true);
+    } else {
+      toast({
+        title: "Participante añadido",
+        description: autoCheckin 
+          ? `${participant.companyName} ha sido añadido y confirmado automáticamente (evento activo)`
+          : `${participant.companyName} ha sido añadido al evento`,
+      });
+    }
   };
 
   const handleDeleteParticipant = async (participantId: string) => {
@@ -2143,6 +2161,128 @@ const EventDetail = () => {
     ));
   };
 
+  const handleCopyEvent = async (withParticipants: boolean) => {
+    if (!eventData || !id) return;
+    setIsCopyingEvent(true);
+    
+    try {
+      // Get organizer_id from current event
+      const { data: currentEvent } = await supabase
+        .from("events")
+        .select("organizer_id")
+        .eq("id", id)
+        .single();
+
+      const { data: newEvent, error: eventError } = await supabase
+        .from("events")
+        .insert({
+          name: `${eventData.name} (copia)`,
+          date: eventData.date,
+          rounds: eventData.rounds,
+          table_size: eventData.table_size,
+          round_duration: eventData.round_duration,
+          rotation_mode: eventData.rotation_mode,
+          gender_parity: eventData.gender_parity,
+          avoid_previous_encounters: eventData.avoid_previous_encounters,
+          avoid_encounters_mode: eventData.avoid_encounters_mode,
+          custom_age_ranges: eventData.custom_age_ranges as any,
+          custom_genders: eventData.custom_genders as any,
+          custom_preferences: eventData.custom_preferences as any,
+          custom_dating_preferences: eventData.custom_dating_preferences as any,
+          email_template: eventData.email_template as any,
+          module: eventData.module,
+          professional_config: eventData.professional_config as any,
+          organizer_id: currentEvent?.organizer_id || null,
+          status: "pending",
+          participants_count: 0,
+          current_round: 0,
+          completed_rounds: [],
+        })
+        .select()
+        .single();
+
+      if (eventError || !newEvent) throw eventError;
+
+      if (withParticipants) {
+        const participantsToInsert = participants.map(p => ({
+          event_id: newEvent.id,
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          age: p.age,
+          age_range: p.age_range,
+          preferred_age_range: p.preferred_age_range,
+          preference: p.preference,
+          dating_preference: p.dating_preference,
+          gender: p.gender,
+          company_name: p.company_name,
+          entity_type: p.entity_type,
+          sector: p.sector,
+          company_size: p.company_size,
+          needs: p.needs,
+          solutions: p.solutions,
+          business_interests: p.business_interests,
+          checked_in: false,
+          verification_code: null,
+          selection_submitted_at: null,
+        }));
+
+        const { error: pError } = await supabase
+          .from("participants")
+          .insert(participantsToInsert);
+
+        if (pError) throw pError;
+
+        await supabase
+          .from("events")
+          .update({ participants_count: participants.length })
+          .eq("id", newEvent.id);
+      }
+
+      toast({
+        title: "Evento copiado",
+        description: withParticipants 
+          ? `Se copió el evento con ${participants.length} participantes`
+          : "Se copió la configuración del evento",
+      });
+      setShowCopyEventDialog(false);
+      navigate(`/admin/events/${newEvent.id}`);
+    } catch (error: any) {
+      console.error("Error copying event:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo copiar el evento",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCopyingEvent(false);
+    }
+  };
+
+  const handleTableAssignmentConfirm = async (updatedTables: any[]) => {
+    if (!id || !pendingNewParticipant) return;
+
+    const { error } = await supabase
+      .from("events")
+      .update({ tables: updatedTables })
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron actualizar las mesas", variant: "destructive" });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, tables: updatedTables } : prev);
+    setShowTableAssignmentModal(false);
+    
+    const displayName = pendingNewParticipant.company_name || pendingNewParticipant.name;
+    toast({
+      title: "Participante asignado a mesas",
+      description: `${displayName} ha sido asignado a las mesas correctamente`,
+    });
+    setPendingNewParticipant(null);
+  };
+
   // Filter and sort participants
   const filteredParticipants = participants
     .filter(p => {
@@ -2332,6 +2472,16 @@ const EventDetail = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <TooltipProvider>
+              {/* Copy event button - visible in all statuses */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setShowCopyEventDialog(true)}>
+                    <Copy className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Copiar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="sm:hidden">Copiar evento</TooltipContent>
+              </Tooltip>
               {/* PENDING: QR Registro only */}
               {eventStatus === "pending" && (
                 <Tooltip>
@@ -3758,6 +3908,57 @@ const EventDetail = () => {
           open={showExclusionsManager}
           onOpenChange={setShowExclusionsManager}
           onExclusionsChange={setExclusions}
+        />
+
+        {/* Copy Event Dialog */}
+        <AlertDialog open={showCopyEventDialog} onOpenChange={setShowCopyEventDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Copiar evento</AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Qué deseas copiar del evento "{eventData.name}"?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-2 mt-2">
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => handleCopyEvent(false)}
+                disabled={isCopyingEvent}
+              >
+                {isCopyingEvent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Copy className="w-4 h-4 mr-2" />}
+                Solo configuración
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleCopyEvent(true)}
+                disabled={isCopyingEvent}
+              >
+                {isCopyingEvent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
+                Configuración + participantes ({participants.length})
+              </Button>
+              <AlertDialogCancel disabled={isCopyingEvent}>Cancelar</AlertDialogCancel>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Table Assignment Modal for active events */}
+        <TableAssignmentModal
+          open={showTableAssignmentModal}
+          participant={pendingNewParticipant}
+          tables={eventData?.tables || []}
+          completedRounds={completedRounds}
+          currentRound={currentRound}
+          onConfirm={handleTableAssignmentConfirm}
+          onClose={() => {
+            setShowTableAssignmentModal(false);
+            setPendingNewParticipant(null);
+            toast({
+              title: "Participante añadido",
+              description: "El participante fue añadido pero no asignado a mesas",
+            });
+          }}
         />
       </main>
     </div>
