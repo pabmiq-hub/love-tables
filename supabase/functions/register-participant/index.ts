@@ -55,6 +55,26 @@ async function generateUniqueCode(supabase: any): Promise<string> {
 }
 
 // Calculate age range from birth date
+function parseRange(range: any): { label: string; min: number; max: number } | null {
+  // Already an object with min/max
+  if (typeof range === 'object' && range !== null && range.min !== undefined) {
+    return { label: range.label || String(range.min), min: range.min, max: range.max ?? 100 };
+  }
+  const str = String(range);
+  // Handle "+" formats: "41+", "+ 50", "50+"
+  if (str.includes('+')) {
+    const num = parseInt(str.replace(/[^0-9]/g, ''));
+    if (isNaN(num)) return null;
+    return { label: str, min: num, max: 100 };
+  }
+  // Handle "18-24" or "18–24" formats
+  const parts = str.replace(/–/g, '-').split('-').map(n => parseInt(n.trim()));
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return { label: str, min: parts[0], max: parts[1] };
+  }
+  return null;
+}
+
 function calculateAgeRange(birthDate: string, customAgeRanges: any[] | null): string {
   const today = new Date();
   const birth = new Date(birthDate);
@@ -65,20 +85,13 @@ function calculateAgeRange(birthDate: string, customAgeRanges: any[] | null): st
     age--;
   }
   
-  // Default age ranges if no custom ones defined
-  const defaultRanges = [
-    { label: "18-24", min: 18, max: 24 },
-    { label: "25-32", min: 25, max: 32 },
-    { label: "33-40", min: 33, max: 40 },
-    { label: "41-50", min: 41, max: 50 },
-    { label: "51+", min: 51, max: 100 }
-  ];
+  const defaultRanges = ["18–24", "25–32", "33–40", "41–50", "+ 50"];
+  const rawRanges = customAgeRanges && customAgeRanges.length > 0 ? customAgeRanges : defaultRanges;
   
-  const ranges = customAgeRanges && customAgeRanges.length > 0 ? customAgeRanges : defaultRanges;
-  
-  for (const range of ranges) {
-    if (age >= range.min && age <= range.max) {
-      return range.label;
+  for (const raw of rawRanges) {
+    const parsed = parseRange(raw);
+    if (parsed && age >= parsed.min && age <= parsed.max) {
+      return parsed.label;
     }
   }
   

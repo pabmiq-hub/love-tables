@@ -56,11 +56,14 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
       age--;
     }
     for (const range of ageRanges) {
-      const match = range.match(/(\d+)[-–]?(\d+)?/);
-      if (match) {
-        const min = parseInt(match[1]);
-        const max = match[2] ? parseInt(match[2]) : 100;
-        if (age >= min && age <= max) return range;
+      if (range.includes('+')) {
+        const num = parseInt(range.replace(/[^0-9]/g, ''));
+        if (!isNaN(num) && age >= num) return range;
+        continue;
+      }
+      const parts = range.replace(/–/g, '-').split('-').map(n => parseInt(n.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && age >= parts[0] && age <= parts[1]) {
+        return range;
       }
     }
     return "Otro";
