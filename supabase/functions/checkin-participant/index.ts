@@ -192,17 +192,74 @@ serve(async (req) => {
 
     if (participant.checked_in) {
       console.log('[checkin-participant] Participant already checked in');
+      
+      let code = participant.verification_code;
+      
+      // If checked in but no code (e.g. bulk check-in), generate one now
+      if (!code) {
+        code = await generateUniqueCode(supabase);
+        console.log(`[checkin-participant] Generated missing code for already checked-in participant: ${participant.id}`);
+        
+        const { error: updateError } = await supabase
+          .from('participants')
+          .update({ verification_code: code })
+          .eq('id', participant.id);
+        
+        if (updateError) {
+          console.error('[checkin-participant] Error updating verification code:', updateError);
+          return new Response(
+            JSON.stringify({ error: 'Error al generar el código de verificación' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Send email if requested
+        let emailSent = false;
+        if (sendEmail && participant.email && baseUrl) {
+          try {
+            const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-checkin-code`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({ participantId: participant.id, eventId, baseUrl })
+            });
+            emailSent = emailResponse.ok;
+          } catch (e) {
+            console.error('[checkin-participant] Error sending email:', e);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadyCheckedIn: true,
+            participant: {
+              id: participant.id,
+              name: participant.name,
+              email: participant.email,
+              verificationCode: code,
+            },
+            emailSent,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Already checked in AND already has a code
       return new Response(
-        JSON.stringify({ 
-          error: 'Ya has realizado el check-in',
+        JSON.stringify({
+          success: true,
+          alreadyCheckedIn: true,
           participant: {
             id: participant.id,
             name: participant.name,
-            verificationCode: participant.verification_code,
-            alreadyCheckedIn: true
+            email: participant.email,
+            verificationCode: code,
           }
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

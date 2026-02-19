@@ -1445,18 +1445,13 @@ const EventDetail = () => {
         }
       });
 
-      if (error || data?.error) {
-        if (data?.participant?.alreadyCheckedIn && data?.participant?.verificationCode) {
-          await supabase.functions.invoke('send-checkin-code', {
-            body: { participantId, eventId: id, baseUrl: window.location.origin }
-          });
-          setParticipants(prev => prev.map(p => 
-            p.id === participantId ? { ...p, verification_code: data.participant.verificationCode } : p
-          ));
-          toast({ title: "Código reenviado", description: "Se ha reenviado el email con el código" });
-        } else {
-          toast({ title: "Error", description: data?.error || "No se pudo enviar el código", variant: "destructive" });
-        }
+      if (error) {
+        toast({ title: "Error", description: "No se pudo enviar el código", variant: "destructive" });
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
         return;
       }
 
