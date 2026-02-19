@@ -49,6 +49,8 @@ interface ParticipantDetailModalProps {
   onEdit: () => void;
   canEdit: boolean;
   isProfessional?: boolean;
+  eventStatus?: string;
+  onAssignToTables?: (participant: ParticipantData) => void;
 }
 
 const ParticipantDetailModal = ({
@@ -60,6 +62,8 @@ const ParticipantDetailModal = ({
   onEdit,
   canEdit,
   isProfessional = false,
+  eventStatus,
+  onAssignToTables,
 }: ParticipantDetailModalProps) => {
   const { toast } = useToast();
   // Find tables where this participant sat
@@ -373,6 +377,15 @@ const ParticipantDetailModal = ({
               <div className="text-center py-8 text-muted-foreground">
                 <Table2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>{isProfessional ? "No hay reuniones asignadas" : "No hay mesas asignadas"}</p>
+                {eventStatus === "active" && onAssignToTables && (
+                  <Button
+                    className="mt-3"
+                    onClick={() => onAssignToTables(participant)}
+                  >
+                    <Table2 className="w-4 h-4 mr-1" />
+                    Asignar a mesas
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

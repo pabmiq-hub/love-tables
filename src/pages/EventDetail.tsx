@@ -3874,6 +3874,15 @@ const EventDetail = () => {
             onEdit={() => setEditingParticipant(selectedParticipant)}
             canEdit={eventStatus === "pending"}
             isProfessional={eventData?.module === "professional"}
+            eventStatus={eventStatus}
+            onAssignToTables={() => {
+              const participant = selectedParticipant;
+              setSelectedParticipant(null);
+              if (participant) {
+                setPendingNewParticipant(participant);
+                setShowTableAssignmentModal(true);
+              }
+            }}
           />
         )}
 
