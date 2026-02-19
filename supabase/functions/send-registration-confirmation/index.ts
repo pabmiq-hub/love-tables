@@ -9,6 +9,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function sendWithRetry(resend: any, emailPayload: any, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = await resend.emails.send(emailPayload);
+    if (result.error) {
+      console.error(`[send-registration-confirmation] Attempt ${attempt + 1} error:`, result.error);
+      if (result.error.statusCode === 429 && attempt < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+      return result;
+    }
+    return result;
+  }
+  return { error: { message: "Rate limit exceeded after retries", statusCode: 429 } };
+}
+
 interface RegistrationConfirmationRequest {
   participantId: string;
   eventId: string;
@@ -81,8 +97,7 @@ serve(async (req) => {
       minute: "2-digit"
     });
 
-    // Send confirmation email WITHOUT verification code
-    const emailResponse = await resend.emails.send({
+    const emailPayload = {
       from: "Konektum <noreply@konektum.com>",
       to: [participant.email],
       subject: `¡Registro confirmado! - ${event.name}`,
@@ -141,7 +156,31 @@ serve(async (req) => {
         </body>
         </html>
       `,
+    };
+
+    // Send with retry
+    const emailResponse = await sendWithRetry(resend, emailPayload);
+
+    // Log to email_logs
+    const logStatus = emailResponse.error ? "failed" : "sent";
+    const logError = emailResponse.error ? (emailResponse.error.message || JSON.stringify(emailResponse.error)) : null;
+    
+    await supabase.from("email_logs").insert({
+      event_id: eventId,
+      participant_id: participantId,
+      email_type: "registration_confirmation",
+      status: logStatus,
+      error_message: logError,
+      sent_at: logStatus === "sent" ? new Date().toISOString() : null,
     });
+
+    if (emailResponse.error) {
+      console.error("[send-registration-confirmation] Email send failed:", emailResponse.error);
+      return new Response(
+        JSON.stringify({ error: `Error al enviar email: ${emailResponse.error.message || 'Unknown error'}`, emailError: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log("[send-registration-confirmation] Email sent successfully:", emailResponse);
 
