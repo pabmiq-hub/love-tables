@@ -944,7 +944,7 @@ const EventDetail = () => {
         
         // Fill remaining if relaxed - but still try to maintain age compatibility and respect exclusions
         if ((relaxConstraints || genderParity) && table.length < targetSize) {
-          // Sort by age compatibility first
+          // Sort by age compatibility first, prefer non-repeats
           const remainingParticipants = availableParticipants
             .filter(p => {
               if (usedParticipants.has(p.id)) return false;
@@ -955,7 +955,12 @@ const EventDetail = () => {
               return true;
             })
             .sort((a, b) => {
-              // Prefer participants closer in age to existing table members
+              // Prefer participants who haven't been paired with table members
+              const aRepeats = table.some(m => pairedHistory.get(m.id)?.has(a.id));
+              const bRepeats = table.some(m => pairedHistory.get(m.id)?.has(b.id));
+              if (!aRepeats && bRepeats) return -1;
+              if (aRepeats && !bRepeats) return 1;
+              // Then prefer participants closer in age to existing table members
               let aScore = 0, bScore = 0;
               for (const member of table) {
                 const memberP = participantsList.find(p => p.id === member.id);
@@ -1171,7 +1176,7 @@ const EventDetail = () => {
             continue;
           }
           
-          if (wouldRepeat && !relaxConstraints && score < 0) {
+          if (wouldRepeat && !relaxConstraints) {
             continue;
           }
           
@@ -1180,12 +1185,18 @@ const EventDetail = () => {
           filledSeats++;
         }
         
-        // Fill remaining if relaxed - prioritize by age compatibility
+        // Fill remaining if relaxed - prioritize by age compatibility and avoid repeats
         if ((relaxConstraints || genderParity) && filledSeats < seatsNeeded) {
-          // Sort remaining by age compatibility
+          // Sort remaining: prefer non-repeats first, then age compatible
           const remainingRotators = scoredRotators
             .filter(({ rotator }) => !usedRotators.has(rotator.id))
             .sort((a, b) => {
+              const aRepeats = pairedHistory.get(host.id)?.has(a.rotator.id) ||
+                table.some(m => pairedHistory.get(m.id)?.has(a.rotator.id));
+              const bRepeats = pairedHistory.get(host.id)?.has(b.rotator.id) ||
+                table.some(m => pairedHistory.get(m.id)?.has(b.rotator.id));
+              if (!aRepeats && bRepeats) return -1;
+              if (aRepeats && !bRepeats) return 1;
               // Prefer age compatible first
               if (a.isAgeCompatible && !b.isAgeCompatible) return -1;
               if (!a.isAgeCompatible && b.isAgeCompatible) return 1;
