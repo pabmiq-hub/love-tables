@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useCookieConsent, CookieConsent } from "@/hooks/useCookieConsent";
 import { Link } from "react-router-dom";
 import { Cookie, Shield } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export const CookieBanner = () => {
   const { consent, showBanner, setShowBanner, saveConsent, acceptAll, rejectAll } = useCookieConsent();
@@ -14,11 +15,10 @@ export const CookieBanner = () => {
     analytics: false,
     marketing: false,
   });
+  const { t } = useLanguage();
 
   useEffect(() => {
-    if (consent) {
-      setLocalConsent(consent);
-    }
+    if (consent) setLocalConsent(consent);
   }, [consent]);
 
   useEffect(() => {
@@ -36,7 +36,6 @@ export const CookieBanner = () => {
 
   return (
     <>
-      {/* Banner */}
       {showBanner && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-card border-t border-border shadow-elevated">
           <div className="container mx-auto max-w-5xl">
@@ -46,15 +45,15 @@ export const CookieBanner = () => {
                   <Cookie className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium mb-1">Utilizamos cookies</p>
+                  <p className="text-sm font-medium mb-1">{t.cookies.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    Usamos cookies propias y de terceros para mejorar tu experiencia. Puedes aceptar todas, rechazar las no esenciales o{" "}
+                    {t.cookies.desc}{" "}
                     <button onClick={() => setShowSettings(true)} className="text-primary hover:underline">
-                      configurar tus preferencias
+                      {t.cookies.configure}
                     </button>
-                    . Más información en nuestra{" "}
+                    . {t.cookies.moreInfo}{" "}
                     <Link to="/politica-cookies" className="text-primary hover:underline">
-                      Política de Cookies
+                      {t.cookies.cookiesPolicy}
                     </Link>
                     .
                   </p>
@@ -62,13 +61,13 @@ export const CookieBanner = () => {
               </div>
               <div className="flex gap-2 w-full md:w-auto">
                 <Button variant="outline" size="sm" onClick={rejectAll} className="flex-1 md:flex-none">
-                  Rechazar
+                  {t.cookies.reject}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowSettings(true)} className="flex-1 md:flex-none">
-                  Configurar
+                  {t.cookies.settings}
                 </Button>
                 <Button size="sm" onClick={acceptAll} className="flex-1 md:flex-none bg-gradient-primary hover:opacity-90">
-                  Aceptar todas
+                  {t.cookies.acceptAll}
                 </Button>
               </div>
             </div>
@@ -76,49 +75,37 @@ export const CookieBanner = () => {
         </div>
       )}
 
-      {/* Settings Modal */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              Configuración de cookies
+              {t.cookies.settingsTitle}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            {/* Necessary */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-sm">Cookies técnicas (necesarias)</p>
-                <p className="text-sm text-muted-foreground">
-                  Esenciales para el funcionamiento del sitio. No se pueden desactivar.
-                </p>
+                <p className="font-medium text-sm">{t.cookies.necessaryTitle}</p>
+                <p className="text-sm text-muted-foreground">{t.cookies.necessaryDesc}</p>
               </div>
               <Switch checked={true} disabled />
             </div>
-
-            {/* Analytics */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-sm">Cookies analíticas</p>
-                <p className="text-sm text-muted-foreground">
-                  Nos ayudan a entender cómo usas el sitio para mejorar la experiencia.
-                </p>
+                <p className="font-medium text-sm">{t.cookies.analyticsTitle}</p>
+                <p className="text-sm text-muted-foreground">{t.cookies.analyticsDesc}</p>
               </div>
               <Switch
                 checked={localConsent.analytics}
                 onCheckedChange={(checked) => setLocalConsent({ ...localConsent, analytics: checked })}
               />
             </div>
-
-            {/* Marketing */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-sm">Cookies de marketing</p>
-                <p className="text-sm text-muted-foreground">
-                  Permiten mostrarte publicidad relevante y medir su efectividad.
-                </p>
+                <p className="font-medium text-sm">{t.cookies.marketingTitle}</p>
+                <p className="text-sm text-muted-foreground">{t.cookies.marketingDesc}</p>
               </div>
               <Switch
                 checked={localConsent.marketing}
@@ -129,10 +116,10 @@ export const CookieBanner = () => {
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowSettings(false)}>
-              Cancelar
+              {t.cookies.cancel}
             </Button>
             <Button onClick={handleSaveSettings} className="bg-gradient-primary hover:opacity-90">
-              Guardar preferencias
+              {t.cookies.savePrefs}
             </Button>
           </div>
         </DialogContent>
