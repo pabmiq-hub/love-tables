@@ -78,6 +78,7 @@ export type Database = {
           emails_sent_at: string | null
           gender_parity: boolean | null
           id: string
+          language: string
           module: string | null
           name: string
           organizer_id: string | null
@@ -115,6 +116,7 @@ export type Database = {
           emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
+          language?: string
           module?: string | null
           name: string
           organizer_id?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           emails_sent_at?: string | null
           gender_parity?: boolean | null
           id?: string
+          language?: string
           module?: string | null
           name?: string
           organizer_id?: string | null

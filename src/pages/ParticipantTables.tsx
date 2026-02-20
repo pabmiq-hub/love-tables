@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface TableAssignment {
   round: number;
@@ -15,6 +16,7 @@ interface TableAssignment {
 }
 
 const ParticipantTables = () => {
+  const { t } = useLanguage();
   const { id: eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();

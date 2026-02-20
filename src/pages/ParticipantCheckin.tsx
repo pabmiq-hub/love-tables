@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface ParticipantInfo {
   id: string;
@@ -18,6 +19,7 @@ interface ParticipantInfo {
 }
 
 const ParticipantCheckin = () => {
+  const { t } = useLanguage();
   const { id: eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -155,10 +157,8 @@ const ParticipantCheckin = () => {
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-semibold mb-2">Evento no disponible</h2>
-            <p className="text-muted-foreground">
-              Este evento no existe o el check-in está cerrado.
-            </p>
+            <h2 className="font-display text-xl font-semibold mb-2">{t.checkin.eventNotAvailable}</h2>
+            <p className="text-muted-foreground">{t.checkin.eventNotAvailableDesc}</p>
           </CardContent>
         </Card>
       </div>
@@ -174,13 +174,10 @@ const ParticipantCheckin = () => {
               <CheckCircle2 className="w-8 h-8 text-primary" />
             </div>
             <h2 className="font-display text-xl font-semibold mb-2">
-              {alreadyCheckedIn ? "Ya tenías check-in" : "¡Check-in completado!"}
+              {alreadyCheckedIn ? t.checkin.alreadyCheckedIn : t.checkin.checkinComplete}
             </h2>
             <p className="text-muted-foreground mb-4">
-              {alreadyCheckedIn 
-                ? "Tu check-in ya estaba confirmado anteriormente."
-                : "Ya estás registrado. Espera a que comience el evento."
-              }
+              {alreadyCheckedIn ? t.checkin.alreadyCheckedInDesc : t.checkin.waitForEvent}
             </p>
             {participantInfo && (
               <div className="bg-muted/50 rounded-lg p-4 mb-4 text-left">
