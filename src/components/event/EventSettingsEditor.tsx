@@ -19,6 +19,7 @@ interface EventSettingsEditorProps {
   roundDuration: number;
   rotationMode: "fixed_host" | "all_rotate";
   genderParity: boolean;
+  language: string;
   customAgeRanges: string[] | null;
   customGenders: string[] | null;
   customPreferences: string[] | null;
@@ -35,6 +36,7 @@ const EventSettingsEditor = ({
   roundDuration,
   rotationMode,
   genderParity,
+  language,
   customAgeRanges,
   customGenders,
   customPreferences,
@@ -51,6 +53,7 @@ const EventSettingsEditor = ({
   const [formRoundDuration, setFormRoundDuration] = useState(roundDuration);
   const [formRotationMode, setFormRotationMode] = useState(rotationMode);
   const [formGenderParity, setFormGenderParity] = useState(genderParity);
+  const [formLanguage, setFormLanguage] = useState<"es" | "en">(language as "es" | "en");
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -75,6 +78,7 @@ const EventSettingsEditor = ({
         round_duration: formRoundDuration,
         rotation_mode: formRotationMode,
         gender_parity: formGenderParity,
+        language: formLanguage,
         custom_age_ranges: formPreferences.ageRanges,
         custom_genders: formPreferences.genders,
         custom_preferences: formPreferences.preferences,
@@ -212,7 +216,26 @@ const EventSettingsEditor = ({
           />
         </div>
 
-        {/* Custom Preferences */}
+        {/* Event Language */}
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div>
+            <Label className="text-base">Idioma del evento</Label>
+            <p className="text-sm text-muted-foreground">
+              Idioma del formulario de inscripción y las comunicaciones con participantes
+            </p>
+          </div>
+          <Select value={formLanguage} onValueChange={(v) => setFormLanguage(v as "es" | "en")}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="es">🇪🇸 Español</SelectItem>
+              <SelectItem value="en">🇬🇧 English</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+
         <EventPreferencesEditor
           value={formPreferences}
           onChange={setFormPreferences}

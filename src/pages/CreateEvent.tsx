@@ -73,6 +73,7 @@ const CreateEvent = () => {
   // Common fields
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [eventLanguage, setEventLanguage] = useState<"es" | "en">("es");
   const [eventLocation, setEventLocation] = useState("");
   const [rounds, setRounds] = useState(5);
   const [roundDuration, setRoundDuration] = useState(5);
@@ -237,6 +238,7 @@ const CreateEvent = () => {
       status: "pending" as const,
       organizer_id: user.id,
       module: eventModule,
+      language: eventLanguage,
       rotation_mode: eventModule === "professional" 
         ? (b2bRotationType === "client_fixed" ? "fixed_host" : "all_rotate")
         : rotationMode,
@@ -559,6 +561,21 @@ const CreateEvent = () => {
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Idioma del evento</Label>
+                <Select value={eventLanguage} onValueChange={(v) => setEventLanguage(v as "es" | "en")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="es">🇪🇸 Español</SelectItem>
+                    <SelectItem value="en">🇬🇧 English</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Idioma del formulario de inscripción y las comunicaciones con participantes
+                </p>
               </div>
               <div className="flex gap-3">
                 {hasBothModules && (

@@ -92,6 +92,7 @@ interface EventData {
   round_paused_at: string | null;
   round_elapsed_seconds: number;
   module: "social" | "professional";
+  language: string;
   professional_config: ProfessionalConfig | null;
 }
 
@@ -238,6 +239,7 @@ const EventDetail = () => {
       round_paused_at: event.round_paused_at || null,
       round_elapsed_seconds: event.round_elapsed_seconds || 0,
       module: (event.module as "social" | "professional") || "social",
+      language: event.language || "es",
       professional_config: event.professional_config as unknown as ProfessionalConfig | null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
@@ -3875,6 +3877,7 @@ const EventDetail = () => {
                 roundDuration={eventData.round_duration}
                 rotationMode={eventData.rotation_mode}
                 genderParity={eventData.gender_parity}
+                language={eventData.language || "es"}
                 customAgeRanges={eventData.custom_age_ranges}
                 customGenders={eventData.custom_genders}
                 customPreferences={eventData.custom_preferences}
