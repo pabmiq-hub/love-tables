@@ -1,43 +1,74 @@
 import { Star, Quote } from "lucide-react";
-
-const testimonials = [
-  {
-    name: "María García",
-    role: "Propietaria de Bar El Encuentro",
-    location: "Madrid",
-    content: "Konektum ha transformado nuestras noches de jueves. Antes organizábamos todo con papel y era un caos. Ahora en 5 minutos tengo todo listo y los clientes adoran la experiencia.",
-    rating: 5
-  },
-  {
-    name: "Carlos Rodríguez",
-    role: "Director de Eventos Conexión",
-    location: "Barcelona",
-    content: "Llevo 8 años organizando speed dating y networking. Konektum es la herramienta más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
-    rating: 5
-  },
-  {
-    name: "Ana Martínez",
-    role: "Responsable de Networking",
-    location: "Cámara de Comercio de Valencia",
-    content: "Organizamos eventos de networking profesional para emprendedores. La plataforma nos permite gestionar eventos de 80+ personas sin esfuerzo.",
-    rating: 5
-  }
-];
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export const Testimonials = () => {
+  const { language } = useLanguage();
+
+  const testimonials = language === "en"
+    ? [
+        {
+          name: "María García",
+          role: "Owner of Bar El Encuentro",
+          location: "Madrid",
+          content: "Konektum has transformed our Thursday nights. Before we managed everything on paper and it was chaos. Now in 5 minutes everything is ready and customers love the experience.",
+          rating: 5
+        },
+        {
+          name: "Carlos Rodríguez",
+          role: "Director at Conexión Events",
+          location: "Barcelona",
+          content: "I've been organising speed dating and networking for 8 years. Konektum is the most complete and easy-to-use tool. The automatic match system saves me hours.",
+          rating: 5
+        },
+        {
+          name: "Ana Martínez",
+          role: "Networking Manager",
+          location: "Valencia Chamber of Commerce",
+          content: "We organise professional networking events for entrepreneurs. The platform lets us manage events with 80+ people effortlessly.",
+          rating: 5
+        }
+      ]
+    : [
+        {
+          name: "María García",
+          role: "Propietaria de Bar El Encuentro",
+          location: "Madrid",
+          content: "Konektum ha transformado nuestras noches de jueves. Antes organizábamos todo con papel y era un caos. Ahora en 5 minutos tengo todo listo y los clientes adoran la experiencia.",
+          rating: 5
+        },
+        {
+          name: "Carlos Rodríguez",
+          role: "Director de Eventos Conexión",
+          location: "Barcelona",
+          content: "Llevo 8 años organizando speed dating y networking. Konektum es la herramienta más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
+          rating: 5
+        },
+        {
+          name: "Ana Martínez",
+          role: "Responsable de Networking",
+          location: "Cámara de Comercio de Valencia",
+          content: "Organizamos eventos de networking profesional para emprendedores. La plataforma nos permite gestionar eventos de 80+ personas sin esfuerzo.",
+          rating: 5
+        }
+      ];
+
+  const heading = language === "en"
+    ? { badge: "Testimonials", title: "What our users say", subtitle: "Organizers across Spain trust Konektum for their events" }
+    : { badge: "Testimonios", title: "Lo que dicen nuestros usuarios", subtitle: "Organizadores de toda España confían en Konektum para sus eventos" };
+
   return (
     <section id="testimonios" className="py-12 sm:py-16 md:py-20">
       <div className="container mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
           <span className="inline-block px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-accent/10 text-accent text-xs sm:text-sm font-medium mb-3 sm:mb-4">
-            Testimonios
+            {heading.badge}
           </span>
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-display font-bold mb-3 sm:mb-4">
-            Lo que dicen nuestros usuarios
+            {heading.title}
           </h2>
           <p className="text-sm sm:text-lg text-muted-foreground px-2">
-            Organizadores de toda España confían en Konektum para sus eventos
+            {heading.subtitle}
           </p>
         </div>
 

@@ -1,71 +1,54 @@
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const plans = [
-  {
-    name: "Gratuito",
-    price: "0€",
-    period: "para siempre",
-    description: "Perfecto para probar la plataforma",
-    features: [
-      "1 evento activo",
-      "Hasta 20 participantes",
-      "Check-in con QR",
-      "Sistema de votación",
-      "Matches manuales"
-    ],
-    cta: "Empezar gratis",
-    highlighted: false
-  },
-  {
-    name: "Profesional",
-    price: "29€",
-    period: "/mes",
-    description: "Para organizadores frecuentes",
-    features: [
-      "Eventos ilimitados",
-      "Hasta 100 participantes",
-      "Importación Excel",
-      "Emails automáticos",
-      "Dashboard analytics",
-      "Soporte prioritario"
-    ],
-    cta: "Comenzar prueba",
-    highlighted: true
-  },
-  {
-    name: "Empresa",
-    price: "Personalizado",
-    period: "",
-    description: "Soluciones a medida",
-    features: [
-      "Participantes ilimitados",
-      "Multi-organizador",
-      "API de integración",
-      "Marca blanca",
-      "Formación incluida",
-      "Gestor de cuenta"
-    ],
-    cta: "Contactar",
-    highlighted: false
-  }
-];
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export const Pricing = () => {
+  const { t } = useLanguage();
+
+  const plans = [
+    {
+      name: t.pricing.plan1Name,
+      price: t.pricing.plan1Price,
+      period: t.pricing.plan1Period,
+      description: t.pricing.plan1Desc,
+      features: [t.pricing.plan1Feat1, t.pricing.plan1Feat2, t.pricing.plan1Feat3, t.pricing.plan1Feat4, t.pricing.plan1Feat5],
+      cta: t.pricing.plan1Cta,
+      highlighted: false,
+    },
+    {
+      name: t.pricing.plan2Name,
+      price: t.pricing.plan2Price,
+      period: t.pricing.plan2Period,
+      description: t.pricing.plan2Desc,
+      features: [t.pricing.plan2Feat1, t.pricing.plan2Feat2, t.pricing.plan2Feat3, t.pricing.plan2Feat4, t.pricing.plan2Feat5, t.pricing.plan2Feat6],
+      cta: t.pricing.plan2Cta,
+      highlighted: true,
+    },
+    {
+      name: t.pricing.plan3Name,
+      price: t.pricing.plan3Price,
+      period: t.pricing.plan3Period,
+      description: t.pricing.plan3Desc,
+      features: [t.pricing.plan3Feat1, t.pricing.plan3Feat2, t.pricing.plan3Feat3, t.pricing.plan3Feat4, t.pricing.plan3Feat5, t.pricing.plan3Feat6],
+      cta: t.pricing.plan3Cta,
+      highlighted: false,
+    },
+  ];
+
   return (
     <section id="precios" className="py-12 sm:py-16 md:py-20 bg-muted/30">
       <div className="container mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
           <span className="inline-block px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium mb-3 sm:mb-4">
-            Precios transparentes
+            {t.pricing.badge}
           </span>
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-display font-bold mb-3 sm:mb-4">
-            Un plan para cada necesidad
+            {t.pricing.title}
           </h2>
           <p className="text-sm sm:text-lg text-muted-foreground px-2">
-            Empieza gratis y escala cuando lo necesites
+            {t.pricing.subtitle}
           </p>
         </div>
 
@@ -85,7 +68,7 @@ export const Pricing = () => {
                 <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-gradient-primary text-primary-foreground text-xs sm:text-sm font-medium">
                     <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Popular
+                    {t.pricing.popular}
                   </span>
                 </div>
               )}
