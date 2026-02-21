@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date")
+      .select("id, name, date, language")
       .eq("id", eventId)
       .single();
 
@@ -86,9 +86,12 @@ serve(async (req) => {
       );
     }
 
+    const lang = event.language || 'es';
+    const isEn = lang === 'en';
+
     // Format event date
     const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString("es-ES", {
+    const formattedDate = eventDate.toLocaleDateString(isEn ? "en-US" : "es-ES", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -97,10 +100,7 @@ serve(async (req) => {
       minute: "2-digit"
     });
 
-    // Use the published domain instead of the frontend-provided baseUrl
     const publishedBaseUrl = "https://konektum.com";
-    
-    // Build URLs with verification code - unified access panel
     const accessUrl = `${publishedBaseUrl}/event/${eventId}/access`;
     const checkinUrl = `${publishedBaseUrl}/event/${eventId}/checkin?code=${participant.verification_code}`;
 
@@ -108,63 +108,66 @@ serve(async (req) => {
     const emailResponse = await resend.emails.send({
       from: "Konektum <noreply@konektum.com>",
       to: [participant.email],
-      subject: `Tu código de acceso para ${event.name}`,
+      subject: isEn ? `Your access code for ${event.name}` : `Tu código de acceso para ${event.name}`,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Código de verificación</title>
+          <title>${isEn ? 'Verification code' : 'Código de verificación'}</title>
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">¡Registro confirmado!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Registration confirmed!' : '¡Registro confirmado!'}</h1>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${escapeHtml(participant.name)}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">${isEn ? 'Hello' : 'Hola'} <strong>${escapeHtml(participant.name)}</strong>,</p>
             
-            <p>Tu registro para <strong>${escapeHtml(event.name)}</strong> ha sido confirmado.</p>
+            <p>${isEn
+              ? `Your registration for <strong>${escapeHtml(event.name)}</strong> has been confirmed.`
+              : `Tu registro para <strong>${escapeHtml(event.name)}</strong> ha sido confirmado.`
+            }</p>
             
-            <p style="margin-bottom: 5px;"><strong>📅 Fecha:</strong> ${formattedDate}</p>
+            <p style="margin-bottom: 5px;"><strong>📅 ${isEn ? 'Date' : 'Fecha'}:</strong> ${formattedDate}</p>
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
-              <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Tu código personal de acceso:</p>
+              <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">${isEn ? 'Your personal access code:' : 'Tu código personal de acceso:'}</p>
               <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace;">
                 ${participant.verification_code}
               </div>
             </div>
             
-            <p style="font-weight: bold; color: #333;">Con este código podrás:</p>
+            <p style="font-weight: bold; color: #333;">${isEn ? 'With this code you can:' : 'Con este código podrás:'}</p>
             <ul style="color: #555; padding-left: 20px;">
-              <li style="margin-bottom: 10px;">✅ Hacer check-in cuando llegues al evento</li>
-              <li style="margin-bottom: 10px;">🪑 Ver en qué mesas estás asignado/a durante el evento</li>
-              <li style="margin-bottom: 10px;">💕 Enviar tus selecciones después del evento</li>
+              <li style="margin-bottom: 10px;">✅ ${isEn ? 'Check in when you arrive at the event' : 'Hacer check-in cuando llegues al evento'}</li>
+              <li style="margin-bottom: 10px;">🪑 ${isEn ? 'See which tables you are assigned to during the event' : 'Ver en qué mesas estás asignado/a durante el evento'}</li>
+              <li style="margin-bottom: 10px;">💕 ${isEn ? 'Send your selections after the event' : 'Enviar tus selecciones después del evento'}</li>
             </ul>
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              <p style="font-weight: bold; margin-bottom: 15px;">Accede a tu panel:</p>
+              <p style="font-weight: bold; margin-bottom: 15px;">${isEn ? 'Access your panel:' : 'Accede a tu panel:'}</p>
               <div style="text-align: center;">
                 <a href="${accessUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                  🎫 Mi panel del evento
+                  🎫 ${isEn ? 'My event panel' : 'Mi panel del evento'}
                 </a>
               </div>
               <p style="color: #888; font-size: 13px; text-align: center; margin-top: 10px;">
-                Desde tu panel podrás ver tus mesas y enviar tus selecciones.
+                ${isEn ? 'From your panel you can see your tables and send your selections.' : 'Desde tu panel podrás ver tus mesas y enviar tus selecciones.'}
               </p>
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
               <p style="margin: 0; color: #856404; font-size: 14px;">
-                <strong>⚠️ Importante:</strong> Guarda este código, lo necesitarás para participar en el evento.
+                <strong>⚠️ ${isEn ? 'Important:' : 'Importante:'}</strong> ${isEn ? 'Save this code, you will need it to participate in the event.' : 'Guarda este código, lo necesitarás para participar en el evento.'}
               </p>
             </div>
           </div>
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
-            <p>¡Nos vemos en el evento!</p>
-            <p>Equipo Konektum</p>
+            <p>${isEn ? 'See you at the event!' : '¡Nos vemos en el evento!'}</p>
+            <p>${isEn ? 'Konektum Team' : 'Equipo Konektum'}</p>
           </div>
         </body>
         </html>

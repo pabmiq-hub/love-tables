@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import konektumLogo from "@/assets/konektum-logo.png";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { translations, Language } from "@/i18n/translations";
 
 interface TableAssignment {
   round: number;
@@ -16,11 +16,13 @@ interface TableAssignment {
 }
 
 const ParticipantTables = () => {
-  const { t } = useLanguage();
   const { id: eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
+
   const [verificationCode, setVerificationCode] = useState(searchParams.get('code') || "");
   const [participantName, setParticipantName] = useState("");
   const [assignments, setAssignments] = useState<TableAssignment[]>([]);
@@ -43,7 +45,7 @@ const ParticipantTables = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, status")
+        .select("id, status, language")
         .eq("id", eventId)
         .single();
 
@@ -53,11 +55,14 @@ const ParticipantTables = () => {
         return;
       }
 
+      if (data.language === 'en' || data.language === 'es') {
+        setEventLang(data.language as Language);
+      }
+
       setEventExists(true);
       setEventStatus(data.status);
       setIsLoading(false);
 
-      // Auto-load if code is in URL and event is active/completed
       if (searchParams.get('code') && (data.status === 'active' || data.status === 'completed')) {
         handleLoadTables();
       }
@@ -70,7 +75,7 @@ const ParticipantTables = () => {
     if (!verificationCode || verificationCode.length !== 6) {
       toast({
         title: "Error",
-        description: "Introduce un código de 6 dígitos",
+        description: t.tables.errorNoCode,
         variant: "destructive",
       });
       return;
@@ -85,7 +90,7 @@ const ParticipantTables = () => {
     if (error || data?.error) {
       toast({
         title: "Error",
-        description: data?.error || "No se pudieron cargar las mesas",
+        description: data?.error || "Error",
         variant: "destructive",
       });
       setIsVerifying(false);
@@ -116,17 +121,14 @@ const ParticipantTables = () => {
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-semibold mb-2">Evento no encontrado</h2>
-            <p className="text-muted-foreground">
-              Este evento no existe o ha sido eliminado.
-            </p>
+            <h2 className="font-display text-xl font-semibold mb-2">{t.tables.eventNotFound}</h2>
+            <p className="text-muted-foreground">{t.tables.eventNotFoundDesc}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Event not started yet
   if (eventStatus === 'pending') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -135,17 +137,14 @@ const ParticipantTables = () => {
             <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-amber-600" />
             </div>
-            <h2 className="font-display text-xl font-semibold mb-2">Evento no iniciado</h2>
-            <p className="text-muted-foreground">
-              Las asignaciones de mesa estarán disponibles cuando el evento haya comenzado.
-            </p>
+            <h2 className="font-display text-xl font-semibold mb-2">{t.tables.eventNotStarted}</h2>
+            <p className="text-muted-foreground">{t.tables.eventNotStartedDesc}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Tables loaded successfully
   if (isLoaded) {
     return (
       <div className="min-h-screen bg-background">
@@ -161,24 +160,24 @@ const ParticipantTables = () => {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Table2 className="w-8 h-8 text-primary" />
               </div>
-              <CardTitle className="font-display text-2xl">Tus mesas asignadas</CardTitle>
+              <CardTitle className="font-display text-2xl">{t.tables.yourTables}</CardTitle>
               <CardDescription>
-                Hola, <span className="font-medium text-foreground">{participantName}</span>
+                {t.tables.hello} <span className="font-medium text-foreground">{participantName}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {currentRound && (
                 <div className="bg-primary/10 rounded-lg p-3 text-center">
                   <p className="text-sm text-primary">
-                    Ronda actual: <span className="font-bold">{currentRound}</span> de {totalRounds}
+                    {t.tables.currentRound} <span className="font-bold">{currentRound}</span> {t.tables.of} {totalRounds}
                   </p>
                 </div>
               )}
 
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>Las mesas aún no han sido asignadas.</p>
-                  <p className="text-sm mt-2">Espera a que el organizador genere las mesas.</p>
+                  <p>{t.tables.noTablesYet}</p>
+                  <p className="text-sm mt-2">{t.tables.waitForOrganizer}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -195,18 +194,18 @@ const ParticipantTables = () => {
                         <span className={`text-sm font-medium ${
                           currentRound === assignment.round ? 'text-primary' : 'text-muted-foreground'
                         }`}>
-                          Ronda {assignment.round}
+                          {t.tables.round} {assignment.round}
                         </span>
                         {currentRound === assignment.round && (
                           <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">
-                            AHORA
+                            {t.tables.now}
                           </span>
                         )}
                       </div>
                       <div className={`text-2xl font-bold ${
                         currentRound === assignment.round ? 'text-primary' : 'text-foreground'
                       }`}>
-                        Mesa {assignment.table}
+                        {t.tables.table} {assignment.table}
                       </div>
                     </div>
                   ))}
@@ -214,7 +213,7 @@ const ParticipantTables = () => {
               )}
 
               <p className="text-xs text-center text-muted-foreground pt-4">
-                Busca el número de tu mesa en el local
+                {t.tables.findTable}
               </p>
             </CardContent>
           </Card>
@@ -223,7 +222,6 @@ const ParticipantTables = () => {
     );
   }
 
-  // Code input form
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -238,14 +236,12 @@ const ParticipantTables = () => {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <KeyRound className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="font-display text-2xl">Ver mis mesas</CardTitle>
-            <CardDescription>
-              Introduce tu código de verificación para ver tus mesas asignadas
-            </CardDescription>
+            <CardTitle className="font-display text-2xl">{t.tables.title}</CardTitle>
+            <CardDescription>{t.tables.subtitle}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="code">Código de verificación</Label>
+              <Label htmlFor="code">{t.tables.verificationCode}</Label>
               <Input
                 id="code"
                 type="text"
@@ -268,18 +264,18 @@ const ParticipantTables = () => {
               {isVerifying ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Cargando...
+                  {t.tables.loading}
                 </>
               ) : (
                 <>
                   <Table2 className="w-4 h-4 mr-2" />
-                  Ver mis mesas
+                  {t.tables.viewTables}
                 </>
               )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Tu código está en el email que recibiste al registrarte
+              {t.tables.codeHint}
             </p>
           </CardContent>
         </Card>

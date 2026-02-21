@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { translations, Language } from "@/i18n/translations";
 
 interface MatchSelection {
   participantId: string;
@@ -48,14 +49,15 @@ const ParticipantAccess = () => {
   const [eventStatus, setEventStatus] = useState<string>("");
   const [currentRound, setCurrentRound] = useState<number>(0);
 
-  // Table assignments
   const [tableAssignments, setTableAssignments] = useState<TableAssignment[]>([]);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
 
-  // Deadline
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
+
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
 
   const { toast } = useToast();
 
@@ -69,7 +71,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language')
           .eq('id', eventId)
           .single();
 
@@ -77,6 +79,10 @@ const ParticipantAccess = () => {
           setStep("error");
           setIsLoading(false);
           return;
+        }
+
+        if (event.language === 'en' || event.language === 'es') {
+          setEventLang(event.language as Language);
         }
 
         setEventStatus(event.status);
@@ -113,29 +119,28 @@ const ParticipantAccess = () => {
     checkEventStatus();
   }, [eventId]);
 
-  // Countdown timer
   useEffect(() => {
     if (!selectionDeadline) return;
     const update = () => {
       const now = new Date();
       const diff = selectionDeadline.getTime() - now.getTime();
       if (diff <= 0) {
-        setTimeRemaining("Plazo expirado");
+        setTimeRemaining(t.access.timeExpired);
         setStep("expired");
         return;
       }
       const hours = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
-      setTimeRemaining(`${hours}h ${minutes}m restantes`);
+      setTimeRemaining(t.access.timeRemaining.replace('{hours}', String(hours)).replace('{minutes}', String(minutes)));
     };
     update();
     const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
-  }, [selectionDeadline]);
+  }, [selectionDeadline, t]);
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
-      toast({ title: "Código incompleto", description: "Por favor, introduce los 6 dígitos del código", variant: "destructive" });
+      toast({ title: t.access.incompleteCode, description: t.access.incompleteCodeDesc, variant: "destructive" });
       return;
     }
 
@@ -147,7 +152,7 @@ const ParticipantAccess = () => {
       });
 
       if (error || data?.error || !data?.participant) {
-        toast({ title: "Código inválido", description: "El código introducido no es válido o ha expirado", variant: "destructive" });
+        toast({ title: t.access.invalidCode, description: t.access.invalidCodeDesc, variant: "destructive" });
         setIsVerifying(false);
         return;
       }
@@ -156,7 +161,7 @@ const ParticipantAccess = () => {
       setStep("confirm_identity");
     } catch (err) {
       console.error('Error verifying code:', err);
-      toast({ title: "Error", description: "No se pudo verificar el código. Inténtalo de nuevo.", variant: "destructive" });
+      toast({ title: t.access.error, description: t.access.errorSaving, variant: "destructive" });
     } finally {
       setIsVerifying(false);
     }
@@ -168,7 +173,6 @@ const ParticipantAccess = () => {
     setIsLoading(true);
 
     try {
-      // Single call — get-table-assignments now returns everything we need
       const { data, error } = await supabase.functions.invoke('get-table-assignments', {
         body: { eventId, verificationCode }
       });
@@ -194,7 +198,6 @@ const ParticipantAccess = () => {
         participantPreference.toLowerCase().includes('pareja') ||
         participantPreference.toLowerCase().includes('ligue');
 
-      // Build selections from tablemates only (privacy: no other participants exposed)
       const allSelections: MatchSelection[] = [];
       assignments.forEach((assignment: TableAssignment) => {
         assignment.tablemates.forEach((tm) => {
@@ -240,20 +243,18 @@ const ParticipantAccess = () => {
 
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
-      case 'friendship': return 'Amistad';
-      case 'dating': return 'Ligue';
-      case 'both': return 'Amistad y Ligue';
-      default: return 'Seleccionado';
+      case 'friendship': return t.access.friendship;
+      case 'dating': return t.access.dating;
+      case 'both': return `${t.access.friendship} & ${t.access.dating}`;
+      default: return t.access.alreadySelected;
     }
   };
 
-  // Group selections by round
   const selectionsByRound = tableAssignments.map(assignment => {
     const roundSelections = matchSelections.filter(ms => ms.round === assignment.round);
     return { round: assignment.round, table: assignment.table, selections: roundSelections };
   });
 
-  // Deduplicate selections: if a person appears in multiple rounds, only show them in the first round
   const seenParticipantIds = new Set<string>();
   const deduplicatedSelectionsByRound = selectionsByRound.map(roundGroup => {
     const uniqueSelections = roundGroup.selections.filter(ms => {
@@ -272,7 +273,6 @@ const ParticipantAccess = () => {
 
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
-    // Deduplicate by participantId (a person may appear in multiple rounds)
     const deduped = new Map<string, MatchSelection>();
     activeSelections.forEach(ms => {
       const existing = deduped.get(ms.participantId);
@@ -288,7 +288,7 @@ const ParticipantAccess = () => {
     });
 
     if (deduped.size === 0) {
-      toast({ title: "Sin nuevas selecciones", description: "No has seleccionado ningún compañero nuevo." });
+      toast({ title: t.access.noNewSelections, description: t.access.noNewSelectionsDesc });
       setIsSubmitting(false);
       setStep("done");
       return;
@@ -306,12 +306,12 @@ const ParticipantAccess = () => {
     });
 
     if (error || data?.error) {
-      toast({ title: "Error", description: data?.error || "No se pudieron guardar las selecciones.", variant: "destructive" });
+      toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
 
-    toast({ title: "¡Selecciones guardadas!", description: data?.message || `Se han guardado ${selections.length} nuevas selecciones.` });
+    toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
     setIsSubmitting(false);
     setStep("done");
   };
@@ -328,68 +328,62 @@ const ParticipantAccess = () => {
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
       <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
-        Volver
+        {t.access.back}
       </Link>
 
       <div className="mb-8 animate-fade-in">
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
-      {/* Not started */}
       {step === "not_started" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
               <Clock className="w-8 h-8 text-amber-500" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">El evento aún no ha comenzado</h2>
-            <p className="text-muted-foreground mb-6">El panel estará disponible cuando el organizador inicie el evento.</p>
-            <Link to="/"><Button variant="outline" className="w-full">Volver al inicio</Button></Link>
+            <h2 className="font-display text-xl font-bold mb-2">{t.access.notStartedTitle}</h2>
+            <p className="text-muted-foreground mb-6">{t.access.notStartedDesc}</p>
+            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Expired */}
       {step === "expired" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <Lock className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">Plazo finalizado</h2>
-            <p className="text-muted-foreground mb-6">
-              El periodo para enviar selecciones ha expirado. Ya no puedes acceder al panel de participante.
-            </p>
-            <Link to="/"><Button variant="outline" className="w-full">Volver al inicio</Button></Link>
+            <h2 className="font-display text-xl font-bold mb-2">{t.access.expiredTitle}</h2>
+            <p className="text-muted-foreground mb-6">{t.access.expiredDesc}</p>
+            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Error */}
       {step === "error" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">Evento no disponible</h2>
-            <p className="text-muted-foreground mb-6">Este evento no existe o el enlace es inválido.</p>
-            <Link to="/"><Button variant="outline" className="w-full">Volver al inicio</Button></Link>
+            <h2 className="font-display text-xl font-bold mb-2">{t.access.errorTitle}</h2>
+            <p className="text-muted-foreground mb-6">{t.access.errorDesc}</p>
+            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Verify Code */}
       {step === "verify_code" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <KeyRound className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Panel del participante</CardTitle>
-            <CardDescription>Introduce el código de 6 dígitos que recibiste al registrarte.</CardDescription>
+            <CardTitle className="text-2xl">{t.access.panelTitle}</CardTitle>
+            <CardDescription>{t.access.panelDesc}</CardDescription>
             {currentRound > 0 && (
-              <Badge variant="secondary" className="mx-auto mt-2">Ronda {currentRound} en curso</Badge>
+              <Badge variant="secondary" className="mx-auto mt-2">{t.access.round} {currentRound} {t.access.inProgress}</Badge>
             )}
           </CardHeader>
           <CardContent className="space-y-6">
@@ -406,55 +400,53 @@ const ParticipantAccess = () => {
               </InputOTP>
             </div>
             <Button variant="hero" className="w-full" onClick={handleVerifyCode} disabled={verificationCode.length !== 6 || isVerifying}>
-              {isVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verificando...</> : "Acceder"}
+              {isVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.access.verifying}</> : t.access.access}
             </Button>
-            <p className="text-xs text-center text-muted-foreground">¿No tienes código? Búscalo en el email que recibiste al hacer check-in.</p>
+            <p className="text-xs text-center text-muted-foreground">{t.access.noCodeHint}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Confirm Identity */}
       {step === "confirm_identity" && verifiedParticipant && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">¿Eres tú?</CardTitle>
-            <CardDescription>Confirma que estos datos son correctos antes de continuar.</CardDescription>
+            <CardTitle className="text-2xl">{t.access.areYouThis}</CardTitle>
+            <CardDescription>{t.access.confirmDesc}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="p-4 rounded-lg bg-muted space-y-2">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Nombre:</span>
+                <span className="text-muted-foreground">{t.access.name}</span>
                 <span className="font-medium">{verifiedParticipant.name}</span>
               </div>
               {verifiedParticipant.email && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email:</span>
+                  <span className="text-muted-foreground">{t.access.email}</span>
                   <span className="font-medium">{verifiedParticipant.email}</span>
                 </div>
               )}
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => { setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>
-                No, volver
+                {t.access.no}
               </Button>
               <Button variant="hero" className="flex-1" onClick={handleConfirmIdentity} disabled={isLoading}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sí, soy yo"}
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t.access.yes}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Main Panel with Tabs */}
       {step === "panel" && (
         <Card className="w-full max-w-lg animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">Hola, {participantName || verifiedParticipant?.name}</CardTitle>
+            <CardTitle className="text-xl">{t.access.hello} {participantName || verifiedParticipant?.name}</CardTitle>
             <CardDescription>
-              {eventStatus === 'completed' ? 'El evento ha finalizado' : `Ronda ${currentRound} en curso`}
+              {eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
             </CardDescription>
             {timeRemaining && eventStatus === 'completed' && (
               <Badge variant="secondary" className="mx-auto mt-2">
@@ -468,20 +460,19 @@ const ParticipantAccess = () => {
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
-                  Mis mesas
+                  {t.access.myTables}
                 </TabsTrigger>
                 <TabsTrigger value="selections" className="flex items-center gap-1.5">
                   <Heart className="w-4 h-4" />
-                  Selecciones
+                  {t.access.selections}
                 </TabsTrigger>
               </TabsList>
 
-              {/* Tables Tab */}
               <TabsContent value="tables" className="space-y-3 mt-4">
                 {tableAssignments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p>Las mesas aún no han sido asignadas.</p>
-                    <p className="text-sm mt-2">Espera a que el organizador genere las mesas.</p>
+                    <p>{t.access.noTablesYet}</p>
+                    <p className="text-sm mt-2">{t.access.waitForOrganizer}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -494,19 +485,19 @@ const ParticipantAccess = () => {
                         }`}>
                           <div className="flex items-center gap-3">
                             <span className={`text-sm font-medium ${currentRound === assignment.round ? 'text-primary' : 'text-muted-foreground'}`}>
-                              Ronda {assignment.round}
+                              {t.access.round} {assignment.round}
                             </span>
                             {currentRound === assignment.round && (
-                              <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">AHORA</span>
+                              <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">{t.access.now}</span>
                             )}
                           </div>
                           <div className={`text-2xl font-bold ${currentRound === assignment.round ? 'text-primary' : 'text-foreground'}`}>
-                            Mesa {assignment.table}
+                            {t.access.table} {assignment.table}
                           </div>
                         </div>
                         {assignment.tablemates && assignment.tablemates.length > 0 && (
                           <div className="px-4 py-2 border-t border-border/50 bg-background/50">
-                            <p className="text-xs text-muted-foreground mb-1">Compañeros de mesa:</p>
+                            <p className="text-xs text-muted-foreground mb-1">{t.access.tablemates}</p>
                             <div className="flex flex-wrap gap-1">
                               {assignment.tablemates.map(tm => (
                                 <Badge key={tm.id} variant="outline" className="text-xs">{tm.name}</Badge>
@@ -518,20 +509,19 @@ const ParticipantAccess = () => {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-center text-muted-foreground pt-2">Busca el número de tu mesa en el local</p>
+                <p className="text-xs text-center text-muted-foreground pt-2">{t.access.findTable}</p>
               </TabsContent>
 
-              {/* Selections Tab - Grouped by Round */}
               <TabsContent value="selections" className="space-y-4 mt-4">
                 {eventStatus === 'completed' && (
                   <div className="bg-green-500/10 rounded-lg p-3 text-center">
-                    <p className="text-sm text-green-700 dark:text-green-300 font-medium">Evento finalizado — selecciona a las personas con las que conectaste</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 font-medium">{t.access.eventEndedSelect}</p>
                   </div>
                 )}
 
                 {selectionsByRound.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No hay compañeros de mesa disponibles aún. Espera a que avance el evento.</p>
+                    <p className="text-muted-foreground">{t.access.noTablemates}</p>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[28rem] overflow-y-auto">
@@ -540,17 +530,16 @@ const ParticipantAccess = () => {
                       return (
                       <div key={round} className="space-y-2">
                         <div className="flex items-center gap-2 sticky top-0 bg-card/90 backdrop-blur-sm py-1 z-10">
-                          <Badge variant="secondary" className="text-xs">Ronda {round} · Mesa {table}</Badge>
+                          <Badge variant="secondary" className="text-xs">{t.access.round} {round} · {t.access.table} {table}</Badge>
                           {currentRound === round && (
-                            <Badge className="text-xs bg-primary text-primary-foreground animate-pulse">AHORA</Badge>
+                            <Badge className="text-xs bg-primary text-primary-foreground animate-pulse">{t.access.now}</Badge>
                           )}
                         </div>
                         {roundSelections.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-2">Sin compañeros en esta ronda</p>
+                          <p className="text-sm text-muted-foreground text-center py-2">{t.access.noTablematesRound}</p>
                         ) : (
                           <div className="grid gap-2">
                             {roundSelections.map((ms) => {
-                              // Name comes directly from tablemates (already anonymized by server)
                               const tablemate = tableAssignments.find(a => a.round === round)?.tablemates.find(t => t.id === ms.participantId);
                               if (!tablemate) return null;
 
@@ -575,17 +564,17 @@ const ParticipantAccess = () => {
                                   </div>
 
                                   {ms.alreadySelected ? (
-                                    <p className="text-xs text-muted-foreground">Ya seleccionado anteriormente</p>
+                                    <p className="text-xs text-muted-foreground">{t.access.alreadySelected}</p>
                                   ) : (
                                     <div className="flex gap-4">
                                       <label className="flex items-center gap-2 cursor-pointer">
                                         <Checkbox checked={ms.friendship} onCheckedChange={() => toggleSelection(ms.participantId, round, 'friendship')} />
-                                        <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> Amistad</span>
+                                        <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
                                       </label>
                                       {ms.canShowDating && (
                                         <label className="flex items-center gap-2 cursor-pointer">
                                           <Checkbox checked={ms.dating} onCheckedChange={() => toggleSelection(ms.participantId, round, 'dating')} />
-                                          <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> Ligue</span>
+                                          <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
                                         </label>
                                       )}
                                     </div>
@@ -601,15 +590,13 @@ const ParticipantAccess = () => {
                   </div>
                 )}
 
-                <p className="text-sm text-center text-muted-foreground">
-                  Si ambos os seleccionáis mutuamente, ¡es un match! 💕
-                </p>
+                <p className="text-sm text-center text-muted-foreground">{t.access.matchHint}</p>
 
                 <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
                   {isSubmitting ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.access.saving}</>
                   ) : (
-                    <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `Enviar ${newSelectionsCount} selección(es)` : 'Continuar sin seleccionar'}</>
+                    <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.access.send} ${newSelectionsCount} ${t.access.selectionsCount}` : t.access.continueWithout}</>
                   )}
                 </Button>
               </TabsContent>
@@ -618,20 +605,17 @@ const ParticipantAccess = () => {
         </Card>
       )}
 
-      {/* Done */}
       {step === "done" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <Sparkles className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="font-display text-2xl font-bold mb-2">¡Gracias por participar!</h2>
+            <h2 className="font-display text-2xl font-bold mb-2">{t.access.thanks}</h2>
             <p className="text-muted-foreground mb-6">
-              {eventStatus === 'completed'
-                ? 'Tus selecciones han sido guardadas. Te notificaremos si hay matches.'
-                : 'Tus selecciones han sido guardadas. Puedes volver a acceder para añadir más selecciones.'}
+              {eventStatus === 'completed' ? t.access.thanksCompleted : t.access.thanksActive}
             </p>
-            <Link to="/"><Button variant="outline" className="w-full">Volver al inicio</Button></Link>
+            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
