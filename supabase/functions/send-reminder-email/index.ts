@@ -134,7 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Verify user is the event organizer
     const { data: event } = await supabase
       .from("events")
-      .select("name, organizer_id")
+      .select("name, organizer_id, language")
       .eq("id", event_id)
       .single();
 
@@ -155,6 +155,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Authorization verified - user is event organizer");
 
+    const isEn = event.language === 'en';
+
     // Get participants
     const { data: participants } = await supabase
       .from("participants")
@@ -165,7 +167,6 @@ const handler = async (req: Request): Promise<Response> => {
     const stats = { total: 0, sent: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
-    // Get the selection page URL - use the published domain
     const baseUrl = "https://konektum.com";
 
     console.log(`Starting to send reminders to ${participants?.length || 0} participants with rate limiting...`);
@@ -189,15 +190,20 @@ const handler = async (req: Request): Promise<Response> => {
             <h2 style="color: #e11d48;">Konektum</h2>
           </div>
           
-          <h1 style="color: #333;">¡Hola ${escapeHtml(participant.name)}! 👋</h1>
+          <h1 style="color: #333;">${isEn ? `Hello ${escapeHtml(participant.name)}! 👋` : `¡Hola ${escapeHtml(participant.name)}! 👋`}</h1>
           
           <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            ¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!
+            ${isEn
+              ? `You still have time to submit your matches for the event <strong>${escapeHtml(event.name)}</strong>!`
+              : `¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!`
+            }
           </p>
           
           <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            No te pierdas la oportunidad de conectar con las personas que conociste. 
-            Haz clic en el botón de abajo para enviar tus selecciones:
+            ${isEn
+              ? 'Don\'t miss the opportunity to connect with the people you met. Click the button below to send your selections:'
+              : 'No te pierdas la oportunidad de conectar con las personas que conociste. Haz clic en el botón de abajo para enviar tus selecciones:'
+            }
           </p>
           
           <div style="text-align: center; margin: 30px 0;">
@@ -209,19 +215,21 @@ const handler = async (req: Request): Promise<Response> => {
                       text-decoration: none; 
                       font-weight: bold;
                       display: inline-block;">
-              Enviar mis selecciones
+              ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
             </a>
           </div>
           
           <p style="color: #888; font-size: 14px; text-align: center;">
-            ¡Esperamos que hayas pasado un buen rato! 💕
+            ${isEn ? 'We hope you had a great time! 💕' : '¡Esperamos que hayas pasado un buen rato! 💕'}
           </p>
           
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
           
           <p style="color: #888; font-size: 12px; text-align: center;">
-            Este es un recordatorio automático de Konektum.<br>
-            Si ya has enviado tus selecciones, ignora este mensaje.
+            ${isEn
+              ? 'This is an automatic reminder from Konektum.<br>If you have already sent your selections, please ignore this message.'
+              : 'Este es un recordatorio automático de Konektum.<br>Si ya has enviado tus selecciones, ignora este mensaje.'
+            }
           </p>
         </body>
         </html>
@@ -232,7 +240,7 @@ const handler = async (req: Request): Promise<Response> => {
         { 
           from: "Konektum <noreply@konektum.com>", 
           to: [participant.email], 
-          subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`, 
+          subject: isEn ? `⏰ Reminder: Send your selections for ${event.name}!` : `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`, 
           html 
         },
         participant.name

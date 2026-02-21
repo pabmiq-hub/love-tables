@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import konektumLogo from "@/assets/konektum-logo.png";
-import { useLanguage } from "@/i18n/LanguageContext";
+import { translations, Language } from "@/i18n/translations";
 
 interface ParticipantInfo {
   id: string;
@@ -19,11 +19,13 @@ interface ParticipantInfo {
 }
 
 const ParticipantCheckin = () => {
-  const { t } = useLanguage();
   const { id: eventId } = useParams();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
+
   const [verificationCode, setVerificationCode] = useState(searchParams.get('code') || "");
   const [participantInfo, setParticipantInfo] = useState<ParticipantInfo | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
@@ -43,7 +45,7 @@ const ParticipantCheckin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, status")
+        .select("id, status, language")
         .eq("id", eventId)
         .single();
 
@@ -59,10 +61,13 @@ const ParticipantCheckin = () => {
         return;
       }
 
+      if (data.language === 'en' || data.language === 'es') {
+        setEventLang(data.language as Language);
+      }
+
       setEventExists(true);
       setIsLoading(false);
 
-      // Auto-verify if code is in URL
       if (searchParams.get('code')) {
         handleVerifyCode();
       }
@@ -75,7 +80,7 @@ const ParticipantCheckin = () => {
     if (!verificationCode || verificationCode.length !== 6) {
       toast({
         title: "Error",
-        description: "Introduce un código de 6 dígitos",
+        description: t.tables.errorNoCode,
         variant: "destructive",
       });
       return;
@@ -83,15 +88,14 @@ const ParticipantCheckin = () => {
 
     setIsVerifying(true);
 
-    // Check participant by verification code without doing check-in yet
     const { data, error } = await supabase.functions.invoke('get-event-participants', {
       body: { eventId, type: 'verify', verificationCode }
     });
 
     if (error || data?.error) {
       toast({
-        title: "Código incorrecto",
-        description: "El código introducido no es válido para este evento",
+        title: t.select.invalidCode,
+        description: t.select.invalidCodeDesc,
         variant: "destructive",
       });
       setIsVerifying(false);
@@ -118,14 +122,13 @@ const ParticipantCheckin = () => {
     });
 
     if (error || data?.error) {
-      // Check if already checked in
       if (data?.participant?.alreadyCheckedIn) {
         setAlreadyCheckedIn(true);
         setIsCheckedIn(true);
       } else {
         toast({
           title: "Error",
-          description: data?.error || "No se pudo realizar el check-in",
+          description: data?.error || "Error",
           variant: "destructive",
         });
       }
@@ -136,8 +139,8 @@ const ParticipantCheckin = () => {
     setIsCheckedIn(true);
     setIsConfirming(false);
     toast({
-      title: "¡Check-in completado!",
-      description: "Ya estás registrado para el evento",
+      title: t.checkin.checkinComplete,
+      description: t.checkin.successMsg,
     });
   };
 
@@ -194,7 +197,6 @@ const ParticipantCheckin = () => {
     );
   }
 
-  // If we have participant info, show confirmation screen
   if (participantInfo) {
     return (
       <div className="min-h-screen bg-background">
@@ -210,10 +212,8 @@ const ParticipantCheckin = () => {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <User className="w-8 h-8 text-primary" />
               </div>
-              <CardTitle className="font-display text-2xl">Confirma tu identidad</CardTitle>
-              <CardDescription>
-                ¿Eres tú?
-              </CardDescription>
+              <CardTitle className="font-display text-2xl">{t.checkin.confirmIdentity}</CardTitle>
+              <CardDescription>{t.checkin.areYouThis}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
@@ -228,7 +228,7 @@ const ParticipantCheckin = () => {
               {alreadyCheckedIn ? (
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-center">
                   <p className="text-sm text-amber-700 dark:text-amber-400">
-                    Ya has realizado el check-in previamente
+                    {t.checkin.alreadyCheckedInWarning}
                   </p>
                 </div>
               ) : (
@@ -241,7 +241,7 @@ const ParticipantCheckin = () => {
                       setVerificationCode("");
                     }}
                   >
-                    No soy yo
+                    {t.checkin.notMe}
                   </Button>
                   <Button
                     variant="hero"
@@ -252,12 +252,12 @@ const ParticipantCheckin = () => {
                     {isConfirming ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Confirmando...
+                        {t.checkin.confirming}
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Sí, confirmar
+                        {t.checkin.yesConfirm}
                       </>
                     )}
                   </Button>
@@ -272,28 +272,24 @@ const ParticipantCheckin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-center">
           <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
         </div>
       </header>
 
-      {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-md">
         <Card className="animate-fade-in">
           <CardHeader className="text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <KeyRound className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="font-display text-2xl">Check-in</CardTitle>
-            <CardDescription>
-              Introduce el código de 6 dígitos que recibiste por email
-            </CardDescription>
+            <CardTitle className="font-display text-2xl">{t.checkin.title}</CardTitle>
+            <CardDescription>{t.checkin.subtitle}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="code">Código de verificación</Label>
+              <Label htmlFor="code">{t.checkin.verificationCode}</Label>
               <Input
                 id="code"
                 type="text"
@@ -316,15 +312,15 @@ const ParticipantCheckin = () => {
               {isVerifying ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Verificando...
+                  {t.checkin.verifying}
                 </>
               ) : (
-                "Verificar código"
+                t.checkin.verify
               )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Si no recibiste el código, revisa tu carpeta de spam o contacta con el organizador.
+              {t.checkin.noCodeHint}
             </p>
           </CardContent>
         </Card>

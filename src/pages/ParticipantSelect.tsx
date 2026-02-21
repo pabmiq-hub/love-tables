@@ -10,6 +10,7 @@ import { formatAnonymousName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import konektumLogo from "@/assets/konektum-logo.png";
+import { translations, Language } from "@/i18n/translations";
 
 interface Participant {
   id: string;
@@ -60,7 +61,9 @@ const ParticipantSelect = () => {
   const [currentRound, setCurrentRound] = useState<number>(0);
   const { toast } = useToast();
 
-  // Initial data load - only check event status
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
+
   useEffect(() => {
     const checkEventStatus = async () => {
       if (!eventId) {
@@ -72,7 +75,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round')
+          .select('status, current_round, language')
           .eq('id', eventId)
           .single();
 
@@ -80,6 +83,10 @@ const ParticipantSelect = () => {
           setStep("error");
           setIsLoading(false);
           return;
+        }
+
+        if (event.language === 'en' || event.language === 'es') {
+          setEventLang(event.language as Language);
         }
 
         setEventStatus(event.status);
@@ -90,7 +97,6 @@ const ParticipantSelect = () => {
         } else if (event.status === 'pending' || event.current_round === 0) {
           setStep("not_started");
         }
-        // else stay on verify_code
         
         setIsLoading(false);
       } catch (err) {
@@ -107,8 +113,8 @@ const ParticipantSelect = () => {
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
       toast({
-        title: "Código incompleto",
-        description: "Por favor, introduce los 6 dígitos del código",
+        title: t.select.incompleteCode,
+        description: t.select.incompleteCodeDesc,
         variant: "destructive",
       });
       return;
@@ -123,8 +129,8 @@ const ParticipantSelect = () => {
 
       if (error || data?.error || !data?.participant) {
         toast({
-          title: "Código inválido",
-          description: "El código introducido no es válido o ha expirado",
+          title: t.select.invalidCode,
+          description: t.select.invalidCodeDesc,
           variant: "destructive",
         });
         setIsVerifying(false);
@@ -137,7 +143,7 @@ const ParticipantSelect = () => {
       console.error('Error verifying code:', err);
       toast({
         title: "Error",
-        description: "No se pudo verificar el código. Inténtalo de nuevo.",
+        description: "Error",
         variant: "destructive",
       });
     } finally {
@@ -170,7 +176,6 @@ const ParticipantSelect = () => {
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
 
-      // Setup match selections
       const userPreference = verifiedParticipant.preference || null;
       setCurrentUserPreference(userPreference);
 
@@ -212,34 +217,27 @@ const ParticipantSelect = () => {
   // Helper functions
   const getTablemates = (participantId: string, tables: TableData[], allParticipants: Participant[]): Participant[] => {
     const tablematesIds = new Set<string>();
-
     tables.forEach(round => {
       round.tables.forEach(table => {
         const participantAtTable = table.some(p => p.id === participantId);
         if (participantAtTable) {
           table.forEach(p => {
-            if (p.id !== participantId) {
-              tablematesIds.add(p.id);
-            }
+            if (p.id !== participantId) tablematesIds.add(p.id);
           });
         }
       });
     });
-
     if (tablematesIds.size === 0 && tables.length === 0) {
       return allParticipants.filter(p => p.id !== participantId);
     }
-
     return allParticipants.filter(p => tablematesIds.has(p.id));
   };
 
   const getUserExistingSelections = (participantId: string, selections: ExistingSelection[]): Map<string, string> => {
     const userSelections = new Map<string, string>();
-    selections
-      .filter(s => s.selector_id === participantId)
-      .forEach(s => {
-        userSelections.set(s.selected_id, s.selection_type);
-      });
+    selections.filter(s => s.selector_id === participantId).forEach(s => {
+      userSelections.set(s.selected_id, s.selection_type);
+    });
     return userSelections;
   };
 
@@ -255,11 +253,7 @@ const ParticipantSelect = () => {
 
   const getSelectionState = (participantId: string): MatchSelection => {
     return matchSelections.find(ms => ms.participantId === participantId) || {
-      participantId,
-      friendship: false,
-      dating: false,
-      canShowDating: false,
-      alreadySelected: false
+      participantId, friendship: false, dating: false, canShowDating: false, alreadySelected: false
     };
   };
 
@@ -270,14 +264,13 @@ const ParticipantSelect = () => {
 
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
-      case 'friendship': return 'Amistad';
-      case 'dating': return 'Ligue';
-      case 'both': return 'Amistad y Ligue';
-      default: return 'Seleccionado';
+      case 'friendship': return t.select.friendship;
+      case 'dating': return t.select.dating;
+      case 'both': return `${t.select.friendship} & ${t.select.dating}`;
+      default: return t.select.alreadySelected;
     }
   };
 
-  // Get tablemates for the verified participant
   const getTablematesForSelection = (): Participant[] => {
     if (!verifiedParticipant) return [];
     return getTablemates(verifiedParticipant.id, tablesData, participants);
@@ -289,15 +282,14 @@ const ParticipantSelect = () => {
 
   const handleSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
-
     setIsSubmitting(true);
 
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
     if (activeSelections.length === 0) {
       toast({
-        title: "Sin nuevas selecciones",
-        description: "No has seleccionado ningún compañero nuevo. Puedes volver más tarde.",
+        title: t.select.noTablemates,
+        description: t.select.continueWithout,
       });
       setIsSubmitting(false);
       setStep("done");
@@ -306,31 +298,20 @@ const ParticipantSelect = () => {
 
     const selections = activeSelections.map(ms => {
       let selectionType = 'friendship';
-      if (ms.friendship && ms.dating) {
-        selectionType = 'both';
-      } else if (ms.dating) {
-        selectionType = 'dating';
-      }
-
-      return {
-        selected_id: ms.participantId,
-        selection_type: selectionType,
-      };
+      if (ms.friendship && ms.dating) selectionType = 'both';
+      else if (ms.dating) selectionType = 'dating';
+      return { selected_id: ms.participantId, selection_type: selectionType };
     });
 
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: {
-        eventId,
-        verificationCode, // Use verification code instead of selectorId
-        selections
-      }
+      body: { eventId, verificationCode, selections }
     });
 
     if (error || data?.error) {
       console.error('Error saving selections:', error || data?.error);
       toast({
         title: "Error",
-        description: data?.error || "No se pudieron guardar las selecciones.",
+        description: data?.error || t.select.noTablemates,
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -338,8 +319,8 @@ const ParticipantSelect = () => {
     }
 
     toast({
-      title: "¡Selecciones guardadas!",
-      description: data?.message || `Se han guardado ${selections.length} nuevas selecciones.`,
+      title: t.access.selectionsSaved,
+      description: data?.message || `${selections.length} ${t.select.selections}`,
     });
     setIsSubmitting(false);
     setStep("done");
@@ -355,98 +336,68 @@ const ParticipantSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link
-        to="/"
-        className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
+      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
-        Volver
+        {t.access.back}
       </Link>
 
-      {/* Logo */}
       <div className="mb-8 animate-fade-in">
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
-      {/* Completed state */}
       {step === "completed" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">Evento finalizado</h2>
-            <p className="text-muted-foreground">
-              Este evento ya ha sido cerrado. El periodo de selecciones ha terminado.
-            </p>
+            <h2 className="font-display text-xl font-bold mb-2">{t.select.eventCompleted}</h2>
+            <p className="text-muted-foreground">{t.select.eventCompletedDesc}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Not started state */}
       {step === "not_started" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
               <Clock className="w-8 h-8 text-amber-500" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">El evento aún no ha comenzado</h2>
-            <p className="text-muted-foreground mb-6">
-              Las selecciones estarán disponibles cuando el organizador inicie el evento.
-            </p>
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                Volver al inicio
-              </Button>
-            </Link>
+            <h2 className="font-display text-xl font-bold mb-2">{t.select.notStarted}</h2>
+            <p className="text-muted-foreground mb-6">{t.select.notStartedDesc}</p>
+            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Error state */}
       {step === "error" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-bold mb-2">Evento no disponible</h2>
-            <p className="text-muted-foreground mb-6">
-              Este evento no existe o el enlace es inválido.
-            </p>
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                Volver al inicio
-              </Button>
-            </Link>
+            <h2 className="font-display text-xl font-bold mb-2">{t.select.eventNotAvailable}</h2>
+            <p className="text-muted-foreground mb-6">{t.select.eventNotAvailableDesc}</p>
+            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {/* Step: Verify Code */}
       {step === "verify_code" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <KeyRound className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Introduce tu código</CardTitle>
-            <CardDescription>
-              Introduce el código de 6 dígitos que recibiste por email al registrarte.
-            </CardDescription>
+            <CardTitle className="text-2xl">{t.select.enterCode}</CardTitle>
+            <CardDescription>{t.select.enterCodeDesc}</CardDescription>
             {currentRound > 0 && (
-              <Badge variant="secondary" className="mx-auto mt-2">
-                Ronda {currentRound} en curso
-              </Badge>
+              <Badge variant="secondary" className="mx-auto mt-2">{t.select.round} {currentRound} {t.select.inProgress}</Badge>
             )}
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={verificationCode}
-                onChange={setVerificationCode}
-              >
+              <InputOTP maxLength={6} value={verificationCode} onChange={setVerificationCode}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -457,102 +408,63 @@ const ParticipantSelect = () => {
                 </InputOTPGroup>
               </InputOTP>
             </div>
-            <Button
-              variant="hero"
-              className="w-full"
-              onClick={handleVerifyCode}
-              disabled={verificationCode.length !== 6 || isVerifying}
-            >
-              {isVerifying ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Verificando...
-                </>
-              ) : (
-                "Verificar código"
-              )}
+            <Button variant="hero" className="w-full" onClick={handleVerifyCode} disabled={verificationCode.length !== 6 || isVerifying}>
+              {isVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.verifying}</> : t.select.verify}
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              ¿No tienes código? Búscalo en el email que recibiste al registrarte.
-            </p>
+            <p className="text-xs text-center text-muted-foreground">{t.select.noCodeHint}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* Step: Confirm Identity */}
       {step === "confirm_identity" && verifiedParticipant && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">¿Eres tú?</CardTitle>
-            <CardDescription>
-              Confirma que estos datos son correctos antes de continuar.
-            </CardDescription>
+            <CardTitle className="text-2xl">{t.select.areYouThis}</CardTitle>
+            <CardDescription>{t.select.confirmBeforeContinuing}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="p-4 rounded-lg bg-muted space-y-2">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Nombre:</span>
+                <span className="text-muted-foreground">{t.select.name}</span>
                 <span className="font-medium">{verifiedParticipant.name}</span>
               </div>
               {verifiedParticipant.email && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email:</span>
+                  <span className="text-muted-foreground">{t.select.email}</span>
                   <span className="font-medium">{verifiedParticipant.email}</span>
                 </div>
               )}
             </div>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setStep("verify_code");
-                  setVerificationCode("");
-                  setVerifiedParticipant(null);
-                }}
-              >
-                No, volver
+              <Button variant="outline" className="flex-1" onClick={() => { setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>
+                {t.select.no}
               </Button>
-              <Button
-                variant="hero"
-                className="flex-1"
-                onClick={handleConfirmIdentity}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Sí, soy yo"
-                )}
+              <Button variant="hero" className="flex-1" onClick={handleConfirmIdentity} disabled={isLoading}>
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t.select.yes}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step: Select matches */}
       {step === "select" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">¿Con quién conectaste?</CardTitle>
-            <CardDescription>
-              Selecciona a las personas con las que coincidiste
-            </CardDescription>
+            <CardTitle className="text-2xl">{t.select.whoDidYouConnect}</CardTitle>
+            <CardDescription>{t.select.selectPeople}</CardDescription>
             {alreadySelectedCount > 0 && (
               <p className="text-sm text-muted-foreground mt-2">
-                Ya tienes {alreadySelectedCount} selección(es) de rondas anteriores
+                {t.select.previousSelections} {alreadySelectedCount} {t.select.previousSelectionsSuffix}
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-4">
             {tablematesForSelection.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">
-                  No hay compañeros de mesa disponibles aún. Espera a que avance el evento.
-                </p>
+                <p className="text-muted-foreground">{t.select.noTablemates}</p>
               </div>
             ) : (
               <div className="grid gap-3 max-h-96 overflow-y-auto">
@@ -582,29 +494,17 @@ const ParticipantSelect = () => {
                       </div>
 
                       {isAlreadySelected ? (
-                        <p className="text-xs text-muted-foreground">
-                          Ya seleccionado en una ronda anterior
-                        </p>
+                        <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
                       ) : (
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={selectionState.friendship}
-                              onCheckedChange={() => toggleSelection(person.id, 'friendship')}
-                            />
-                            <span className="text-sm flex items-center gap-1">
-                              <Smile className="w-4 h-4" /> Amistad
-                            </span>
+                            <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
+                            <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
                           </label>
                           {selectionState.canShowDating && (
                             <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={selectionState.dating}
-                                onCheckedChange={() => toggleSelection(person.id, 'dating')}
-                              />
-                              <span className="text-sm flex items-center gap-1">
-                                <Heart className="w-4 h-4" /> Ligue
-                              </span>
+                              <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
+                              <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
                             </label>
                           )}
                         </div>
@@ -614,51 +514,29 @@ const ParticipantSelect = () => {
                 })}
               </div>
             )}
-            <p className="text-sm text-center text-muted-foreground">
-              Si ambos os seleccionáis mutuamente, ¡es un match! 💕
-            </p>
-            <Button
-              variant="hero"
-              className="w-full"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
+            <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
+            <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Guardando...
-                </>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
               ) : (
-                <>
-                  <Heart className="w-4 h-4 mr-2" />
-                  {newSelectionsCount > 0
-                    ? `Enviar ${newSelectionsCount} selección(es)`
-                    : 'Continuar sin seleccionar'}
-                </>
+                <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.select.submit} ${newSelectionsCount} ${t.select.selections}` : t.select.continueWithout}</>
               )}
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Step: Done */}
       {step === "done" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
           <CardContent className="pt-8 pb-8">
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <Sparkles className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="font-display text-2xl font-bold mb-2">¡Gracias por participar!</h2>
+            <h2 className="font-display text-2xl font-bold mb-2">{t.select.thanks}</h2>
             <p className="text-muted-foreground mb-6">
-              {eventStatus === 'completed'
-                ? 'Tus selecciones han sido guardadas. Te notificaremos si hay matches.'
-                : 'Tus selecciones han sido guardadas. Puedes volver a escanear el QR en las siguientes rondas para añadir más selecciones.'}
+              {eventStatus === 'completed' ? t.select.thanksCompleted : t.select.thanksActive}
             </p>
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                Volver al inicio
-              </Button>
-            </Link>
+            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}

@@ -71,10 +71,10 @@ serve(async (req) => {
       );
     }
 
-    // Get event details
+    // Get event details including language
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date")
+      .select("id, name, date, language")
       .eq("id", eventId)
       .single();
 
@@ -86,9 +86,12 @@ serve(async (req) => {
       );
     }
 
+    const lang = event.language || 'es';
+    const isEn = lang === 'en';
+
     // Format event date
     const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString("es-ES", {
+    const formattedDate = eventDate.toLocaleDateString(isEn ? "en-US" : "es-ES", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -100,43 +103,43 @@ serve(async (req) => {
     const emailPayload = {
       from: "Konektum <noreply@konektum.com>",
       to: [participant.email],
-      subject: `¡Registro confirmado! - ${event.name}`,
+      subject: isEn ? `Registration confirmed! - ${event.name}` : `¡Registro confirmado! - ${event.name}`,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Registro confirmado</title>
+          <title>${isEn ? 'Registration confirmed' : 'Registro confirmado'}</title>
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">¡Registro confirmado!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Registration confirmed!' : '¡Registro confirmado!'}</h1>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">Hola <strong>${participant.name}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">${isEn ? 'Hello' : 'Hola'} <strong>${participant.name}</strong>,</p>
             
-            <p>Tu registro para <strong>${event.name}</strong> ha sido confirmado.</p>
+            <p>${isEn ? `Your registration for <strong>${event.name}</strong> has been confirmed.` : `Tu registro para <strong>${event.name}</strong> ha sido confirmado.`}</p>
             
-            <p style="margin-bottom: 5px;"><strong>📅 Fecha:</strong> ${formattedDate}</p>
+            <p style="margin-bottom: 5px;"><strong>📅 ${isEn ? 'Date' : 'Fecha'}:</strong> ${formattedDate}</p>
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
               <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
               <p style="margin: 0; color: #666; font-size: 16px; font-weight: 500;">
-                ¡Ya tienes tu plaza reservada!
+                ${isEn ? 'Your spot is reserved!' : '¡Ya tienes tu plaza reservada!'}
               </p>
             </div>
             
             <div style="background: #e8f4fd; border-radius: 10px; padding: 20px; margin: 25px 0;">
-              <p style="font-weight: bold; color: #333; margin-top: 0;">📱 ¿Qué pasará el día del evento?</p>
+              <p style="font-weight: bold; color: #333; margin-top: 0;">📱 ${isEn ? 'What will happen on event day?' : '¿Qué pasará el día del evento?'}</p>
               <ol style="color: #555; padding-left: 20px; margin-bottom: 0;">
-                <li style="margin-bottom: 10px;">Cuando llegues, el organizador hará tu <strong>check-in</strong></li>
-                <li style="margin-bottom: 10px;">Recibirás un <strong>código personal de 6 dígitos</strong> por email</li>
-                <li style="margin-bottom: 10px;">Con ese código podrás:
+                <li style="margin-bottom: 10px;">${isEn ? 'When you arrive, the organizer will <strong>check you in</strong>' : 'Cuando llegues, el organizador hará tu <strong>check-in</strong>'}</li>
+                <li style="margin-bottom: 10px;">${isEn ? 'You will receive a <strong>personal 6-digit code</strong> by email' : 'Recibirás un <strong>código personal de 6 dígitos</strong> por email'}</li>
+                <li style="margin-bottom: 10px;">${isEn ? 'With that code you can:' : 'Con ese código podrás:'}
                   <ul style="margin-top: 5px;">
-                    <li>🪑 Ver tus mesas asignadas durante el evento</li>
-                    <li>💕 Enviar tus selecciones después del evento</li>
+                    <li>${isEn ? '🪑 See your assigned tables during the event' : '🪑 Ver tus mesas asignadas durante el evento'}</li>
+                    <li>${isEn ? '💕 Send your selections after the event' : '💕 Enviar tus selecciones después del evento'}</li>
                   </ul>
                 </li>
               </ol>
@@ -144,14 +147,14 @@ serve(async (req) => {
             
             <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
               <p style="margin: 0; color: #856404; font-size: 14px;">
-                <strong>⚠️ Importante:</strong> Asegúrate de llegar a tiempo para no perderte ninguna ronda.
+                <strong>⚠️ ${isEn ? 'Important:' : 'Importante:'}</strong> ${isEn ? 'Make sure to arrive on time so you don\'t miss any round.' : 'Asegúrate de llegar a tiempo para no perderte ninguna ronda.'}
               </p>
             </div>
           </div>
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
-            <p>¡Nos vemos en el evento!</p>
-            <p>Equipo Konektum</p>
+            <p>${isEn ? 'See you at the event!' : '¡Nos vemos en el evento!'}</p>
+            <p>${isEn ? 'Konektum Team' : 'Equipo Konektum'}</p>
           </div>
         </body>
         </html>

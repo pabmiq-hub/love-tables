@@ -11,6 +11,7 @@ import konektumLogo from "@/assets/konektum-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
 import { supabase } from "@/integrations/supabase/client";
+import { translations, Language } from "@/i18n/translations";
 import { 
   AGE_RANGES, 
   GENDERS, 
@@ -56,6 +57,10 @@ const ParticipantJoin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Event language
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
+
   // Event preferences (custom or default)
   const [eventAgeRanges, setEventAgeRanges] = useState<string[]>([...AGE_RANGES]);
   const [eventGenders, setEventGenders] = useState<string[]>([...GENDERS]);
@@ -93,7 +98,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas")
+        .select("id, name, date, status, language, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas")
         .eq("id", eventId)
         .single();
 
@@ -112,6 +117,11 @@ const ParticipantJoin = () => {
       setEventExists(true);
       setEventName(data.name);
       setEventDate(new Date(data.date));
+      
+      // Set event language
+      if (data.language === 'en' || data.language === 'es') {
+        setEventLang(data.language as Language);
+      }
       
       // Load custom preferences if they exist
       if (data.custom_age_ranges && Array.isArray(data.custom_age_ranges)) {
@@ -133,7 +143,6 @@ const ParticipantJoin = () => {
         const quotas = data.slot_quotas as unknown as SlotQuota[];
         setSlotQuotas(quotas);
         
-        // Load current counts for ALL quotas upfront
         await loadAllQuotaCounts(eventId, quotas);
       }
       
@@ -183,13 +192,11 @@ const ParticipantJoin = () => {
     
     // Find matching age range
     for (const range of eventAgeRanges) {
-      // Handle "+" formats: "41+", "+ 50", "50+"
       if (range.includes('+')) {
         const num = parseInt(range.replace(/[^0-9]/g, ''));
         if (!isNaN(num) && age >= num) return range;
         continue;
       }
-      // Handle "18-24" or "18–24" formats
       const parts = range.replace(/–/g, '-').split('-').map(n => parseInt(n.trim()));
       if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && age >= parts[0] && age <= parts[1]) {
         return range;
@@ -199,7 +206,6 @@ const ParticipantJoin = () => {
     return "Otro";
   };
 
-  // Update calculated age range when birth date changes
   useEffect(() => {
     if (birthDate) {
       const range = calculateAgeRange(birthDate);
@@ -209,7 +215,6 @@ const ParticipantJoin = () => {
     }
   }, [birthDate, eventAgeRanges]);
 
-  // Check if current selection has available slots
   const getAvailableSlots = (): { available: boolean; remaining: number; total: number } | null => {
     if (!quotasEnabled || !gender || !calculatedAgeRange) return null;
     
@@ -219,8 +224,7 @@ const ParticipantJoin = () => {
     return { available: status.available > 0, remaining: status.available, total: status.max };
   };
 
-  // Computed preferred age ranges (event age ranges + "Cualquier rango de edad")
-  const preferredAgeRanges = [...eventAgeRanges, "Cualquier rango de edad"];
+  const preferredAgeRanges = [...eventAgeRanges, eventLang === "en" ? "Any age range" : "Cualquier rango de edad"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,24 +232,22 @@ const ParticipantJoin = () => {
     if (!name.trim() || !email.trim() || !birthDate || !gender || selectedAgeRanges.length === 0 || !preference || !isReturningParticipant) {
       toast({
         title: "Error",
-        description: "Por favor, completa todos los campos obligatorios",
+        description: t.join.errorMissingFields,
         variant: "destructive",
       });
       return;
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       toast({
         title: "Error",
-        description: "Por favor, introduce un email válido",
+        description: t.join.errorInvalidEmail,
         variant: "destructive",
       });
       return;
     }
 
-    // Validate age (18+)
     const today = new Date();
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -256,7 +258,7 @@ const ParticipantJoin = () => {
     if (age < 18) {
       toast({
         title: "Error",
-        description: "Debes ser mayor de 18 años para participar",
+        description: t.join.errorMinAge,
         variant: "destructive",
       });
       return;
@@ -265,18 +267,17 @@ const ParticipantJoin = () => {
     if (preference === "Amistad y ligue" && !datingPreference) {
       toast({
         title: "Error",
-        description: "Por favor, selecciona tu preferencia acerca de ligue",
+        description: t.join.errorDatingPref,
         variant: "destructive",
       });
       return;
     }
 
-    // Check quota availability
     const slots = getAvailableSlots();
     if (slots && !slots.available) {
       toast({
-        title: "Sin plazas disponibles",
-        description: "No hay plazas disponibles para tu perfil en este momento",
+        title: t.join.errorNoSlots,
+        description: t.join.errorNoSlots,
         variant: "destructive",
       });
       return;
@@ -286,7 +287,6 @@ const ParticipantJoin = () => {
 
     const preferredAgeRange = selectedAgeRanges.join(', ');
     
-    // Use secure edge function for registration
     const { data, error } = await supabase.functions.invoke('register-participant', {
       body: {
         eventId,
@@ -304,17 +304,15 @@ const ParticipantJoin = () => {
     if (error || data?.error) {
       toast({
         title: "Error",
-        description: data?.error || "No se pudo registrar. Inténtalo de nuevo.",
+        description: data?.error || t.join.errorRegister,
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
-    // Send confirmation email (different depending on auto check-in)
     const baseUrl = window.location.origin;
     if (data.autoCheckedIn && data.verificationCode) {
-      // Auto check-in: send email with code
       await supabase.functions.invoke('send-checkin-code', {
         body: {
           participantId: data.participantId,
@@ -324,7 +322,6 @@ const ParticipantJoin = () => {
       });
       setVerificationCode(data.verificationCode);
     } else {
-      // Normal registration: send confirmation email without code
       await supabase.functions.invoke('send-registration-confirmation', {
         body: {
           participantId: data.participantId,
@@ -354,10 +351,8 @@ const ParticipantJoin = () => {
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-destructive" />
             </div>
-            <h2 className="font-display text-xl font-semibold mb-2">Evento no disponible</h2>
-            <p className="text-muted-foreground">
-              Este evento no existe o las inscripciones están cerradas.
-            </p>
+            <h2 className="font-display text-xl font-semibold mb-2">{t.join.eventNotAvailable}</h2>
+            <p className="text-muted-foreground">{t.join.eventNotAvailableDesc}</p>
           </CardContent>
         </Card>
       </div>
@@ -374,25 +369,24 @@ const ParticipantJoin = () => {
             </div>
             
             <div>
-              <h2 className="font-display text-xl font-semibold mb-2">¡Registro completado!</h2>
+              <h2 className="font-display text-xl font-semibold mb-2">{t.join.registrationComplete}</h2>
               <p className="text-muted-foreground">
-                Hemos enviado un email a <strong>{email}</strong> con la confirmación de tu registro.
+                {t.join.emailConfirmation} <strong>{email}</strong> {t.join.emailConfirmationSuffix}
               </p>
             </div>
 
             {autoCheckedIn && verificationCode ? (
-              // Auto check-in: show code
               <>
                 <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-3 flex items-start gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
                   <p className="text-sm text-green-700 dark:text-green-400 text-left">
-                    Se ha realizado el <strong>check-in automático</strong> porque el evento está próximo a comenzar.
+                    {t.join.autoCheckinMsg}
                   </p>
                 </div>
 
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-center gap-2 text-sm">
-                    <span>Tu código personal de acceso:</span>
+                    <span>{t.join.yourAccessCode}</span>
                   </div>
                   <div className="text-3xl font-mono font-bold tracking-widest text-primary">
                     {verificationCode}
@@ -400,37 +394,36 @@ const ParticipantJoin = () => {
                 </div>
 
                 <div className="text-left space-y-2 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Con este código podrás:</p>
+                  <p className="font-medium text-foreground">{t.join.withCodeYouCan}</p>
                   <ul className="space-y-1 ml-4">
-                    <li>🪑 Ver en qué mesas estás asignado/a</li>
-                    <li>💕 Enviar tus selecciones después del evento</li>
+                    <li>🪑 {t.join.seeYourTables}</li>
+                    <li>💕 {t.join.sendSelections}</li>
                   </ul>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
                   <p className="text-sm text-amber-700 dark:text-amber-400 text-left">
-                    <strong>Importante:</strong> Guarda este código, lo necesitarás para participar.
+                    <strong>{t.join.important}</strong> {t.join.saveCode}
                   </p>
                 </div>
               </>
             ) : (
-              // Normal registration: no code yet
               <>
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <div className="text-5xl mb-2">🎉</div>
-                  <p className="text-foreground font-medium">¡Ya tienes tu plaza reservada!</p>
+                  <p className="text-foreground font-medium">{t.join.placeReserved}</p>
                 </div>
 
                 <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-4 text-left">
                   <p className="font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    ¿Qué pasará el día del evento?
+                    {t.join.dayOfEvent}
                   </p>
                   <ol className="text-sm text-blue-700 dark:text-blue-400 space-y-2 ml-4 list-decimal">
-                    <li>Cuando llegues, el organizador hará tu <strong>check-in</strong></li>
-                    <li>Recibirás un <strong>código de 6 dígitos</strong> por email</li>
-                    <li>Con ese código podrás ver tus mesas y enviar tus selecciones</li>
+                    <li>{t.join.dayOfEventStep1}</li>
+                    <li>{t.join.dayOfEventStep2}</li>
+                    <li>{t.join.dayOfEventStep3}</li>
                   </ol>
                 </div>
               </>
@@ -438,7 +431,7 @@ const ParticipantJoin = () => {
 
             <div className="flex items-center justify-center gap-2 pt-2">
               <Mail className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Revisa tu email para más detalles</span>
+              <span className="text-sm text-muted-foreground">{t.join.checkEmail}</span>
             </div>
             
             <img src={konektumLogo} alt="Konektum" className="h-10 w-auto mx-auto" />
@@ -452,26 +445,21 @@ const ParticipantJoin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-center">
           <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
         </div>
       </header>
 
-      {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-md">
-        {/* Show quota availability BEFORE the form */}
         {quotasEnabled && quotaStatuses.length > 0 && (
           <Card className="mb-6 animate-fade-in">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Plazas disponibles
+                {t.join.availableSlots}
               </CardTitle>
-              <CardDescription>
-                Consulta las plazas restantes antes de registrarte
-              </CardDescription>
+              <CardDescription>{t.join.checkSlotsSubtitle}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-2">
@@ -490,7 +478,7 @@ const ParticipantJoin = () => {
                     <span className={`text-sm font-bold ${
                       status.available > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                     }`}>
-                      {status.available > 0 ? `${status.available} de ${status.max}` : 'Completo'}
+                      {status.available > 0 ? `${status.available} ${t.join.slotsOf} ${status.max}` : t.join.slotsFull}
                     </span>
                   </div>
                 ))}
@@ -501,12 +489,12 @@ const ParticipantJoin = () => {
 
         <Card className="animate-fade-in">
           <CardHeader className="text-center">
-            <CardTitle className="font-display text-2xl">Únete a {eventName}</CardTitle>
+            <CardTitle className="font-display text-2xl">{t.join.joinEvent} {eventName}</CardTitle>
             <CardDescription>
-              Completa tus datos para participar en el speed dating
+              {t.join.formSubtitle}
               {eventDate && (
                 <span className="block mt-1 text-primary font-medium">
-                  📅 {eventDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  📅 {eventDate.toLocaleDateString(eventLang === 'en' ? 'en-US' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </span>
               )}
             </CardDescription>
@@ -514,44 +502,42 @@ const ParticipantJoin = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nombre y apellidos *</Label>
+                <Label htmlFor="name">{t.join.nameLabel}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej: María García López"
+                  placeholder={t.join.namePlaceholder}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">{t.join.emailLabel}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ej: tu@email.com"
+                  placeholder={t.join.emailPlaceholder}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Recibirás la confirmación y tu código de acceso en este email
-                </p>
+                <p className="text-xs text-muted-foreground">{t.join.emailHint}</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono de contacto (opcional)</Label>
+                <Label htmlFor="phone">{t.join.phoneLabel}</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Ej: +34 612 345 678"
+                  placeholder={t.join.phonePlaceholder}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="birthDate">Fecha de nacimiento *</Label>
+                <Label htmlFor="birthDate">{t.join.birthDateLabel}</Label>
                 <Input
                   id="birthDate"
                   type="date"
@@ -562,16 +548,15 @@ const ParticipantJoin = () => {
                 />
                 {calculatedAgeRange && (
                   <p className="text-xs text-muted-foreground">
-                    Tu rango de edad: <span className="font-medium text-foreground">{calculatedAgeRange}</span>
+                    {t.join.ageRangeHint} <span className="font-medium text-foreground">{calculatedAgeRange}</span>
                   </p>
                 )}
               </div>
               
               <div className="space-y-2">
-              <Label>Género *</Label>
+              <Label>{t.join.genderLabel}</Label>
                 <Select value={gender} onValueChange={(val) => {
                   setGender(val);
-                  // Reset dating preference if it's no longer valid for the new gender
                   if (datingPreference) {
                     const newFiltered = getFilteredDatingPreferences(val, eventDatingPreferences);
                     if (!newFiltered.includes(datingPreference)) {
@@ -580,7 +565,7 @@ const ParticipantJoin = () => {
                   }
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tu género" />
+                    <SelectValue placeholder={t.join.genderPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {eventGenders.map((g) => (
@@ -590,7 +575,6 @@ const ParticipantJoin = () => {
                 </Select>
               </div>
 
-              {/* Show quota availability for selected profile */}
               {quotasEnabled && gender && calculatedAgeRange && slots && (
                 <div className={`rounded-lg p-3 flex items-start gap-2 ${
                   slots.available 
@@ -601,14 +585,14 @@ const ParticipantJoin = () => {
                     <>
                       <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
                       <p className="text-sm text-green-700 dark:text-green-400">
-                        Quedan <strong>{slots.remaining}</strong> de {slots.total} plazas para {gender} ({calculatedAgeRange})
+                        {t.join.slotsRemaining} <strong>{slots.remaining}</strong> {t.join.slotsOf} {slots.total} {t.join.slotsFor} {gender} ({calculatedAgeRange})
                       </p>
                     </>
                   ) : (
                     <>
                       <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
                       <p className="text-sm text-red-700 dark:text-red-400">
-                        No hay plazas disponibles para {gender} ({calculatedAgeRange})
+                        {t.join.noSlotsAvailable} {gender} ({calculatedAgeRange})
                       </p>
                     </>
                   )}
@@ -616,20 +600,20 @@ const ParticipantJoin = () => {
               )}
               
               <div className="space-y-2">
-                <Label>Rango de edad preferido * (puedes seleccionar varios)</Label>
+                <Label>{t.join.preferredAgeLabel}</Label>
                 <MultiSelectAge
                   options={preferredAgeRanges}
                   selected={selectedAgeRanges}
                   onChange={setSelectedAgeRanges}
-                  placeholder="Selecciona los rangos que buscas"
+                  placeholder={t.join.preferredAgePlaceholder}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Preferencia *</Label>
+                <Label>{t.join.preferenceLabel}</Label>
                 <Select value={preference} onValueChange={setPreference}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tu preferencia" />
+                    <SelectValue placeholder={t.join.preferencePlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {eventPreferences.map((pref) => (
@@ -641,10 +625,10 @@ const ParticipantJoin = () => {
               
               {preference === "Amistad y ligue" && (
                 <div className="space-y-2 animate-fade-in">
-                  <Label>Preferencia acerca de ligue *</Label>
+                  <Label>{t.join.datingPrefLabel}</Label>
                   <Select value={datingPreference} onValueChange={setDatingPreference}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu preferencia" />
+                      <SelectValue placeholder={t.join.datingPrefPlaceholder} />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredDatingPreferences.map((pref) => (
@@ -656,15 +640,15 @@ const ParticipantJoin = () => {
               )}
 
               <div className="space-y-3">
-                <Label>¿Has participado antes en alguno de nuestros eventos? *</Label>
+                <Label>{t.join.returningLabel}</Label>
                 <RadioGroup value={isReturningParticipant} onValueChange={setIsReturningParticipant}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="yes" id="returning-yes" />
-                    <Label htmlFor="returning-yes" className="font-normal cursor-pointer">Sí, ya he participado antes</Label>
+                    <Label htmlFor="returning-yes" className="font-normal cursor-pointer">{t.join.returningYes}</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="no" id="returning-no" />
-                    <Label htmlFor="returning-no" className="font-normal cursor-pointer">No, es mi primera vez</Label>
+                    <Label htmlFor="returning-no" className="font-normal cursor-pointer">{t.join.returningNo}</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -678,10 +662,10 @@ const ParticipantJoin = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Registrando...
+                    {t.join.submitting}
                   </>
                 ) : (
-                  "Unirme al evento"
+                  t.join.submitButton
                 )}
               </Button>
             </form>
