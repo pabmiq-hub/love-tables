@@ -93,6 +93,8 @@ interface EventData {
   round_elapsed_seconds: number;
   module: "social" | "professional";
   language: string;
+  registration_subtitle: string | null;
+  registration_description: string | null;
   professional_config: ProfessionalConfig | null;
 }
 
@@ -3878,6 +3880,8 @@ const EventDetail = () => {
                 rotationMode={eventData.rotation_mode}
                 genderParity={eventData.gender_parity}
                 language={eventData.language || "es"}
+                registrationSubtitle={eventData.registration_subtitle}
+                registrationDescription={eventData.registration_description}
                 customAgeRanges={eventData.custom_age_ranges}
                 customGenders={eventData.custom_genders}
                 customPreferences={eventData.custom_preferences}

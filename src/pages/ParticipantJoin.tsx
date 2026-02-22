@@ -12,12 +12,33 @@ import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
 import { supabase } from "@/integrations/supabase/client";
 import { translations, Language } from "@/i18n/translations";
-import { 
-  AGE_RANGES, 
-  GENDERS, 
-  PREFERENCES, 
-  DATING_PREFERENCES 
-} from "@/lib/excelParser";
+import { AGE_RANGES } from "@/lib/excelParser";
+
+// Default dropdown values per language
+const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
+const GENDERS_EN = ["Man", "Woman", "Non-binary", "Prefer not to say"];
+
+const PREFERENCES_ES = ["Amistad y ligue", "Solo amistad"];
+const PREFERENCES_EN = ["Friendship & dating", "Friendship only"];
+
+const DATING_PREFS_ES = [
+  "Soy un hombre y busco una mujer",
+  "Soy un hombre y busco un hombre",
+  "Soy una mujer y busco un hombre",
+  "Soy una mujer y busco una mujer",
+  "No binario",
+  "Estoy abierto a todo",
+  "Prefiero no contestar",
+];
+const DATING_PREFS_EN = [
+  "I'm a man looking for a woman",
+  "I'm a man looking for a man",
+  "I'm a woman looking for a man",
+  "I'm a woman looking for a woman",
+  "Non-binary",
+  "Open to all",
+  "Prefer not to say",
+];
 
 interface SlotQuota {
   gender: string;
@@ -61,11 +82,15 @@ const ParticipantJoin = () => {
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
 
+  // Event registration customization
+  const [registrationSubtitle, setRegistrationSubtitle] = useState<string | null>(null);
+  const [registrationDescription, setRegistrationDescription] = useState<string | null>(null);
+
   // Event preferences (custom or default)
   const [eventAgeRanges, setEventAgeRanges] = useState<string[]>([...AGE_RANGES]);
-  const [eventGenders, setEventGenders] = useState<string[]>([...GENDERS]);
-  const [eventPreferences, setEventPreferences] = useState<string[]>([...PREFERENCES]);
-  const [eventDatingPreferences, setEventDatingPreferences] = useState<string[]>([...DATING_PREFERENCES]);
+  const [eventGenders, setEventGenders] = useState<string[]>(GENDERS_ES);
+  const [eventPreferences, setEventPreferences] = useState<string[]>(PREFERENCES_ES);
+  const [eventDatingPreferences, setEventDatingPreferences] = useState<string[]>(DATING_PREFS_ES);
 
   // Filter dating preferences based on selected gender
   const getFilteredDatingPreferences = (selectedGender: string, allPrefs: string[]): string[] => {
@@ -73,9 +98,16 @@ const ParticipantJoin = () => {
     const genderNorm = selectedGender.toLowerCase();
     return allPrefs.filter(pref => {
       const prefLower = pref.toLowerCase();
-      if (prefLower.startsWith("soy un hombre")) return genderNorm === "hombre";
-      if (prefLower.startsWith("soy una mujer")) return genderNorm === "mujer";
-      if (prefLower === "no binario") return genderNorm === "no binario" || genderNorm === "prefiero no decirlo";
+      // Spanish filters
+      if (prefLower.startsWith("soy un hombre")) return genderNorm === "hombre" || genderNorm === "man";
+      if (prefLower.startsWith("soy una mujer")) return genderNorm === "mujer" || genderNorm === "woman";
+      // English filters
+      if (prefLower.startsWith("i'm a man")) return genderNorm === "man" || genderNorm === "hombre";
+      if (prefLower.startsWith("i'm a woman")) return genderNorm === "woman" || genderNorm === "mujer";
+      // Non-binary
+      if (prefLower === "no binario" || prefLower === "non-binary") {
+        return genderNorm === "no binario" || genderNorm === "non-binary" || genderNorm === "prefiero no decirlo" || genderNorm === "prefer not to say";
+      }
       return true;
     });
   };
@@ -98,7 +130,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas")
+        .select("id, name, date, status, language, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description")
         .eq("id", eventId)
         .single();
 
@@ -117,24 +149,32 @@ const ParticipantJoin = () => {
       setEventExists(true);
       setEventName(data.name);
       setEventDate(new Date(data.date));
+      setRegistrationSubtitle(data.registration_subtitle || null);
+      setRegistrationDescription(data.registration_description || null);
       
       // Set event language
-      if (data.language === 'en' || data.language === 'es') {
-        setEventLang(data.language as Language);
-      }
+      const lang: Language = (data.language === 'en' || data.language === 'es') ? data.language as Language : 'es';
+      setEventLang(lang);
+      const isEn = lang === 'en';
       
-      // Load custom preferences if they exist
+      // Load custom preferences if they exist, otherwise use language defaults
       if (data.custom_age_ranges && Array.isArray(data.custom_age_ranges)) {
         setEventAgeRanges(data.custom_age_ranges as string[]);
       }
       if (data.custom_genders && Array.isArray(data.custom_genders)) {
         setEventGenders(data.custom_genders as string[]);
+      } else {
+        setEventGenders(isEn ? GENDERS_EN : GENDERS_ES);
       }
       if (data.custom_preferences && Array.isArray(data.custom_preferences)) {
         setEventPreferences(data.custom_preferences as string[]);
+      } else {
+        setEventPreferences(isEn ? PREFERENCES_EN : PREFERENCES_ES);
       }
       if (data.custom_dating_preferences && Array.isArray(data.custom_dating_preferences)) {
         setEventDatingPreferences(data.custom_dating_preferences as string[]);
+      } else {
+        setEventDatingPreferences(isEn ? DATING_PREFS_EN : DATING_PREFS_ES);
       }
       
       // Load quota configuration and current counts
@@ -264,7 +304,8 @@ const ParticipantJoin = () => {
       return;
     }
     
-    if (preference === "Amistad y ligue" && !datingPreference) {
+    const isDatingPref = preference === "Amistad y ligue" || preference === "Friendship & dating";
+    if (isDatingPref && !datingPreference) {
       toast({
         title: "Error",
         description: t.join.errorDatingPref,
@@ -491,7 +532,10 @@ const ParticipantJoin = () => {
           <CardHeader className="text-center">
             <CardTitle className="font-display text-2xl">{t.join.joinEvent} {eventName}</CardTitle>
             <CardDescription>
-              {t.join.formSubtitle}
+              {registrationSubtitle || t.join.formSubtitle}
+              {registrationDescription && (
+                <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">{registrationDescription}</span>
+              )}
               {eventDate && (
                 <span className="block mt-1 text-primary font-medium">
                   📅 {eventDate.toLocaleDateString(eventLang === 'en' ? 'en-US' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -623,7 +667,7 @@ const ParticipantJoin = () => {
                 </Select>
               </div>
               
-              {preference === "Amistad y ligue" && (
+              {(preference === "Amistad y ligue" || preference === "Friendship & dating") && (
                 <div className="space-y-2 animate-fade-in">
                   <Label>{t.join.datingPrefLabel}</Label>
                   <Select value={datingPreference} onValueChange={setDatingPreference}>

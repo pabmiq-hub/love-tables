@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,8 @@ interface EventSettingsEditorProps {
   rotationMode: "fixed_host" | "all_rotate";
   genderParity: boolean;
   language: string;
+  registrationSubtitle: string | null;
+  registrationDescription: string | null;
   customAgeRanges: string[] | null;
   customGenders: string[] | null;
   customPreferences: string[] | null;
@@ -37,6 +40,8 @@ const EventSettingsEditor = ({
   rotationMode,
   genderParity,
   language,
+  registrationSubtitle,
+  registrationDescription,
   customAgeRanges,
   customGenders,
   customPreferences,
@@ -54,6 +59,8 @@ const EventSettingsEditor = ({
   const [formRotationMode, setFormRotationMode] = useState(rotationMode);
   const [formGenderParity, setFormGenderParity] = useState(genderParity);
   const [formLanguage, setFormLanguage] = useState<"es" | "en">(language as "es" | "en");
+  const [formRegSubtitle, setFormRegSubtitle] = useState(registrationSubtitle || "");
+  const [formRegDescription, setFormRegDescription] = useState(registrationDescription || "");
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -79,6 +86,8 @@ const EventSettingsEditor = ({
         rotation_mode: formRotationMode,
         gender_parity: formGenderParity,
         language: formLanguage,
+        registration_subtitle: formRegSubtitle.trim() || null,
+        registration_description: formRegDescription.trim() || null,
         custom_age_ranges: formPreferences.ageRanges,
         custom_genders: formPreferences.genders,
         custom_preferences: formPreferences.preferences,
@@ -235,6 +244,34 @@ const EventSettingsEditor = ({
           </Select>
         </div>
 
+        {/* Registration Form Customization */}
+        <div className="space-y-4 p-4 border rounded-lg">
+          <div>
+            <Label className="text-base">Personalización del formulario de inscripción</Label>
+            <p className="text-sm text-muted-foreground">
+              Personaliza el subtítulo y la descripción que ven los participantes al registrarse
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reg-subtitle">Subtítulo del formulario</Label>
+            <Input
+              id="reg-subtitle"
+              value={formRegSubtitle}
+              onChange={(e) => setFormRegSubtitle(e.target.value)}
+              placeholder={formLanguage === "en" ? "e.g. Fill in your details to participate" : "Ej: Completa tus datos para participar"}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reg-description">Descripción adicional</Label>
+            <Textarea
+              id="reg-description"
+              value={formRegDescription}
+              onChange={(e) => setFormRegDescription(e.target.value)}
+              placeholder={formLanguage === "en" ? "e.g. Additional event info, dress code, location details..." : "Ej: Información adicional del evento, código de vestimenta, ubicación..."}
+              rows={3}
+            />
+          </div>
+        </div>
 
         <EventPreferencesEditor
           value={formPreferences}
