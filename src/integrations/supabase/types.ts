@@ -85,7 +85,9 @@ export type Database = {
           original_participants_count: number | null
           participants_count: number
           professional_config: Json | null
+          registration_description: string | null
           registration_requirements_enabled: boolean | null
+          registration_subtitle: string | null
           rotation_mode: string
           round_duration: number
           round_elapsed_seconds: number | null
@@ -123,7 +125,9 @@ export type Database = {
           original_participants_count?: number | null
           participants_count?: number
           professional_config?: Json | null
+          registration_description?: string | null
           registration_requirements_enabled?: boolean | null
+          registration_subtitle?: string | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
@@ -161,7 +165,9 @@ export type Database = {
           original_participants_count?: number | null
           participants_count?: number
           professional_config?: Json | null
+          registration_description?: string | null
           registration_requirements_enabled?: boolean | null
+          registration_subtitle?: string | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
