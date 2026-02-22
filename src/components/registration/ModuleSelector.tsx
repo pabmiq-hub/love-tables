@@ -17,7 +17,7 @@ const MODULE_OPTIONS: ModuleOption[] = [
   {
     id: "social",
     name: "Social",
-    description: "Eventos de speed dating con preferencias personales y matching romántico",
+    description: "Actividades de conexión social con preferencias personales y matching romántico",
     modules: ["social"],
     icon: <Heart className="w-6 h-6" />,
     color: "text-pink-500 bg-pink-500/10"

@@ -6,14 +6,14 @@ export const ForWho = () => {
 
   const audiences = language === "en"
     ? [
-        { icon: Wine, title: "Bars & Restaurants", description: "Boost footfall on special nights with unique speed dating or networking events that attract new customers." },
-        { icon: PartyPopper, title: "Event Companies", description: "Professionalise your dating and networking events with tools that save you hours of manual work." },
+        { icon: Wine, title: "Bars & Restaurants", description: "Boost footfall on special nights with unique social connection or networking events that attract new customers." },
+        { icon: PartyPopper, title: "Event Companies", description: "Professionalise your social connection and networking events with tools that save you hours of manual work." },
         { icon: Building2, title: "Chambers of Commerce & Associations", description: "Organise professional networking for entrepreneurs, startups and companies looking for new contacts." },
         { icon: Briefcase, title: "Coworkings & Innovation Spaces", description: "Facilitate connections between professionals, investors and entrepreneurs with structured networking events." },
       ]
     : [
-        { icon: Wine, title: "Bares y restaurantes", description: "Aumenta la afluencia en noches especiales con eventos únicos de speed dating o networking que atraen nuevos clientes." },
-        { icon: PartyPopper, title: "Empresas de eventos", description: "Profesionaliza tus eventos de citas y networking con herramientas que te ahorran horas de trabajo manual." },
+        { icon: Wine, title: "Bares y restaurantes", description: "Aumenta la afluencia en noches especiales con actividades de conexión social o networking que atraen nuevos clientes." },
+        { icon: PartyPopper, title: "Empresas de eventos", description: "Profesionaliza tus eventos de conexión social y networking con herramientas que te ahorran horas de trabajo manual." },
         { icon: Building2, title: "Cámaras de comercio y asociaciones", description: "Organiza networking profesional para emprendedores, startups y empresas que buscan nuevos contactos." },
         { icon: Briefcase, title: "Coworkings y espacios de innovación", description: "Facilita conexiones entre profesionales, inversores y emprendedores con eventos de networking estructurado." },
       ];

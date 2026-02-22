@@ -17,7 +17,7 @@ const TerminosCondiciones = () => {
 
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-semibold">2. Descripción del servicio</h2>
-              <p className="text-muted-foreground">Konektum es una plataforma digital que permite a organizadores gestionar eventos de speed dating y networking profesional, incluyendo registro de participantes, generación de mesas, sistema de votación y comunicación de matches.</p>
+              <p className="text-muted-foreground">Konektum es una plataforma digital que permite a organizadores gestionar actividades de conexión social y networking profesional, incluyendo registro de participantes, generación de mesas, sistema de votación y comunicación de matches.</p>
             </section>
 
             <section className="space-y-4">

@@ -371,7 +371,7 @@ export default function SuperAdminDashboard() {
                                     : "outline"
                                 }
                                 className="cursor-pointer text-xs"
-                                title={`${mod.code === "social" ? "Speed Dating" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
+                                title={`${mod.code === "social" ? "Conexión Social" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
                                 onClick={() =>
                                   handleModuleToggle(org.id, mod.code, org.active_modules)
                                 }
@@ -505,7 +505,7 @@ export default function SuperAdminDashboard() {
                                     : "outline"
                                 }
                                 className="cursor-pointer"
-                                title={`${mod.code === "social" ? "Speed Dating" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
+                                title={`${mod.code === "social" ? "Conexión Social" : "Networking B2B"} - Click para ${org.active_modules.includes(mod.code) ? "desactivar" : "activar"}`}
                                 onClick={() =>
                                   handleModuleToggle(
                                     org.id,
