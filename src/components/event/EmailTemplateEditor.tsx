@@ -131,7 +131,7 @@ const EmailTemplateEditor = ({
   const replaceVariables = (text: string) => {
     return text
       .replace(/\{\{nombre\}\}/g, isProfessional ? "Juan García" : "María García")
-      .replace(/\{\{evento\}\}/g, eventName || (isProfessional ? "Business Networking 2024" : "Speed Dating"))
+      .replace(/\{\{evento\}\}/g, eventName || (isProfessional ? "Business Networking 2024" : "Conexión Social"))
       .replace(/\{\{empresa\}\}/g, "TechSoft Solutions");
   };
 

@@ -27,7 +27,7 @@ const PoliticaPrivacidad = () => {
               <p className="text-muted-foreground">Los datos personales recabados serán tratados con las siguientes finalidades:</p>
               <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                 <li>Gestionar el registro de usuarios en la plataforma</li>
-                <li>Organizar y gestionar eventos de speed dating</li>
+                <li>Organizar y gestionar actividades de conexión social</li>
                 <li>Comunicar los resultados de matches a los participantes</li>
                 <li>Enviar comunicaciones comerciales (con consentimiento previo)</li>
               </ul>

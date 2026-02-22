@@ -396,7 +396,7 @@ const CreateEvent = () => {
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
                 Tu cuenta no tiene módulos asignados. Contacta con el administrador para activar 
-                los módulos de Speed Dating o Networking B2B.
+                los módulos de Conexión Social o Networking B2B.
               </p>
               <Button asChild>
                 <Link to="/admin/dashboard">Volver al dashboard</Link>
@@ -428,7 +428,7 @@ const CreateEvent = () => {
           <h1 className="font-display text-3xl font-bold mb-2">Crear Nuevo Evento</h1>
           <p className="text-muted-foreground">
             {eventModule === "social" 
-              ? "Configura los detalles de tu speed dating"
+              ? "Configura los detalles de tu actividad de conexión social"
               : "Configura los detalles de tu networking B2B"
             }
           </p>
@@ -472,9 +472,9 @@ const CreateEvent = () => {
                       <Heart className="w-6 h-6 text-pink-500" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-lg">Speed Dating</p>
+                      <p className="font-semibold text-lg">Conexión Social</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Eventos sociales de citas rápidas. Los participantes se conocen en mesas rotativas 
+                        Actividades sociales de conexión. Los participantes se conocen en mesas rotativas 
                         y luego seleccionan con quién quieren conectar.
                       </p>
                       <div className="flex flex-wrap gap-2 mt-3">
@@ -534,7 +534,7 @@ const CreateEvent = () => {
                 <Input
                   id="eventName"
                   placeholder={eventModule === "social" 
-                    ? "Ej: Speed Dating Valencia" 
+                    ? "Ej: Conexión Social Valencia" 
                     : "Ej: Networking Tech Barcelona"
                   }
                   value={eventName}
@@ -596,7 +596,7 @@ const CreateEvent = () => {
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Configuración del evento</CardTitle>
-              <CardDescription>Define las reglas y parámetros del speed dating</CardDescription>
+              <CardDescription>Define las reglas y parámetros de la actividad</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">

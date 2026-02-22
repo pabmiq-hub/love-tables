@@ -17,7 +17,7 @@ export const Testimonials = () => {
           name: "Carlos Rodríguez",
           role: "Director at Conexión Events",
           location: "Barcelona",
-          content: "I've been organising speed dating and networking for 8 years. Konektum is the most complete and easy-to-use tool. The automatic match system saves me hours.",
+          content: "I've been organising social connection and networking events for 8 years. Konektum is the most complete and easy-to-use tool. The automatic match system saves me hours.",
           rating: 5
         },
         {
@@ -40,7 +40,7 @@ export const Testimonials = () => {
           name: "Carlos Rodríguez",
           role: "Director de Eventos Conexión",
           location: "Barcelona",
-          content: "Llevo 8 años organizando speed dating y networking. Konektum es la herramienta más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
+          content: "Llevo 8 años organizando actividades de conexión social y networking. Konektum es la herramienta más completa y fácil de usar. El sistema de matches automático me ahorra horas.",
           rating: 5
         },
         {
