@@ -75,6 +75,8 @@ const ParticipantJoin = () => {
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [eventTime, setEventTime] = useState<string | null>(null);
+  const [eventLocation, setEventLocation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -130,7 +132,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description")
         .eq("id", eventId)
         .single();
 
@@ -149,6 +151,8 @@ const ParticipantJoin = () => {
       setEventExists(true);
       setEventName(data.name);
       setEventDate(new Date(data.date));
+      setEventTime((data as any).event_time || null);
+      setEventLocation((data as any).event_location || null);
       setRegistrationSubtitle(data.registration_subtitle || null);
       setRegistrationDescription(data.registration_description || null);
       
@@ -158,21 +162,41 @@ const ParticipantJoin = () => {
       const isEn = lang === 'en';
       
       // Load custom preferences if they exist, otherwise use language defaults
+      // Also detect if stored values are just the Spanish defaults (bug from earlier saves)
+      const isDefaultSpanishGenders = (arr: string[]) => JSON.stringify(arr) === JSON.stringify(GENDERS_ES) || JSON.stringify(arr) === JSON.stringify(["Hombre", "Mujer", "No binario"]);
+      const isDefaultSpanishPrefs = (arr: string[]) => JSON.stringify(arr) === JSON.stringify(PREFERENCES_ES) || JSON.stringify(arr) === JSON.stringify(["Sólo amistad", "Amistad y ligue"]);
+      const isDefaultSpanishDating = (arr: string[]) => JSON.stringify(arr) === JSON.stringify(DATING_PREFS_ES) || arr.some(v => v.startsWith("Soy un hombre"));
+
       if (data.custom_age_ranges && Array.isArray(data.custom_age_ranges)) {
         setEventAgeRanges(data.custom_age_ranges as string[]);
       }
       if (data.custom_genders && Array.isArray(data.custom_genders)) {
-        setEventGenders(data.custom_genders as string[]);
+        const arr = data.custom_genders as string[];
+        if (isEn && isDefaultSpanishGenders(arr)) {
+          setEventGenders(GENDERS_EN);
+        } else {
+          setEventGenders(arr);
+        }
       } else {
         setEventGenders(isEn ? GENDERS_EN : GENDERS_ES);
       }
       if (data.custom_preferences && Array.isArray(data.custom_preferences)) {
-        setEventPreferences(data.custom_preferences as string[]);
+        const arr = data.custom_preferences as string[];
+        if (isEn && isDefaultSpanishPrefs(arr)) {
+          setEventPreferences(PREFERENCES_EN);
+        } else {
+          setEventPreferences(arr);
+        }
       } else {
         setEventPreferences(isEn ? PREFERENCES_EN : PREFERENCES_ES);
       }
       if (data.custom_dating_preferences && Array.isArray(data.custom_dating_preferences)) {
-        setEventDatingPreferences(data.custom_dating_preferences as string[]);
+        const arr = data.custom_dating_preferences as string[];
+        if (isEn && isDefaultSpanishDating(arr)) {
+          setEventDatingPreferences(DATING_PREFS_EN);
+        } else {
+          setEventDatingPreferences(arr);
+        }
       } else {
         setEventDatingPreferences(isEn ? DATING_PREFS_EN : DATING_PREFS_ES);
       }
@@ -537,8 +561,14 @@ const ParticipantJoin = () => {
                 <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">{registrationDescription}</span>
               )}
               {eventDate && (
-                <span className="block mt-1 text-primary font-medium">
+                <span className="block mt-2 text-primary font-medium">
                   📅 {eventDate.toLocaleDateString(eventLang === 'en' ? 'en-US' : 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {eventTime && ` · 🕐 ${eventTime}`}
+                </span>
+              )}
+              {eventLocation && (
+                <span className="block mt-1 text-foreground/70 font-medium">
+                  📍 {eventLocation}
                 </span>
               )}
             </CardDescription>

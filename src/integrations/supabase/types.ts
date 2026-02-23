@@ -76,6 +76,8 @@ export type Database = {
           date: string
           email_template: Json | null
           emails_sent_at: string | null
+          event_location: string | null
+          event_time: string | null
           gender_parity: boolean | null
           id: string
           language: string
@@ -116,6 +118,8 @@ export type Database = {
           date: string
           email_template?: Json | null
           emails_sent_at?: string | null
+          event_location?: string | null
+          event_time?: string | null
           gender_parity?: boolean | null
           id?: string
           language?: string
@@ -156,6 +160,8 @@ export type Database = {
           date?: string
           email_template?: Json | null
           emails_sent_at?: string | null
+          event_location?: string | null
+          event_time?: string | null
           gender_parity?: boolean | null
           id?: string
           language?: string

@@ -231,6 +231,8 @@ const CreateEvent = () => {
     const eventInsertData = {
       name: eventName,
       date: eventDate.split('T')[0],
+      event_time: eventDate.includes('T') ? eventDate.split('T')[1] : null,
+      event_location: eventLocation.trim() || null,
       rounds,
       table_size: eventModule === "professional" ? 2 : tableSize, // B2B always 1:1
       round_duration: roundDuration * 60 + roundDurationSeconds,

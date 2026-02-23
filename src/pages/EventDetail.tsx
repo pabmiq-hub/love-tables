@@ -95,6 +95,8 @@ interface EventData {
   language: string;
   registration_subtitle: string | null;
   registration_description: string | null;
+  event_time: string | null;
+  event_location: string | null;
   professional_config: ProfessionalConfig | null;
 }
 
@@ -3874,6 +3876,8 @@ const EventDetail = () => {
                 eventId={id || ""}
                 name={eventData.name}
                 date={eventData.date}
+                eventTime={eventData.event_time}
+                eventLocation={eventData.event_location}
                 rounds={eventData.rounds}
                 tableSize={eventData.table_size}
                 roundDuration={eventData.round_duration}
