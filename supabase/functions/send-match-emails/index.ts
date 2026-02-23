@@ -321,7 +321,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Verify user is the event organizer - include module and professional template
     const { data: event } = await supabase
       .from("events")
-      .select("name, email_template, organizer_id, module, professional_email_template")
+      .select("name, email_template, organizer_id, module, language")
       .eq("id", event_id)
       .single();
     if (!event) {
@@ -342,7 +342,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Authorization verified - user is event organizer");
 
     const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || DEFAULT_TEMPLATE;
-    const professionalTemplate: ProfessionalEmailTemplate = (event.professional_email_template as ProfessionalEmailTemplate) || DEFAULT_PROFESSIONAL_TEMPLATE;
+    const professionalTemplate: ProfessionalEmailTemplate = DEFAULT_PROFESSIONAL_TEMPLATE;
     
     // Get participants - either all or specific ones
     interface BaseParticipant {
