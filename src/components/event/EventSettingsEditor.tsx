@@ -15,6 +15,8 @@ interface EventSettingsEditorProps {
   eventId: string;
   name: string;
   date: string;
+  eventTime: string | null;
+  eventLocation: string | null;
   rounds: number;
   tableSize: number;
   roundDuration: number;
@@ -34,6 +36,8 @@ const EventSettingsEditor = ({
   eventId,
   name,
   date,
+  eventTime,
+  eventLocation,
   rounds,
   tableSize,
   roundDuration,
@@ -53,6 +57,8 @@ const EventSettingsEditor = ({
 
   const [formName, setFormName] = useState(name);
   const [formDate, setFormDate] = useState(date);
+  const [formEventTime, setFormEventTime] = useState(eventTime || "");
+  const [formEventLocation, setFormEventLocation] = useState(eventLocation || "");
   const [formRounds, setFormRounds] = useState(rounds);
   const [formTableSize, setFormTableSize] = useState(tableSize);
   const [formRoundDuration, setFormRoundDuration] = useState(roundDuration);
@@ -80,6 +86,8 @@ const EventSettingsEditor = ({
       const updates = {
         name: formName,
         date: formDate,
+        event_time: formEventTime.trim() || null,
+        event_location: formEventLocation.trim() || null,
         rounds: formRounds,
         table_size: formTableSize,
         round_duration: formRoundDuration,
@@ -153,7 +161,28 @@ const EventSettingsEditor = ({
             />
           </div>
 
-          {/* Rounds */}
+          {/* Time */}
+          <div className="space-y-2">
+            <Label htmlFor="event-time">Hora</Label>
+            <Input
+              id="event-time"
+              type="time"
+              value={formEventTime}
+              onChange={(e) => setFormEventTime(e.target.value)}
+            />
+          </div>
+
+          {/* Location */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="event-location">Ubicación</Label>
+            <Input
+              id="event-location"
+              placeholder="Ej: Restaurante El Encuentro, C/ Gran Vía 12"
+              value={formEventLocation}
+              onChange={(e) => setFormEventLocation(e.target.value)}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="event-rounds">Número de rondas</Label>
             <Input
