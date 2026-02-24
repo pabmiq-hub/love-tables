@@ -137,9 +137,9 @@ serve(async (req) => {
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
     // Validate required fields
-    if (!eventId || !name || !email || !phone || !gender || !birthDate) {
+    if (!eventId || !name || !email || !phone || !gender || !birthDate || !preference) {
       return new Response(
-        JSON.stringify({ error: 'Faltan campos obligatorios' }),
+        JSON.stringify({ error: 'Faltan campos obligatorios (incluyendo preferencia)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
