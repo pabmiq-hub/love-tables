@@ -211,6 +211,25 @@ const EventDetail = () => {
     loadEventData();
   }, [id]);
 
+  // Auto-refresh participants every 3 seconds, especially useful during check-in
+  useEffect(() => {
+    if (!id || isLoading) return;
+
+    const refreshParticipants = async () => {
+      const { data: participantsData } = await supabase
+        .from("participants")
+        .select("*")
+        .eq("event_id", id);
+
+      if (participantsData) {
+        setParticipants(participantsData);
+      }
+    };
+
+    const interval = setInterval(refreshParticipants, 3000);
+    return () => clearInterval(interval);
+  }, [id, isLoading]);
+
   const loadEventData = async () => {
     if (!id) return;
 
