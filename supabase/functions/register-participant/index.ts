@@ -102,9 +102,10 @@ interface RegistrationRequest {
   eventId: string;
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   gender: string;
   birthDate: string;
+  preference?: string;
   datingPreference?: string;
   preferredAgeRange?: string;
   isReturningParticipant: boolean;
@@ -131,12 +132,12 @@ serve(async (req) => {
     }
 
     const body: RegistrationRequest = await req.json();
-    const { eventId, name, email, phone, gender, birthDate, datingPreference, preferredAgeRange, isReturningParticipant } = body;
+    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant } = body;
     
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
     // Validate required fields
-    if (!eventId || !name || !email || !gender || !birthDate) {
+    if (!eventId || !name || !email || !phone || !gender || !birthDate) {
       return new Response(
         JSON.stringify({ error: 'Faltan campos obligatorios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -291,14 +292,15 @@ serve(async (req) => {
         event_id: eventId,
         name: name.trim(),
         email: email.toLowerCase().trim(),
-        phone: phone?.trim() || null,
+        phone: phone.trim(),
         gender,
         birth_date: birthDate,
         age_range: ageRange,
+        preference: preference || null,
         dating_preference: datingPreference || null,
         preferred_age_range: preferredAgeRange || null,
         is_returning_participant: isReturningParticipant || isActuallyReturning,
-        verification_code: verificationCode, // null unless auto check-in
+        verification_code: verificationCode,
         checked_in: shouldAutoCheckin
       })
       .select()

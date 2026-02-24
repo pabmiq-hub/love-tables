@@ -293,7 +293,7 @@ const ParticipantJoin = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !email.trim() || !birthDate || !gender || selectedAgeRanges.length === 0 || !preference || !isReturningParticipant) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !birthDate || !gender || selectedAgeRanges.length === 0 || !preference || !isReturningParticipant) {
       toast({
         title: "Error",
         description: t.join.errorMissingFields,
@@ -352,15 +352,18 @@ const ParticipantJoin = () => {
 
     const preferredAgeRange = selectedAgeRanges.join(', ');
     
+    const isDating = preference === "Amistad y ligue" || preference === "Friendship & dating";
+    
     const { data, error } = await supabase.functions.invoke('register-participant', {
       body: {
         eventId,
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim() || null,
+        phone: phone.trim(),
         gender,
         birthDate,
-        datingPreference: preference === "Amistad y ligue" ? datingPreference : null,
+        preference,
+        datingPreference: isDating ? datingPreference : null,
         preferredAgeRange,
         isReturningParticipant: isReturningParticipant === "yes"
       }
@@ -600,13 +603,14 @@ const ParticipantJoin = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">{t.join.phoneLabel}</Label>
+                <Label htmlFor="phone">{t.join.phoneLabel} *</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder={t.join.phonePlaceholder}
+                  required
                 />
               </div>
               
