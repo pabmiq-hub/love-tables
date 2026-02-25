@@ -105,8 +105,8 @@ const generateEmailHtml = (
   template: EmailTemplate,
   name: string,
   eventName: string,
-  friendshipMatches: { name: string; phone: string | null }[],
-  datingMatches: { name: string; phone: string | null }[]
+  friendshipMatches: { name: string; phone: string | null; email: string | null }[],
+  datingMatches: { name: string; phone: string | null; email: string | null }[]
 ): string => {
   const hasMatches = friendshipMatches.length > 0 || datingMatches.length > 0;
   const variables = { nombre: name, evento: eventName };
@@ -114,9 +114,9 @@ const generateEmailHtml = (
   if (hasMatches) {
     const t = template.withMatches;
     const friendshipList = friendshipMatches.length > 0 
-      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.friendshipTitle}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.friendshipTitle}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
     const datingList = datingMatches.length > 0
-      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
     
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   } else {
@@ -453,7 +453,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Find mutual matches (for social events)
-    const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null }[]; dating: { name: string; phone: string | null }[] }>();
+    const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null; email: string | null }[]; dating: { name: string; phone: string | null; email: string | null }[] }>();
     const processed = new Set<string>();
 
     if (!isProfessional) {
@@ -474,12 +474,12 @@ const handler = async (req: Request): Promise<Response> => {
             if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
             
             if (hasFriendship) {
-              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone });
-              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone });
+              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone, email: matchedWith.email });
+              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone, email: selector.email });
             }
             if (hasDating) {
-              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone });
-              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone });
+              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone, email: matchedWith.email });
+              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone, email: selector.email });
             }
           }
           processed.add(key);
