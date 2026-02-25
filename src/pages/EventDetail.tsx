@@ -115,6 +115,7 @@ interface DbParticipant {
   verification_code: string | null;
   selection_submitted_at?: string | null;
   global_participant_id?: string | null;
+  created_at?: string;
   // Professional fields
   company_name?: string | null;
   entity_type?: string | null;
@@ -196,6 +197,7 @@ const EventDetail = () => {
   const [filterPreference, setFilterPreference] = useState<string>("all");
   const [filterCheckin, setFilterCheckin] = useState<"all" | "confirmed" | "pending">("all");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [sortByDate, setSortByDate] = useState<"none" | "newest" | "oldest">("none");
   const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showFilters, setShowFilters] = useState<boolean>(false);
@@ -2402,6 +2404,13 @@ const EventDetail = () => {
         if (!a.checked_in && b.checked_in) return -1;
         if (a.checked_in && !b.checked_in) return 1;
       }
+      // Sort by registration date
+      if (sortByDate !== "none") {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (sortByDate === "newest") return dateB - dateA;
+        return dateA - dateB;
+      }
       // Then alphabetical
       if (sortOrder === "none") return 0;
       const nameA = a.name.toLowerCase();
@@ -3093,6 +3102,27 @@ const EventDetail = () => {
                         >
                           <ArrowDownZA className="w-4 h-4" />
                         </Button>
+                        <div className="w-px h-6 bg-border mx-1" />
+                        <Button
+                          variant={sortByDate === "newest" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => { setSortByDate(sortByDate === "newest" ? "none" : "newest"); if (sortByDate !== "newest") setSortOrder("none"); }}
+                          className="h-8 px-2"
+                          title="Más recientes primero"
+                        >
+                          <Clock className="w-4 h-4" />
+                          <ArrowDownZA className="w-3 h-3 ml-0.5" />
+                        </Button>
+                        <Button
+                          variant={sortByDate === "oldest" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => { setSortByDate(sortByDate === "oldest" ? "none" : "oldest"); if (sortByDate !== "oldest") setSortOrder("none"); }}
+                          className="h-8 px-2"
+                          title="Más antiguos primero"
+                        >
+                          <Clock className="w-4 h-4" />
+                          <ArrowUpAZ className="w-3 h-3 ml-0.5" />
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -3152,6 +3182,9 @@ const EventDetail = () => {
                                 <>
                                   {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
                                 </>
+                              )}
+                              {participant.created_at && (
+                                <span className="ml-1">• 📅 {new Date(participant.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                               )}
                             {participant.verification_code ? (
                                 <span className="ml-1 font-mono text-xs text-primary">🔑 {participant.verification_code}</span>
