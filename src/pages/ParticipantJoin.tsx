@@ -370,9 +370,29 @@ const ParticipantJoin = () => {
     });
 
     if (error || data?.error) {
+      // Extract the specific error message from the edge function response
+      let errorMessage = t.join.errorRegister;
+      if (data?.error) {
+        errorMessage = data.error;
+      } else if (error) {
+        try {
+          // FunctionsHttpError contains the response context
+          const errorContext = (error as any)?.context;
+          if (errorContext && typeof errorContext.json === 'function') {
+            const errorBody = await errorContext.json();
+            if (errorBody?.error) {
+              errorMessage = errorBody.error;
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+        } catch {
+          // fallback to generic message
+        }
+      }
       toast({
         title: "Error",
-        description: data?.error || t.join.errorRegister,
+        description: errorMessage,
         variant: "destructive",
       });
       setIsSubmitting(false);
