@@ -2152,28 +2152,68 @@ const EventDetail = () => {
     }
   };
 
-  const handleCloseAndSendEmails = async (deadlineHours: number = 48) => {
+  const handleCloseAndSchedule = async (deadlineHours: number = 48) => {
     if (!id) return;
     
     setIsClosingEvent(true);
     
     try {
-      // Get current session for authorization
+      const now = new Date();
+      const scheduledAt = new Date(now.getTime() + deadlineHours * 60 * 60 * 1000);
+
+      await supabase
+        .from("events")
+        .update({ 
+          status: "completed", 
+          selection_deadline_hours: deadlineHours,
+          selection_closed_at: now.toISOString(),
+          scheduled_email_at: scheduledAt.toISOString(),
+        })
+        .eq("id", id);
+
+      setEventStatus("completed");
+      await loadEventData();
+      setShowCloseEventDialog(false);
+      setShowQR(true);
+      
+      toast({
+        title: "Evento cerrado",
+        description: `Los emails de resultados se enviarán automáticamente en ${deadlineHours}h (${scheduledAt.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}).`,
+      });
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo cerrar el evento",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClosingEvent(false);
+    }
+  };
+
+  const handleCloseAndSendNow = async () => {
+    if (!id) return;
+    
+    setIsClosingEvent(true);
+    
+    try {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
         throw new Error("No estás autenticado");
       }
 
-      // First close the event
       await supabase
         .from("events")
-        .update({ status: "completed", selection_deadline_hours: deadlineHours })
+        .update({ 
+          status: "completed", 
+          selection_closed_at: new Date().toISOString(),
+        })
         .eq("id", id);
 
       setEventStatus("completed");
       
-      // Then send emails with authorization
       const { data, error } = await supabase.functions.invoke('send-match-emails', {
         body: { 
           event_id: id, 
@@ -2184,9 +2224,7 @@ const EventDetail = () => {
         }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       await loadEventData();
 
@@ -2202,37 +2240,6 @@ const EventDetail = () => {
       toast({
         title: "Error",
         description: error.message || "Ocurrió un error",
-        variant: "destructive",
-      });
-    } finally {
-      setIsClosingEvent(false);
-    }
-  };
-
-  const handleCloseWithoutSending = async (deadlineHours: number = 48) => {
-    if (!id) return;
-    
-    setIsClosingEvent(true);
-    
-    try {
-      await supabase
-        .from("events")
-        .update({ status: "completed", selection_deadline_hours: deadlineHours })
-        .eq("id", id);
-
-      setEventStatus("completed");
-      setShowCloseEventDialog(false);
-      setShowQR(true);
-      
-      toast({
-        title: "Evento cerrado",
-        description: "El evento ha sido cerrado. Puedes enviar los emails más tarde.",
-      });
-    } catch (error: any) {
-      console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar el evento",
         variant: "destructive",
       });
     } finally {
@@ -4068,8 +4075,8 @@ const EventDetail = () => {
           onOpenChange={setShowCloseEventDialog}
           participants={participants}
           selections={selections}
-          onCloseAndSend={handleCloseAndSendEmails}
-          onCloseWithoutSending={handleCloseWithoutSending}
+          onCloseAndSchedule={handleCloseAndSchedule}
+          onCloseAndSendNow={handleCloseAndSendNow}
           onWait={() => setShowCloseEventDialog(false)}
           isClosing={isClosingEvent}
         />

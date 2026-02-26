@@ -30,8 +30,8 @@ interface CloseEventDialogProps {
   onOpenChange: (open: boolean) => void;
   participants: Participant[];
   selections: Selection[];
-  onCloseAndSend: (deadlineHours: number) => void;
-  onCloseWithoutSending: (deadlineHours: number) => void;
+  onCloseAndSchedule: (deadlineHours: number) => void;
+  onCloseAndSendNow: () => void;
   onWait: () => void;
   isClosing: boolean;
 }
@@ -49,8 +49,8 @@ const CloseEventDialog = ({
   onOpenChange,
   participants,
   selections,
-  onCloseAndSend,
-  onCloseWithoutSending,
+  onCloseAndSchedule,
+  onCloseAndSendNow,
   onWait,
   isClosing,
 }: CloseEventDialogProps) => {
@@ -115,61 +115,75 @@ const CloseEventDialog = ({
             </div>
           </div>
 
-          {/* Deadline selector */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Plazo para enviar selecciones</Label>
-            <Select value={deadlineHours} onValueChange={setDeadlineHours}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DEADLINE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Los participantes tendrán este plazo para enviar sus selecciones. Pasado el plazo, no podrán acceder al panel.
-            </p>
-          </div>
+          {/* Deadline selector - only show if not all responded */}
+          {!allResponded && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Plazo para enviar selecciones</Label>
+              <Select value={deadlineHours} onValueChange={setDeadlineHours}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEADLINE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Los participantes tendrán este plazo para enviar sus selecciones. Los emails de resultados se enviarán automáticamente cuando venza el plazo.
+              </p>
+            </div>
+          )}
 
           {/* Email info */}
           <div className="bg-muted/50 rounded-lg p-3 text-sm text-center">
             <span className="text-muted-foreground">
-              {participantsWithEmail} participantes recibirán email
+              {participantsWithEmail} participantes recibirán email de resultados
+              {!allResponded && ` cuando venza el plazo de ${deadlineHours}h`}
             </span>
           </div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-col gap-2">
-          <Button
-            variant="hero"
-            className="w-full"
-            onClick={() => onCloseAndSend(parseInt(deadlineHours))}
-            disabled={isClosing}
-          >
-            {isClosing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Cerrando...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-2" />
-                Cerrar evento y enviar emails
-              </>
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => onCloseWithoutSending(parseInt(deadlineHours))}
-            disabled={isClosing}
-          >
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Cerrar sin enviar emails
-          </Button>
+          {allResponded ? (
+            <Button
+              variant="hero"
+              className="w-full"
+              onClick={onCloseAndSendNow}
+              disabled={isClosing}
+            >
+              {isClosing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cerrando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Cerrar y enviar resultados ahora
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              variant="hero"
+              className="w-full"
+              onClick={() => onCloseAndSchedule(parseInt(deadlineHours))}
+              disabled={isClosing}
+            >
+              {isClosing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cerrando...
+                </>
+              ) : (
+                <>
+                  <Clock className="w-4 h-4 mr-2" />
+                  Cerrar evento (emails en {deadlineHours}h)
+                </>
+              )}
+            </Button>
+          )}
           
           {pendingCount > 0 && (
             <Button
