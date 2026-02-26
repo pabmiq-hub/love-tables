@@ -1,45 +1,82 @@
 
 
-## Analysis
+## Diagnosis
 
-### 1. Are all fields mandatory in social event registration?
+I've traced the exact sequence of what happened with the "Slow Friending [ENG - Feb '26]" event:
 
-Yes, the current form in `ParticipantJoin.tsx` has all fields as required:
-- Name: `required` attribute
-- Email: `required` attribute  
-- Phone: `required` attribute (added recently)
-- Birth date: `required` attribute
-- Gender: validated in `handleSubmit`
-- Preference: validated in `handleSubmit`
-- Dating preference: validated when "Amistad y ligue" is selected
-- Returning participant: validated in `handleSubmit`
+### Problem 1: Emails sent immediately, ignoring the 24h deadline
+When you clicked "Cerrar evento y enviar emails", the function `handleCloseAndSendEmails` closes the event AND sends match emails in the same action. The 24h deadline only controls how long participants can still submit selections -- it does NOT delay the email sending. So all 28 participants received their results email immediately at 11:49 UTC, when only 10 out of 28 had submitted their selections. That's why everyone got a "no matches" email.
 
-The Edge Function `register-participant` also validates: `!eventId || !name || !email || !phone || !gender || !birthDate || !preference`.
+### Problem 2: Emails sent in Spanish instead of English
+The event has `language: en` and no custom email template (`email_template: null`). Both `send-match-emails` and `send-scheduled-emails` fall back to `DEFAULT_TEMPLATE`, which is hardcoded entirely in Spanish. The function fetches the event language but never uses it to choose the template language.
 
-All fields are correctly enforced as mandatory.
+### Problem 3: Stats counter bug (minor)
+The social event branch in `send-match-emails` doesn't increment `withMatches`/`withoutMatches` counters, which is why the response showed `{ withMatches: 0, withoutMatches: 0 }` despite sending 28 emails.
 
-### 2. Show email as fallback in match emails for participants without phone
+---
 
-Currently, the match email template in `send-match-emails/index.ts` only includes `name` and `phone` for each match. When `phone` is null, it simply shows nothing — no contact info at all.
+## Plan
 
-**Plan:**
+### 1. Change "Close event" behavior: schedule emails at deadline expiry
 
-Modify `supabase/functions/send-match-emails/index.ts`:
+**Files:** `src/pages/EventDetail.tsx`, `src/components/event/CloseEventDialog.tsx`
 
-1. **Expand match data structure** to include `email` alongside `name` and `phone` (lines 456, 108-109, 117-119).
+- Remove the "Cerrar evento y enviar emails" option from CloseEventDialog.
+- Replace with two clear options:
+  - **"Cerrar evento"** -- closes event, sets deadline, and automatically schedules email sending for when the deadline expires (sets `scheduled_email_at` = now + deadline hours).
+  - **"Cerrar y enviar resultados ahora"** -- only shown when ALL participants have responded. Sends immediately.
+- The dialog will clearly explain: "Los emails de resultados se enviarán automáticamente cuando venza el plazo de X horas."
 
-2. **Update `generateEmailHtml`** signature to accept `{ name: string; phone: string | null; email: string | null }` for both friendship and dating match arrays.
+### 2. Add English default templates to both email functions
 
-3. **Update contact info display logic** in the HTML template:
-   - If phone exists: show `📞 phone`
-   - If no phone but email exists: show `📧 email`
-   - If neither: show nothing
+**Files:** `supabase/functions/send-match-emails/index.ts`, `supabase/functions/send-scheduled-emails/index.ts`
 
-4. **Update match collection** (lines 477-478, 481-482) to include the matched participant's email when building the match lists.
+- Add `DEFAULT_TEMPLATE_EN` with English translations of subject, greeting, intro, friendshipTitle, datingTitle, closing, and signature.
+- When `email_template` is null, select the default template based on `event.language`:
+  - `language === 'en'` --> use `DEFAULT_TEMPLATE_EN`
+  - Otherwise --> use `DEFAULT_TEMPLATE` (Spanish)
+- Both functions already fetch `event.language`, so no query changes needed.
 
-### Files to modify
-- `supabase/functions/send-match-emails/index.ts` — add email to match data, update HTML template fallback
+### 3. Fix stats counter in send-match-emails
 
-### No database changes needed
-The `email` column already exists on the `participants` table and is already fetched in the query at line 402.
+**File:** `supabase/functions/send-match-emails/index.ts`
+
+- Add missing `hasMatches ? stats.withMatches++ : stats.withoutMatches++` in the social event branch (after line 537).
+
+### 4. Add per-participant email history in EmailManagement
+
+**File:** `src/components/event/EmailManagement.tsx`
+
+- Expand the participant list to show ALL email types per participant (not just `match`), grouped as a timeline:
+  - `registration_confirmation` -- confirmation at registration
+  - `checkin_code` -- access code email
+  - `match` -- match results email
+  - `reminder` -- selection reminder
+- Each entry shows: type icon, status badge, timestamp, and error message if failed.
+- Add a filter by email type in addition to the existing status filter.
+- Log reminder emails to `email_logs` table (currently `send-reminder-email` does not log).
+
+### 5. Log reminder emails to email_logs
+
+**File:** `supabase/functions/send-reminder-email/index.ts`
+
+- Add `logEmailResult` helper (same as in `send-match-emails`).
+- After each reminder send, log to `email_logs` with `email_type: 'reminder'`.
+
+### 6. Deploy updated edge functions
+
+Redeploy: `send-match-emails`, `send-scheduled-emails`, `send-reminder-email`.
+
+---
+
+## Summary of changes
+
+| File | Change |
+|---|---|
+| `send-match-emails/index.ts` | Add English default template, fix stats counter, use event language |
+| `send-scheduled-emails/index.ts` | Add English default template, use event language |
+| `send-reminder-email/index.ts` | Add email logging to `email_logs` |
+| `EventDetail.tsx` | Change close event flow to schedule emails at deadline |
+| `CloseEventDialog.tsx` | Update UI to reflect new behavior |
+| `EmailManagement.tsx` | Show full email history per participant across all types |
 
