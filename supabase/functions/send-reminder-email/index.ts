@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const escapeHtml = (unsafe: string): string => {
@@ -131,6 +131,22 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Helper to log email results
+    const logEmailResult = async (participantId: string, status: string, errorMessage?: string) => {
+      try {
+        await supabase.from("email_logs").insert({
+          event_id,
+          participant_id: participantId,
+          email_type: 'reminder',
+          status,
+          error_message: errorMessage || null,
+          sent_at: status === 'sent' ? new Date().toISOString() : null,
+        });
+      } catch (e) {
+        console.error("Failed to log email result:", e);
+      }
+    };
+
     // Verify user is the event organizer
     const { data: event } = await supabase
       .from("events")
@@ -248,9 +264,11 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (result.success) {
         stats.sent++;
+        await logEmailResult(participant.id, 'sent');
       } else {
         errors.push(`${participant.name}: ${result.error}`);
         stats.failed++;
+        await logEmailResult(participant.id, 'failed', result.error);
       }
 
       // Rate limiting: wait between emails (except for the last one)

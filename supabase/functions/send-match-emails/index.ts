@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const escapeHtml = (unsafe: string): string => {
@@ -70,6 +70,26 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
     message: "¡Gracias por participar! Aunque no hubo matches esta vez, ¡esperamos verte pronto!",
     closing: "¡Nos vemos en el próximo evento!",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  primaryColor: "#e11d48",
+};
+
+const DEFAULT_TEMPLATE_EN: EmailTemplate = {
+  withMatches: {
+    subject: "You have matches at {{evento}}! 🎉",
+    greeting: "Hey {{nombre}}! 🎉",
+    intro: "Thanks for joining our event! Great news: you got a match!",
+    friendshipTitle: "🤝 Your friendship matches:",
+    datingTitle: "❤️ Your dating matches:",
+    closing: "Don't hesitate to reach out to them!",
+    signature: "With love,\nThe Konektum team 💕",
+  },
+  withoutMatches: {
+    subject: "Thanks for joining {{evento}}",
+    greeting: "Hey {{nombre}}! 👋",
+    message: "Thanks for participating! Although there were no matches this time, we hope to see you soon!",
+    closing: "See you at the next event!",
+    signature: "With love,\nThe Konektum team 💕",
   },
   primaryColor: "#e11d48",
 };
@@ -341,7 +361,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Authorization verified - user is event organizer");
 
-    const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || DEFAULT_TEMPLATE;
+    const defaultTpl = event.language === 'en' ? DEFAULT_TEMPLATE_EN : DEFAULT_TEMPLATE;
+    const template: EmailTemplate = email_template || (event.email_template as EmailTemplate) || defaultTpl;
     const professionalTemplate: ProfessionalEmailTemplate = DEFAULT_PROFESSIONAL_TEMPLATE;
     
     // Get participants - either all or specific ones
@@ -535,6 +556,9 @@ const handler = async (req: Request): Promise<Response> => {
           ? replaceVariables(template.withMatches.subject, { nombre: participant.name, evento: event.name }) 
           : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
         html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
+        
+        if (hasMatches) stats.withMatches++;
+        else stats.withoutMatches++;
       }
 
       const result = await sendEmailWithRetry(

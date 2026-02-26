@@ -11,9 +11,12 @@ import {
   Send, 
   RefreshCw, 
   ChevronDown,
-  AlertCircle,
   MailX,
-  Loader2
+  Loader2,
+  UserCheck,
+  Bell,
+  Heart,
+  FileText
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +44,15 @@ interface EmailManagementProps {
 }
 
 type FilterStatus = "all" | "sent" | "failed" | "pending" | "no_email";
+type FilterEmailType = "all" | "match" | "reminder" | "checkin_code" | "registration_confirmation";
+
+const EMAIL_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  match: { label: "Resultados", icon: <Heart className="w-3 h-3" />, color: "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300" },
+  connection: { label: "Conexiones", icon: <Heart className="w-3 h-3" />, color: "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300" },
+  reminder: { label: "Recordatorio", icon: <Bell className="w-3 h-3" />, color: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  checkin_code: { label: "Código acceso", icon: <UserCheck className="w-3 h-3" />, color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
+  registration_confirmation: { label: "Confirmación", icon: <FileText className="w-3 h-3" />, color: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300" },
+};
 
 const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementProps) => {
   const { toast } = useToast();
@@ -48,8 +60,10 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [filterType, setFilterType] = useState<FilterEmailType>("all");
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [isSendingBulk, setIsSendingBulk] = useState(false);
+  const [expandedParticipants, setExpandedParticipants] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -73,10 +87,17 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
     setIsLoading(false);
   };
 
-  // Get latest log for each participant (by email_type = 'match')
-  const getParticipantEmailStatus = (participantId: string): EmailLog | null => {
+  // Get all logs for a participant, optionally filtered by type
+  const getParticipantLogs = (participantId: string): EmailLog[] => {
+    return emailLogs
+      .filter(log => log.participant_id === participantId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  // Get latest match/connection log for a participant (for status display)
+  const getParticipantMatchStatus = (participantId: string): EmailLog | null => {
     const logs = emailLogs
-      .filter(log => log.participant_id === participantId && log.email_type === 'match')
+      .filter(log => log.participant_id === participantId && (log.email_type === 'match' || log.email_type === 'connection'))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return logs[0] || null;
   };
@@ -93,7 +114,7 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
 
   participants.forEach(p => {
     if (!p.email) return;
-    const log = getParticipantEmailStatus(p.id);
+    const log = getParticipantMatchStatus(p.id);
     if (!log) {
       stats.pending++;
     } else if (log.status === 'sent') {
@@ -105,13 +126,19 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
     }
   });
 
-  // Filter and sort participants alphabetically
+  // Count by email type
+  const typeCounts: Record<string, number> = {};
+  emailLogs.forEach(log => {
+    typeCounts[log.email_type] = (typeCounts[log.email_type] || 0) + 1;
+  });
+
+  // Filter participants
   const filteredParticipants = participants
     .filter(p => {
       if (filterStatus === "no_email") return !p.email;
       if (!p.email && filterStatus !== "all") return false;
       
-      const log = getParticipantEmailStatus(p.id);
+      const log = getParticipantMatchStatus(p.id);
       
       switch (filterStatus) {
         case "sent": return log?.status === 'sent';
@@ -120,9 +147,23 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
         default: return true;
       }
     })
+    .filter(p => {
+      if (filterType === "all") return true;
+      const logs = getParticipantLogs(p.id);
+      return logs.some(log => log.email_type === filterType);
+    })
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
-  // Resend to a single participant - optimistic update without full refresh
+  const toggleParticipant = (id: string) => {
+    setExpandedParticipants(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Resend to a single participant
   const handleResend = async (participantId: string) => {
     setSendingIds(prev => new Set(prev).add(participantId));
     
@@ -139,44 +180,10 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
 
       if (error) throw error;
 
-      // Optimistic update: add/update log locally without full refresh
-      const now = new Date().toISOString();
-      setEmailLogs(prev => {
-        // Remove old log for this participant if exists
-        const filtered = prev.filter(
-          log => !(log.participant_id === participantId && log.email_type === 'match')
-        );
-        // Add new log entry
-        return [
-          {
-            id: `temp-${Date.now()}`,
-            participant_id: participantId,
-            email_type: 'match',
-            status: 'sent',
-            error_message: null,
-            sent_at: now,
-            created_at: now,
-          },
-          ...filtered,
-        ];
-      });
-
-      toast({
-        title: "Email enviado",
-        description: `Email enviado correctamente`,
-      });
-      
-      // Background refresh after a delay to sync with server
-      setTimeout(() => {
-        loadEmailLogs();
-      }, 2000);
+      toast({ title: "Email enviado", description: "Email enviado correctamente" });
+      setTimeout(() => loadEmailLogs(), 2000);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo enviar el email",
-        variant: "destructive",
-      });
-      // Refresh to get actual state on error
+      toast({ title: "Error", description: error.message || "No se pudo enviar", variant: "destructive" });
       loadEmailLogs();
     } finally {
       setSendingIds(prev => {
@@ -187,97 +194,51 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
     }
   };
 
-  // Resend to failed only
   const handleResendFailed = async () => {
     const failedIds = participants
-      .filter(p => {
-        if (!p.email) return false;
-        const log = getParticipantEmailStatus(p.id);
-        return log?.status === 'failed';
-      })
+      .filter(p => p.email && getParticipantMatchStatus(p.id)?.status === 'failed')
       .map(p => p.id);
-
-    if (failedIds.length === 0) {
-      toast({ title: "Info", description: "No hay emails fallidos para reenviar" });
-      return;
-    }
-
+    if (failedIds.length === 0) return;
     setIsSendingBulk(true);
-    
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({ title: "Error", description: "No estás autenticado", variant: "destructive" });
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('send-match-emails', {
+      if (!session) throw new Error("No autenticado");
+      const { error } = await supabase.functions.invoke('send-match-emails', {
         body: { event_id: eventId, participant_ids: failedIds }
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Emails enviados",
-        description: `${data?.stats?.withMatches + data?.stats?.withoutMatches || 0} emails reenviados`,
-      });
-      
+      toast({ title: "Emails reenviados", description: `${failedIds.length} emails reenviados` });
       loadEmailLogs();
       onRefresh();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudieron enviar los emails",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsSendingBulk(false);
     }
   };
 
-  // Send to pending only
   const handleSendPending = async () => {
     const pendingIds = participants
       .filter(p => {
         if (!p.email) return false;
-        const log = getParticipantEmailStatus(p.id);
+        const log = getParticipantMatchStatus(p.id);
         return !log || log.status === 'pending';
       })
       .map(p => p.id);
-
-    if (pendingIds.length === 0) {
-      toast({ title: "Info", description: "No hay emails pendientes para enviar" });
-      return;
-    }
-
+    if (pendingIds.length === 0) return;
     setIsSendingBulk(true);
-    
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({ title: "Error", description: "No estás autenticado", variant: "destructive" });
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('send-match-emails', {
+      if (!session) throw new Error("No autenticado");
+      const { error } = await supabase.functions.invoke('send-match-emails', {
         body: { event_id: eventId, participant_ids: pendingIds }
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Emails enviados",
-        description: `${data?.stats?.withMatches + data?.stats?.withoutMatches || 0} emails enviados`,
-      });
-      
+      toast({ title: "Emails enviados", description: `${pendingIds.length} emails enviados` });
       loadEmailLogs();
       onRefresh();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudieron enviar los emails",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsSendingBulk(false);
     }
@@ -309,7 +270,7 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
                 <Mail className="w-5 h-5 text-primary" />
                 <div>
                   <CardTitle className="text-lg">Gestión de Envíos</CardTitle>
-                  <CardDescription>Ver y gestionar emails individuales</CardDescription>
+                  <CardDescription>Historial completo de emails por participante</CardDescription>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -364,114 +325,155 @@ const EmailManagement = ({ eventId, participants, onRefresh }: EmailManagementPr
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={loadEmailLogs}
-                  >
+                  <Button variant="outline" size="sm" onClick={loadEmailLogs}>
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Actualizar
                   </Button>
                   {stats.failed > 0 && (
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      onClick={handleResendFailed}
-                      disabled={isSendingBulk}
-                    >
+                    <Button variant="default" size="sm" onClick={handleResendFailed} disabled={isSendingBulk}>
                       {isSendingBulk ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                       Reenviar fallidos ({stats.failed})
                     </Button>
                   )}
                   {stats.pending > 0 && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleSendPending}
-                      disabled={isSendingBulk}
-                    >
+                    <Button variant="outline" size="sm" onClick={handleSendPending} disabled={isSendingBulk}>
                       {isSendingBulk ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                       Enviar pendientes ({stats.pending})
                     </Button>
                   )}
                 </div>
 
-                {/* Filter */}
-                <div className="flex gap-2 flex-wrap">
-                  {(["all", "sent", "failed", "pending", "no_email"] as FilterStatus[]).map(status => (
-                    <Button
-                      key={status}
-                      variant={filterStatus === status ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFilterStatus(status)}
-                    >
-                      {status === "all" && "Todos"}
-                      {status === "sent" && `Enviados (${stats.sent})`}
-                      {status === "failed" && `Fallidos (${stats.failed})`}
-                      {status === "pending" && `Pendientes (${stats.pending})`}
-                      {status === "no_email" && `Sin email (${stats.noEmail})`}
-                    </Button>
-                  ))}
+                {/* Filters */}
+                <div className="space-y-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {(["all", "sent", "failed", "pending", "no_email"] as FilterStatus[]).map(status => (
+                      <Button
+                        key={status}
+                        variant={filterStatus === status ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setFilterStatus(status)}
+                      >
+                        {status === "all" && "Todos"}
+                        {status === "sent" && `Enviados (${stats.sent})`}
+                        {status === "failed" && `Fallidos (${stats.failed})`}
+                        {status === "pending" && `Pendientes (${stats.pending})`}
+                        {status === "no_email" && `Sin email (${stats.noEmail})`}
+                      </Button>
+                    ))}
+                  </div>
+                  {/* Type filter */}
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground self-center">Tipo:</span>
+                    {(["all", "match", "reminder", "checkin_code", "registration_confirmation"] as FilterEmailType[]).map(type => (
+                      <Button
+                        key={type}
+                        variant={filterType === type ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setFilterType(type)}
+                      >
+                        {type === "all" ? "Todos" : (EMAIL_TYPE_CONFIG[type]?.label || type)}
+                        {type !== "all" && typeCounts[type] ? ` (${typeCounts[type]})` : ""}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Participants List */}
-                <div className="max-h-80 overflow-y-auto space-y-2">
+                <div className="max-h-96 overflow-y-auto space-y-2">
                   {filteredParticipants.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No hay participantes en esta categoría
                     </div>
                   ) : (
                     filteredParticipants.map(participant => {
-                      const log = getParticipantEmailStatus(participant.id);
+                      const matchLog = getParticipantMatchStatus(participant.id);
+                      const allLogs = getParticipantLogs(participant.id);
                       const isSending = sendingIds.has(participant.id);
+                      const isExpanded = expandedParticipants.has(participant.id);
                       
                       return (
-                        <div 
-                          key={participant.id}
-                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border"
-                        >
-                          <div className="flex items-center gap-3">
-                            {participant.email ? getStatusIcon(log?.status || null) : <MailX className="w-4 h-4 text-muted-foreground" />}
-                            <div>
-                              <p className="font-medium text-sm">{participant.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {participant.email || "Sin email"}
-                              </p>
+                        <div key={participant.id} className="bg-muted/30 rounded-lg border overflow-hidden">
+                          {/* Main row */}
+                          <div 
+                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50"
+                            onClick={() => allLogs.length > 0 && toggleParticipant(participant.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {participant.email ? getStatusIcon(matchLog?.status || null) : <MailX className="w-4 h-4 text-muted-foreground" />}
+                              <div>
+                                <p className="font-medium text-sm">{participant.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {participant.email || "Sin email"}
+                                  {allLogs.length > 0 && (
+                                    <span className="ml-2 text-primary">· {allLogs.length} email{allLogs.length > 1 ? 's' : ''}</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* Show type badges for all email types this participant has */}
+                              {participant.email && (
+                                <div className="hidden sm:flex gap-1">
+                                  {Array.from(new Set(allLogs.map(l => l.email_type))).map(type => {
+                                    const config = EMAIL_TYPE_CONFIG[type];
+                                    if (!config) return null;
+                                    return (
+                                      <Badge key={type} className={`text-[10px] px-1.5 py-0 ${config.color}`}>
+                                        {config.label}
+                                      </Badge>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {participant.email && getStatusBadge(matchLog?.status || null)}
+                              {participant.email && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleResend(participant.id); }}
+                                  disabled={isSending || isSendingBulk}
+                                  className="h-7 px-2"
+                                >
+                                  {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                </Button>
+                              )}
+                              {allLogs.length > 0 && (
+                                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {participant.email && getStatusBadge(log?.status || null)}
-                            {log?.sent_at && (
-                              <span className="text-xs text-muted-foreground hidden sm:inline">
-                                {new Date(log.sent_at).toLocaleDateString("es-ES", { 
-                                  day: "numeric", 
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                })}
-                              </span>
-                            )}
-                            {log?.status === 'failed' && log.error_message && (
-                              <span className="text-xs text-destructive hidden md:inline max-w-32 truncate" title={log.error_message}>
-                                {log.error_message}
-                              </span>
-                            )}
-                            {participant.email && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResend(participant.id)}
-                                disabled={isSending || isSendingBulk}
-                                className="h-7 px-2"
-                              >
-                                {isSending ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Send className="w-3 h-3" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
+                          
+                          {/* Timeline - expanded */}
+                          {isExpanded && allLogs.length > 0 && (
+                            <div className="border-t px-3 py-2 space-y-1.5 bg-background/50">
+                              {allLogs.map(log => {
+                                const config = EMAIL_TYPE_CONFIG[log.email_type] || { label: log.email_type, icon: <Mail className="w-3 h-3" />, color: "bg-muted text-muted-foreground" };
+                                return (
+                                  <div key={log.id} className="flex items-center gap-2 text-xs">
+                                    <span className="text-muted-foreground w-3">{config.icon}</span>
+                                    <Badge className={`text-[10px] px-1.5 py-0 ${config.color}`}>{config.label}</Badge>
+                                    {log.status === 'sent' ? (
+                                      <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3 text-destructive shrink-0" />
+                                    )}
+                                    <span className="text-muted-foreground">
+                                      {log.sent_at
+                                        ? new Date(log.sent_at).toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                                        : new Date(log.created_at).toLocaleDateString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                                      }
+                                    </span>
+                                    {log.error_message && (
+                                      <span className="text-destructive truncate max-w-40" title={log.error_message}>
+                                        {log.error_message}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })
