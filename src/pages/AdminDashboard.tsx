@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake, Shield, Crown } from "lucide-react";
+import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake, Shield, Crown, RefreshCw, UserCheck, TrendingUp, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,15 @@ interface Event {
 const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    uniqueParticipants: 0,
+    totalConnections: 0,
+    returningParticipants: 0,
+    avgPerEvent: 0,
+    completedEvents: 0,
+    activeEvents: 0,
+    selectionRate: 0,
+  });
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signOut } = useAuth();
@@ -79,9 +88,47 @@ const AdminDashboard = () => {
     setIsLoading(false);
   };
 
+  const loadStats = async () => {
+    // Unique participants
+    const { count: uniqueCount } = await supabase
+      .from("global_participants")
+      .select("*", { count: "exact", head: true });
+
+    // Total connections (encounter records = unique pairs already)
+    const { count: connectionsCount } = await supabase
+      .from("participant_encounters")
+      .select("*", { count: "exact", head: true });
+
+    // Returning participants (events_attended > 1)
+    const { count: returningCount } = await supabase
+      .from("global_participants")
+      .select("*", { count: "exact", head: true })
+      .gt("events_attended", 1);
+
+    // Selection rate
+    const { count: totalParticipants } = await supabase
+      .from("participants")
+      .select("*", { count: "exact", head: true });
+    const { count: submittedCount } = await supabase
+      .from("participants")
+      .select("*", { count: "exact", head: true })
+      .not("selection_submitted_at", "is", null);
+
+    setStats({
+      uniqueParticipants: uniqueCount || 0,
+      totalConnections: connectionsCount || 0,
+      returningParticipants: returningCount || 0,
+      avgPerEvent: 0, // calculated after events load
+      completedEvents: 0,
+      activeEvents: 0,
+      selectionRate: totalParticipants ? Math.round(((submittedCount || 0) / totalParticipants) * 100) : 0,
+    });
+  };
+
   useEffect(() => {
     if (user && (isActive || isSuperAdmin)) {
       loadEvents();
+      loadStats();
     }
   }, [user, isActive, isSuperAdmin]);
 
@@ -141,7 +188,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const totalParticipants = events.reduce((acc, e) => acc + (e.participants_count || 0), 0);
+  const completedEvents = events.filter(e => e.status === "completed").length;
+  const activeEvents = events.filter(e => e.status === "active").length;
+  const avgPerEvent = events.length > 0 ? Math.round(events.reduce((acc, e) => acc + (e.participants_count || 0), 0) / events.length) : 0;
 
   if (authLoading || orgLoading || isLoading) {
     return (
@@ -200,8 +249,8 @@ const AdminDashboard = () => {
                 <Users className="w-6 h-6 text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalParticipants}</p>
-                <p className="text-sm text-muted-foreground">Participantes totales</p>
+                <p className="text-2xl font-bold">{stats.uniqueParticipants}</p>
+                <p className="text-sm text-muted-foreground">Participantes únicos</p>
               </div>
             </CardContent>
           </Card>
@@ -212,11 +261,65 @@ const AdminDashboard = () => {
                 <Handshake className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">0</p>
+                <p className="text-2xl font-bold">{stats.totalConnections}</p>
                 <p className="text-sm text-muted-foreground">Conexiones realizadas</p>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* General Statistics */}
+        <div className="mb-8">
+          <h2 className="font-display text-xl font-semibold mb-4">Estadísticas generales</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                  <RefreshCw className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{stats.returningParticipants}</p>
+                  <p className="text-xs text-muted-foreground">Repiten evento</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{avgPerEvent}</p>
+                  <p className="text-xs text-muted-foreground">Media por evento</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{completedEvents} / {activeEvents}</p>
+                  <p className="text-xs text-muted-foreground">Completados / Activos</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{stats.selectionRate}%</p>
+                  <p className="text-xs text-muted-foreground">Tasa de selección</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Events section */}
