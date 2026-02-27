@@ -71,10 +71,10 @@ serve(async (req) => {
       );
     }
 
-    // Get event details including language
+    // Get event details including language, time, location
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date, language")
+      .select("id, name, date, language, event_time, event_location")
       .eq("id", eventId)
       .single();
 
@@ -96,9 +96,69 @@ serve(async (req) => {
       year: "numeric",
       month: "long",
       day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
     });
+
+    const formattedTime = event.event_time || '';
+    const formattedDateTime = formattedTime 
+      ? `${formattedDate}, ${formattedTime}` 
+      : formattedDate;
+
+    // Build calendar links
+    const eventDateStr = event.date.replace(/-/g, ''); // YYYYMMDD
+    let startDateTime = eventDateStr;
+    let endDateTime = eventDateStr;
+
+    if (event.event_time) {
+      // Parse time like "18:00" or "18:30"
+      const timeParts = event.event_time.match(/(\d{1,2}):(\d{2})/);
+      if (timeParts) {
+        const hours = timeParts[1].padStart(2, '0');
+        const mins = timeParts[2];
+        startDateTime = `${eventDateStr}T${hours}${mins}00`;
+        // Default 2h duration
+        const endH = String(parseInt(hours) + 2).padStart(2, '0');
+        endDateTime = `${eventDateStr}T${endH}${mins}00`;
+      }
+    }
+
+    const calendarTitle = encodeURIComponent(event.name);
+    const calendarLocation = encodeURIComponent(event.event_location || '');
+    const calendarDetails = encodeURIComponent(
+      isEn ? `Event organized via Konektum` : `Evento organizado a través de Konektum`
+    );
+
+    const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calendarTitle}&dates=${startDateTime}/${endDateTime}&location=${calendarLocation}&details=${calendarDetails}`;
+
+    // Build .ics content
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Konektum//Event//EN',
+      'BEGIN:VEVENT',
+      `DTSTART:${startDateTime}`,
+      `DTEND:${endDateTime}`,
+      `SUMMARY:${event.name}`,
+      `LOCATION:${event.event_location || ''}`,
+      `DESCRIPTION:${isEn ? 'Event organized via Konektum' : 'Evento organizado a través de Konektum'}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const icsDataUri = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
+
+    const calendarButtonsHtml = `
+      <div style="text-align: center; margin: 25px 0;">
+        <p style="font-weight: bold; color: #333; margin-bottom: 15px;">📅 ${isEn ? 'Add to your calendar' : 'Añadir a tu calendario'}</p>
+        <div style="display: inline-block;">
+          <a href="${googleCalUrl}" target="_blank" style="display: inline-block; padding: 12px 24px; background: #4285f4; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 6px;">
+            Google Calendar
+          </a>
+          <a href="${icsDataUri}" download="${event.name.replace(/[^a-zA-Z0-9]/g, '_')}.ics" style="display: inline-block; padding: 12px 24px; background: #333; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 6px;">
+            iCalendar (.ics)
+          </a>
+        </div>
+      </div>
+    `;
 
     const emailPayload = {
       from: "Konektum <noreply@konektum.com>",
@@ -122,7 +182,10 @@ serve(async (req) => {
             
             <p>${isEn ? `Your registration for <strong>${event.name}</strong> has been confirmed.` : `Tu registro para <strong>${event.name}</strong> ha sido confirmado.`}</p>
             
-            <p style="margin-bottom: 5px;"><strong>📅 ${isEn ? 'Date' : 'Fecha'}:</strong> ${formattedDate}</p>
+            <p style="margin-bottom: 5px;"><strong>📅 ${isEn ? 'Date' : 'Fecha'}:</strong> ${formattedDateTime}</p>
+            ${event.event_location ? `<p style="margin-bottom: 5px;"><strong>📍 ${isEn ? 'Location' : 'Lugar'}:</strong> ${event.event_location}</p>` : ''}
+            
+            ${calendarButtonsHtml}
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
               <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
