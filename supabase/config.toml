@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.generate-and-send-code]
 verify_jwt = false
+
+[functions.manage-domain]
+verify_jwt = true

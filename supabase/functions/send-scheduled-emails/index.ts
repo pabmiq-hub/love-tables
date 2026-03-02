@@ -207,94 +207,26 @@ const generateProfessionalEmailHtml = (
   }
 };
 
-// Gmail API helper
-const refreshGmailToken = async (
+// Helper to get verified domain sender for an organizer
+const getVerifiedDomainSender = async (
   supabase: any,
-  connection: any
-): Promise<string | null> => {
-  if (connection.token_expires_at && new Date(connection.token_expires_at) > new Date()) {
-    return connection.access_token;
-  }
-
-  const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID");
-  const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET");
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return null;
-
+  organizerId: string
+): Promise<{ from: string } | null> => {
   try {
-    const res = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        refresh_token: connection.refresh_token,
-        grant_type: "refresh_token",
-      }),
-    });
+    const { data } = await supabase
+      .from("organizer_verified_domains")
+      .select("domain, sender_email, sender_name, status")
+      .eq("organizer_id", organizerId)
+      .eq("status", "verified")
+      .maybeSingle();
 
-    if (!res.ok) {
-      console.error("Failed to refresh Gmail token:", await res.text());
-      await supabase.from("organizer_email_connections").update({ is_active: false }).eq("id", connection.id);
-      return null;
+    if (data?.sender_email) {
+      const name = data.sender_name || data.domain;
+      return { from: `${name} <${data.sender_email}>` };
     }
-
-    const tokens = await res.json();
-    const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString();
-    await supabase.from("organizer_email_connections").update({
-      access_token: tokens.access_token,
-      token_expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    }).eq("id", connection.id);
-
-    return tokens.access_token;
-  } catch (e) {
-    console.error("Error refreshing Gmail token:", e);
     return null;
-  }
-};
-
-const sendViaGmail = async (
-  supabase: any,
-  connection: any,
-  to: string,
-  subject: string,
-  htmlBody: string
-): Promise<{ success: boolean; error?: string }> => {
-  try {
-    const accessToken = await refreshGmailToken(supabase, connection);
-    if (!accessToken) return { success: false, error: "Could not get access token" };
-
-    const emailLines = [
-      `From: ${connection.email_address}`,
-      `To: ${to}`,
-      `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=UTF-8`,
-      ``,
-      htmlBody,
-    ];
-    const rawEmail = emailLines.join("\r\n");
-    const encoded = btoa(unescape(encodeURIComponent(rawEmail)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ raw: encoded }),
-    });
-
-    if (res.ok) return { success: true };
-    const errText = await res.text();
-    console.error("Gmail API error:", errText);
-    return { success: false, error: errText };
-  } catch (e: unknown) {
-    const errMsg = e instanceof Error ? e.message : String(e);
-    return { success: false, error: errMsg };
+  } catch {
+    return null;
   }
 };
 
@@ -563,8 +495,8 @@ const handler = async (req: Request): Promise<Response> => {
           hasMatches ? stats.withMatches++ : stats.withoutMatches++;
         }
 
-        // Check if event organizer has Gmail OAuth connection
-        let emailSent = false;
+        // Determine sender: verified domain or default
+        let fromAddress = "Konektum <hola@konektum.com>";
         const { data: eventOrg } = await supabase
           .from("events")
           .select("organizer_id")
@@ -572,31 +504,18 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         if (eventOrg?.organizer_id) {
-          const { data: emailConn } = await supabase
-            .from("organizer_email_connections")
-            .select("*")
-            .eq("organizer_id", eventOrg.organizer_id)
-            .eq("is_active", true)
-            .maybeSingle();
-
-          if (emailConn) {
-            const gmailResult = await sendViaGmail(supabase, emailConn, participant.email!, subject, html);
-            if (gmailResult.success) {
-              emailSent = true;
-              console.log(`Email sent via Gmail (${emailConn.email_address}) to ${participant.name}`);
-            } else {
-              console.log(`Gmail send failed for ${participant.name}, falling back to Resend: ${gmailResult.error}`);
-            }
+          const verifiedSender = await getVerifiedDomainSender(supabase, eventOrg.organizer_id);
+          if (verifiedSender) {
+            fromAddress = verifiedSender.from;
+            console.log(`Using verified domain sender: ${fromAddress}`);
           }
         }
 
-        const result = emailSent
-          ? { success: true }
-          : await sendEmailWithRetry(
-              resendApiKey,
-              { from: "Konektum <hola@konektum.com>", to: [participant.email], subject, html },
-              participant.name
-            );
+        const result = await sendEmailWithRetry(
+          resendApiKey,
+          { from: fromAddress, to: [participant.email], subject, html },
+          participant.name
+        );
 
         if (!result.success) {
           errors.push(`${participant.name}: ${result.error}`);
