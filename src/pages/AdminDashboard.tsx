@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { EmailConnectionManager } from "@/components/email/EmailConnectionManager";
 
 interface Event {
   id: string;
@@ -320,6 +321,11 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Email Configuration */}
+        <div className="mb-8">
+          <EmailConnectionManager />
         </div>
 
         {/* Events section */}
