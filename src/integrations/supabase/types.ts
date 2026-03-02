@@ -284,6 +284,53 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_email_connections: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          email_address: string
+          id: string
+          is_active: boolean
+          organizer_id: string
+          provider: string
+          refresh_token: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          email_address: string
+          id?: string
+          is_active?: boolean
+          organizer_id: string
+          provider?: string
+          refresh_token: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          email_address?: string
+          id?: string
+          is_active?: boolean
+          organizer_id?: string
+          provider?: string
+          refresh_token?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_email_connections_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_features: {
         Row: {
           created_at: string | null
