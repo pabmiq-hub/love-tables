@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedHeader, BrandedLogo } from "@/components/BrandedHeader";
+import { useEventBranding } from "@/hooks/useEventBranding";
 import { translations, Language } from "@/i18n/translations";
 
 interface TableAssignment {
@@ -17,6 +18,7 @@ interface TableAssignment {
 
 const ParticipantTables = () => {
   const { id: eventId } = useParams();
+  const eb = useEventBranding(eventId);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
@@ -148,11 +150,7 @@ const ParticipantTables = () => {
   if (isLoaded) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-            <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
-          </div>
-        </header>
+        <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
 
         <main className="container mx-auto px-4 py-8 max-w-md">
           <Card className="animate-fade-in">
@@ -224,11 +222,7 @@ const ParticipantTables = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-          <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
-        </div>
-      </header>
+        <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
 
       <main className="container mx-auto px-4 py-8 max-w-md">
         <Card className="animate-fade-in">

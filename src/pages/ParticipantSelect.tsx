@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatAnonymousName } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedLogo } from "@/components/BrandedHeader";
+import { useEventBranding } from "@/hooks/useEventBranding";
 import { translations, Language } from "@/i18n/translations";
 
 interface Participant {
@@ -45,6 +46,7 @@ type Step = "verify_code" | "confirm_identity" | "select" | "done" | "error" | "
 
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
+  const eb = useEventBranding(eventId);
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
   const [verifiedParticipant, setVerifiedParticipant] = useState<Participant | null>(null);
@@ -342,7 +344,7 @@ const ParticipantSelect = () => {
       </Link>
 
       <div className="mb-8 animate-fade-in">
-        <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
+        <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} />
       </div>
 
       {step === "completed" && (

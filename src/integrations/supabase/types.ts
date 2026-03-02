@@ -418,6 +418,7 @@ export type Database = {
           contact_phone: string | null
           created_at: string | null
           id: string
+          logo_url: string | null
           plan_id: string | null
           status: string
           stripe_customer_id: string | null
@@ -434,6 +435,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           id?: string
+          logo_url?: string | null
           plan_id?: string | null
           status?: string
           stripe_customer_id?: string | null
@@ -450,6 +452,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           id?: string
+          logo_url?: string | null
           plan_id?: string | null
           status?: string
           stripe_customer_id?: string | null

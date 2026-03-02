@@ -14,6 +14,7 @@ interface OrganizerProfile {
   subscription_starts_at: string | null;
   subscription_ends_at: string | null;
   active_modules: string[];
+  logo_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -114,6 +115,18 @@ export function useOrganizer() {
   const isPending = organizer?.status === "pending";
   const isSuspended = organizer?.status === "suspended";
 
+  // Branding helpers
+  const modules = organizer?.active_modules || [];
+  const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
+  const isWhiteLabel = isProfessionalOnly && !!organizer?.logo_url;
+
+  const branding = {
+    logoUrl: organizer?.logo_url ?? null,
+    companyName: organizer?.company_name ?? null,
+    isProfessionalOnly,
+    isWhiteLabel,
+  };
+
   const hasModule = (moduleCode: string): boolean => {
     if (!organizer) return false;
     return organizer.active_modules.includes(moduleCode);
@@ -121,13 +134,13 @@ export function useOrganizer() {
 
   const canCreateEvent = (): boolean => {
     if (!isActive || !limits) return false;
-    if (limits.maxActiveEvents === null) return true; // unlimited
+    if (limits.maxActiveEvents === null) return true;
     return limits.currentActiveEvents < limits.maxActiveEvents;
   };
 
   const canAddParticipants = (currentCount: number, toAdd: number): boolean => {
     if (!isActive || !limits) return false;
-    if (limits.maxParticipantsPerEvent === null) return true; // unlimited
+    if (limits.maxParticipantsPerEvent === null) return true;
     return currentCount + toAdd <= limits.maxParticipantsPerEvent;
   };
 
@@ -140,6 +153,7 @@ export function useOrganizer() {
     isActive,
     isPending,
     isSuspended,
+    branding,
     hasModule,
     canCreateEvent,
     canAddParticipants,

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Loader2, Heart, AlertCircle, Mail, Users, Clock } from "lucide-react";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedHeader, BrandedLogo } from "@/components/BrandedHeader";
+import { useEventBranding } from "@/hooks/useEventBranding";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +57,7 @@ interface QuotaStatus {
 
 const ParticipantJoin = () => {
   const { id: eventId } = useParams();
+  const eb = useEventBranding(eventId);
   const { toast } = useToast();
   
   const [name, setName] = useState("");
@@ -522,7 +524,7 @@ const ParticipantJoin = () => {
               <span className="text-sm text-muted-foreground">{t.join.checkEmail}</span>
             </div>
             
-            <img src={konektumLogo} alt="Konektum" className="h-10 w-auto mx-auto" />
+            <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} className="h-10 w-auto mx-auto" />
           </CardContent>
         </Card>
       </div>
@@ -533,11 +535,7 @@ const ParticipantJoin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-          <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
-        </div>
-      </header>
+      <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
 
       <main className="container mx-auto px-4 py-8 max-w-md">
         {quotasEnabled && quotaStatuses.length > 0 && (

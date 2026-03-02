@@ -7,7 +7,8 @@ import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, U
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import EventSettingsEditor from "@/components/event/EventSettingsEditor";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedHeader } from "@/components/BrandedHeader";
+import { useOrganizer } from "@/hooks/useOrganizer";
 import {
   Tooltip,
   TooltipContent,
@@ -154,6 +155,7 @@ const EventDetail = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { linkParticipantsToGlobal, loadPreviousEncounters, recordEncounters } = useGlobalParticipants();
   const { hasFeature, isSuperAdmin } = useFeatures();
+  const { branding } = useOrganizer();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
@@ -2546,19 +2548,13 @@ const EventDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/admin/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Volver al dashboard
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
-          </div>
-        </div>
-      </header>
+      <BrandedHeader
+        logoUrl={branding.logoUrl}
+        companyName={branding.companyName}
+        isWhiteLabel={branding.isWhiteLabel}
+        backLink="/admin/dashboard"
+        backLabel={<><ArrowLeft className="w-4 h-4" /> Volver al dashboard</>}
+      />
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
