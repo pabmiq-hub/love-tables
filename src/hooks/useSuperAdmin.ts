@@ -66,6 +66,17 @@ interface OrganizerFeatureOverride {
   is_enabled: boolean;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  has_organizer: boolean;
+  organizer_id: string | null;
+  organizer_status: string | null;
+  company_name: string | null;
+}
+
 export function useSuperAdmin() {
   const { user, loading: authLoading } = useAuth();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -77,6 +88,7 @@ export function useSuperAdmin() {
   const [features, setFeatures] = useState<Feature[]>([]);
   const [organizerFeatures, setOrganizerFeatures] = useState<Record<string, OrganizerFeatureOverride[]>>({});
   const [planFeatures, setPlanFeatures] = useState<Record<string, string[]>>({});
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
 
   useEffect(() => {
     // Wait for auth to finish loading first
@@ -421,6 +433,59 @@ export function useSuperAdmin() {
     return result;
   };
 
+  const loadAuthUsers = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("list-auth-users");
+      if (error) throw error;
+      setAuthUsers(data?.users || []);
+    } catch (err) {
+      console.error("Error loading auth users:", err);
+    }
+  };
+
+  const deleteAuthUser = async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-auth-user", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await loadAuthUsers();
+      return true;
+    } catch (err) {
+      console.error("Error deleting auth user:", err);
+      return false;
+    }
+  };
+
+  const createOrganizerForUser = async (userId: string, email: string): Promise<boolean> => {
+    try {
+      const { data: defaultPlan } = await supabase
+        .from("subscription_plans")
+        .select("id")
+        .eq("is_default", true)
+        .single();
+
+      const { error } = await supabase
+        .from("organizers")
+        .insert({
+          user_id: userId,
+          contact_email: email,
+          status: "pending",
+          plan_id: defaultPlan?.id || null,
+          active_modules: ["social"],
+        });
+
+      if (error) throw error;
+      await Promise.all([loadAuthUsers(), loadOrganizers()]);
+      return true;
+    } catch (err) {
+      console.error("Error creating organizer for user:", err);
+      return false;
+    }
+  };
+
   return {
     isSuperAdmin,
     loading,
@@ -431,6 +496,7 @@ export function useSuperAdmin() {
     features,
     organizerFeatures,
     planFeatures,
+    authUsers,
     loadOrganizers,
     loadPlans,
     loadModules,
@@ -438,6 +504,7 @@ export function useSuperAdmin() {
     loadFeatures,
     loadPlanFeatures,
     loadOrganizerFeatures,
+    loadAuthUsers,
     updateOrganizerStatus,
     updateOrganizerPlan,
     updateOrganizerModules,
@@ -445,6 +512,8 @@ export function useSuperAdmin() {
     updateOrganizerFeature,
     removeOrganizerFeatureOverride,
     getOrganizerEffectiveFeatures,
+    deleteAuthUser,
+    createOrganizerForUser,
     refresh: async () => {
       await Promise.all([
         loadOrganizers(),
@@ -454,6 +523,7 @@ export function useSuperAdmin() {
         loadFeatures(),
         loadPlanFeatures(),
         loadOrganizerFeatures(),
+        loadAuthUsers(),
       ]);
     },
   };

@@ -164,7 +164,13 @@ const AdminRegister = () => {
 
       if (orgError) {
         console.error("Error creating organizer:", orgError);
-        // Don't fail the registration, just log the error
+        toast({
+          title: "Error al crear perfil",
+          description: "Tu cuenta fue creada pero hubo un error al crear tu perfil de organizador. Contacta con soporte.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
     }
 
