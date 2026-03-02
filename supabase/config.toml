@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.manage-domain]
 verify_jwt = true
+
+[functions.list-auth-users]
+verify_jwt = false
+
+[functions.delete-auth-user]
+verify_jwt = false

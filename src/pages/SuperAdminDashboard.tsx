@@ -54,6 +54,9 @@ import {
   AlertCircle,
   Mail,
   Phone,
+  UserPlus,
+  Trash2,
+  UserX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -74,6 +77,7 @@ export default function SuperAdminDashboard() {
     features,
     organizerFeatures,
     planFeatures,
+    authUsers,
     loadOrganizers,
     loadPlans,
     loadModules,
@@ -81,12 +85,15 @@ export default function SuperAdminDashboard() {
     loadFeatures,
     loadPlanFeatures,
     loadOrganizerFeatures,
+    loadAuthUsers,
     updateOrganizerStatus,
     updateOrganizerPlan,
     updateOrganizerModules,
     setTrialPeriod,
     updateOrganizerFeature,
     removeOrganizerFeatureOverride,
+    deleteAuthUser,
+    createOrganizerForUser,
   } = useSuperAdmin();
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -108,6 +115,7 @@ export default function SuperAdminDashboard() {
       loadFeatures();
       loadPlanFeatures();
       loadOrganizerFeatures();
+      loadAuthUsers();
     }
   }, [isSuperAdmin]);
 
@@ -415,6 +423,10 @@ export default function SuperAdminDashboard() {
               <Building2 className="h-4 w-4 mr-2" />
               Organizadores
             </TabsTrigger>
+            <TabsTrigger value="users">
+              <Users className="h-4 w-4 mr-2" />
+              Usuarios Auth
+            </TabsTrigger>
             <TabsTrigger value="plans">
               <Settings className="h-4 w-4 mr-2" />
               Planes
@@ -602,7 +614,107 @@ export default function SuperAdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="plans" className="space-y-4">
+          <TabsContent value="users" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Usuarios del sistema de autenticación</h2>
+              <Badge variant="outline">{authUsers.length} usuarios</Badge>
+            </div>
+
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Empresa</TableHead>
+                    <TableHead>Fecha registro</TableHead>
+                    <TableHead>Último login</TableHead>
+                    <TableHead className="w-[100px]">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {authUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <p className="text-muted-foreground">Cargando usuarios...</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    authUsers.map((authUser) => (
+                      <TableRow key={authUser.id}>
+                        <TableCell className="font-medium">{authUser.email}</TableCell>
+                        <TableCell>
+                          {authUser.has_organizer ? (
+                            <Badge className="bg-green-500/20 text-green-700 border-green-500/30">
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              {authUser.organizer_status === "active" ? "Activo" : 
+                               authUser.organizer_status === "pending" ? "Pendiente" : 
+                               authUser.organizer_status || "Con perfil"}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-500/20 text-red-700 border-red-500/30">
+                              <UserX className="h-3 w-3 mr-1" />
+                              Sin perfil
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{authUser.company_name || "-"}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(authUser.created_at), "dd MMM yyyy", { locale: es })}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {authUser.last_sign_in_at 
+                            ? format(new Date(authUser.last_sign_in_at), "dd MMM yyyy HH:mm", { locale: es })
+                            : "Nunca"}
+                        </TableCell>
+                        <TableCell>
+                          {!authUser.has_organizer && (
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="Crear perfil de organizador"
+                                onClick={async () => {
+                                  const success = await createOrganizerForUser(authUser.id, authUser.email);
+                                  toast({
+                                    title: success ? "Perfil creado" : "Error",
+                                    description: success 
+                                      ? "Se ha creado el perfil de organizador." 
+                                      : "No se pudo crear el perfil.",
+                                    variant: success ? "default" : "destructive",
+                                  });
+                                }}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                title="Eliminar usuario"
+                                onClick={async () => {
+                                  if (!confirm(`¿Eliminar al usuario ${authUser.email}? Esta acción no se puede deshacer.`)) return;
+                                  const success = await deleteAuthUser(authUser.id);
+                                  toast({
+                                    title: success ? "Usuario eliminado" : "Error",
+                                    description: success 
+                                      ? "El usuario ha sido eliminado del sistema." 
+                                      : "No se pudo eliminar el usuario.",
+                                    variant: success ? "default" : "destructive",
+                                  });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
             <h2 className="text-xl font-semibold">Planes de suscripción</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {plans.map((plan) => (
