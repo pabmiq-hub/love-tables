@@ -145,16 +145,24 @@ const generateEmailHtml = (
   }
 };
 
-// Generate professional B2B email HTML
+// Generate professional B2B email HTML with optional white-label branding
 const generateProfessionalEmailHtml = (
   template: ProfessionalEmailTemplate,
   participantName: string,
   companyName: string,
   eventName: string,
-  connections: { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[]
+  connections: { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[],
+  orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }
 ): string => {
   const hasConnections = connections.length > 0;
   const variables = { nombre: participantName, empresa: companyName, evento: eventName };
+  
+  // Use organizer branding if available (white-label)
+  const brandName = orgBranding?.isProfessionalOnly && orgBranding?.companyName ? escapeHtml(orgBranding.companyName) : "Konektum Business";
+  const brandColor = "#059669";
+  const logoHtml = orgBranding?.isProfessionalOnly && orgBranding?.logoUrl
+    ? `<img src="${escapeHtml(orgBranding.logoUrl)}" alt="${brandName}" style="max-height:40px;max-width:200px;" />`
+    : `<h2 style="color:${brandColor};margin:0;">${brandName}</h2>`;
   
   if (hasConnections) {
     const t = template.withConnections;
@@ -169,8 +177,8 @@ const generateProfessionalEmailHtml = (
     ).join('');
     
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
-      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
-        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid ${brandColor};">
+        ${logoHtml}
         <p style="color:#6b7280;margin:4px 0 0 0;font-size:14px;">Networking Profesional</p>
       </div>
       <div style="padding:24px 0;">
@@ -178,10 +186,10 @@ const generateProfessionalEmailHtml = (
         <p style="color:#4b5563;line-height:1.6;">${replaceVariables(t.intro, variables)}</p>
         
         <div style="margin:24px 0;">
-          <h3 style="color:#059669;margin:0 0 16px 0;">${t.connectionsTitle}</h3>
+          <h3 style="color:${brandColor};margin:0 0 16px 0;">${t.connectionsTitle}</h3>
           <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden;">
             <thead>
-              <tr style="background:#059669;color:white;">
+              <tr style="background:${brandColor};color:white;">
                 <th style="padding:12px 8px;text-align:left;font-weight:500;">Empresa</th>
                 <th style="padding:12px 8px;text-align:left;font-weight:500;">Sector</th>
                 <th style="padding:12px 8px;text-align:left;font-weight:500;">Contacto</th>
@@ -200,8 +208,8 @@ const generateProfessionalEmailHtml = (
   } else {
     const t = template.withoutConnections;
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
-      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
-        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid ${brandColor};">
+        ${logoHtml}
         <p style="color:#6b7280;margin:4px 0 0 0;font-size:14px;">Networking Profesional</p>
       </div>
       <div style="padding:24px 0;">
@@ -214,7 +222,7 @@ const generateProfessionalEmailHtml = (
   }
 };
 
-// Helper to get verified domain sender for an organizer
+// Helper to get verified domain sender and branding for an organizer
 const getVerifiedDomainSender = async (
   supabase: any,
   organizerId: string
@@ -234,6 +242,32 @@ const getVerifiedDomainSender = async (
     return null;
   } catch {
     return null;
+  }
+};
+
+// Helper to get organizer branding (company_name, logo_url) from user_id
+const getOrganizerBranding = async (
+  supabase: any,
+  userId: string
+): Promise<{ companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }> => {
+  try {
+    const { data } = await supabase
+      .from("organizers")
+      .select("company_name, logo_url, active_modules")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (data) {
+      const modules = data.active_modules || [];
+      return {
+        companyName: data.company_name,
+        logoUrl: data.logo_url,
+        isProfessionalOnly: modules.length === 1 && modules[0] === "professional",
+      };
+    }
+    return { companyName: null, logoUrl: null, isProfessionalOnly: false };
+  } catch {
+    return { companyName: null, logoUrl: null, isProfessionalOnly: false };
   }
 };
 
@@ -531,6 +565,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Load organizer branding for white-label emails
+    const orgBranding = event.organizer_id ? await getOrganizerBranding(supabase, event.organizer_id) : null;
+
     const stats = { total: 0, withMatches: 0, withoutMatches: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
@@ -549,7 +586,6 @@ const handler = async (req: Request): Promise<Response> => {
       let html: string;
 
       if (isProfessional) {
-        // Professional event: use connections and professional template
         const profParticipant = participant as ProfessionalParticipant;
         const connections = connectionsByParticipant.get(participant.id) || [];
         const hasConnections = connections.length > 0;
@@ -563,7 +599,8 @@ const handler = async (req: Request): Promise<Response> => {
           participant.name,
           profParticipant.company_name || '',
           event.name,
-          connections
+          connections,
+          orgBranding || undefined
         );
         
         if (hasConnections) stats.withMatches++;

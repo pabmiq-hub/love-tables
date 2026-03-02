@@ -150,10 +150,17 @@ const generateProfessionalEmailHtml = (
   participantName: string,
   companyName: string,
   eventName: string,
-  connections: { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[]
+  connections: { company: string; sector: string; contactPerson: string; phone: string | null; entityType: string }[],
+  orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }
 ): string => {
   const hasConnections = connections.length > 0;
   const variables = { nombre: participantName, empresa: companyName, evento: eventName };
+  
+  const brandName = orgBranding?.isProfessionalOnly && orgBranding?.companyName ? escapeHtml(orgBranding.companyName) : "Konektum Business";
+  const brandColor = "#059669";
+  const logoHtml = orgBranding?.isProfessionalOnly && orgBranding?.logoUrl
+    ? `<img src="${escapeHtml(orgBranding.logoUrl)}" alt="${brandName}" style="max-height:40px;max-width:200px;" />`
+    : `<h2 style="color:${brandColor};margin:0;">${brandName}</h2>`;
   
   if (hasConnections) {
     const t = template.withConnections;
@@ -168,16 +175,16 @@ const generateProfessionalEmailHtml = (
     ).join('');
     
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
-      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
-        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid ${brandColor};">
+        ${logoHtml}
       </div>
       <div style="padding:24px 0;">
         <p style="font-size:16px;margin:0 0 16px 0;">${replaceVariables(t.greeting, variables)}</p>
         <p style="color:#4b5563;line-height:1.6;">${replaceVariables(t.intro, variables)}</p>
         <div style="margin:24px 0;">
-          <h3 style="color:#059669;margin:0 0 16px 0;">${t.connectionsTitle}</h3>
+          <h3 style="color:${brandColor};margin:0 0 16px 0;">${t.connectionsTitle}</h3>
           <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;">
-            <thead><tr style="background:#059669;color:white;">
+            <thead><tr style="background:${brandColor};color:white;">
               <th style="padding:12px 8px;text-align:left;">Empresa</th>
               <th style="padding:12px 8px;text-align:left;">Sector</th>
               <th style="padding:12px 8px;text-align:left;">Contacto</th>
@@ -194,8 +201,8 @@ const generateProfessionalEmailHtml = (
   } else {
     const t = template.withoutConnections;
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1f2937;">
-      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid #059669;">
-        <h2 style="color:#059669;margin:0;">Konektum Business</h2>
+      <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid ${brandColor};">
+        ${logoHtml}
       </div>
       <div style="padding:24px 0;">
         <p style="font-size:16px;margin:0 0 16px 0;">${replaceVariables(t.greeting, variables)}</p>
@@ -219,7 +226,6 @@ const getVerifiedDomainSender = async (
       .eq("organizer_id", organizerId)
       .eq("status", "verified")
       .maybeSingle();
-
     if (data?.sender_email) {
       const name = data.sender_name || data.domain;
       return { from: `${name} <${data.sender_email}>` };
@@ -227,6 +233,26 @@ const getVerifiedDomainSender = async (
     return null;
   } catch {
     return null;
+  }
+};
+
+const getOrganizerBranding = async (
+  supabase: any,
+  userId: string
+): Promise<{ companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }> => {
+  try {
+    const { data } = await supabase
+      .from("organizers")
+      .select("company_name, logo_url, active_modules")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (data) {
+      const modules = data.active_modules || [];
+      return { companyName: data.company_name, logoUrl: data.logo_url, isProfessionalOnly: modules.length === 1 && modules[0] === "professional" };
+    }
+    return { companyName: null, logoUrl: null, isProfessionalOnly: false };
+  } catch {
+    return { companyName: null, logoUrl: null, isProfessionalOnly: false };
   }
 };
 
@@ -452,6 +478,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
+      // Load organizer branding
+      const orgBranding = event.organizer_id ? await getOrganizerBranding(supabase, event.organizer_id) : null;
+
       const stats = { total: 0, withMatches: 0, withoutMatches: 0, noEmail: 0, failed: 0 };
       const errors: string[] = [];
 
@@ -478,7 +507,7 @@ const handler = async (req: Request): Promise<Response> => {
             ? replaceVariables(professionalTemplate.withConnections.subject, { nombre: participant.name, empresa: profParticipant.company_name || '', evento: event.name })
             : replaceVariables(professionalTemplate.withoutConnections.subject, { nombre: participant.name, empresa: profParticipant.company_name || '', evento: event.name });
           
-          html = generateProfessionalEmailHtml(professionalTemplate, participant.name, profParticipant.company_name || '', event.name, connections);
+          html = generateProfessionalEmailHtml(professionalTemplate, participant.name, profParticipant.company_name || '', event.name, connections, orgBranding || undefined);
           
           hasConnections ? stats.withMatches++ : stats.withoutMatches++;
         } else {

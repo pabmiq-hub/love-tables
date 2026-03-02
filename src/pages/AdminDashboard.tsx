@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake, Shield, Crown, RefreshCw, UserCheck, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Calendar, Users, Plus, LogOut, Settings, BarChart3, Trash2, Loader2, Handshake, RefreshCw, UserCheck, TrendingUp, CheckCircle2, Upload, Briefcase } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { useFeatures } from "@/hooks/useFeatures";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedHeader } from "@/components/BrandedHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +36,8 @@ interface Event {
 const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState({
     uniqueParticipants: 0,
     totalConnections: 0,
@@ -48,7 +50,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { organizer, plan, limits, loading: orgLoading, isActive, isPending, isSuspended, canCreateEvent } = useOrganizer();
+  const { organizer, plan, limits, loading: orgLoading, isActive, isPending, isSuspended, canCreateEvent, branding, refresh: refreshOrganizer } = useOrganizer();
   const { isSuperAdmin } = useFeatures();
 
   useEffect(() => {
@@ -58,7 +60,6 @@ const AdminDashboard = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Handle organizer status
   useEffect(() => {
     if (!orgLoading && organizer) {
       if (isPending) {
@@ -90,23 +91,19 @@ const AdminDashboard = () => {
   };
 
   const loadStats = async () => {
-    // Unique participants
     const { count: uniqueCount } = await supabase
       .from("global_participants")
       .select("*", { count: "exact", head: true });
 
-    // Total connections (encounter records = unique pairs already)
     const { count: connectionsCount } = await supabase
       .from("participant_encounters")
       .select("*", { count: "exact", head: true });
 
-    // Returning participants (events_attended > 1)
     const { count: returningCount } = await supabase
       .from("global_participants")
       .select("*", { count: "exact", head: true })
       .gt("events_attended", 1);
 
-    // Selection rate
     const { count: totalParticipants } = await supabase
       .from("participants")
       .select("*", { count: "exact", head: true });
@@ -119,7 +116,7 @@ const AdminDashboard = () => {
       uniqueParticipants: uniqueCount || 0,
       totalConnections: connectionsCount || 0,
       returningParticipants: returningCount || 0,
-      avgPerEvent: 0, // calculated after events load
+      avgPerEvent: 0,
       completedEvents: 0,
       activeEvents: 0,
       selectionRate: totalParticipants ? Math.round(((submittedCount || 0) / totalParticipants) * 100) : 0,
@@ -164,6 +161,55 @@ const AdminDashboard = () => {
     });
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Error", description: "Solo se permiten archivos de imagen", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Error", description: "El archivo no puede superar 2MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const filePath = `${user.id}/logo.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("organizer-logos")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("organizer-logos")
+        .getPublicUrl(filePath);
+
+      const logoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("organizers")
+        .update({ logo_url: logoUrl })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      await refreshOrganizer();
+      toast({ title: "Logo actualizado", description: "Tu logo se ha subido correctamente" });
+    } catch (err) {
+      console.error("Error uploading logo:", err);
+      toast({ title: "Error", description: "No se pudo subir el logo", variant: "destructive" });
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -179,6 +225,8 @@ const AdminDashboard = () => {
 
   const getModuleBadge = (module: string | null) => {
     if (!module) return null;
+    // Don't show module badge if organizer only has one module (redundant)
+    if (branding.isProfessionalOnly && module === "professional") return null;
     switch (module) {
       case "social":
         return <Badge variant="secondary" className="bg-pink-500/10 text-pink-500">Social</Badge>;
@@ -193,6 +241,9 @@ const AdminDashboard = () => {
   const activeEvents = events.filter(e => e.status === "active").length;
   const avgPerEvent = events.length > 0 ? Math.round(events.reduce((acc, e) => acc + (e.participants_count || 0), 0) / events.length) : 0;
 
+  // Professional-adapted labels
+  const isPro = branding.isProfessionalOnly;
+
   if (authLoading || orgLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -204,12 +255,11 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={konektumLogo} alt="Konektum" className="h-9 w-auto" />
-          </Link>
-
+      <BrandedHeader
+        logoUrl={branding.logoUrl}
+        companyName={branding.companyName}
+        isWhiteLabel={branding.isWhiteLabel}
+        rightContent={
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon">
               <Settings className="w-5 h-5" />
@@ -219,8 +269,8 @@ const AdminDashboard = () => {
               Salir
             </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
@@ -229,6 +279,55 @@ const AdminDashboard = () => {
           <h1 className="font-display text-3xl font-bold mb-2">Panel de Administración</h1>
           <p className="text-muted-foreground">Gestiona tus eventos</p>
         </div>
+
+        {/* Logo upload for professional white-label */}
+        {isPro && (
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {branding.logoUrl ? (
+                    <img src={branding.logoUrl} alt="Tu logo" className="h-12 w-auto max-w-[160px] object-contain rounded" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      <Briefcase className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium">{branding.logoUrl ? "Logo de tu empresa" : "Sube tu logo"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {branding.logoUrl
+                        ? "Se mostrará en las páginas de tus eventos y correos"
+                        : "Aparecerá en las páginas de participantes y correos electrónicos"}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={isUploadingLogo}
+                  >
+                    {isUploadingLogo ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {branding.logoUrl ? "Cambiar" : "Subir logo"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -251,7 +350,9 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.uniqueParticipants}</p>
-                <p className="text-sm text-muted-foreground">Participantes únicos</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPro ? "Empresas participantes" : "Participantes únicos"}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -263,7 +364,9 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalConnections}</p>
-                <p className="text-sm text-muted-foreground">Conexiones realizadas</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPro ? "Reuniones B2B" : "Conexiones realizadas"}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -280,7 +383,9 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <p className="text-lg font-bold">{stats.returningParticipants}</p>
-                  <p className="text-xs text-muted-foreground">Repiten evento</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isPro ? "Empresas recurrentes" : "Repiten evento"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -316,7 +421,9 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <p className="text-lg font-bold">{stats.selectionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Tasa de selección</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isPro ? "Contactos generados" : "Tasa de selección"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -373,6 +480,7 @@ const AdminDashboard = () => {
                         <div className="flex items-center gap-3 mb-1">
                           <h3 className="font-display text-lg font-semibold">{event.name}</h3>
                           {getStatusBadge(event.status)}
+                          {getModuleBadge(event.module)}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {new Date(event.date).toLocaleDateString('es-ES', { 

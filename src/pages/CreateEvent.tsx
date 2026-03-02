@@ -20,7 +20,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useFeatures } from "@/hooks/useFeatures";
 import { useOrganizer } from "@/hooks/useOrganizer";
-import konektumLogo from "@/assets/konektum-logo.png";
+import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,7 +33,7 @@ const CreateEvent = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const { hasFeature, isSuperAdmin } = useFeatures();
-  const { hasModule, organizer, loading: organizerLoading } = useOrganizer();
+  const { hasModule, organizer, loading: organizerLoading, branding } = useOrganizer();
 
   // Detect available modules
   const hasSocialModule = hasModule("social") || isSuperAdmin;
@@ -378,15 +378,13 @@ const CreateEvent = () => {
   if (hasNoModules) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-            <Link to="/admin/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              Volver al dashboard
-            </Link>
-            <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
-          </div>
-        </header>
+        <BrandedHeader
+          logoUrl={branding.logoUrl}
+          companyName={branding.companyName}
+          isWhiteLabel={branding.isWhiteLabel}
+          backLink="/admin/dashboard"
+          backLabel={<><ArrowLeft className="w-4 h-4" /> Volver al dashboard</>}
+        />
         <main className="container mx-auto px-4 py-8 max-w-2xl">
           <Card>
             <CardHeader>
@@ -413,16 +411,13 @@ const CreateEvent = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/admin/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Volver al dashboard
-          </Link>
-
-          <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
-        </div>
-      </header>
+      <BrandedHeader
+        logoUrl={branding.logoUrl}
+        companyName={branding.companyName}
+        isWhiteLabel={branding.isWhiteLabel}
+        backLink="/admin/dashboard"
+        backLabel={<><ArrowLeft className="w-4 h-4" /> Volver al dashboard</>}
+      />
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-2xl">
