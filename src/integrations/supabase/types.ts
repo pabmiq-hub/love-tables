@@ -363,6 +363,53 @@ export type Database = {
           },
         ]
       }
+      organizer_verified_domains: {
+        Row: {
+          created_at: string
+          dns_records: Json | null
+          domain: string
+          id: string
+          organizer_id: string
+          resend_domain_id: string | null
+          sender_email: string | null
+          sender_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dns_records?: Json | null
+          domain: string
+          id?: string
+          organizer_id: string
+          resend_domain_id?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dns_records?: Json | null
+          domain?: string
+          id?: string
+          organizer_id?: string
+          resend_domain_id?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_verified_domains_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizers: {
         Row: {
           active_modules: string[] | null
