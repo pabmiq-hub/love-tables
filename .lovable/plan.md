@@ -1,56 +1,36 @@
 
 
-## Plan: Marca blanca via dominios verificados en Resend
+## Problema identificado
 
-La Opcion 2 permite que los emails salgan desde el dominio real del organizador (ej: `carlos@suempresa.com`) sin necesidad de OAuth ni credenciales de Google. Funciona verificando el dominio del organizador directamente en Resend via API.
+La tabla `organizers` solo tiene 2 registros activos. Los usuarios que ves en la captura (morgan.klaus, jkhipouros, marius.lemaire, etc.) existen en el sistema de autenticacion pero **no tienen registro en la tabla `organizers`**. Esto puede ocurrir por:
 
-### Flujo del organizador
+1. El registro fallo al crear el perfil de organizador (el codigo actual hace `console.error` pero no impide la navegacion)
+2. Los registros de organizador fueron eliminados al cancelarlos, pero los usuarios auth siguen existiendo
 
-1. En su dashboard, sección "Configuracion de email", introduce su dominio (ej: `suempresa.com`)
-2. El sistema llama a la API de Resend para registrar el dominio y obtiene los registros DNS necesarios (DKIM, SPF, etc.)
-3. El organizador (o su equipo IT) añade esos registros DNS en su proveedor de dominio
-4. Una vez verificado, los emails de resultados salen desde `noreply@suempresa.com` o la dirección que el organizador configure
+## Solucion propuesta
 
-### Cambios necesarios
+### 1. Crear Edge Function `list-auth-users`
+Una funcion backend que use el service role para listar usuarios de `auth.users` y cruzarlos con la tabla `organizers`. Devolvera tanto los que tienen perfil como los "huerfanos" (auth user sin organizer record).
 
-**1. Nueva tabla `organizer_verified_domains`**
-- `organizer_id`, `domain`, `resend_domain_id`, `status` (pending/verified/failed), `dns_records` (jsonb con los registros a configurar), `sender_email`, `sender_name`
+### 2. Crear Edge Function `delete-auth-user`
+Para que el Super Admin pueda eliminar usuarios auth huerfanos que no deberian estar en el sistema.
 
-**2. Edge Function `manage-domain`**
-- Accion `add`: llama a Resend API `POST /domains` para registrar dominio, guarda los DNS records
-- Accion `check`: llama a Resend API `GET /domains/{id}` para verificar estado
-- Accion `remove`: elimina el dominio de Resend y de la tabla
+### 3. Añadir seccion "Usuarios Auth" al Super Admin Dashboard
+Una nueva pestaña que muestre todos los usuarios del sistema de autenticacion con:
+- Email, fecha de registro, ultimo login
+- Estado: "Con perfil" o "Sin perfil de organizador"
+- Accion para crear perfil de organizador o eliminar usuario huerfano
 
-**3. Modificar `send-match-emails` y `send-scheduled-emails`**
-- Antes de enviar, consultar si el organizador tiene un dominio verificado
-- Si lo tiene: usar `from: "Nombre <email@sudominio.com>"` en Resend (mismo API key, diferente remitente)
-- Si no: fallback a `Konektum <noreply@konektum.com>`
-
-**4. UI en el dashboard del organizador**
-- Reemplazar el componente `EmailConnectionManager` actual (que era para OAuth) por uno nuevo que:
-  - Permita introducir dominio
-  - Muestre los registros DNS que debe configurar
-  - Tenga boton "Verificar" para comprobar estado
-  - Muestre estado actual (pendiente/verificado)
-
-**5. Limpieza**
-- Eliminar el codigo Gmail OAuth de `send-match-emails` y `send-scheduled-emails` (funciones `sendViaGmail`, `refreshGmailToken`)
-- Eliminar Edge Functions `initiate-oauth` y `oauth-callback`
-- La tabla `organizer_email_connections` se puede reutilizar o reemplazar
-
-### Requisito del organizador
-
-El organizador necesita acceso a la configuracion DNS de su dominio (o que su equipo IT lo haga). Es un proceso estandar: añadir 2-3 registros TXT/CNAME que Resend proporciona.
+### 4. Mejorar el flujo de registro
+Hacer que si falla la creacion del organizador, se muestre un error claro y no se redirija.
 
 ### Archivos a crear/modificar
 
 | Archivo | Accion |
 |---------|--------|
-| Migracion SQL | Crear tabla `organizer_verified_domains` |
-| `supabase/functions/manage-domain/index.ts` | Nueva Edge Function |
-| `supabase/functions/send-match-emails/index.ts` | Reemplazar Gmail OAuth por logica de dominio verificado |
-| `supabase/functions/send-scheduled-emails/index.ts` | Igual |
-| `src/components/email/EmailConnectionManager.tsx` | Reescribir para verificacion de dominios |
-| Eliminar `supabase/functions/initiate-oauth/` | Ya no necesario |
-| Eliminar `supabase/functions/oauth-callback/` | Ya no necesario |
+| `supabase/functions/list-auth-users/index.ts` | Nuevo - lista auth users con status de organizador |
+| `supabase/functions/delete-auth-user/index.ts` | Nuevo - elimina usuario auth huerfano |
+| `src/hooks/useSuperAdmin.ts` | Añadir funciones para cargar/gestionar auth users |
+| `src/pages/SuperAdminDashboard.tsx` | Añadir pestaña "Usuarios" con lista completa |
+| `src/pages/AdminRegister.tsx` | Mejorar manejo de error al crear organizador |
 
