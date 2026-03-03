@@ -116,18 +116,27 @@ export function DashboardAnalytics({ data }: DashboardAnalyticsProps) {
     ];
   }, [events, stats, isPro, participants, mutualMatches]);
 
-  // ========== Demographics ==========
+  // ========== Demographics (deduplicated by global_participant_id) ==========
   const demographics = useMemo(() => {
-    // Gender distribution
     const genderCounts: Record<string, number> = {};
     const ageCounts: Record<string, number> = {};
     
+    // Deduplicate: use the most recent record per global_participant_id
+    const seen = new Map<string, typeof participants[0]>();
     participants.forEach(p => {
+      const key = p.global_participant_id || p.id; // fallback to id if no global
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, p);
+      }
+      // keep the first one (already have it)
+    });
+    
+    seen.forEach(p => {
       if (p.gender) {
         genderCounts[p.gender] = (genderCounts[p.gender] || 0) + 1;
       }
       
-      // Age range
       let ageRange = p.age_range;
       if (!ageRange && p.birth_date) {
         const age = Math.floor((Date.now() - new Date(p.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -147,7 +156,6 @@ export function DashboardAnalytics({ data }: DashboardAnalyticsProps) {
       .map(([name, value]) => ({ name, value, fill: GENDER_COLORS[name] || GENDER_COLORS.Otro }))
       .sort((a, b) => b.value - a.value);
 
-    // Sort age ranges logically
     const ageOrder = ["18-24", "25-29", "30-34", "35-39", "40-49", "50+"];
     const ageData = Object.entries(ageCounts)
       .map(([name, value]) => ({ name, value }))

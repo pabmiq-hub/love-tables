@@ -32,6 +32,7 @@ export interface ParticipantRecord {
   gender: string | null;
   age_range: string | null;
   birth_date: string | null;
+  global_participant_id: string | null;
 }
 
 export interface EncounterRecord {
@@ -108,52 +109,76 @@ const AdminDashboard = () => {
   };
 
   const loadStats = async () => {
-    const { count: uniqueCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true });
-    const { count: returningCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).gt("events_attended", 1);
-    const { count: totalParticipants } = await supabase.from("participants").select("*", { count: "exact", head: true });
-    const { count: submittedCount } = await supabase.from("participants").select("*", { count: "exact", head: true }).not("selection_submitted_at", "is", null);
+    if (!user) return;
+    // Filter by current organizer
+    const { count: uniqueCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).eq("organizer_id", user.id);
+    const { count: returningCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).eq("organizer_id", user.id).gt("events_attended", 1);
+    
+    // Get organizer's event IDs first
+    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id);
+    const eventIds = orgEvents?.map(e => e.id) || [];
+    
+    let totalParticipants = 0;
+    let submittedCount = 0;
+    if (eventIds.length > 0) {
+      const { count: tp } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds);
+      const { count: sc } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds).not("selection_submitted_at", "is", null);
+      totalParticipants = tp || 0;
+      submittedCount = sc || 0;
+    }
 
-    // Calculate mutual matches from selections
-    const { data: allSelections } = await supabase.from("participant_selections").select("selector_id, selected_id");
+    // Calculate mutual matches from selections (filtered by organizer's events)
     let mutualMatches = 0;
-    if (allSelections) {
-      const selSet = new Set(allSelections.map(s => `${s.selector_id}->${s.selected_id}`));
-      const counted = new Set<string>();
-      allSelections.forEach(s => {
-        const reverse = `${s.selected_id}->${s.selector_id}`;
-        const pairKey = [s.selector_id, s.selected_id].sort().join(":");
-        if (selSet.has(reverse) && !counted.has(pairKey)) {
-          counted.add(pairKey);
-          mutualMatches++;
-        }
-      });
+    if (eventIds.length > 0) {
+      const { data: allSelections } = await supabase.from("participant_selections").select("selector_id, selected_id, event_id").in("event_id", eventIds);
+      if (allSelections) {
+        const selSet = new Set(allSelections.map(s => `${s.selector_id}->${s.selected_id}`));
+        const counted = new Set<string>();
+        allSelections.forEach(s => {
+          const reverse = `${s.selected_id}->${s.selector_id}`;
+          const pairKey = [s.selector_id, s.selected_id].sort().join(":");
+          if (selSet.has(reverse) && !counted.has(pairKey)) {
+            counted.add(pairKey);
+            mutualMatches++;
+          }
+        });
+      }
     }
 
     setStats({
       uniqueParticipants: uniqueCount || 0,
       totalConnections: mutualMatches,
       returningParticipants: returningCount || 0,
-      selectionRate: totalParticipants ? Math.round(((submittedCount || 0) / totalParticipants) * 100) : 0,
+      selectionRate: totalParticipants ? Math.round((submittedCount / totalParticipants) * 100) : 0,
     });
   };
 
   const loadAnalyticsData = async () => {
-    // Load participants with event_id and selection info
+    if (!user) return;
+    // Get organizer's event IDs
+    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id);
+    const eventIds = orgEvents?.map(e => e.id) || [];
+    if (eventIds.length === 0) return;
+
+    // Load participants filtered by organizer's events
     const { data: pData } = await supabase
       .from("participants")
-      .select("id, event_id, checked_in, selection_submitted_at, gender, age_range, birth_date");
+      .select("id, event_id, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id")
+      .in("event_id", eventIds);
     if (pData) setParticipants(pData);
 
-    // Load encounters grouped by event
+    // Load encounters filtered by organizer
     const { data: eData } = await supabase
       .from("participant_encounters")
-      .select("event_id");
+      .select("event_id")
+      .eq("organizer_id", user.id);
     if (eData) setEncounters(eData);
 
-    // Load selections grouped by event
+    // Load selections filtered by organizer's events
     const { data: sData } = await supabase
       .from("participant_selections")
-      .select("event_id, selector_id, selected_id");
+      .select("event_id, selector_id, selected_id")
+      .in("event_id", eventIds);
     if (sData) setSelections(sData);
   };
 
