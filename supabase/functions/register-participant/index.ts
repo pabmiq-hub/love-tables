@@ -34,10 +34,8 @@ async function generateUniqueCode(supabase: any): Promise<string> {
   const maxAttempts = 10;
   
   while (attempts < maxAttempts) {
-    // Generate 6-digit code (100000 - 999999)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Check if code already exists
     const { data: existing } = await supabase
       .from('participants')
       .select('id')
@@ -56,18 +54,15 @@ async function generateUniqueCode(supabase: any): Promise<string> {
 
 // Calculate age range from birth date
 function parseRange(range: any): { label: string; min: number; max: number } | null {
-  // Already an object with min/max
   if (typeof range === 'object' && range !== null && range.min !== undefined) {
     return { label: range.label || String(range.min), min: range.min, max: range.max ?? 100 };
   }
   const str = String(range);
-  // Handle "+" formats: "41+", "+ 50", "50+"
   if (str.includes('+')) {
     const num = parseInt(str.replace(/[^0-9]/g, ''));
     if (isNaN(num)) return null;
     return { label: str, min: num, max: 100 };
   }
-  // Handle "18-24" or "18–24" formats
   const parts = str.replace(/–/g, '-').split('-').map(n => parseInt(n.trim()));
   if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
     return { label: str, min: parts[0], max: parts[1] };
@@ -98,19 +93,6 @@ function calculateAgeRange(birthDate: string, customAgeRanges: any[] | null): st
   return "Otro";
 }
 
-interface RegistrationRequest {
-  eventId: string;
-  name: string;
-  email: string;
-  phone: string;
-  gender: string;
-  birthDate: string;
-  preference?: string;
-  datingPreference?: string;
-  preferredAgeRange?: string;
-  isReturningParticipant: boolean;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -131,12 +113,143 @@ serve(async (req) => {
       );
     }
 
-    const body: RegistrationRequest = await req.json();
+    const body = await req.json();
+    const isProfessional = body.isProfessional === true;
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ─── PROFESSIONAL B2B REGISTRATION ───
+    if (isProfessional) {
+      const { eventId, name, email, phone, entityType, companyName, sector, companySize, needs, solutions } = body;
+
+      console.log(`[register-participant] B2B registration for event: ${eventId}, name: ${name}, type: ${entityType}`);
+
+      if (!eventId || !name || !email || !phone || !entityType || !companyName || !sector || !companySize) {
+        return new Response(
+          JSON.stringify({ error: 'Faltan campos obligatorios' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(eventId)) {
+        return new Response(
+          JSON.stringify({ error: 'Formato de evento inválido' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return new Response(
+          JSON.stringify({ error: 'Formato de email inválido' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!['client', 'provider'].includes(entityType)) {
+        return new Response(
+          JSON.stringify({ error: 'Tipo de entidad inválido' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get event
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('id, name, status, date, module, organizer_id')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError || !event) {
+        return new Response(
+          JSON.stringify({ error: 'Evento no encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (event.status !== 'pending') {
+        return new Response(
+          JSON.stringify({ error: 'Las inscripciones para este evento están cerradas' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check duplicate email
+      const { data: existingParticipant } = await supabase
+        .from('participants')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (existingParticipant) {
+        return new Response(
+          JSON.stringify({ error: 'Ya estás registrado en este evento' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Auto check-in if event is within 1 hour
+      const eventDate = new Date(event.date);
+      const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
+      const shouldAutoCheckin = new Date() >= oneHourBefore;
+
+      let verificationCode: string | null = null;
+      if (shouldAutoCheckin) {
+        verificationCode = await generateUniqueCode(supabase);
+      }
+
+      // Insert participant with B2B fields
+      const { data: participant, error: insertError } = await supabase
+        .from('participants')
+        .insert({
+          event_id: eventId,
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          phone: phone.trim(),
+          entity_type: entityType,
+          company_name: companyName.trim(),
+          sector: sector,
+          company_size: companySize,
+          needs: needs || [],
+          solutions: solutions || [],
+          verification_code: verificationCode,
+          checked_in: shouldAutoCheckin,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('[register-participant] Error inserting B2B participant:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Error al registrar participante' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await supabase.rpc('increment_participants', { event_id: eventId });
+
+      console.log(`[register-participant] B2B participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          participantId: participant.id,
+          verificationCode: shouldAutoCheckin ? verificationCode : null,
+          autoCheckedIn: shouldAutoCheckin,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ─── SOCIAL REGISTRATION (existing flow) ───
     const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant } = body;
     
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
-    // Validate required fields
     if (!eventId || !name || !email || !phone || !gender || !birthDate || !preference) {
       return new Response(
         JSON.stringify({ error: 'Faltan campos obligatorios (incluyendo preferencia)' }),
@@ -144,7 +257,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(eventId)) {
       return new Response(
@@ -153,7 +265,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return new Response(
@@ -162,7 +273,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate birth date format and age
     const birthDateObj = new Date(birthDate);
     if (isNaN(birthDateObj.getTime())) {
       return new Response(
@@ -185,11 +295,6 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get event details
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id')
@@ -211,10 +316,8 @@ serve(async (req) => {
       );
     }
 
-    // Calculate age range
     const ageRange = calculateAgeRange(birthDate, event.custom_age_ranges as any[] | null);
 
-    // Check quota limits if enabled
     if (event.registration_requirements_enabled && event.slot_quotas) {
       const quotas = event.slot_quotas as any[];
       const matchingQuota = quotas.find(
@@ -222,7 +325,6 @@ serve(async (req) => {
       );
 
       if (matchingQuota) {
-        // Count current registrations for this quota
         const { count: currentCount } = await supabase
           .from('participants')
           .select('id', { count: 'exact', head: true })
@@ -244,7 +346,6 @@ serve(async (req) => {
       }
     }
 
-    // Check if participant already registered with this email
     const { data: existingParticipant } = await supabase
       .from('participants')
       .select('id')
@@ -259,18 +360,15 @@ serve(async (req) => {
       );
     }
 
-    // Check if event starts within 1 hour - auto check-in with code
     const eventDate = new Date(event.date);
     const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
     const shouldAutoCheckin = new Date() >= oneHourBefore;
 
-    // Only generate code if auto check-in (event is imminent)
     let verificationCode: string | null = null;
     if (shouldAutoCheckin) {
       verificationCode = await generateUniqueCode(supabase);
     }
 
-    // Check if this participant has attended previous events from this organizer
     let isActuallyReturning = false;
     if (event.organizer_id) {
       const { data: globalParticipant } = await supabase
@@ -285,7 +383,6 @@ serve(async (req) => {
       }
     }
 
-    // Create participant - NO verification_code unless auto check-in
     const { data: participant, error: insertError } = await supabase
       .from('participants')
       .insert({
@@ -314,17 +411,15 @@ serve(async (req) => {
       );
     }
 
-    // Increment participants count
     await supabase.rpc('increment_participants', { event_id: eventId });
 
     console.log(`[register-participant] Participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
-    // Return success with participant info
     return new Response(
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: shouldAutoCheckin ? verificationCode : null, // Only return code if auto check-in
+        verificationCode: shouldAutoCheckin ? verificationCode : null,
         autoCheckedIn: shouldAutoCheckin,
         isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 

@@ -14,6 +14,7 @@ import MultiSelectAge from "@/components/ui/multi-select-age";
 import { supabase } from "@/integrations/supabase/client";
 import { translations, Language } from "@/i18n/translations";
 import { AGE_RANGES } from "@/lib/excelParser";
+import B2BRegistrationForm, { B2BFormData } from "@/components/registration/B2BRegistrationForm";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -82,6 +83,10 @@ const ParticipantJoin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Event module type
+  const [eventModule, setEventModule] = useState<string>("social");
+  const [professionalConfig, setProfessionalConfig] = useState<any>(null);
+
   // Event language
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
@@ -134,7 +139,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config")
         .eq("id", eventId)
         .single();
 
@@ -157,6 +162,12 @@ const ParticipantJoin = () => {
       setEventLocation((data as any).event_location || null);
       setRegistrationSubtitle(data.registration_subtitle || null);
       setRegistrationDescription(data.registration_description || null);
+      
+      // Set module type
+      setEventModule(data.module || "social");
+      if (data.professional_config) {
+        setProfessionalConfig(data.professional_config);
+      }
       
       // Set event language
       const lang: Language = (data.language === 'en' || data.language === 'es') ? data.language as Language : 'es';
@@ -425,6 +436,64 @@ const ParticipantJoin = () => {
     setIsSubmitting(false);
   };
 
+  // B2B professional submit handler
+  const handleB2BSubmit = async (data: B2BFormData) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const b2b = (t as any).b2b || translations.es.b2b;
+    
+    if (!data.name || !data.email || !data.phone || !data.entityType || !data.companyName || !data.sector || !data.companySize) {
+      toast({ title: "Error", description: b2b.errorMissingFields, variant: "destructive" });
+      return;
+    }
+    if (!emailRegex.test(data.email)) {
+      toast({ title: "Error", description: b2b.errorInvalidEmail, variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setEmail(data.email); // for success screen
+
+    const { data: result, error } = await supabase.functions.invoke('register-participant', {
+      body: {
+        eventId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        entityType: data.entityType,
+        companyName: data.companyName,
+        sector: data.sector,
+        companySize: data.companySize,
+        needs: data.needs,
+        solutions: data.solutions,
+        isProfessional: true,
+      }
+    });
+
+    if (error || result?.error) {
+      let errorMessage = b2b.errorMissingFields;
+      if (result?.error) errorMessage = result.error;
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const baseUrl = window.location.origin;
+    if (result.autoCheckedIn && result.verificationCode) {
+      await supabase.functions.invoke('send-checkin-code', {
+        body: { participantId: result.participantId, eventId, baseUrl }
+      });
+      setVerificationCode(result.verificationCode);
+    } else {
+      await supabase.functions.invoke('send-registration-confirmation', {
+        body: { participantId: result.participantId, eventId }
+      });
+    }
+
+    setAutoCheckedIn(result.autoCheckedIn);
+    setIsSubmitted(true);
+    setIsSubmitting(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -432,7 +501,6 @@ const ParticipantJoin = () => {
       </div>
     );
   }
-
   if (!eventExists) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -527,6 +595,29 @@ const ParticipantJoin = () => {
             <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} className="h-10 w-auto mx-auto" />
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // B2B Professional form
+  if (eventModule === "professional") {
+    return (
+      <div className="min-h-screen bg-background">
+        <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
+        <main className="container mx-auto px-4 py-8 max-w-md">
+          <B2BRegistrationForm
+            eventName={eventName}
+            eventDate={eventDate}
+            eventTime={eventTime}
+            eventLocation={eventLocation}
+            eventLang={eventLang}
+            registrationSubtitle={registrationSubtitle}
+            registrationDescription={registrationDescription}
+            professionalConfig={professionalConfig}
+            isSubmitting={isSubmitting}
+            onSubmit={handleB2BSubmit}
+          />
+        </main>
       </div>
     );
   }

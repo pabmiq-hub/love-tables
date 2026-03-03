@@ -3980,6 +3980,8 @@ const EventDetail = () => {
                 customGenders={eventData.custom_genders}
                 customPreferences={eventData.custom_preferences}
                 customDatingPreferences={eventData.custom_dating_preferences}
+                module={eventData.module}
+                professionalConfig={eventData.professional_config}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
