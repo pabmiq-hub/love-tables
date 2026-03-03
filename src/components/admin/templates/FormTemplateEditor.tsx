@@ -3,11 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Loader2, Copy, History, Pencil, FileText } from "lucide-react";
+import { Plus, Trash2, Loader2, Copy, History, Pencil, FileText, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +45,7 @@ interface Template {
   is_default: boolean;
   version: number;
   updated_at: string;
+  is_platform?: boolean;
 }
 
 const DEFAULT_B2B_CONTENT: FormTemplateContent = {
@@ -64,6 +63,47 @@ const DEFAULT_SOCIAL_CONTENT: FormTemplateContent = {
   sectors: [], companySizes: [], predefinedNeeds: [], predefinedSolutions: [],
 };
 
+const PLATFORM_FORM_TEMPLATES: Template[] = [
+  {
+    id: "platform-b2b-standard",
+    name: "B2B Networking Estándar",
+    description: "Formulario profesional con datos de empresa, sector, necesidades y soluciones. Ideal para eventos de networking B2B.",
+    subtype: "professional",
+    content: DEFAULT_B2B_CONTENT,
+    is_default: true,
+    version: 1,
+    updated_at: "",
+    is_platform: true,
+  },
+  {
+    id: "platform-social-standard",
+    name: "Speed Dating Social",
+    description: "Formulario social con género, fecha de nacimiento, preferencias y rango de edad. Para eventos de citas rápidas.",
+    subtype: "social",
+    content: DEFAULT_SOCIAL_CONTENT,
+    is_default: true,
+    version: 1,
+    updated_at: "",
+    is_platform: true,
+  },
+  {
+    id: "platform-b2b-simple",
+    name: "B2B Simplificado",
+    description: "Formulario profesional simplificado: solo datos de contacto, empresa y sector, sin necesidades/soluciones.",
+    subtype: "professional",
+    content: {
+      ...DEFAULT_B2B_CONTENT,
+      fields: { ...DEFAULT_B2B_CONTENT.fields, needs: false, solutions: false },
+      predefinedNeeds: [],
+      predefinedSolutions: [],
+    },
+    is_default: true,
+    version: 1,
+    updated_at: "",
+    is_platform: true,
+  },
+];
+
 export function FormTemplateEditor() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +112,6 @@ export function FormTemplateEditor() {
   const { organizer } = useOrganizer();
   const { toast } = useToast();
 
-  // Edit form state
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editContent, setEditContent] = useState<FormTemplateContent>(DEFAULT_B2B_CONTENT);
@@ -106,11 +145,24 @@ export function FormTemplateEditor() {
     setEditContent(t.content);
   };
 
+  const handleCustomizePlatform = async (t: Template) => {
+    const { error } = await supabase.from("organizer_templates").insert({
+      organizer_id: organizer!.id,
+      type: "registration_form",
+      subtype: t.subtype,
+      name: `${t.name} (personalizada)`,
+      description: t.description,
+      content: t.content as any,
+    });
+    if (error) { toast({ title: "Error", description: "No se pudo crear la copia", variant: "destructive" }); return; }
+    toast({ title: "Plantilla personalizada creada", description: "Ya puedes editarla a tu gusto" });
+    loadTemplates();
+  };
+
   const handleSave = async () => {
     if (!editName.trim()) { toast({ title: "Error", description: "El nombre es obligatorio", variant: "destructive" }); return; }
     
     if (editing?.id) {
-      // Save version history
       await supabase.from("template_versions").insert({
         template_id: editing.id,
         version: editing.version,
@@ -251,7 +303,7 @@ export function FormTemplateEditor() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex gap-2">
         <Button size="sm" onClick={() => startCreate("professional")}>
           <Plus className="h-4 w-4 mr-1" /> Profesional
@@ -261,37 +313,65 @@ export function FormTemplateEditor() {
         </Button>
       </div>
 
-      {templates.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p>No hay plantillas de formulario. Crea la primera.</p>
-          </CardContent>
-        </Card>
-      ) : (
+      {/* Platform default templates */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold text-foreground">Plantillas de la plataforma</h4>
+        </div>
+        <p className="text-xs text-muted-foreground">Estas son las plantillas que la plataforma usa por defecto. Puedes personalizarlas para adaptarlas a tus eventos.</p>
         <div className="space-y-2">
-          {templates.map((t) => (
-            <Card key={t.id} className="hover:bg-muted/30 transition-colors">
+          {PLATFORM_FORM_TEMPLATES.map((t) => (
+            <Card key={t.id} className="border-dashed border-primary/30 bg-primary/5">
               <CardContent className="py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  <Sparkles className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium text-sm">{t.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-xs">{t.subtype === "professional" ? "Profesional" : "Social"}</Badge>
-                      <span className="text-xs text-muted-foreground">v{t.version} · {new Date(t.updated_at).toLocaleDateString("es-ES")}</span>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{t.name}</p>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Plataforma</Badge>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 max-w-md">{t.description}</p>
+                    <Badge variant="outline" className="text-xs mt-1">{t.subtype === "professional" ? "Profesional" : "Social"}</Badge>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(t)}><Copy className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setHistoryTemplate(t)}><History className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                </div>
+                <Button size="sm" variant="outline" onClick={() => handleCustomizePlatform(t)}>
+                  <Copy className="h-3.5 w-3.5 mr-1" /> Personalizar
+                </Button>
               </CardContent>
             </Card>
           ))}
+        </div>
+      </div>
+
+      {/* User templates */}
+      {templates.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-foreground">Tus plantillas</h4>
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <Card key={t.id} className="hover:bg-muted/30 transition-colors">
+                <CardContent className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium text-sm">{t.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-xs">{t.subtype === "professional" ? "Profesional" : "Social"}</Badge>
+                        <span className="text-xs text-muted-foreground">v{t.version} · {new Date(t.updated_at).toLocaleDateString("es-ES")}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(t)}><Copy className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setHistoryTemplate(t)}><History className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
