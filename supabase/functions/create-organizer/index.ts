@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -94,14 +94,13 @@ Deno.serve(async (req) => {
 
     const userId = newUser.user.id;
 
-    // 2. Assign admin role in user_roles
-    const { error: roleError } = await adminClient
+    // 2. Ensure admin role in user_roles (handle_new_user trigger may have already inserted it)
+    await adminClient
       .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
-
-    if (roleError) {
-      console.error("Error assigning role:", roleError);
-    }
+      .upsert(
+        { user_id: userId, role: "admin" },
+        { onConflict: "user_id,role" }
+      );
 
     // 3. Create organizer profile
     const { data: organizer, error: orgError } = await adminClient
@@ -133,18 +132,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Send welcome email via Resend
+    // 4. Send welcome email via Resend (non-blocking)
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (resendApiKey) {
       try {
-        const escapedCompany = (company_name || "").replace(/[&<>"']/g, (c: string) => 
+        const escapedCompany = (company_name || "").replace(/[&<>"']/g, (c: string) =>
           ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
-        const escapedEmail = email.replace(/[&<>"']/g, (c: string) => 
+        const escapedEmail = email.replace(/[&<>"']/g, (c: string) =>
           ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
 
         const loginUrl = "https://love-tables.lovable.app/admin/login";
 
-        await fetch("https://api.resend.com/emails", {
+        const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -177,7 +176,12 @@ Deno.serve(async (req) => {
             `,
           }),
         });
-        console.log("Welcome email sent to:", email);
+        if (emailRes.ok) {
+          console.log("Welcome email sent to:", email);
+        } else {
+          const errText = await emailRes.text();
+          console.error("Resend error:", errText);
+        }
       } catch (emailErr) {
         console.error("Error sending welcome email (non-blocking):", emailErr);
       }
