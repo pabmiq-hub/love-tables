@@ -33,7 +33,7 @@ const CreateEvent = () => {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const { hasFeature, isSuperAdmin } = useFeatures();
-  const { hasModule, organizer, loading: organizerLoading, branding } = useOrganizer();
+  const { hasModule, organizer, loading: organizerLoading, branding, canCreateEvent: canCreateNewEvent, limits } = useOrganizer();
 
   // Detect available modules
   const hasSocialModule = hasModule("social") || isSuperAdmin;
@@ -207,6 +207,16 @@ const CreateEvent = () => {
       toast({
         title: "Error",
         description: "Debes iniciar sesión para crear un evento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check event limits
+    if (!isSuperAdmin && !canCreateNewEvent()) {
+      toast({
+        title: "Límite alcanzado",
+        description: `Has alcanzado el máximo de ${limits?.maxActiveEvents} eventos activos de tu plan. Mejora tu plan para crear más eventos.`,
         variant: "destructive",
       });
       return;

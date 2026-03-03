@@ -1,4 +1,4 @@
-import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut } from "lucide-react";
+import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,8 +12,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { BrandedLogo } from "@/components/BrandedHeader";
+import { useFeatures } from "@/hooks/useFeatures";
 
 export type DashboardSection = "home" | "events" | "analytics" | "email" | "account" | "branding";
+
+// Map sidebar items to feature codes (null means always visible)
+const featureMap: Partial<Record<DashboardSection, string>> = {
+  analytics: "analytics",
+  email: "auto_emails",
+  branding: "custom_branding",
+};
 
 interface AdminSidebarProps {
   activeSection: DashboardSection;
@@ -38,6 +46,7 @@ const navItems: { id: DashboardSection; label: string; icon: typeof Home }[] = [
 export function AdminSidebar({ activeSection, onSelect, branding, onLogout }: AdminSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { hasFeature, isSuperAdmin } = useFeatures();
 
   const allItems = branding.isProfessionalOnly
     ? [...navItems, { id: "branding" as DashboardSection, label: "Marca blanca", icon: Palette }]
@@ -60,18 +69,25 @@ export function AdminSidebar({ activeSection, onSelect, branding, onLogout }: Ad
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {allItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    isActive={activeSection === item.id}
-                    onClick={() => onSelect(item.id)}
-                    tooltip={item.label}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {allItems.map((item) => {
+                const requiredFeature = featureMap[item.id];
+                const isLocked = requiredFeature && !hasFeature(requiredFeature) && !isSuperAdmin;
+
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      isActive={activeSection === item.id}
+                      onClick={() => !isLocked && onSelect(item.id)}
+                      tooltip={isLocked ? `${item.label} — Disponible en planes superiores` : item.label}
+                      className={isLocked ? "opacity-50 cursor-not-allowed" : ""}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                      {isLocked && <Lock className="h-3 w-3 ml-auto shrink-0 text-muted-foreground" />}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
