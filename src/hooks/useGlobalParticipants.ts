@@ -57,16 +57,18 @@ export function useGlobalParticipants() {
       }
 
       if (existing) {
-        // Update events_attended counter
+        // Count distinct events this participant has attended
+        const { data: eventRows } = await supabase
+          .from('participants')
+          .select('event_id')
+          .eq('global_participant_id', existing.id);
+        const distinctEvents = new Set(eventRows?.map(r => r.event_id) || []).size;
+        
         await supabase
           .from('global_participants')
           .update({ 
-            events_attended: (await supabase
-              .from('global_participants')
-              .select('events_attended')
-              .eq('id', existing.id)
-              .single()).data?.events_attended + 1 || 1,
-            display_name: displayName // Update name in case it changed
+            events_attended: distinctEvents || 1,
+            display_name: displayName
           })
           .eq('id', existing.id);
 
