@@ -1,64 +1,55 @@
 
 
-## Plan: Panel de organizador profesional en formato marca blanca
+## Plan: Flujo de alta de organizador marca blanca desde Super Admin
 
-### Contexto actual
+### Situación actual
+El Super Admin solo puede:
+- Aprobar organizadores que se auto-registran
+- Crear perfil de organizador para usuarios auth existentes sin perfil
 
-El panel del organizador muestra branding de Konektum en **todas partes**: logo en headers, estadísticas con terminología social ("Tasa de selección", "Conexiones realizadas"), y todas las páginas de participantes usan `konektumLogo`. Las plantillas de email profesionales también llevan "Konektum Business" hardcodeado.
+No puede crear un organizador marca blanca de cero (usuario + perfil + configuración profesional).
 
-Para un organizador **professional-only en marca blanca**, todo esto debe adaptarse para mostrar su propia identidad.
+### Cambios propuestos
 
-### Cambios necesarios
+#### 1. Botón "Crear organizador" en SuperAdminDashboard
+Añadir un botón en la pestaña de Organizadores que abra un modal/dialog con un formulario:
+- Email del organizador
+- Contraseña temporal
+- Nombre de empresa
+- Teléfono de contacto (opcional)
+- Selector de plan
+- Selector de módulos (con preset "Solo Profesional / Marca Blanca")
+- Estado inicial: activo (sin necesidad de aprobación)
 
-#### 1. Almacenamiento del logo del organizador
-- Crear un **storage bucket** `organizer-logos` en Lovable Cloud
-- Añadir columna `logo_url` a la tabla `organizers` (migration)
-- Añadir UI en el dashboard del organizador para subir su logo
+#### 2. Edge function `create-organizer` 
+Nueva función que usa el service role para:
+- Crear usuario en `auth.users` con `email_confirm: true`
+- Asignar rol `admin` en `user_roles`
+- Crear perfil en `organizers` con los datos proporcionados (plan, módulos, estado activo)
+- Devolver credenciales al Super Admin para comunicarlas al organizador
 
-#### 2. Hook `useOrganizer` - exponer branding
-- Añadir al hook un método que devuelva el logo URL y nombre de empresa
-- Crear helper `getOrganizerBranding()` que devuelva `{ logoUrl, companyName, isProfessionalOnly, isWhiteLabel }`
-
-#### 3. Componente `BrandedHeader` reutilizable
-- Nuevo componente que renderiza el logo del organizador si es marca blanca, o el logo de Konektum si no
-- Se usará en: `AdminDashboard`, `CreateEvent`, `EventDetail`
-
-#### 4. Dashboard adaptado al módulo profesional
-- **Estadísticas**: Cambiar "Conexiones realizadas" → "Reuniones B2B", "Tasa de selección" → "Contactos generados", "Repiten evento" → "Empresas recurrentes"
-- **Badges de módulo**: No mostrar badge "Profesional" si es el único módulo (redundante)
-- **Header**: Usar logo del organizador en lugar de Konektum
-
-#### 5. Páginas de participantes - marca blanca
-- `ParticipantJoin`, `ParticipantCheckin`, `ParticipantSelect`, `ParticipantTables`: cargar el branding del organizador del evento y usar su logo en vez de Konektum
-- Requiere una consulta al organizer del evento (via `organizer_id` → `organizers.logo_url`)
-
-#### 6. Emails profesionales - marca blanca
-- Modificar `send-match-emails` y `send-scheduled-emails`: si el organizador tiene `logo_url` y dominio verificado, usar su nombre de empresa en headers y firma en lugar de "Konektum Business"
-- El `from` ya se adapta via dominio verificado; falta adaptar el contenido HTML
+#### 3. Preset "Marca Blanca Profesional"
+En el formulario de creación, un checkbox o preset que automáticamente:
+- Selecciona solo el módulo `professional`
+- Marca un campo visual indicando que es marca blanca
+- El organizador, una vez logado, puede subir su logo desde su dashboard (ya implementado)
 
 ### Archivos a crear/modificar
 
 | Archivo | Acción |
 |---------|--------|
-| **Migration SQL** | Añadir `logo_url` a `organizers`, crear bucket `organizer-logos` |
-| `src/components/BrandedHeader.tsx` | Nuevo - header con logo dinámico |
-| `src/hooks/useOrganizer.ts` | Añadir `branding` al return |
-| `src/hooks/useEventBranding.ts` | Nuevo - carga branding del organizador de un evento (para páginas de participantes) |
-| `src/pages/AdminDashboard.tsx` | Usar `BrandedHeader`, adaptar stats a módulo profesional, añadir upload de logo |
-| `src/pages/CreateEvent.tsx` | Usar `BrandedHeader` |
-| `src/pages/EventDetail.tsx` | Usar `BrandedHeader` |
-| `src/pages/ParticipantJoin.tsx` | Usar `useEventBranding` para logo dinámico |
-| `src/pages/ParticipantCheckin.tsx` | Usar `useEventBranding` para logo dinámico |
-| `src/pages/ParticipantSelect.tsx` | Usar `useEventBranding` para logo dinámico |
-| `src/pages/ParticipantTables.tsx` | Usar `useEventBranding` para logo dinámico |
-| `supabase/functions/send-match-emails/index.ts` | Cargar branding del organizador, sustituir "Konektum Business" |
+| `supabase/functions/create-organizer/index.ts` | Nuevo - crea usuario + perfil desde service role |
+| `src/pages/SuperAdminDashboard.tsx` | Añadir botón + modal de creación |
+| `src/hooks/useSuperAdmin.ts` | Añadir método `createNewOrganizer()` |
 
-### Flujo de datos para participantes
+### Flujo resultante
 
 ```text
-Participante accede → /event/:id/join
-  → Carga evento → evento.organizer_id
-    → Consulta organizers (logo_url, company_name)
-      → Muestra logo del organizador o Konektum como fallback
+Super Admin → "Crear organizador" → Formulario
+  → Selecciona "Marca Blanca Profesional"
+  → Rellena email, contraseña, empresa, plan
+  → Edge function crea auth user + organizer (activo)
+  → Super Admin comunica credenciales al organizador
+  → Organizador inicia sesión → sube logo → marca blanca activa
 ```
 
