@@ -261,7 +261,7 @@ export function DashboardHome({
           </CardContent>
         </Card>
 
-        {/* Connections */}
+        {/* Matches */}
         <Card>
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
@@ -271,7 +271,7 @@ export function DashboardHome({
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.totalConnections}</p>
-              <p className="text-xs text-muted-foreground">{isPro ? "Reuniones B2B" : "Conexiones"}</p>
+              <p className="text-xs text-muted-foreground">{isPro ? "Reuniones B2B" : "Matches mutuos"}</p>
             </div>
           </CardContent>
         </Card>
