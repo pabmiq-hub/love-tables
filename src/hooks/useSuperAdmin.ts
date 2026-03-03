@@ -486,6 +486,27 @@ export function useSuperAdmin() {
     }
   };
 
+  const createNewOrganizer = async (data: {
+    email: string;
+    password: string;
+    company_name: string;
+    contact_phone: string;
+    plan_id: string;
+    active_modules: string[];
+  }): Promise<{ success: boolean; email?: string; error?: string }> => {
+    try {
+      const { data: result, error } = await supabase.functions.invoke("create-organizer", {
+        body: data,
+      });
+      if (error) throw error;
+      if (result?.error) return { success: false, error: result.error };
+      await Promise.all([loadAuthUsers(), loadOrganizers(), loadMetrics()]);
+      return { success: true, email: result.email };
+    } catch (err: any) {
+      console.error("Error creating new organizer:", err);
+      return { success: false, error: err.message || "Error desconocido" };
+    }
+  };
   return {
     isSuperAdmin,
     loading,
@@ -514,6 +535,7 @@ export function useSuperAdmin() {
     getOrganizerEffectiveFeatures,
     deleteAuthUser,
     createOrganizerForUser,
+    createNewOrganizer,
     refresh: async () => {
       await Promise.all([
         loadOrganizers(),
