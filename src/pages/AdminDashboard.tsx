@@ -24,6 +24,37 @@ interface Event {
   module: string | null;
 }
 
+export interface ParticipantRecord {
+  id: string;
+  event_id: string;
+  checked_in: boolean | null;
+  selection_submitted_at: string | null;
+}
+
+export interface EncounterRecord {
+  event_id: string;
+}
+
+export interface SelectionRecord {
+  event_id: string;
+  selector_id: string;
+  selected_id: string;
+}
+
+export interface AnalyticsData {
+  events: Event[];
+  stats: {
+    uniqueParticipants: number;
+    totalConnections: number;
+    returningParticipants: number;
+    selectionRate: number;
+  };
+  participants: ParticipantRecord[];
+  encounters: EncounterRecord[];
+  selections: SelectionRecord[];
+  isPro: boolean;
+}
+
 const AdminDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +65,9 @@ const AdminDashboard = () => {
     returningParticipants: 0,
     selectionRate: 0,
   });
+  const [participants, setParticipants] = useState<ParticipantRecord[]>([]);
+  const [encounters, setEncounters] = useState<EncounterRecord[]>([]);
+  const [selections, setSelections] = useState<SelectionRecord[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signOut } = useAuth();
@@ -85,10 +119,31 @@ const AdminDashboard = () => {
     });
   };
 
+  const loadAnalyticsData = async () => {
+    // Load participants with event_id and selection info
+    const { data: pData } = await supabase
+      .from("participants")
+      .select("id, event_id, checked_in, selection_submitted_at");
+    if (pData) setParticipants(pData);
+
+    // Load encounters grouped by event
+    const { data: eData } = await supabase
+      .from("participant_encounters")
+      .select("event_id");
+    if (eData) setEncounters(eData);
+
+    // Load selections grouped by event
+    const { data: sData } = await supabase
+      .from("participant_selections")
+      .select("event_id, selector_id, selected_id");
+    if (sData) setSelections(sData);
+  };
+
   useEffect(() => {
     if (user && (isActive || isSuperAdmin)) {
       loadEvents();
       loadStats();
+      loadAnalyticsData();
     }
   }, [user, isActive, isSuperAdmin]);
 
@@ -118,6 +173,15 @@ const AdminDashboard = () => {
     );
   }
 
+  const analyticsData: AnalyticsData = {
+    events,
+    stats,
+    participants,
+    encounters,
+    selections,
+    isPro,
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case "home":
@@ -125,7 +189,7 @@ const AdminDashboard = () => {
       case "events":
         return <DashboardEvents events={events} isPro={isPro} onDeleteEvent={handleDeleteEvent} />;
       case "analytics":
-        return <DashboardAnalytics events={events} stats={stats} isPro={isPro} />;
+        return <DashboardAnalytics data={analyticsData} />;
       case "email":
         return <DashboardEmail />;
       case "account":
@@ -148,7 +212,6 @@ const AdminDashboard = () => {
         />
 
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Top bar */}
           <header className="h-14 border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40 flex items-center px-4 gap-3">
             <SidebarTrigger />
             <span className="text-sm text-muted-foreground truncate">
@@ -156,8 +219,7 @@ const AdminDashboard = () => {
             </span>
           </header>
 
-          {/* Content */}
-          <main className="flex-1 p-6 md:p-8 max-w-5xl">
+          <main className="flex-1 p-6 md:p-8 max-w-6xl">
             {renderSection()}
           </main>
         </div>
