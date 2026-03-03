@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.create-organizer]
 verify_jwt = false
+
+[functions.notify-organizer]
+verify_jwt = false

@@ -222,6 +222,21 @@ export function useSuperAdmin() {
 
       if (error) throw error;
       await loadOrganizers();
+
+      // Send notification email for approval or suspension
+      if (status === "active" || status === "suspended") {
+        try {
+          await supabase.functions.invoke("notify-organizer", {
+            body: {
+              organizer_id: organizerId,
+              notification_type: status === "active" ? "approved" : "suspended",
+            },
+          });
+        } catch (emailErr) {
+          console.error("Error sending notification email:", emailErr);
+        }
+      }
+
       return true;
     } catch (err) {
       console.error("Error updating organizer status:", err);
