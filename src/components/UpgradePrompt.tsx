@@ -46,7 +46,7 @@ export function UpgradePrompt({
             </li>
           ))}
         </ul>
-        <Button onClick={onUpgrade} className="w-full">
+        <Button onClick={onUpgrade || (() => window.open("/#pricing", "_blank"))} className="w-full">
           <Sparkles className="h-4 w-4 mr-2" />
           Ver planes disponibles
         </Button>
@@ -68,7 +68,7 @@ export function InlineUpgrade({
     <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
       <Sparkles className="h-4 w-4 text-primary" />
       <span>{message}</span>
-      <Button variant="link" size="sm" className="h-auto p-0" onClick={onUpgrade}>
+      <Button variant="link" size="sm" className="h-auto p-0" onClick={onUpgrade || (() => window.open("/#pricing", "_blank"))}>
         Mejorar
       </Button>
     </div>

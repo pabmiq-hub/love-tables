@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { useFeatures } from "@/hooks/useFeatures";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar, type DashboardSection } from "@/components/admin/AdminSidebar";
 import { DashboardHome } from "@/components/admin/DashboardHome";
@@ -225,6 +226,8 @@ const AdminDashboard = () => {
     isPro,
   };
 
+  const { hasFeature } = useFeatures();
+
   const renderSection = () => {
     switch (activeSection) {
       case "home":
@@ -232,12 +235,21 @@ const AdminDashboard = () => {
       case "events":
         return <DashboardEvents events={events} isPro={isPro} onDeleteEvent={handleDeleteEvent} />;
       case "analytics":
+        if (!hasFeature("analytics") && !isSuperAdmin) {
+          return <UpgradePrompt title="Analítica avanzada" description="Accede a estadísticas detalladas de tus eventos, participantes y matches" onUpgrade={() => window.open("/#pricing", "_blank")} />;
+        }
         return <DashboardAnalytics data={analyticsData} />;
       case "email":
+        if (!hasFeature("auto_emails") && !isSuperAdmin) {
+          return <UpgradePrompt title="Gestión de email avanzada" description="Configura tu dominio propio y envía emails personalizados desde tu marca" onUpgrade={() => window.open("/#pricing", "_blank")} />;
+        }
         return <DashboardEmail />;
       case "account":
         return <DashboardAccount user={user} organizer={organizer} plan={plan} branding={branding} onRefresh={refreshOrganizer} />;
       case "branding":
+        if (!hasFeature("custom_branding") && !isSuperAdmin) {
+          return <UpgradePrompt title="Marca blanca" description="Personaliza la experiencia completa con tu propia marca, colores y logo" onUpgrade={() => window.open("/#pricing", "_blank")} />;
+        }
         return <DashboardBranding />;
       default:
         return null;

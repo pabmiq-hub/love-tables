@@ -2601,16 +2601,34 @@ const EventDetail = () => {
                 </>
               )}
               {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowExclusionsManager(true)}>
-                      <Ban className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Exclusiones</span>
-                      {exclusions.length > 0 && <span className="ml-1">({exclusions.length})</span>}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="sm:hidden">Exclusiones</TooltipContent>
-                </Tooltip>
+                (hasFeature("avoid_encounters") || isSuperAdmin) ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setShowExclusionsManager(true)}>
+                        <Ban className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Exclusiones</span>
+                        {exclusions.length > 0 && <span className="ml-1">({exclusions.length})</span>}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="sm:hidden">Exclusiones</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" disabled className="opacity-50">
+                        <Ban className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Exclusiones</span>
+                        <Lock className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <span>Disponible en planes superiores</span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )
               )}
               {eventStatus === "pending" && (
                 <Tooltip>
@@ -2697,11 +2715,28 @@ const EventDetail = () => {
                   <span className="hidden sm:inline">Selecciones</span>
                 </TabsTrigger>
               )}
-              {(eventStatus === "active" || eventStatus === "completed") && (
+              {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("basic_emails") || isSuperAdmin) && (
                 <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <Mail className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Emails</span>
                 </TabsTrigger>
+              )}
+              {(eventStatus === "active" || eventStatus === "completed") && !hasFeature("basic_emails") && !isSuperAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all opacity-50 cursor-not-allowed">
+                      <Mail className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Emails</span>
+                      <Lock className="w-3 h-3 ml-1 text-muted-foreground" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span>Disponible en planes superiores</span>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("analytics") || isSuperAdmin) && (
                 <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
