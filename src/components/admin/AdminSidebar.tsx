@@ -1,4 +1,4 @@
-import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock } from "lucide-react";
+import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock, FileText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,13 +14,14 @@ import {
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useFeatures } from "@/hooks/useFeatures";
 
-export type DashboardSection = "home" | "events" | "analytics" | "email" | "account" | "branding";
+export type DashboardSection = "home" | "events" | "analytics" | "email" | "account" | "branding" | "templates";
 
 // Map sidebar items to feature codes (null means always visible)
 const featureMap: Partial<Record<DashboardSection, string>> = {
   analytics: "analytics",
   email: "auto_emails",
   branding: "custom_branding",
+  templates: "templates",
 };
 
 interface AdminSidebarProps {
@@ -41,6 +42,7 @@ const navItems: { id: DashboardSection; label: string; icon: typeof Home }[] = [
   { id: "analytics", label: "Analítica", icon: BarChart3 },
   { id: "email", label: "Email", icon: Mail },
   { id: "account", label: "Cuenta", icon: Settings },
+  { id: "templates", label: "Plantillas", icon: FileText },
 ];
 
 export function AdminSidebar({ activeSection, onSelect, branding, onLogout }: AdminSidebarProps) {

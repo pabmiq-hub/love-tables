@@ -15,6 +15,7 @@ import { DashboardAnalytics } from "@/components/admin/DashboardAnalytics";
 import { DashboardEmail } from "@/components/admin/DashboardEmail";
 import { DashboardAccount } from "@/components/admin/DashboardAccount";
 import { DashboardBranding } from "@/components/admin/DashboardBranding";
+import { DashboardTemplates } from "@/components/admin/DashboardTemplates";
 
 interface Event {
   id: string;
@@ -251,6 +252,11 @@ const AdminDashboard = () => {
           return <UpgradePrompt title="Marca blanca" description="Personaliza la experiencia completa con tu propia marca, colores y logo" onUpgrade={() => window.open("/#pricing", "_blank")} />;
         }
         return <DashboardBranding />;
+      case "templates":
+        if (!hasFeature("templates") && !isSuperAdmin) {
+          return <UpgradePrompt title="Plantillas" description="Crea y gestiona plantillas reutilizables de formularios, correos electrónicos y eventos" onUpgrade={() => window.open("/#pricing", "_blank")} />;
+        }
+        return <DashboardTemplates />;
       default:
         return null;
     }

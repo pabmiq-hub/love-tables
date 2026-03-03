@@ -404,6 +404,48 @@ export type Database = {
           },
         ]
       }
+      organizer_templates: {
+        Row: {
+          content: Json
+          created_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          organizer_id: string
+          subtype: string | null
+          type: string
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          content?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          organizer_id: string
+          subtype?: string | null
+          type: string
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          organizer_id?: string
+          subtype?: string | null
+          type?: string
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       organizer_verified_domains: {
         Row: {
           created_at: string
@@ -853,6 +895,41 @@ export type Database = {
           stripe_price_id_yearly?: string | null
         }
         Relationships: []
+      }
+      template_versions: {
+        Row: {
+          changed_by: string | null
+          content: Json
+          created_at: string | null
+          id: string
+          template_id: string
+          version: number
+        }
+        Insert: {
+          changed_by?: string | null
+          content: Json
+          created_at?: string | null
+          id?: string
+          template_id: string
+          version: number
+        }
+        Update: {
+          changed_by?: string | null
+          content?: Json
+          created_at?: string | null
+          id?: string
+          template_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "organizer_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

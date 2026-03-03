@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
 type B2BRotationType = "client_fixed" | "provider_fixed";
+type RegistrationFormMode = "auto" | "template" | "custom";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -93,7 +94,9 @@ const CreateEvent = () => {
   // Professional-specific fields
   const [b2bRotationType, setB2bRotationType] = useState<B2BRotationType>("client_fixed");
   const [professionalPreferences, setProfessionalPreferences] = useState<ProfessionalPreferences>({ ...DEFAULT_PROFESSIONAL_PREFERENCES });
-  
+  const [registrationFormMode, setRegistrationFormMode] = useState<RegistrationFormMode>("auto");
+  const [registrationTemplateId, setRegistrationTemplateId] = useState<string | null>(null);
+  const [formTemplates, setFormTemplates] = useState<any[]>([]);
   // Participant management
   const [participantMode, setParticipantMode] = useState<ParticipantMode | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -235,6 +238,8 @@ const CreateEvent = () => {
       company_sizes: professionalPreferences.companySizes,
       predefined_needs: professionalPreferences.predefinedNeeds,
       predefined_solutions: professionalPreferences.predefinedSolutions,
+      registration_form_mode: registrationFormMode,
+      registration_template_id: registrationTemplateId,
     } : null;
     
     // Create event in database with organizer_id
@@ -939,6 +944,44 @@ const CreateEvent = () => {
                     value={professionalPreferences}
                     onChange={setProfessionalPreferences}
                   />
+                </div>
+
+                {/* Registration Form Mode */}
+                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                  <Label className="font-medium">Formulario de registro</Label>
+                  <p className="text-xs text-muted-foreground">¿Cómo quieres gestionar el formulario de inscripción de participantes?</p>
+                  <div className="grid gap-2 mt-2">
+                    {[
+                      { value: "auto" as const, icon: Bot, label: "Formulario automático", desc: "Usa el formulario B2B estándar con las opciones configuradas arriba" },
+                      { value: "template" as const, icon: ClipboardList, label: "Usar una plantilla guardada", desc: "Selecciona una plantilla de formulario previamente creada" },
+                      { value: "custom" as const, icon: Pencil, label: "Personalizar para este evento", desc: "Configura campos específicos para este evento" },
+                    ].map((opt) => (
+                      <div
+                        key={opt.value}
+                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                          registrationFormMode === opt.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/30"
+                        }`}
+                        onClick={() => setRegistrationFormMode(opt.value)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <opt.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium">{opt.label}</p>
+                            <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {registrationFormMode === "template" && (
+                    <div className="mt-3">
+                      <Label className="text-sm">Seleccionar plantilla</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Puedes crear plantillas desde la sección "Plantillas" del dashboard (plan Enterprise)</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
