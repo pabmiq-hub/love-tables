@@ -1,55 +1,77 @@
 
 
-## Plan: Flujo de alta de organizador marca blanca desde Super Admin
+## Plan: Rediseño del panel de administración con sidebar navegable
 
-### Situación actual
-El Super Admin solo puede:
-- Aprobar organizadores que se auto-registran
-- Crear perfil de organizador para usuarios auth existentes sin perfil
+### Problema actual
+Todo está apilado en una sola página scrollable: estadísticas, subida de logo, configuración de email, lista de eventos. No hay estructura de navegación clara ni separación de contextos. El resultado es un panel desordenado que no escala bien a medida que se añaden funcionalidades.
 
-No puede crear un organizador marca blanca de cero (usuario + perfil + configuración profesional).
+### Diseño propuesto
 
-### Cambios propuestos
+Inspirándose en la referencia (sidebar con iconos a la izquierda + área de contenido principal), el dashboard se reorganiza como un layout con sidebar colapsable usando el componente Shadcn `Sidebar` ya disponible en el proyecto.
 
-#### 1. Botón "Crear organizador" en SuperAdminDashboard
-Añadir un botón en la pestaña de Organizadores que abra un modal/dialog con un formulario:
-- Email del organizador
-- Contraseña temporal
-- Nombre de empresa
-- Teléfono de contacto (opcional)
-- Selector de plan
-- Selector de módulos (con preset "Solo Profesional / Marca Blanca")
-- Estado inicial: activo (sin necesidad de aprobación)
+```text
+┌──────────────────────────────────────────────────┐
+│ Header (BrandedHeader con nombre usuario)        │
+├─────────┬────────────────────────────────────────┤
+│         │                                        │
+│  📊     │   Contenido dinámico según sección     │
+│  📅     │                                        │
+│  ⚙️     │   - Inicio: KPIs + resumen             │
+│  ✉️     │   - Eventos: lista + crear             │
+│  🎨     │   - Analítica: stats globales          │
+│  🏷️     │   - Email: dominio + plantillas        │
+│  🚪     │   - Cuenta: logo, datos, plan          │
+│         │   - Marca blanca (si aplica)            │
+│         │                                        │
+└─────────┴────────────────────────────────────────┘
+```
 
-#### 2. Edge function `create-organizer` 
-Nueva función que usa el service role para:
-- Crear usuario en `auth.users` con `email_confirm: true`
-- Asignar rol `admin` en `user_roles`
-- Crear perfil en `organizers` con los datos proporcionados (plan, módulos, estado activo)
-- Devolver credenciales al Super Admin para comunicarlas al organizador
+### Secciones del sidebar
 
-#### 3. Preset "Marca Blanca Profesional"
-En el formulario de creación, un checkbox o preset que automáticamente:
-- Selecciona solo el módulo `professional`
-- Marca un campo visual indicando que es marca blanca
-- El organizador, una vez logado, puede subir su logo desde su dashboard (ya implementado)
+| Icono | Sección | Contenido |
+|-------|---------|-----------|
+| Home | **Inicio** | KPIs principales (3 cards grandes) + eventos recientes (últimos 3) + acceso rápido a crear evento |
+| Calendar | **Eventos** | Lista completa de eventos + botón crear (lo que hoy ocupa la mitad del dashboard) |
+| BarChart3 | **Analítica** | Estadísticas generales detalladas (las 4 cards secundarias actuales, expandibles con gráficos en el futuro) |
+| Mail | **Email** | `EmailConnectionManager` completo + futura sección de plantillas |
+| Settings | **Cuenta** | Datos del organizador, plan actual, subida de logo, cambiar contraseña |
+| Palette | **Marca blanca** | Solo visible si `isProfessionalOnly`: personalización visual, logo, colores (futuro) |
+| LogOut | **Cerrar sesión** | Acción directa |
 
-### Archivos a crear/modificar
+### Arquitectura de archivos
 
 | Archivo | Acción |
 |---------|--------|
-| `supabase/functions/create-organizer/index.ts` | Nuevo - crea usuario + perfil desde service role |
-| `src/pages/SuperAdminDashboard.tsx` | Añadir botón + modal de creación |
-| `src/hooks/useSuperAdmin.ts` | Añadir método `createNewOrganizer()` |
+| `src/pages/AdminDashboard.tsx` | Refactorizar: convertir en layout con `SidebarProvider` + router interno por sección (estado local, sin subrutas) |
+| `src/components/admin/AdminSidebar.tsx` | **Nuevo** - Sidebar con iconos y labels, colapsable, highlighting de sección activa |
+| `src/components/admin/DashboardHome.tsx` | **Nuevo** - Vista inicio con KPIs + eventos recientes |
+| `src/components/admin/DashboardEvents.tsx` | **Nuevo** - Lista de eventos + crear (extraído del dashboard actual) |
+| `src/components/admin/DashboardAnalytics.tsx` | **Nuevo** - Estadísticas globales (extraído del dashboard actual) |
+| `src/components/admin/DashboardEmail.tsx` | **Nuevo** - Wrapper del `EmailConnectionManager` |
+| `src/components/admin/DashboardAccount.tsx` | **Nuevo** - Datos de cuenta, plan, logo |
+| `src/components/admin/DashboardBranding.tsx` | **Nuevo** - Configuración marca blanca (solo profesional) |
 
-### Flujo resultante
+### Comportamiento
+
+- **Sin subrutas nuevas**: se usa un estado `activeSection` en `AdminDashboard` que cambia el contenido renderizado. Mantiene la URL `/admin/dashboard` simple.
+- **Sidebar colapsable**: en móvil se colapsa automáticamente a iconos. En desktop muestra iconos + texto.
+- **Marca blanca condicional**: la sección "Marca blanca" solo aparece en el sidebar si `branding.isProfessionalOnly`.
+- **Datos compartidos**: los hooks `useOrganizer`, `useAuth`, `useFeatures` se consumen en `AdminDashboard` y se pasan como props a las sub-vistas, evitando múltiples llamadas.
+
+### Detalle técnico
+
+El layout principal usa `SidebarProvider` de Shadcn:
 
 ```text
-Super Admin → "Crear organizador" → Formulario
-  → Selecciona "Marca Blanca Profesional"
-  → Rellena email, contraseña, empresa, plan
-  → Edge function crea auth user + organizer (activo)
-  → Super Admin comunica credenciales al organizador
-  → Organizador inicia sesión → sube logo → marca blanca activa
+AdminDashboard
+  └─ SidebarProvider
+       ├─ AdminSidebar (activeSection, onSelect, branding)
+       └─ main
+            ├─ BrandedHeader + SidebarTrigger
+            └─ {activeSection === "home" && <DashboardHome />}
+              {activeSection === "events" && <DashboardEvents />}
+              ...
 ```
+
+Cada sub-componente recibe las props necesarias (events, stats, branding, handlers) desde `AdminDashboard` que centraliza la carga de datos.
 
