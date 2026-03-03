@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -45,6 +45,81 @@ const CreateEvent = () => {
   const [step, setStep] = useState(1); // Default to step 1, will be adjusted after loading
   const [eventModule, setEventModule] = useState<EventModule>("social");
   const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Template selection state
+  const [eventTemplates, setEventTemplates] = useState<any[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // Platform default event templates
+  const PLATFORM_EVENT_TEMPLATES = [
+    {
+      id: "platform-speed-dating",
+      name: "Speed Dating Clásico",
+      description: "5 rondas de 5 min, mesas de 2, paridad de género",
+      is_platform: true,
+      subtype: "social",
+      content: { module: "social", rounds: 5, table_size: 2, round_duration: 300, rotation_mode: "fixed_host", gender_parity: true, avoid_previous_encounters: true, avoid_encounters_mode: "preference", language: "es" },
+    },
+    {
+      id: "platform-social-group",
+      name: "Networking Social Grupal",
+      description: "4 rondas de 10 min, mesas de 4 personas",
+      is_platform: true,
+      subtype: "social",
+      content: { module: "social", rounds: 4, table_size: 4, round_duration: 600, rotation_mode: "fixed_host", gender_parity: false, avoid_previous_encounters: true, avoid_encounters_mode: "strict", language: "es" },
+    },
+    {
+      id: "platform-b2b-1to1",
+      name: "B2B Networking 1:1",
+      description: "6 rondas de 8 min, reuniones cliente-proveedor",
+      is_platform: true,
+      subtype: "professional",
+      content: {
+        module: "professional", rounds: 6, table_size: 2, round_duration: 480, rotation_mode: "fixed_host", gender_parity: false, avoid_previous_encounters: true, avoid_encounters_mode: "strict", language: "es",
+        professional_config: { rotation_type: "client_fixed", sectors: ["Tecnología", "Consultoría", "Marketing", "Finanzas", "Salud", "Educación"], predefined_needs: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"], predefined_solutions: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"] },
+      },
+    },
+  ];
+
+  // Load user event templates
+  const loadEventTemplates = async () => {
+    if (!organizer) return;
+    setLoadingTemplates(true);
+    const { data } = await supabase
+      .from("organizer_templates")
+      .select("*")
+      .eq("organizer_id", organizer.id)
+      .eq("type", "event")
+      .order("updated_at", { ascending: false });
+    setEventTemplates(data || []);
+    setLoadingTemplates(false);
+  };
+
+  // Apply a template's content to the form state
+  const applyEventTemplate = (content: any) => {
+    if (content.module) setEventModule(content.module);
+    if (content.rounds) setRounds(content.rounds);
+    if (content.table_size) setTableSize(content.table_size);
+    if (content.round_duration) {
+      setRoundDuration(Math.floor(content.round_duration / 60));
+      setRoundDurationSeconds(content.round_duration % 60);
+    }
+    if (content.rotation_mode) setRotationMode(content.rotation_mode);
+    if (content.gender_parity !== undefined) setGenderParity(content.gender_parity);
+    if (content.avoid_previous_encounters !== undefined) setAvoidPreviousEncounters(content.avoid_previous_encounters);
+    if (content.avoid_encounters_mode) setAvoidEncountersMode(content.avoid_encounters_mode);
+    if (content.language) setEventLanguage(content.language);
+    if (content.professional_config) {
+      if (content.professional_config.rotation_type) setB2bRotationType(content.professional_config.rotation_type);
+      setProfessionalPreferences({
+        sectors: content.professional_config.sectors || professionalPreferences.sectors,
+        companySizes: content.professional_config.company_sizes || professionalPreferences.companySizes,
+        predefinedNeeds: content.professional_config.predefined_needs || professionalPreferences.predefinedNeeds,
+        predefinedSolutions: content.professional_config.predefined_solutions || professionalPreferences.predefinedSolutions,
+      });
+    }
+  };
 
   // Initialize step and module based on organizer's available modules
   useEffect(() => {
@@ -57,7 +132,7 @@ const CreateEvent = () => {
       if (hasBoth) {
         setStep(0); // Show module selector
       } else {
-        setStep(1); // Skip to basic info
+        setStep(1); // Skip to template selection
       }
       
       // Set default module
@@ -68,6 +143,7 @@ const CreateEvent = () => {
       }
       
       setHasInitialized(true);
+      loadEventTemplates();
     }
   }, [organizerLoading, organizer, hasInitialized, isSuperAdmin]);
   
@@ -122,7 +198,8 @@ const CreateEvent = () => {
   const isInitializing = organizerLoading || (!hasInitialized && !hasNoModules);
 
   // Calculate total steps based on module availability
-  const totalSteps = hasBothModules ? 5 : 4;
+  // Steps: [0: module] → 1: template → 2: basic info → 3: config → 4: participant mode → 5: add participants
+  const totalSteps = hasBothModules ? 6 : 5;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -337,9 +414,15 @@ const CreateEvent = () => {
       setStep(1);
       return;
     }
+
+    // Step 1 is template selection - always valid, just proceed
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
     
-    // Validate step 1 (basic info)
-    if (step === 1 && (!eventName || !eventDate)) {
+    // Validate step 2 (basic info)
+    if (step === 2 && (!eventName || !eventDate)) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos",
@@ -348,9 +431,8 @@ const CreateEvent = () => {
       return;
     }
     
-    // Validate step 3 (participant mode) - step adjusted based on module selector
-    const participantModeStep = hasBothModules ? 3 : 3;
-    if (step === participantModeStep && !participantMode) {
+    // Validate step 4 (participant mode)
+    if (step === 4 && !participantMode) {
       toast({
         title: "Error",
         description: "Por favor, selecciona una opción",
@@ -372,9 +454,9 @@ const CreateEvent = () => {
   // Get the step numbers for the progress indicator
   const getProgressSteps = () => {
     if (hasBothModules) {
-      return [0, 1, 2, 3, 4];
+      return [0, 1, 2, 3, 4, 5];
     }
-    return [1, 2, 3, 4];
+    return [1, 2, 3, 4, 5];
   };
 
   // Show loading while initializing
@@ -533,8 +615,136 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 1: Basic info */}
+        {/* Step 1: Template Selection */}
         {step === 1 && (
+          <Card className="animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutTemplate className="w-5 h-5" />
+                ¿Quieres usar una plantilla?
+              </CardTitle>
+              <CardDescription>
+                Empieza desde una configuración predefinida o crea tu evento desde cero
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Start from scratch option */}
+              <div
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedTemplateId === null
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/30"
+                }`}
+                onClick={() => setSelectedTemplateId(null)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Empezar desde cero</p>
+                    <p className="text-sm text-muted-foreground">Configura todos los parámetros manualmente</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Platform templates */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-semibold">Plantillas de la plataforma</h4>
+                </div>
+                {PLATFORM_EVENT_TEMPLATES
+                  .filter(t => t.content.module === eventModule || t.subtype === eventModule)
+                  .map((t) => (
+                  <div
+                    key={t.id}
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedTemplateId === t.id
+                        ? "border-primary bg-primary/5"
+                        : "border-dashed border-primary/30 bg-primary/5 hover:border-primary/50"
+                    }`}
+                    onClick={() => setSelectedTemplateId(t.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{t.name}</p>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Plataforma</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* User saved templates */}
+              {loadingTemplates ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+              ) : eventTemplates.filter(t => t.content?.module === eventModule || t.subtype === eventModule).length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Tus plantillas guardadas</h4>
+                  {eventTemplates
+                    .filter(t => t.content?.module === eventModule || t.subtype === eventModule)
+                    .map((t: any) => (
+                    <div
+                      key={t.id}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedTemplateId === t.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/30"
+                      }`}
+                      onClick={() => setSelectedTemplateId(t.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{t.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t.description || `v${t.version} · ${new Date(t.updated_at).toLocaleDateString("es-ES")}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                {hasBothModules && (
+                  <Button variant="outline" className="flex-1" onClick={prevStep}>
+                    Atrás
+                  </Button>
+                )}
+                <Button
+                  variant="hero"
+                  className={hasBothModules ? "flex-1" : "w-full"}
+                  onClick={() => {
+                    // Apply template if selected
+                    if (selectedTemplateId) {
+                      const platformTemplate = PLATFORM_EVENT_TEMPLATES.find(t => t.id === selectedTemplateId);
+                      const userTemplate = eventTemplates.find(t => t.id === selectedTemplateId);
+                      const content = platformTemplate?.content || userTemplate?.content;
+                      if (content) applyEventTemplate(content);
+                    }
+                    nextStep();
+                  }}
+                >
+                  {selectedTemplateId ? "Usar plantilla y continuar" : "Continuar sin plantilla"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2: Basic info */}
+        {step === 2 && (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Información básica</CardTitle>
@@ -590,12 +800,10 @@ const CreateEvent = () => {
                 </p>
               </div>
               <div className="flex gap-3">
-                {hasBothModules && (
-                  <Button variant="outline" className="flex-1" onClick={prevStep}>
-                    Atrás
-                  </Button>
-                )}
-                <Button variant="hero" className={hasBothModules ? "flex-1" : "w-full"} onClick={nextStep}>
+                <Button variant="outline" className="flex-1" onClick={prevStep}>
+                  Atrás
+                </Button>
+                <Button variant="hero" className="flex-1" onClick={nextStep}>
                   Continuar
                 </Button>
               </div>
@@ -603,8 +811,8 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 2: Configuration - SOCIAL */}
-        {step === 2 && eventModule === "social" && (
+        {/* Step 3: Configuration - SOCIAL */}
+        {step === 3 && eventModule === "social" && (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Configuración del evento</CardTitle>
@@ -810,8 +1018,8 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 2: Configuration - PROFESSIONAL */}
-        {step === 2 && eventModule === "professional" && (
+        {/* Step 3: Configuration - PROFESSIONAL */}
+        {step === 3 && eventModule === "professional" && (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Configuración del evento</CardTitle>
@@ -997,8 +1205,8 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 3: Choose participant mode */}
-        {step === 3 && (
+        {/* Step 4: Choose participant mode */}
+        {step === 4 && (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>¿Cómo quieres añadir participantes?</CardTitle>
@@ -1098,8 +1306,8 @@ const CreateEvent = () => {
           </Card>
         )}
 
-        {/* Step 4: Add participants */}
-        {step === 4 && (
+        {/* Step 5: Add participants */}
+        {step === 5 && (
           <Card className="animate-fade-in">
             <CardHeader>
               <CardTitle>Añadir participantes</CardTitle>
