@@ -77,7 +77,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const { user, loading: authLoading, signOut } = useAuth();
   const { organizer, plan, limits, loading: orgLoading, isActive, isPending, isSuspended, branding, refresh: refreshOrganizer } = useOrganizer();
-  const { isSuperAdmin } = useFeatures();
+  const { isSuperAdmin, hasFeature } = useFeatures();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -226,7 +226,7 @@ const AdminDashboard = () => {
     isPro,
   };
 
-  const { hasFeature } = useFeatures();
+  
 
   const renderSection = () => {
     switch (activeSection) {
