@@ -133,6 +133,56 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 4. Send welcome email via Resend
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (resendApiKey) {
+      try {
+        const escapedCompany = (company_name || "").replace(/[&<>"']/g, (c: string) => 
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+        const escapedEmail = email.replace(/[&<>"']/g, (c: string) => 
+          ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
+        const loginUrl = "https://love-tables.lovable.app/admin/login";
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: "Konektum <noreply@konektum.com>",
+            to: [email],
+            subject: "Tu cuenta de organizador ha sido creada",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <h1 style="color: #1a1a2e; font-size: 24px;">¡Bienvenido a Konektum!</h1>
+                </div>
+                <p style="color: #333; font-size: 16px;">Hola${escapedCompany ? ` <strong>${escapedCompany}</strong>` : ''},</p>
+                <p style="color: #333; font-size: 16px;">Tu cuenta de organizador ha sido creada y está lista para usar.</p>
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 5px 0; color: #333;"><strong>Email:</strong> ${escapedEmail}</p>
+                  <p style="margin: 5px 0; color: #666; font-size: 14px;">La contraseña te ha sido comunicada por el administrador.</p>
+                </div>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${loginUrl}" style="background: #6366f1; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                    Acceder a mi panel
+                  </a>
+                </div>
+                <p style="color: #666; font-size: 14px;">Te recomendamos cambiar tu contraseña después del primer inicio de sesión.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                <p style="color: #999; font-size: 12px; text-align: center;">© Konektum - Plataforma de networking profesional</p>
+              </div>
+            `,
+          }),
+        });
+        console.log("Welcome email sent to:", email);
+      } catch (emailErr) {
+        console.error("Error sending welcome email (non-blocking):", emailErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
