@@ -62,6 +62,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { OrganizerFeaturesModal } from "@/components/admin/OrganizerFeaturesModal";
+import { CreateOrganizerModal } from "@/components/admin/CreateOrganizerModal";
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -94,11 +95,13 @@ export default function SuperAdminDashboard() {
     removeOrganizerFeatureOverride,
     deleteAuthUser,
     createOrganizerForUser,
+    createNewOrganizer,
   } = useSuperAdmin();
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrganizer, setSelectedOrganizer] = useState<typeof organizers[0] | null>(null);
   const [featuresModalOpen, setFeaturesModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) {
@@ -452,6 +455,10 @@ export default function SuperAdminDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button onClick={() => setCreateModalOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Crear organizador
+              </Button>
             </div>
 
             <Card>
@@ -778,6 +785,15 @@ export default function SuperAdminDashboard() {
           onRemoveOverride={removeOrganizerFeatureOverride}
         />
       )}
+
+      {/* Create Organizer Modal */}
+      <CreateOrganizerModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        plans={plans}
+        modules={modules}
+        onCreateOrganizer={createNewOrganizer}
+      />
     </div>
   );
 }
