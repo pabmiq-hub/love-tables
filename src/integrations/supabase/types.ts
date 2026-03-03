@@ -363,6 +363,47 @@ export type Database = {
           },
         ]
       }
+      organizer_resend_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_verified: boolean
+          organizer_id: string
+          resend_api_key: string
+          sender_email: string
+          sender_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          organizer_id: string
+          resend_api_key: string
+          sender_email: string
+          sender_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          organizer_id?: string
+          resend_api_key?: string
+          sender_email?: string
+          sender_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_resend_config_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_verified_domains: {
         Row: {
           created_at: string

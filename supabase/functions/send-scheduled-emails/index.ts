@@ -214,21 +214,21 @@ const generateProfessionalEmailHtml = (
   }
 };
 
-// Helper to get verified domain sender for an organizer
-const getVerifiedDomainSender = async (
+// Helper to get organizer's own Resend config (API key + sender)
+const getOrganizerResendConfig = async (
   supabase: any,
   organizerId: string
-): Promise<{ from: string } | null> => {
+): Promise<{ from: string; apiKey: string } | null> => {
   try {
     const { data } = await supabase
-      .from("organizer_verified_domains")
-      .select("domain, sender_email, sender_name, status")
+      .from("organizer_resend_config")
+      .select("resend_api_key, sender_email, sender_name, is_verified")
       .eq("organizer_id", organizerId)
-      .eq("status", "verified")
+      .eq("is_verified", true)
       .maybeSingle();
-    if (data?.sender_email) {
-      const name = data.sender_name || data.domain;
-      return { from: `${name} <${data.sender_email}>` };
+    if (data?.resend_api_key && data?.sender_email) {
+      const name = data.sender_name || data.sender_email;
+      return { from: `${name} <${data.sender_email}>`, apiKey: data.resend_api_key };
     }
     return null;
   } catch {
@@ -524,8 +524,9 @@ const handler = async (req: Request): Promise<Response> => {
           hasMatches ? stats.withMatches++ : stats.withoutMatches++;
         }
 
-        // Determine sender: verified domain or default
+        // Determine sender and API key: organizer's own Resend or platform default
         let fromAddress = "Konektum <hola@konektum.com>";
+        let emailApiKey = resendApiKey;
         const { data: eventOrg } = await supabase
           .from("events")
           .select("organizer_id")
@@ -533,15 +534,16 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         if (eventOrg?.organizer_id) {
-          const verifiedSender = await getVerifiedDomainSender(supabase, eventOrg.organizer_id);
-          if (verifiedSender) {
-            fromAddress = verifiedSender.from;
-            console.log(`Using verified domain sender: ${fromAddress}`);
+          const orgConfig = await getOrganizerResendConfig(supabase, eventOrg.organizer_id);
+          if (orgConfig) {
+            fromAddress = orgConfig.from;
+            emailApiKey = orgConfig.apiKey;
+            console.log(`Using organizer's own Resend config: ${fromAddress}`);
           }
         }
 
         const result = await sendEmailWithRetry(
-          resendApiKey,
+          emailApiKey,
           { from: fromAddress, to: [participant.email], subject, html },
           participant.name
         );

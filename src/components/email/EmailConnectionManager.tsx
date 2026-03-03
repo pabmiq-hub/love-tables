@@ -7,151 +7,106 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Loader2, CheckCircle2, AlertCircle, Globe, Trash2, RefreshCw, Copy, Check } from "lucide-react";
+import { Mail, Loader2, CheckCircle2, AlertCircle, Trash2, Send, Eye, EyeOff, ExternalLink } from "lucide-react";
 
-interface DnsRecord {
-  type: string;
-  name: string;
-  value: string;
-  status?: string;
-  ttl?: string;
-  priority?: number;
-}
-
-interface VerifiedDomain {
+interface ResendConfig {
   id: string;
-  domain: string;
-  resend_domain_id: string;
-  status: string;
-  dns_records: DnsRecord[];
-  sender_email: string | null;
+  resend_api_key: string;
+  sender_email: string;
   sender_name: string | null;
+  is_verified: boolean;
 }
 
 export function EmailConnectionManager() {
   const { organizer } = useOrganizer();
   const { toast } = useToast();
-  const [domain, setDomain] = useState<VerifiedDomain | null>(null);
+  const [config, setConfig] = useState<ResendConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [domainInput, setDomainInput] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   const [senderName, setSenderName] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
-    if (organizer?.id) loadDomain();
+    if (organizer?.id) loadConfig();
   }, [organizer?.id]);
 
-  const loadDomain = async () => {
+  const loadConfig = async () => {
     if (!organizer?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("organizer_verified_domains" as any)
+        .from("organizer_resend_config" as any)
         .select("*")
         .eq("organizer_id", organizer.id)
         .maybeSingle();
 
       if (!error && data) {
-        setDomain(data as any);
-        setSenderEmail((data as any).sender_email || "");
-        setSenderName((data as any).sender_name || "");
+        const d = data as any;
+        setConfig(d);
+        setApiKey(d.resend_api_key || "");
+        setSenderEmail(d.sender_email || "");
+        setSenderName(d.sender_name || "");
       } else {
-        setDomain(null);
+        setConfig(null);
       }
     } catch {
-      setDomain(null);
+      setConfig(null);
     }
     setLoading(false);
   };
 
-  const handleAddDomain = async () => {
-    if (!domainInput.trim()) return;
-    setAdding(true);
+  const handleSave = async () => {
+    if (!apiKey.trim() || !senderEmail.trim()) return;
+    setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-domain", {
-        body: { 
-          action: "add", 
-          domain: domainInput.trim(),
-          sender_email: `noreply@${domainInput.trim()}`,
-          sender_name: organizer?.company_name || null,
-        },
+        body: { action: "save", resend_api_key: apiKey.trim(), sender_email: senderEmail.trim(), sender_name: senderName.trim() || null },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      toast({ title: "Dominio registrado", description: "Configura los registros DNS que se muestran a continuación" });
-      setDomainInput("");
-      await loadDomain();
+      toast({ title: "Configuración guardada", description: "Tu cuenta de Resend ha sido vinculada correctamente" });
+      await loadConfig();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "No se pudo registrar el dominio", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "No se pudo guardar la configuración", variant: "destructive" });
     }
-    setAdding(false);
+    setSaving(false);
   };
 
-  const handleCheckStatus = async () => {
-    setChecking(true);
+  const handleTest = async () => {
+    setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-domain", {
-        body: { action: "check" },
+        body: { action: "test" },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      const statusMsg = data.status === "verified" ? "¡Dominio verificado correctamente!" 
-        : data.status === "failed" ? "La verificación ha fallado. Revisa los registros DNS."
-        : "Dominio pendiente de verificación. Los cambios DNS pueden tardar hasta 48h.";
-
-      toast({ 
-        title: data.status === "verified" ? "✅ Verificado" : data.status === "failed" ? "❌ Fallido" : "⏳ Pendiente",
-        description: statusMsg 
-      });
-      await loadDomain();
+      toast({ title: "✅ Email de prueba enviado", description: `Se ha enviado un email de prueba a ${data.sent_to}` });
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "No se pudo verificar", variant: "destructive" });
+      toast({ title: "Error al enviar prueba", description: err.message || "Verifica tu configuración", variant: "destructive" });
     }
-    setChecking(false);
+    setTesting(false);
   };
 
   const handleRemove = async () => {
     setRemoving(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-domain", {
+      const { error } = await supabase.functions.invoke("manage-domain", {
         body: { action: "remove" },
       });
-
       if (error) throw error;
-      setDomain(null);
-      toast({ title: "Dominio eliminado", description: "Los emails se enviarán desde la dirección por defecto" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "No se pudo eliminar", variant: "destructive" });
-    }
-    setRemoving(false);
-  };
-
-  const handleUpdateSender = async () => {
-    try {
-      const { error } = await supabase.functions.invoke("manage-domain", {
-        body: { action: "update_sender", sender_email: senderEmail, sender_name: senderName },
-      });
-
-      if (error) throw error;
-      toast({ title: "Remitente actualizado" });
-      await loadDomain();
+      setConfig(null);
+      setApiKey("");
+      setSenderEmail("");
+      setSenderName("");
+      toast({ title: "Configuración eliminada", description: "Los emails se enviarán desde la dirección por defecto" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
-  };
-
-  const copyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
+    setRemoving(false);
   };
 
   if (loading) {
@@ -174,126 +129,66 @@ export function EmailConnectionManager() {
           <div>
             <CardTitle className="text-lg">Configuración de email</CardTitle>
             <CardDescription>
-              Verifica tu dominio para enviar emails desde tu propia dirección profesional
+              Conecta tu cuenta de Resend para enviar emails desde tu propia dirección
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {domain ? (
+        {config?.is_verified ? (
           <div className="space-y-4">
-            {/* Domain status */}
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-accent/5 border border-accent/20">
-              <Globe className="w-5 h-5 text-primary shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium text-sm">Dominio</p>
-                <p className="text-primary font-semibold">{domain.domain}</p>
+            {/* Active config */}
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">Cuenta de Resend conectada</p>
               </div>
-              <Badge 
-                variant="secondary" 
-                className={
-                  domain.status === "verified" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
-                  : domain.status === "failed" ? "bg-destructive/10 text-destructive" 
-                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                }
-              >
-                {domain.status === "verified" ? "Verificado" : domain.status === "failed" ? "Fallido" : "Pendiente"}
-              </Badge>
+              <div className="grid gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Remitente: </span>
+                  <span className="font-medium">{config.sender_name ? `${config.sender_name} <${config.sender_email}>` : config.sender_email}</span>
+                </div>
+              </div>
             </div>
 
-            {/* DNS Records */}
-            {domain.status !== "verified" && domain.dns_records && domain.dns_records.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">Registros DNS a configurar:</p>
-                <p className="text-xs text-muted-foreground">
-                  Añade estos registros en la configuración DNS de tu dominio. Los cambios pueden tardar hasta 48 horas en propagarse.
-                </p>
-                <div className="space-y-2">
-                  {domain.dns_records.map((record: DnsRecord, idx: number) => (
-                    <div key={idx} className="p-3 rounded-lg bg-muted/50 border text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline" className="text-xs">{record.type}</Badge>
-                        {record.status && (
-                          <span className={`text-xs ${record.status === 'verified' ? 'text-green-600' : 'text-yellow-600'}`}>
-                            {record.status === 'verified' ? '✓' : '⏳'} {record.status}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Nombre: </span>
-                        <code className="bg-background px-1 rounded break-all">{record.name}</code>
-                      </div>
-                      <div className="flex items-start gap-1">
-                        <div className="flex-1">
-                          <span className="text-muted-foreground">Valor: </span>
-                          <code className="bg-background px-1 rounded break-all text-[10px]">{record.value}</code>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 shrink-0" 
-                          onClick={() => copyToClipboard(record.value, idx)}
-                        >
-                          {copiedIndex === idx ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                        </Button>
-                      </div>
-                      {record.priority !== undefined && (
-                        <div>
-                          <span className="text-muted-foreground">Prioridad: </span>
-                          <code className="bg-background px-1 rounded">{record.priority}</code>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Verified: sender config */}
-            {domain.status === "verified" && (
-              <div className="space-y-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <p className="text-sm font-medium text-green-700 dark:text-green-400">Dominio verificado</p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Los emails de resultados se enviarán desde tu dominio. Configura el remitente:
-                </p>
-                <div className="grid gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Email remitente</Label>
-                    <Input 
-                      value={senderEmail} 
-                      onChange={(e) => setSenderEmail(e.target.value)} 
-                      placeholder={`noreply@${domain.domain}`}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nombre remitente</Label>
-                    <Input 
-                      value={senderName} 
-                      onChange={(e) => setSenderName(e.target.value)} 
-                      placeholder={organizer?.company_name || "Tu empresa"}
-                    />
-                  </div>
-                  <Button size="sm" onClick={handleUpdateSender}>
-                    Guardar remitente
+            {/* Edit form */}
+            <div className="grid gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">API Key de Resend</Label>
+                <div className="relative">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="re_xxxxxxxx..."
+                  />
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowApiKey(!showApiKey)}>
+                    {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
               </div>
-            )}
+              <div className="space-y-1">
+                <Label className="text-xs">Email remitente</Label>
+                <Input value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="noreply@tuempresa.com" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Nombre remitente</Label>
+                <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={organizer?.company_name || "Tu empresa"} />
+              </div>
+            </div>
 
-            {/* Actions */}
             <div className="flex gap-2 flex-wrap">
-              {domain.status !== "verified" && (
-                <Button variant="outline" size="sm" onClick={handleCheckStatus} disabled={checking}>
-                  {checking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Verificar estado
-                </Button>
-              )}
+              <Button size="sm" onClick={handleSave} disabled={saving || !apiKey.trim() || !senderEmail.trim()}>
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Guardar cambios
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleTest} disabled={testing}>
+                {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                Enviar email de prueba
+              </Button>
               <Button variant="outline" size="sm" onClick={handleRemove} disabled={removing} className="text-destructive hover:text-destructive">
                 {removing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                Eliminar dominio
+                Desconectar
               </Button>
             </div>
           </div>
@@ -302,29 +197,50 @@ export function EmailConnectionManager() {
             <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border">
               <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />
               <div>
-                <p className="font-medium text-sm">Sin dominio verificado</p>
+                <p className="font-medium text-sm">Sin cuenta de Resend conectada</p>
                 <p className="text-sm text-muted-foreground">
                   Los emails se envían desde noreply@konektum.com
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Verifica tu dominio para que los emails de resultados se envíen desde tu propia dirección profesional (ej: noreply@tuempresa.com). 
-              Necesitarás acceso a la configuración DNS de tu dominio.
-            </p>
-            <div className="space-y-2">
-              <Label>Tu dominio</Label>
-              <div className="flex gap-2">
-                <Input 
-                  value={domainInput} 
-                  onChange={(e) => setDomainInput(e.target.value)} 
-                  placeholder="tuempresa.com" 
-                />
-                <Button onClick={handleAddDomain} disabled={adding || !domainInput.trim()}>
-                  {adding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Globe className="w-4 h-4 mr-2" />}
-                  Verificar
-                </Button>
+
+            <div className="p-4 rounded-lg bg-accent/5 border border-accent/20 space-y-2">
+              <p className="text-sm font-medium">¿Cómo configurarlo?</p>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Crea una cuenta gratuita en <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-1">resend.com <ExternalLink className="w-3 h-3" /></a></li>
+                <li>Verifica tu dominio en el panel de Resend</li>
+                <li>Genera una API Key con permisos de envío</li>
+                <li>Pega la API Key y configura tu remitente aquí</li>
+              </ol>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="space-y-1">
+                <Label>API Key de Resend</Label>
+                <div className="relative">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="re_xxxxxxxx..."
+                  />
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowApiKey(!showApiKey)}>
+                    {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </Button>
+                </div>
               </div>
+              <div className="space-y-1">
+                <Label>Email remitente</Label>
+                <Input value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="noreply@tuempresa.com" />
+              </div>
+              <div className="space-y-1">
+                <Label>Nombre remitente (opcional)</Label>
+                <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={organizer?.company_name || "Tu empresa"} />
+              </div>
+              <Button onClick={handleSave} disabled={saving || !apiKey.trim() || !senderEmail.trim()}>
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                Conectar cuenta de Resend
+              </Button>
             </div>
           </div>
         )}
