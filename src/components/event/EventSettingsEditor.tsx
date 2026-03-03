@@ -29,6 +29,8 @@ interface EventSettingsEditorProps {
   customGenders: string[] | null;
   customPreferences: string[] | null;
   customDatingPreferences: string[] | null;
+  module?: string | null;
+  professionalConfig?: any;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -50,6 +52,8 @@ const EventSettingsEditor = ({
   customGenders,
   customPreferences,
   customDatingPreferences,
+  module: eventModule,
+  professionalConfig,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -67,6 +71,9 @@ const EventSettingsEditor = ({
   const [formLanguage, setFormLanguage] = useState<"es" | "en">(language as "es" | "en");
   const [formRegSubtitle, setFormRegSubtitle] = useState(registrationSubtitle || "");
   const [formRegDescription, setFormRegDescription] = useState(registrationDescription || "");
+  const [formB2BRotation, setFormB2BRotation] = useState<string>(
+    professionalConfig?.rotation_type || "client_fixed"
+  );
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -80,10 +87,12 @@ const EventSettingsEditor = ({
     ],
   });
 
+  const isProfessional = eventModule === "professional";
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const updates = {
+      const updates: Record<string, any> = {
         name: formName,
         date: formDate,
         event_time: formEventTime.trim() || null,
@@ -92,7 +101,7 @@ const EventSettingsEditor = ({
         table_size: formTableSize,
         round_duration: formRoundDuration,
         rotation_mode: formRotationMode,
-        gender_parity: formGenderParity,
+        gender_parity: isProfessional ? false : formGenderParity,
         language: formLanguage,
         registration_subtitle: formRegSubtitle.trim() || null,
         registration_description: formRegDescription.trim() || null,
@@ -101,6 +110,15 @@ const EventSettingsEditor = ({
         custom_preferences: formPreferences.preferences,
         custom_dating_preferences: formPreferences.datingPreferences,
       };
+
+      // Update professional_config with rotation_type for B2B events
+      if (isProfessional) {
+        const updatedProfConfig = {
+          ...(professionalConfig || {}),
+          rotation_type: formB2BRotation,
+        };
+        updates.professional_config = updatedProfConfig;
+      }
 
       const { error } = await supabase
         .from("events")
@@ -240,19 +258,42 @@ const EventSettingsEditor = ({
           </div>
         </div>
 
-        {/* Gender Parity */}
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div>
-            <Label className="text-base">Paridad de género</Label>
-            <p className="text-sm text-muted-foreground">
-              Intentar equilibrar hombres y mujeres en cada mesa
-            </p>
+        {/* B2B Rotation Type - only for professional events */}
+        {isProfessional && (
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base">Tipo de rotación B2B</Label>
+              <p className="text-sm text-muted-foreground">
+                Define quién permanece fijo en la mesa y quién rota entre mesas
+              </p>
+            </div>
+            <Select value={formB2BRotation} onValueChange={setFormB2BRotation}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client_fixed">Clientes fijos – Proveedores rotan</SelectItem>
+                <SelectItem value="provider_fixed">Proveedores fijos – Clientes rotan</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Switch
-            checked={formGenderParity}
-            onCheckedChange={setFormGenderParity}
-          />
-        </div>
+        )}
+
+        {/* Gender Parity - only for social events */}
+        {!isProfessional && (
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base">Paridad de género</Label>
+              <p className="text-sm text-muted-foreground">
+                Intentar equilibrar hombres y mujeres en cada mesa
+              </p>
+            </div>
+            <Switch
+              checked={formGenderParity}
+              onCheckedChange={setFormGenderParity}
+            />
+          </div>
+        )}
 
         {/* Event Language */}
         <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -302,10 +343,13 @@ const EventSettingsEditor = ({
           </div>
         </div>
 
-        <EventPreferencesEditor
-          value={formPreferences}
-          onChange={setFormPreferences}
-        />
+        {/* Social preferences - only for social events */}
+        {!isProfessional && (
+          <EventPreferencesEditor
+            value={formPreferences}
+            onChange={setFormPreferences}
+          />
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end">
