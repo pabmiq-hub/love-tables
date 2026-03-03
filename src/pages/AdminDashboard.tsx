@@ -79,9 +79,11 @@ const AdminDashboard = () => {
   }, [organizer, orgLoading, isPending, isSuspended, navigate]);
 
   const loadEvents = async () => {
+    if (!user) return;
     const { data, error } = await supabase
       .from("events")
       .select("*")
+      .eq("organizer_id", user.id)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
