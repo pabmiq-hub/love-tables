@@ -185,7 +185,7 @@ const AdminDashboard = () => {
   const renderSection = () => {
     switch (activeSection) {
       case "home":
-        return <DashboardHome events={events} stats={stats} isPro={isPro} onNavigate={setActiveSection} />;
+        return <DashboardHome events={events} stats={stats} isPro={isPro} onNavigate={setActiveSection} participants={participants} companyName={organizer?.company_name ?? null} />;
       case "events":
         return <DashboardEvents events={events} isPro={isPro} onDeleteEvent={handleDeleteEvent} />;
       case "analytics":
