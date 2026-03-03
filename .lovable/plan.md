@@ -1,47 +1,78 @@
 
 
-# Plan: Corregir el sistema de participantes globales y analítica
+## Estado actual del sistema de feature gating
 
-## Problemas detectados
+La infraestructura base **ya existe** y funciona:
 
-Tras inspeccionar la base de datos, he encontrado varios problemas graves:
+**Base de datos (completa):**
+- Tabla `features` con 16 funcionalidades definidas (core, social, professional)
+- Tabla `subscription_plans` con 3 planes (Free, Professional, Enterprise) y sus límites
+- Tabla `plan_features` mapeando qué features tiene cada plan
+- Tabla `organizer_features` para overrides por organizador
+- Cada organizador tiene un `plan_id` asignado
 
-1. **Evento 1 ("Slow Friending Enero '26") tiene 0 participantes vinculados** a `global_participants` — sus 62 participantes nunca fueron enlazados porque el sistema de linking se implementó después.
+**Frontend (parcialmente implementado):**
+- `useFeatures` hook carga las features del plan y los overrides correctamente
+- `FeatureGate` componente wrapper listo para bloquear UI
+- `useOrganizer` hook con `canCreateEvent()` y `canAddParticipants()` para límites
 
-2. **El contador `events_attended` está completamente inflado** — se incrementa cada vez que se llama `findOrCreateGlobalParticipant` (por ejemplo, al regenerar mesas), en vez de contar eventos reales. Ejemplo: un participante marca `events_attended=21` pero solo aparece en 0 eventos vinculados.
+**Uso actual (muy limitado):**
+Solo se usa `hasFeature` en 2 sitios de `EventDetail.tsx`:
+1. `analytics` - oculta/muestra la pestaña de analítica
+2. `excel_import` - oculta/muestra el botón de importación Excel
 
-3. **Las queries de `loadStats` no filtran por `organizer_id`** — cuentan participantes de TODOS los organizadores, no solo del actual.
+---
 
-4. **La demografía cuenta participantes duplicados** — un participante que asiste a 3 eventos se cuenta 3 veces en los gráficos de género/edad.
+## Lo que falta: aplicar el bloqueo en todos los puntos relevantes
 
-## Plan de corrección
+Hay muchas funcionalidades que tienen su feature flag definido en la BD pero **no se bloquean** en el frontend. Necesitamos envolverlas con `FeatureGate` o `hasFeature`.
 
-### 1. Migración SQL: Backfill + corregir contadores
-- Vincular participantes del evento 1 a `global_participants` haciendo match por email (normalizado a minúsculas).
-- Crear nuevos registros en `global_participants` para emails que no existan aún.
-- Recalcular `events_attended` para TODOS los global_participants basándose en `COUNT(DISTINCT event_id)` real desde la tabla `participants`.
+### Plan de implementación
 
-### 2. Corregir `useGlobalParticipants.ts`
-- En `findOrCreateGlobalParticipant`: en vez de incrementar ciegamente el contador, calcular `events_attended` como `COUNT(DISTINCT event_id)` desde `participants` vinculados.
-- Evitar que llamadas repetidas (regenerar mesas) inflen el contador.
+**1. Bloquear funcionalidades en EventDetail.tsx**
 
-### 3. Corregir `AdminDashboard.tsx` → `loadStats`
-- Filtrar `global_participants` por `organizer_id = user.id`.
-- Filtrar `participants` por eventos del organizador actual (join con `events`).
-- Filtrar `participant_selections` por eventos del organizador.
+Aplicar `hasFeature` o `<FeatureGate>` en los siguientes puntos:
+- `auto_emails` — Pestaña/sección de emails automáticos y programación
+- `basic_emails` — Envío de emails de matches
+- `avoid_encounters` — Sección de exclusiones (ExclusionsManager)
+- `manual_matches` — Botón/acción de crear matches manuales
+- `custom_branding` — Opciones de personalización de marca
 
-### 4. Corregir `DashboardAnalytics.tsx` → demografía
-- Deduplicar participantes por `global_participant_id` para las métricas de "únicos".
-- Mostrar demografía basada en participantes únicos, no registros por evento.
-- Usar la información más reciente (último evento) cuando un participante tenga datos actualizados.
+**2. Bloquear funcionalidades en CreateEvent.tsx**
 
-### 5. Corregir `DashboardHome.tsx`
-- Aplicar las mismas correcciones de filtrado por organizador en las métricas del home.
+- `excel_import` — Ya parcialmente hecho, asegurar bloqueo completo
+- Validar límites de `max_participants_per_event` y `max_active_events` al crear evento (ya existe `canCreateEvent` pero verificar que se aplica)
 
-## Archivos a modificar
-- **SQL migration**: backfill linking + recalcular contadores
-- `src/hooks/useGlobalParticipants.ts`: corregir lógica de contador
-- `src/pages/AdminDashboard.tsx`: filtrar queries por organizador
-- `src/components/admin/DashboardAnalytics.tsx`: deduplicar demografía
-- `src/components/admin/DashboardHome.tsx`: ajustar métricas
+**3. Bloquear en el Dashboard del organizador (AdminDashboard.tsx)**
+
+- `analytics` — Pestaña de analítica en el dashboard principal
+- `auto_emails` — Sección de configuración de email (`DashboardEmail`)
+- `custom_branding` — Sección de marca blanca (`DashboardBranding`)
+
+**4. Bloquear en AdminSidebar.tsx**
+
+Ocultar o mostrar con candado los items del menú lateral según las features del plan:
+- Email → `auto_emails`
+- Marca blanca → `custom_branding`
+- Analítica → `analytics`
+
+**5. Aplicar límites cuantitativos**
+
+- Al añadir participantes: verificar `max_participants_per_event` y mostrar mensaje de upgrade
+- Al crear evento: verificar `max_active_events` y bloquear con `UpgradePrompt`
+- Mostrar contadores tipo "15/20 participantes" en la UI
+
+**6. Mejorar el componente UpgradePrompt**
+
+Conectar los botones "Mejorar plan" y "Ver planes disponibles" para que lleven a una página o modal de planes (o a la sección de pricing de la landing).
+
+### Archivos a modificar
+
+- `src/pages/EventDetail.tsx` — Envolver secciones con FeatureGate
+- `src/pages/CreateEvent.tsx` — Validar límites antes de crear
+- `src/pages/AdminDashboard.tsx` — Gate en pestañas del dashboard
+- `src/components/admin/AdminSidebar.tsx` — Iconos de candado en menú
+- `src/components/event/EmailManagement.tsx` — Gate en emails
+- `src/components/event/ExclusionsManager.tsx` — Gate en exclusiones
+- `src/components/UpgradePrompt.tsx` — Conectar navegación a planes
 
