@@ -1,65 +1,52 @@
 
 
-# Plan: Analítica avanzada del panel de administración
+# Plan: Rediseño del Dashboard Home
 
 ## Situación actual
+La pantalla de inicio muestra 3 tarjetas KPI estáticas y una lista de eventos recientes. Es funcional pero plana y poco atractiva.
 
-La sección de Analítica (`DashboardAnalytics`) muestra solo 4 tarjetas con métricas básicas (recurrentes, media por evento, completados/activos, tasa de selección). No hay gráficos, ni desglose por tipo de evento, ni análisis individual por evento.
+## Propuesta de rediseño
 
-## Diseño propuesto
+### 1. Saludo personalizado con contexto
+- Mensaje de bienvenida dinámico con nombre de la empresa y hora del día ("Buenos días, [Company]")
+- Frase motivacional con resumen rápido: "Tienes X eventos activos y X participantes esperando"
 
-Reorganizar la pantalla en secciones diferenciadas con gráficos (recharts, ya instalado) y tablas comparativas:
+### 2. KPIs con mini-gráficos (sparklines)
+- Mantener las 3 métricas actuales + añadir "Tasa de selección" y "Participantes recurrentes"
+- Cada tarjeta incluye un mini-gráfico de tendencia (últimos eventos) usando recharts `<AreaChart>` en miniatura
+- Indicador de variación (flecha arriba/abajo con %) comparando con el evento anterior
 
-### Sección 1: Resumen general (KPIs mejorados)
-- 6 tarjetas: Total eventos, Participantes únicos, Conexiones totales, Tasa de selección, Participantes recurrentes, Media por evento
-- Indicadores visuales con iconos y colores
+### 3. Próximo evento destacado (hero card)
+- Card grande con el próximo evento pendiente/activo
+- Muestra cuenta atrás ("en 3 días"), participantes registrados, y barra de progreso hacia el límite
+- Botón de acción directa: "Gestionar evento"
+- Si no hay próximo evento: CTA ilustrativo para crear uno
 
-### Sección 2: Análisis por tipo de evento
-- Gráfico circular (PieChart): distribución de eventos por módulo (social, dating, professional)
-- Gráfico de barras: participantes promedio por tipo de módulo
-- Tarjetas comparativas: tasa de selección por tipo, conexiones por tipo
+### 4. Actividad reciente (timeline)
+- Reemplazar la lista plana de eventos por un feed de actividad visual
+- Últimas acciones: "Nuevo participante registrado", "Evento completado", "X conexiones generadas"
+- Formato timeline con iconos y timestamps relativos
 
-### Sección 3: Evolución temporal
-- Gráfico de líneas (LineChart): evolución de participantes a lo largo del tiempo (por fecha de evento)
-- Gráfico de barras apiladas: eventos creados por mes con desglose por estado
+### 5. Distribución rápida por módulo
+- Mini donut chart mostrando proporción de eventos social/dating/professional
+- Clickeable para ir a Analítica filtrada
 
-### Sección 4: Ranking de eventos
-- Tabla con todos los eventos ordenables, mostrando:
-  - Nombre, fecha, módulo, participantes, estado
-  - Tasa de selección individual (requiere query adicional)
-  - Conexiones/matches generados (requiere query adicional)
-- Indicadores de rendimiento (badge verde/amarillo/rojo según métricas)
-
-### Sección 5: Insights de marketing
-- Mejor día de la semana para eventos (basado en participación)
-- Tamaño óptimo de evento (correlación participantes vs. tasa de selección)
-- Tasa de no-show promedio
-- Retención de participantes (% que repiten)
+### 6. Eventos recientes mejorados
+- Cards más visuales con barra de progreso de participación
+- Indicador de rendimiento (emoji/icono según tasa de selección)
 
 ## Cambios técnicos
 
-### 1. `AdminDashboard.tsx`
-- Ampliar `loadStats` para cargar datos adicionales por evento: selecciones, participantes por evento, encounters
-- Pasar datos enriquecidos a `DashboardAnalytics`
+### `DashboardHome.tsx` (reescritura)
+- Importar recharts (`AreaChart`, `Area`, `ResponsiveContainer`, `PieChart`)
+- Importar `Progress` de UI components
+- Calcular métricas derivadas con `useMemo`: sparkline data, próximo evento, distribución por módulo
+- Layout: greeting → hero card → KPIs con sparklines → distribución módulo + actividad reciente → eventos recientes
 
-### 2. `DashboardAnalytics.tsx` (reescritura completa)
-- Importar componentes de recharts (PieChart, BarChart, LineChart, ResponsiveContainer, etc.)
-- Calcular todas las métricas derivadas con `useMemo`
-- Organizar en secciones con cards y gráficos
-- Usar los mismos patrones de estilo que `EventAnalytics.tsx` (que ya tiene gráficos bien implementados)
+### `AdminDashboard.tsx`
+- Ampliar props pasados a `DashboardHome`: añadir `participants`, `encounters`, `selections`, `organizer`
+- DashboardHome ya recibe `stats` con `returningParticipants` y `selectionRate`
 
-### 3. Queries adicionales en `AdminDashboard.tsx`
-- Cargar `participants` con `selection_submitted_at` para calcular tasas por evento
-- Cargar `participant_selections` agrupadas por evento
-- Cargar `participant_encounters` agrupadas por evento
-- Todo filtrado por el `organizer_id` del usuario (RLS ya lo cubre)
-
-### Datos disponibles sin cambios en BD
-- Eventos: nombre, fecha, estado, módulo, participantes_count
-- `global_participants`: recurrentes (events_attended > 1)
-- `participant_encounters`: conexiones por evento
-- `participants`: selecciones enviadas por evento
-- `participant_selections`: selecciones por evento
-
-No se requieren migraciones de base de datos.
+### Sin migraciones de BD
+- Todos los datos necesarios ya están disponibles en las queries existentes
 
