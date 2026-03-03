@@ -29,6 +29,9 @@ export interface ParticipantRecord {
   event_id: string;
   checked_in: boolean | null;
   selection_submitted_at: string | null;
+  gender: string | null;
+  age_range: string | null;
+  birth_date: string | null;
 }
 
 export interface EncounterRecord {
@@ -106,14 +109,29 @@ const AdminDashboard = () => {
 
   const loadStats = async () => {
     const { count: uniqueCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true });
-    const { count: connectionsCount } = await supabase.from("participant_encounters").select("*", { count: "exact", head: true });
     const { count: returningCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).gt("events_attended", 1);
     const { count: totalParticipants } = await supabase.from("participants").select("*", { count: "exact", head: true });
     const { count: submittedCount } = await supabase.from("participants").select("*", { count: "exact", head: true }).not("selection_submitted_at", "is", null);
 
+    // Calculate mutual matches from selections
+    const { data: allSelections } = await supabase.from("participant_selections").select("selector_id, selected_id");
+    let mutualMatches = 0;
+    if (allSelections) {
+      const selSet = new Set(allSelections.map(s => `${s.selector_id}->${s.selected_id}`));
+      const counted = new Set<string>();
+      allSelections.forEach(s => {
+        const reverse = `${s.selected_id}->${s.selector_id}`;
+        const pairKey = [s.selector_id, s.selected_id].sort().join(":");
+        if (selSet.has(reverse) && !counted.has(pairKey)) {
+          counted.add(pairKey);
+          mutualMatches++;
+        }
+      });
+    }
+
     setStats({
       uniqueParticipants: uniqueCount || 0,
-      totalConnections: connectionsCount || 0,
+      totalConnections: mutualMatches,
       returningParticipants: returningCount || 0,
       selectionRate: totalParticipants ? Math.round(((submittedCount || 0) / totalParticipants) * 100) : 0,
     });
@@ -123,7 +141,7 @@ const AdminDashboard = () => {
     // Load participants with event_id and selection info
     const { data: pData } = await supabase
       .from("participants")
-      .select("id, event_id, checked_in, selection_submitted_at");
+      .select("id, event_id, checked_in, selection_submitted_at, gender, age_range, birth_date");
     if (pData) setParticipants(pData);
 
     // Load encounters grouped by event
