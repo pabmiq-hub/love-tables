@@ -198,7 +198,6 @@ const EmailTemplateEditor = ({
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
           <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
         </div>
-        </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
         
@@ -243,7 +242,6 @@ const EmailTemplateEditor = ({
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
           <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
-        </div>
         </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
