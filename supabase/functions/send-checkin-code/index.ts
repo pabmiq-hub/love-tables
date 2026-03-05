@@ -193,7 +193,7 @@ serve(async (req) => {
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
             <p>${isEn ? 'Enjoy the event!' : '¡Disfruta del evento!'}</p>
-            <p>${isEn ? 'Konektum Team' : 'Equipo Konektum'}</p>
+            <p>${isEn ? `${escapeHtml(brandName)} Team` : `Equipo ${escapeHtml(brandName)}`}</p>
           </div>
         </body>
         </html>
