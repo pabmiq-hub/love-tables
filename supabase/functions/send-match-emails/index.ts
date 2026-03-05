@@ -121,15 +121,22 @@ const replaceVariables = (text: string, variables: Record<string, string>) => {
   return result;
 };
 
+const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
+
 const generateEmailHtml = (
   template: EmailTemplate,
   name: string,
   eventName: string,
   friendshipMatches: { name: string; phone: string | null; email: string | null }[],
-  datingMatches: { name: string; phone: string | null; email: string | null }[]
+  datingMatches: { name: string; phone: string | null; email: string | null }[],
+  orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }
 ): string => {
   const hasMatches = friendshipMatches.length > 0 || datingMatches.length > 0;
   const variables = { nombre: name, evento: eventName };
+  
+  const logoUrl = orgBranding?.isProfessionalOnly && orgBranding?.logoUrl ? orgBranding.logoUrl : KONEKTUM_LOGO_URL;
+  const brandName = orgBranding?.isProfessionalOnly && orgBranding?.companyName ? escapeHtml(orgBranding.companyName) : "Konektum";
+  const logoHtml = `<img src="${escapeHtml(logoUrl)}" alt="${brandName}" style="max-height:40px;max-width:200px;" />`;
   
   if (hasMatches) {
     const t = template.withMatches;
@@ -138,10 +145,10 @@ const generateEmailHtml = (
     const datingList = datingMatches.length > 0
       ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
     
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;">${logoHtml}</div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   } else {
     const t = template.withoutMatches;
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;"><h2 style="color:#e11d48;">Konektum</h2></div><h1>${replaceVariables(t.greeting, variables)}</h1><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;">${logoHtml}</div><h1>${replaceVariables(t.greeting, variables)}</h1><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
   }
 };
 
