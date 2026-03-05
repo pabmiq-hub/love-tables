@@ -1062,7 +1062,8 @@ const EventDetail = () => {
     relaxConstraints: boolean = false,
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
-    avoidEncountersMode: "preference" | "strict" = "preference"
+    avoidEncountersMode: "preference" | "strict" = "preference",
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
