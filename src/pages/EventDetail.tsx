@@ -518,7 +518,8 @@ const EventDetail = () => {
       false, 
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? encountersMap : undefined,
-      eventData?.avoid_encounters_mode || "preference"
+      eventData?.avoid_encounters_mode || "preference",
+      eventData?.group_rounds || undefined
     );
     
     if (result.hasIncomplete) {
@@ -621,7 +622,8 @@ const EventDetail = () => {
       true, 
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? previousEncounters : undefined,
-      eventData?.avoid_encounters_mode || "preference"
+      eventData?.avoid_encounters_mode || "preference",
+      eventData?.group_rounds || undefined
     );
     await finalizeTableGeneration(result.tables, checkedInParticipants);
   };
@@ -725,14 +727,15 @@ const EventDetail = () => {
     relaxConstraints: boolean = false,
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
-    avoidEncountersMode: "preference" | "strict" = "preference"
+    avoidEncountersMode: "preference" | "strict" = "preference",
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
     }
   };
 
