@@ -10,6 +10,7 @@ import { Loader2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
+import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 
 interface EventSettingsEditorProps {
   eventId: string;
@@ -31,6 +32,7 @@ interface EventSettingsEditorProps {
   customDatingPreferences: string[] | null;
   module?: string | null;
   professionalConfig?: any;
+  groupRounds?: GroupRound[] | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -54,6 +56,7 @@ const EventSettingsEditor = ({
   customDatingPreferences,
   module: eventModule,
   professionalConfig,
+  groupRounds: initialGroupRounds,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -73,6 +76,12 @@ const EventSettingsEditor = ({
   const [formRegDescription, setFormRegDescription] = useState(registrationDescription || "");
   const [formB2BRotation, setFormB2BRotation] = useState<string>(
     professionalConfig?.rotation_type || "client_fixed"
+  );
+  const [formGroupRoundsEnabled, setFormGroupRoundsEnabled] = useState(
+    Array.isArray(initialGroupRounds) && initialGroupRounds.length > 0
+  );
+  const [formGroupRounds, setFormGroupRounds] = useState<GroupRound[]>(
+    (initialGroupRounds as GroupRound[]) || []
   );
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
@@ -109,6 +118,7 @@ const EventSettingsEditor = ({
         custom_genders: formPreferences.genders,
         custom_preferences: formPreferences.preferences,
         custom_dating_preferences: formPreferences.datingPreferences,
+        group_rounds: formGroupRoundsEnabled && formGroupRounds.length > 0 ? formGroupRounds : null,
       };
 
       // Update professional_config with rotation_type for B2B events
@@ -342,6 +352,18 @@ const EventSettingsEditor = ({
             />
           </div>
         </div>
+
+        {/* Group Rounds - only for social events */}
+        {!isProfessional && (
+          <GroupRoundsEditor
+            enabled={formGroupRoundsEnabled}
+            onEnabledChange={setFormGroupRoundsEnabled}
+            groupRounds={formGroupRounds}
+            onGroupRoundsChange={setFormGroupRounds}
+            totalRounds={formRounds}
+            defaultTableSize={formTableSize}
+          />
+        )}
 
         {/* Social preferences - only for social events */}
         {!isProfessional && (
