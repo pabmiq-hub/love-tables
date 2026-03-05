@@ -161,6 +161,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Load organizer branding for logo
+    const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
+    let reminderLogoUrl = KONEKTUM_LOGO_URL;
+    let reminderBrandName = "Konektum";
+    
+    if (event.organizer_id) {
+      const { data: organizer } = await supabase
+        .from("organizers")
+        .select("company_name, logo_url, active_modules")
+        .eq("user_id", event.organizer_id)
+        .maybeSingle();
+      
+      if (organizer) {
+        const modules = organizer.active_modules || [];
+        const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
+        if (isProfessionalOnly && organizer.logo_url) {
+          reminderLogoUrl = organizer.logo_url;
+          reminderBrandName = organizer.company_name || "Konektum";
+        }
+      }
+    }
+
     if (event.organizer_id !== user.id) {
       console.log("User is not the organizer. User:", user.id, "Organizer:", event.organizer_id);
       return new Response(
@@ -203,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
         <html>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eee;">
-            <h2 style="color: #e11d48;">Konektum</h2>
+            <img src="${reminderLogoUrl}" alt="${escapeHtml(reminderBrandName)}" style="max-height: 40px; max-width: 200px;" />
           </div>
           
           <h1 style="color: #333;">${isEn ? `Hello ${escapeHtml(participant.name)}! 👋` : `¡Hola ${escapeHtml(participant.name)}! 👋`}</h1>
@@ -243,8 +265,8 @@ const handler = async (req: Request): Promise<Response> => {
           
           <p style="color: #888; font-size: 12px; text-align: center;">
             ${isEn
-              ? 'This is an automatic reminder from Konektum.<br>If you have already sent your selections, please ignore this message.'
-              : 'Este es un recordatorio automático de Konektum.<br>Si ya has enviado tus selecciones, ignora este mensaje.'
+              ? `This is an automatic reminder from ${escapeHtml(reminderBrandName)}.<br>If you have already sent your selections, please ignore this message.`
+              : `Este es un recordatorio automático de ${escapeHtml(reminderBrandName)}.<br>Si ya has enviado tus selecciones, ignora este mensaje.`
             }
           </p>
         </body>

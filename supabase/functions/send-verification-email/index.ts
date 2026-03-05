@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date, language")
+      .select("id, name, date, language, organizer_id")
       .eq("id", eventId)
       .single();
 
@@ -88,6 +88,28 @@ serve(async (req) => {
 
     const lang = event.language || 'es';
     const isEn = lang === 'en';
+
+    // Load organizer branding for logo
+    const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
+    let logoUrl = KONEKTUM_LOGO_URL;
+    let brandName = "Konektum";
+    
+    if (event.organizer_id) {
+      const { data: organizer } = await supabase
+        .from("organizers")
+        .select("company_name, logo_url, active_modules")
+        .eq("user_id", event.organizer_id)
+        .maybeSingle();
+      
+      if (organizer) {
+        const modules = organizer.active_modules || [];
+        const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
+        if (isProfessionalOnly && organizer.logo_url) {
+          logoUrl = organizer.logo_url;
+          brandName = organizer.company_name || "Konektum";
+        }
+      }
+    }
 
     // Format event date
     const eventDate = new Date(event.date);
@@ -119,6 +141,7 @@ serve(async (req) => {
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />
             <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Registration confirmed!' : '¡Registro confirmado!'}</h1>
           </div>
           
@@ -167,7 +190,7 @@ serve(async (req) => {
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
             <p>${isEn ? 'See you at the event!' : '¡Nos vemos en el evento!'}</p>
-            <p>${isEn ? 'Konektum Team' : 'Equipo Konektum'}</p>
+            <p>${isEn ? `${escapeHtml(brandName)} Team` : `Equipo ${escapeHtml(brandName)}`}</p>
           </div>
         </body>
         </html>
