@@ -135,6 +135,9 @@ const EmailTemplateEditor = ({
     onClose();
   };
 
+  const previewLogo = isWhiteLabel && brandLogoUrl ? brandLogoUrl : konektumLogo;
+  const previewAlt = isWhiteLabel && brandName ? brandName : "Konektum";
+
   const replaceVariables = (text: string) => {
     return text
       .replace(/\{\{nombre\}\}/g, isProfessional ? "Juan García" : "María García")
