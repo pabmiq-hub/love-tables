@@ -1126,14 +1126,62 @@ const EventDetail = () => {
     const actualRounds = Math.min(numRounds, rotators.length > 0 ? rotators.length : 1);
     
     for (let round = 1; round <= actualRounds; round++) {
+      // Check if this is a group round
+      const groupRoundConfig = groupRoundsConfig?.find(g => g.round === round);
+      const isGroupRound = !!groupRoundConfig;
+      const effectiveTableSize = isGroupRound ? groupRoundConfig.table_size : tableSize;
+      const effectiveDistribution = isGroupRound 
+        ? calculateOptimalTableDistribution(numParticipants, effectiveTableSize, 3)
+        : distribution;
+      const effectiveTableSizes = effectiveDistribution.sizes;
+
       const roundTables: { id: string; name: string }[][] = [];
       const usedRotators = new Set<string>();
+      
+      // For group rounds, use all participants (no host separation)
+      if (isGroupRound) {
+        const usedParticipants = new Set<string>();
+        const effectiveNumTables = effectiveDistribution.numTables;
+        const shuffled = [...participantsList].sort(() => Math.random() - 0.5);
+        
+        for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
+          const table: { id: string; name: string }[] = [];
+          const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
+          
+          for (const p of shuffled) {
+            if (table.length >= targetSize) break;
+            if (usedParticipants.has(p.id)) continue;
+            // Only check exclusions, allow repetitions
+            let excluded = false;
+            for (const member of table) {
+              if (areExcluded(p.id, member.id)) { excluded = true; break; }
+            }
+            if (!excluded) {
+              table.push({ id: p.id, name: p.name });
+              usedParticipants.add(p.id);
+            }
+          }
+          
+          // Record pairings even for group rounds
+          for (let i = 0; i < table.length; i++) {
+            for (let j = i + 1; j < table.length; j++) {
+              pairedHistory.get(table[i].id)?.add(table[j].id);
+              pairedHistory.get(table[j].id)?.add(table[i].id);
+            }
+          }
+          
+          if (table.length > 0) roundTables.push(table);
+        }
+        
+        tables.push({ round, tables: roundTables });
+        continue;
+      }
       
       for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
         
-        const targetSize = tableSizes[tableIdx] || tableSize;
+        const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
         const seatsNeeded = targetSize - 1;
         
         const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
