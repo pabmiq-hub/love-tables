@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Eye, RotateCcw, Mail, Heart, Users, Handshake, Briefcase, Building2 } from "lucide-react";
+import konektumLogo from "@/assets/konektum-logo.png";
 
 export interface EmailTemplate {
   withMatches: {
@@ -92,6 +93,9 @@ interface EmailTemplateEditorProps {
   isProfessional?: boolean;
   onSave: (template: EmailTemplate, professionalTemplate?: ProfessionalEmailTemplate) => void;
   onClose: () => void;
+  brandLogoUrl?: string | null;
+  brandName?: string;
+  isWhiteLabel?: boolean;
 }
 
 const EmailTemplateEditor = ({ 
@@ -100,7 +104,10 @@ const EmailTemplateEditor = ({
   eventName, 
   isProfessional = false,
   onSave, 
-  onClose 
+  onClose,
+  brandLogoUrl,
+  brandName = "Konektum",
+  isWhiteLabel = false,
 }: EmailTemplateEditorProps) => {
   const [currentTemplate, setCurrentTemplate] = useState<EmailTemplate>(template || DEFAULT_TEMPLATE);
   const [currentProfTemplate, setCurrentProfTemplate] = useState<ProfessionalEmailTemplate>(professionalTemplate || DEFAULT_PROFESSIONAL_TEMPLATE);
