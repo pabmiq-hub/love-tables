@@ -23,6 +23,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
@@ -166,6 +167,8 @@ const CreateEvent = () => {
   const [eventPreferences, setEventPreferences] = useState<EventPreferences>({ ...DEFAULT_PREFERENCES });
   const [registrationRequirementsEnabled, setRegistrationRequirementsEnabled] = useState(false);
   const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
+  const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
+  const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
   
   // Professional-specific fields
   const [b2bRotationType, setB2bRotationType] = useState<B2BRotationType>("client_fixed");
@@ -346,6 +349,7 @@ const CreateEvent = () => {
       professional_config: professionalConfig,
       registration_requirements_enabled: eventModule === "social" ? registrationRequirementsEnabled : false,
       slot_quotas: (eventModule === "social" && registrationRequirementsEnabled ? slotQuotas : null) as unknown as Json,
+      group_rounds: (eventModule === "social" && groupRoundsEnabled && groupRounds.length > 0 ? groupRounds : null) as unknown as Json,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -984,6 +988,16 @@ const CreateEvent = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Group Rounds Editor */}
+                <GroupRoundsEditor
+                  enabled={groupRoundsEnabled}
+                  onEnabledChange={setGroupRoundsEnabled}
+                  groupRounds={groupRounds}
+                  onGroupRoundsChange={setGroupRounds}
+                  totalRounds={rounds}
+                  defaultTableSize={tableSize}
+                />
 
                 {/* Event Preferences Editor */}
                 <div className="pt-2">

@@ -99,6 +99,7 @@ interface EventData {
   event_time: string | null;
   event_location: string | null;
   professional_config: ProfessionalConfig | null;
+  group_rounds: Array<{ round: number; table_size: number }> | null;
 }
 
 interface DbParticipant {
@@ -268,6 +269,7 @@ const EventDetail = () => {
       module: (event.module as "social" | "professional") || "social",
       language: event.language || "es",
       professional_config: event.professional_config as unknown as ProfessionalConfig | null,
+      group_rounds: event.group_rounds as unknown as Array<{ round: number; table_size: number }> | null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -516,7 +518,8 @@ const EventDetail = () => {
       false, 
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? encountersMap : undefined,
-      eventData?.avoid_encounters_mode || "preference"
+      eventData?.avoid_encounters_mode || "preference",
+      eventData?.group_rounds || undefined
     );
     
     if (result.hasIncomplete) {
@@ -619,7 +622,8 @@ const EventDetail = () => {
       true, 
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? previousEncounters : undefined,
-      eventData?.avoid_encounters_mode || "preference"
+      eventData?.avoid_encounters_mode || "preference",
+      eventData?.group_rounds || undefined
     );
     await finalizeTableGeneration(result.tables, checkedInParticipants);
   };
@@ -723,14 +727,15 @@ const EventDetail = () => {
     relaxConstraints: boolean = false,
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
-    avoidEncountersMode: "preference" | "strict" = "preference"
+    avoidEncountersMode: "preference" | "strict" = "preference",
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
     }
   };
 
@@ -890,7 +895,8 @@ const EventDetail = () => {
     relaxConstraints: boolean = false,
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
-    avoidEncountersMode: "preference" | "strict" = "preference"
+    avoidEncountersMode: "preference" | "strict" = "preference",
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -918,13 +924,23 @@ const EventDetail = () => {
     let hasIncomplete = false;
     
     for (let round = 1; round <= numRounds; round++) {
+      // Check if this is a group round
+      const groupRoundConfig = groupRoundsConfig?.find(g => g.round === round);
+      const isGroupRound = !!groupRoundConfig;
+      const effectiveTableSize = isGroupRound ? groupRoundConfig.table_size : tableSize;
+      const effectiveDistribution = isGroupRound 
+        ? calculateOptimalTableDistribution(numParticipants, effectiveTableSize, 3)
+        : distribution;
+      const effectiveNumTables = effectiveDistribution.numTables;
+      const effectiveTableSizes = effectiveDistribution.sizes;
+
       const roundTables: { id: string; name: string }[][] = [];
       const usedParticipants = new Set<string>();
       
       // Create tables for this round
-      for (let tableIdx = 0; tableIdx < numTables; tableIdx++) {
+      for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
         const table: { id: string; name: string }[] = [];
-        const targetSize = tableSizes[tableIdx] || Math.min(tableSize, numParticipants - usedParticipants.size);
+        const targetSize = effectiveTableSizes[tableIdx] || Math.min(effectiveTableSize, numParticipants - usedParticipants.size);
         
         // Find best participants for this table
         const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
@@ -957,8 +973,9 @@ const EventDetail = () => {
             }
           }
           
-          // STRICT AGE CHECK: Must be compatible with all existing table members
-          if (canJoin && !relaxConstraints && table.length > 0) {
+           // STRICT AGE CHECK: Must be compatible with all existing table members
+          // Skip repetition check for group rounds (allow repetitions)
+          if (canJoin && !relaxConstraints && !isGroupRound && table.length > 0) {
             for (const member of table) {
               const memberParticipant = participantsList.find(p => p.id === member.id);
               if (memberParticipant && !areAgeCompatible(participant, memberParticipant)) {
@@ -1056,7 +1073,8 @@ const EventDetail = () => {
     relaxConstraints: boolean = false,
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
-    avoidEncountersMode: "preference" | "strict" = "preference"
+    avoidEncountersMode: "preference" | "strict" = "preference",
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -1108,14 +1126,62 @@ const EventDetail = () => {
     const actualRounds = Math.min(numRounds, rotators.length > 0 ? rotators.length : 1);
     
     for (let round = 1; round <= actualRounds; round++) {
+      // Check if this is a group round
+      const groupRoundConfig = groupRoundsConfig?.find(g => g.round === round);
+      const isGroupRound = !!groupRoundConfig;
+      const effectiveTableSize = isGroupRound ? groupRoundConfig.table_size : tableSize;
+      const effectiveDistribution = isGroupRound 
+        ? calculateOptimalTableDistribution(numParticipants, effectiveTableSize, 3)
+        : distribution;
+      const effectiveTableSizes = effectiveDistribution.sizes;
+
       const roundTables: { id: string; name: string }[][] = [];
       const usedRotators = new Set<string>();
+      
+      // For group rounds, use all participants (no host separation)
+      if (isGroupRound) {
+        const usedParticipants = new Set<string>();
+        const effectiveNumTables = effectiveDistribution.numTables;
+        const shuffled = [...participantsList].sort(() => Math.random() - 0.5);
+        
+        for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
+          const table: { id: string; name: string }[] = [];
+          const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
+          
+          for (const p of shuffled) {
+            if (table.length >= targetSize) break;
+            if (usedParticipants.has(p.id)) continue;
+            // Only check exclusions, allow repetitions
+            let excluded = false;
+            for (const member of table) {
+              if (areExcluded(p.id, member.id)) { excluded = true; break; }
+            }
+            if (!excluded) {
+              table.push({ id: p.id, name: p.name });
+              usedParticipants.add(p.id);
+            }
+          }
+          
+          // Record pairings even for group rounds
+          for (let i = 0; i < table.length; i++) {
+            for (let j = i + 1; j < table.length; j++) {
+              pairedHistory.get(table[i].id)?.add(table[j].id);
+              pairedHistory.get(table[j].id)?.add(table[i].id);
+            }
+          }
+          
+          if (table.length > 0) roundTables.push(table);
+        }
+        
+        tables.push({ round, tables: roundTables });
+        continue;
+      }
       
       for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
         
-        const targetSize = tableSizes[tableIdx] || tableSize;
+        const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
         const seatsNeeded = targetSize - 1;
         
         const availableRotators = rotators.filter(r => !usedRotators.has(r.id));
@@ -3982,6 +4048,7 @@ const EventDetail = () => {
                 customDatingPreferences={eventData.custom_dating_preferences}
                 module={eventData.module}
                 professionalConfig={eventData.professional_config}
+                groupRounds={eventData.group_rounds}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
