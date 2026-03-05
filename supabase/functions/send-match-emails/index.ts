@@ -169,7 +169,7 @@ const generateProfessionalEmailHtml = (
   const brandColor = "#059669";
   const logoHtml = orgBranding?.isProfessionalOnly && orgBranding?.logoUrl
     ? `<img src="${escapeHtml(orgBranding.logoUrl)}" alt="${brandName}" style="max-height:40px;max-width:200px;" />`
-    : `<h2 style="color:${brandColor};margin:0;">${brandName}</h2>`;
+    : `<img src="${KONEKTUM_LOGO_URL}" alt="Konektum Business" style="max-height:40px;max-width:200px;" />`;
   
   if (hasConnections) {
     const t = template.withConnections;
