@@ -79,6 +79,7 @@ export type Database = {
           event_location: string | null
           event_time: string | null
           gender_parity: boolean | null
+          group_rounds: Json | null
           id: string
           language: string
           module: string | null
@@ -121,6 +122,7 @@ export type Database = {
           event_location?: string | null
           event_time?: string | null
           gender_parity?: boolean | null
+          group_rounds?: Json | null
           id?: string
           language?: string
           module?: string | null
@@ -163,6 +165,7 @@ export type Database = {
           event_location?: string | null
           event_time?: string | null
           gender_parity?: boolean | null
+          group_rounds?: Json | null
           id?: string
           language?: string
           module?: string | null

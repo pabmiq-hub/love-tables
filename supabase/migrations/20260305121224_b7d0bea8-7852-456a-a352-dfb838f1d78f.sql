@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN group_rounds jsonb DEFAULT NULL;
