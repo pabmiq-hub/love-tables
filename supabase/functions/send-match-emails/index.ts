@@ -622,7 +622,7 @@ const handler = async (req: Request): Promise<Response> => {
         subject = hasMatches 
           ? replaceVariables(template.withMatches.subject, { nombre: participant.name, evento: event.name }) 
           : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
-        html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches);
+        html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches, orgBranding || undefined);
         
         if (hasMatches) stats.withMatches++;
         else stats.withoutMatches++;
