@@ -1,108 +1,77 @@
 
 
-## Plan: Sistema de Plantillas para el Dashboard (Plan Enterprise)
+## Plan: Reestructurar Analítica en pestañas (General / Social / Profesional)
 
-### Resumen
+### Problema actual
+- Todo en una sola vista monolítica
+- Demografía rota: géneros duplicados por idioma (Man/Hombre, Woman/Mujer), rangos de edad duplicados con datos diferentes
+- No hay métricas específicas por módulo
+- Sin empty states atractivos
 
-Crear una nueva sección **"Plantillas"** en el dashboard del organizador (disponible solo en plan Enterprise), con 3 subsecciones: plantillas de formularios de registro, plantillas de emails, y plantillas de eventos. Además, integrar la selección de plantilla de formulario durante la creación de eventos profesionales.
+### Arquitectura propuesta
 
-### 1. Base de datos — Nueva tabla `organizer_templates`
+Reescribir `DashboardAnalytics.tsx` con 3 pestañas usando `Tabs` de Radix:
 
-Una tabla unificada para almacenar todos los tipos de plantilla:
+**Pestaña "General"** — datos compartidos entre módulos:
+- KPIs globales: total eventos, participantes únicos, matches mutuos, tasa de selección, retención, no-show
+- Distribución por módulo (pie chart)
+- Evolución temporal (participantes por evento + eventos por mes)
+- Ranking de eventos (tabla sortable con todos los eventos)
+- Insights de marketing (mejor día, asistencia por día de semana)
 
-```sql
-CREATE TABLE organizer_templates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organizer_id UUID NOT NULL,
-  type TEXT NOT NULL, -- 'registration_form' | 'email' | 'event'
-  subtype TEXT, -- 'social' | 'professional' | 'match_results' | 'registration_confirmation' | 'access_code' | 'reminder'
-  name TEXT NOT NULL,
-  description TEXT,
-  content JSONB NOT NULL DEFAULT '{}',
-  is_default BOOLEAN DEFAULT false,
-  version INTEGER DEFAULT 1,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
+**Pestaña "Social"** — solo eventos con `module === 'social'`:
+- KPIs específicos social (eventos sociales, participantes sociales, matches sociales)
+- **Demografía corregida**:
+  - Género: normalizar valores equivalentes (`Man` → `Hombre`, `Woman` → `Mujer`, `Non-binary` → `No binario`) antes de agrupar, eliminando duplicados por idioma
+  - Edad: recalcular TODOS los rangos desde `birth_date` con bandas fijas (`18-24`, `25-29`, `30-34`, `35-39`, `40-49`, `50+`), ignorando el campo `age_range` que contiene datos inconsistentes de formularios con rangos configurados de forma diferente
+- **Nuevas métricas de selección**:
+  - Media de selecciones enviadas por participante
+  - Media de selecciones recibidas por participante
+  - Ratio de coincidencia (matches mutuos / total selecciones)
+  - % participantes que enviaron selecciones
+- Empty state si no hay eventos sociales: ilustración divertida + "¡Aún no tienes eventos sociales!" + botón "Crear evento social"
 
--- Historial de cambios
-CREATE TABLE template_versions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  template_id UUID NOT NULL REFERENCES organizer_templates(id) ON DELETE CASCADE,
-  version INTEGER NOT NULL,
-  content JSONB NOT NULL,
-  changed_by TEXT, -- descripción del cambio
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+**Pestaña "Profesional"** — solo eventos con `module === 'professional'`:
+- KPIs: eventos profesionales, empresas participantes, matches B2B
+- **Métricas específicas**:
+  - Distribución por tipo de entidad (clientes vs proveedores)
+  - Sectores más representados (top 5 bar chart)
+  - Media de necesidades/soluciones por participante
+  - Tasa de compatibilidad sectorial
+- Empty state si no hay eventos profesionales: "¡Aún no tienes eventos profesionales!" + botón "Crear evento profesional"
+
+### Cambios en datos (AdminDashboard.tsx)
+
+Ampliar `ParticipantRecord` para incluir campos adicionales necesarios para las nuevas métricas:
+- `entity_type`, `sector`, `needs`, `solutions`, `preference`, `name` 
+
+Ampliar la query de `loadAnalyticsData` para traer estos campos adicionales. También cargar `selection_type` en `SelectionRecord`.
+
+### Correcciones técnicas clave
+
+1. **Normalización de género** — mapa de equivalencias:
+```typescript
+const GENDER_NORMALIZE: Record<string, string> = {
+  "man": "Hombre", "hombre": "Hombre",
+  "woman": "Mujer", "mujer": "Mujer", 
+  "non-binary": "No binario", "no binario": "No binario",
+};
+// Normalizar: GENDER_NORMALIZE[g.toLowerCase()] || g
 ```
 
-RLS: solo el organizador dueño puede CRUD. Super admin puede gestionar todo.
+2. **Rangos de edad** — recalcular siempre desde `birth_date`:
+```typescript
+// Ignorar age_range almacenado, calcular desde birth_date
+const age = calcAge(p.birth_date);
+// Asignar a banda fija
+```
 
-Feature gate: crear un nuevo feature code `templates` asignado al plan Enterprise.
+3. **Empty states** — componente inline con emoji/icono, texto amigable y `Link` a `/admin/events/new`
 
-### 2. Sección "Plantillas" en el Dashboard
+### Archivos a modificar
 
-**Nuevo `DashboardSection`: `"templates"`**
-
-Archivos a modificar/crear:
-- `AdminSidebar.tsx` — Añadir item "Plantillas" con icono `FileText`, gateado por feature `templates`
-- `AdminDashboard.tsx` — Añadir case `"templates"` en `renderSection()` con gate
-- **Nuevo** `src/components/admin/DashboardTemplates.tsx` — Componente principal con 3 tabs:
-
-**Tab 1: Formularios de registro**
-- Lista de plantillas tipo `registration_form` con subtipo `social` o `professional`
-- Incluir 2-3 plantillas predefinidas (seed) como "B2B Estándar", "Networking Rápido"
-- Botón "Crear nueva plantilla" → editor de campos del formulario
-- El `content` JSON almacena: campos habilitados, orden, opciones de sectores/necesidades/soluciones, textos personalizados
-
-**Tab 2: Correos electrónicos**
-- Plantillas de email por tipo: confirmación de registro, código de acceso, recordatorio de selección, resultados de matches
-- Reutilizar la interfaz de `EmailTemplateEditor` adaptada para guardar como plantilla
-- Cada plantilla guarda el JSON de `EmailTemplate` o `ProfessionalEmailTemplate`
-
-**Tab 3: Plantillas de eventos**
-- Guardar configuraciones completas de eventos (rounds, table_size, rotation, professional_config, etc.) como plantilla reutilizable
-- Al crear evento: opción de "Usar plantilla" que precarga todos los valores
-- Solo necesita actualizar fecha, lugar y descripción
-
-**Cada tab incluye:**
-- Lista con nombre, subtipo, fecha de última modificación
-- Acciones: editar, duplicar, eliminar, ver historial de versiones
-- Al guardar cambios → se crea entrada en `template_versions` con el contenido anterior
-
-### 3. Selección de formulario al crear evento profesional
-
-En `CreateEvent.tsx`, añadir un paso intermedio después de seleccionar módulo "professional":
-
-**"¿Cómo quieres gestionar el formulario de registro?"**
-- 🤖 **Formulario automático** — Usa el formulario B2B estándar con las opciones del `professional_config`
-- 📋 **Usar una plantilla guardada** — Selector con las plantillas tipo `registration_form` + subtipo `professional` del organizador
-- ✏️ **Crear formulario personalizado** — Abre el editor inline para configurar campos específicos para este evento
-
-La elección se guarda en `professional_config.registration_form_mode`: `"auto" | "template" | "custom"` y opcionalmente `professional_config.registration_template_id`.
-
-En `ParticipantJoin.tsx`, el `B2BRegistrationForm` leerá el modo y, si es `template`, cargará la configuración de la plantilla para determinar qué campos mostrar y con qué opciones.
-
-### 4. Archivos a crear/modificar
-
-| Archivo | Acción |
+| Archivo | Cambio |
 |---|---|
-| `src/components/admin/DashboardTemplates.tsx` | **Crear** — Página principal con 3 tabs |
-| `src/components/admin/templates/FormTemplateEditor.tsx` | **Crear** — Editor de plantillas de formulario |
-| `src/components/admin/templates/EmailTemplateManager.tsx` | **Crear** — Gestión de plantillas de email |
-| `src/components/admin/templates/EventTemplateManager.tsx` | **Crear** — Gestión de plantillas de evento |
-| `src/components/admin/templates/VersionHistoryModal.tsx` | **Crear** — Modal de historial de versiones |
-| `src/components/admin/AdminSidebar.tsx` | **Editar** — Añadir item "Plantillas" |
-| `src/pages/AdminDashboard.tsx` | **Editar** — Añadir section "templates" |
-| `src/pages/CreateEvent.tsx` | **Editar** — Paso de selección de formulario para profesional |
-| `src/pages/ParticipantJoin.tsx` | **Editar** — Cargar config de plantilla si aplica |
-| `src/i18n/translations.ts` | **Editar** — Traducciones para templates |
-| Migración SQL | **Crear** — Tablas `organizer_templates` + `template_versions` + feature `templates` + asignar a plan Enterprise |
-
-### 5. Feature gating
-
-- Nueva feature `templates` en tabla `features`
-- Asignar a plan Enterprise en `plan_features`
-- En sidebar y dashboard, mostrar con candado si no tiene la feature
-- Mostrar `UpgradePrompt` al intentar acceder sin el plan adecuado
+| `src/components/admin/DashboardAnalytics.tsx` | Reescribir con 3 pestañas, corregir demografía, añadir métricas |
+| `src/pages/AdminDashboard.tsx` | Ampliar `ParticipantRecord` y `SelectionRecord`, extender query |
 
