@@ -4048,6 +4048,7 @@ const EventDetail = () => {
                 customDatingPreferences={eventData.custom_dating_preferences}
                 module={eventData.module}
                 professionalConfig={eventData.professional_config}
+                groupRounds={eventData.group_rounds}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
