@@ -150,8 +150,7 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">Konektum</h2>
+          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
@@ -182,8 +181,7 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">Konektum</h2>
+          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
@@ -198,9 +196,8 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
-          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">Konektum Business</h2>
-          <p className="text-sm text-muted-foreground">Networking Profesional</p>
+          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+        </div>
         </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
@@ -245,9 +242,8 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
-          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
-          <h2 className="font-bold text-lg">Konektum Business</h2>
-          <p className="text-sm text-muted-foreground">Networking Profesional</p>
+          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+        </div>
         </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
