@@ -924,13 +924,23 @@ const EventDetail = () => {
     let hasIncomplete = false;
     
     for (let round = 1; round <= numRounds; round++) {
+      // Check if this is a group round
+      const groupRoundConfig = groupRoundsConfig?.find(g => g.round === round);
+      const isGroupRound = !!groupRoundConfig;
+      const effectiveTableSize = isGroupRound ? groupRoundConfig.table_size : tableSize;
+      const effectiveDistribution = isGroupRound 
+        ? calculateOptimalTableDistribution(numParticipants, effectiveTableSize, 3)
+        : distribution;
+      const effectiveNumTables = effectiveDistribution.numTables;
+      const effectiveTableSizes = effectiveDistribution.sizes;
+
       const roundTables: { id: string; name: string }[][] = [];
       const usedParticipants = new Set<string>();
       
       // Create tables for this round
-      for (let tableIdx = 0; tableIdx < numTables; tableIdx++) {
+      for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
         const table: { id: string; name: string }[] = [];
-        const targetSize = tableSizes[tableIdx] || Math.min(tableSize, numParticipants - usedParticipants.size);
+        const targetSize = effectiveTableSizes[tableIdx] || Math.min(effectiveTableSize, numParticipants - usedParticipants.size);
         
         // Find best participants for this table
         const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
@@ -963,8 +973,9 @@ const EventDetail = () => {
             }
           }
           
-          // STRICT AGE CHECK: Must be compatible with all existing table members
-          if (canJoin && !relaxConstraints && table.length > 0) {
+           // STRICT AGE CHECK: Must be compatible with all existing table members
+          // Skip repetition check for group rounds (allow repetitions)
+          if (canJoin && !relaxConstraints && !isGroupRound && table.length > 0) {
             for (const member of table) {
               const memberParticipant = participantsList.find(p => p.id === member.id);
               if (memberParticipant && !areAgeCompatible(participant, memberParticipant)) {
