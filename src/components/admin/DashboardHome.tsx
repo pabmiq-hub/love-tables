@@ -204,18 +204,18 @@ export function DashboardHome({
         </Card>
       ) : (
         <Card className="border-dashed border-2 border-primary/20">
-          <CardContent className="p-8 text-center space-y-3">
+          <CardContent className="p-8 text-center space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
               <Rocket className="w-8 h-8 text-primary" />
             </div>
-            <h3 className="font-display text-lg font-semibold">¡Crea tu primer evento!</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            <h3 className="font-display text-lg font-semibold">¡Crea tu próximo evento!</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-2">
               Empieza a conectar personas. Configura un evento en minutos.
             </p>
             <Link to="/admin/events/new">
               <Button variant="hero">
                 <Plus className="w-4 h-4 mr-1" />
-                Crear Evento
+                Crear evento
               </Button>
             </Link>
           </CardContent>
