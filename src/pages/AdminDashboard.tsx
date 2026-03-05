@@ -29,12 +29,18 @@ interface Event {
 export interface ParticipantRecord {
   id: string;
   event_id: string;
+  name: string;
   checked_in: boolean | null;
   selection_submitted_at: string | null;
   gender: string | null;
   age_range: string | null;
   birth_date: string | null;
   global_participant_id: string | null;
+  preference: string | null;
+  entity_type: string | null;
+  sector: string | null;
+  needs: string[] | null;
+  solutions: string[] | null;
 }
 
 export interface EncounterRecord {
@@ -45,6 +51,7 @@ export interface SelectionRecord {
   event_id: string;
   selector_id: string;
   selected_id: string;
+  selection_type: string | null;
 }
 
 export interface AnalyticsData {
@@ -165,9 +172,9 @@ const AdminDashboard = () => {
     // Load participants filtered by organizer's events
     const { data: pData } = await supabase
       .from("participants")
-      .select("id, event_id, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id")
+      .select("id, event_id, name, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id, preference, entity_type, sector, needs, solutions")
       .in("event_id", eventIds);
-    if (pData) setParticipants(pData);
+    if (pData) setParticipants(pData as ParticipantRecord[]);
 
     // Load encounters filtered by organizer
     const { data: eData } = await supabase
@@ -179,7 +186,7 @@ const AdminDashboard = () => {
     // Load selections filtered by organizer's events
     const { data: sData } = await supabase
       .from("participant_selections")
-      .select("event_id, selector_id, selected_id")
+      .select("event_id, selector_id, selected_id, selection_type")
       .in("event_id", eventIds);
     if (sData) setSelections(sData);
   };
