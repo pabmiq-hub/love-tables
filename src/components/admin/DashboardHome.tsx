@@ -209,7 +209,7 @@ export function DashboardHome({
               <Rocket className="w-8 h-8 text-primary" />
             </div>
             <h3 className="font-display text-lg font-semibold">¡Crea tu próximo evento!</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-2">
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
               Empieza a conectar personas. Configura un evento en minutos.
             </p>
             <Link to="/admin/events/new">
