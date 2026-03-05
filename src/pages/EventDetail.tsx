@@ -99,6 +99,7 @@ interface EventData {
   event_time: string | null;
   event_location: string | null;
   professional_config: ProfessionalConfig | null;
+  group_rounds: Array<{ round: number; table_size: number }> | null;
 }
 
 interface DbParticipant {
@@ -268,6 +269,7 @@ const EventDetail = () => {
       module: (event.module as "social" | "professional") || "social",
       language: event.language || "es",
       professional_config: event.professional_config as unknown as ProfessionalConfig | null,
+      group_rounds: event.group_rounds as unknown as Array<{ round: number; table_size: number }> | null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
