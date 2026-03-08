@@ -142,7 +142,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form")
         .eq("id", eventId)
         .single();
 
