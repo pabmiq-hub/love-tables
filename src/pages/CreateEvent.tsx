@@ -171,6 +171,10 @@ const CreateEvent = () => {
   const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
   const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
   
+  // Registration form customization (shared between social and professional)
+  const [customFormEnabled, setCustomFormEnabled] = useState(false);
+  const [customFormFields, setCustomFormFields] = useState<FormField[]>([]);
+  
   // Professional-specific fields
   const [b2bRotationType, setB2bRotationType] = useState<B2BRotationType>("client_fixed");
   const [professionalPreferences, setProfessionalPreferences] = useState<ProfessionalPreferences>({ ...DEFAULT_PROFESSIONAL_PREFERENCES });
