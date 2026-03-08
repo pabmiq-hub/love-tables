@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Palette, Eye, Type, MessageSquare, Save, Loader2 } from "lucide-react";
+import { Palette, Eye, Type, MessageSquare, Save, Loader2, Link as LinkIcon, Copy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +147,39 @@ export function DashboardBranding() {
           Guardar cambios
         </Button>
       </div>
+
+      {/* Slug URL info */}
+      {organizer?.slug && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <LinkIcon className="h-5 w-5" />
+              URL personalizada
+            </CardTitle>
+            <CardDescription>Los participantes accederán a tus eventos desde esta URL única</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
+              <code className="text-sm flex-1 font-mono">
+                {window.location.origin}/o/{organizer.slug}/join/[evento-id]
+              </code>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/o/${organizer.slug}`);
+                  toast({ title: "Copiado", description: "URL base copiada al portapapeles" });
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Slug: <strong>{organizer.slug}</strong> — se genera automáticamente desde el nombre de tu empresa.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Configuration */}
