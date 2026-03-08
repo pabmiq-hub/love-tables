@@ -160,6 +160,7 @@ const AdminRegister = () => {
           status: "pending",
           plan_id: defaultPlan?.id || null,
           active_modules: selectedModules,
+          slug: "",
         });
 
       if (orgError) {
