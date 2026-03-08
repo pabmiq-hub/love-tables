@@ -287,6 +287,59 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_branding: {
+        Row: {
+          background_color: string | null
+          created_at: string | null
+          custom_footer_text: string | null
+          custom_welcome_text: string | null
+          font_family: string | null
+          hide_konektum_branding: boolean
+          id: string
+          is_white_label: boolean
+          organizer_id: string
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          created_at?: string | null
+          custom_footer_text?: string | null
+          custom_welcome_text?: string | null
+          font_family?: string | null
+          hide_konektum_branding?: boolean
+          id?: string
+          is_white_label?: boolean
+          organizer_id: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          created_at?: string | null
+          custom_footer_text?: string | null
+          custom_welcome_text?: string | null
+          font_family?: string | null
+          hide_konektum_branding?: boolean
+          id?: string
+          is_white_label?: boolean
+          organizer_id?: string
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_email_connections: {
         Row: {
           access_token: string | null
