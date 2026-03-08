@@ -171,6 +171,9 @@ const ParticipantJoin = () => {
       if (data.professional_config) {
         setProfessionalConfig(data.professional_config);
       }
+      if ((data as any).custom_registration_form) {
+        setCustomRegistrationForm((data as any).custom_registration_form);
+      }
       
       // Set event language
       const lang: Language = (data.language === 'en' || data.language === 'es') ? data.language as Language : 'es';
