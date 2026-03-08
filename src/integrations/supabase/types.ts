@@ -559,6 +559,7 @@ export type Database = {
           id: string
           logo_url: string | null
           plan_id: string | null
+          slug: string
           status: string
           stripe_customer_id: string | null
           subscription_ends_at: string | null
@@ -576,6 +577,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           plan_id?: string | null
+          slug: string
           status?: string
           stripe_customer_id?: string | null
           subscription_ends_at?: string | null
@@ -593,6 +595,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           plan_id?: string | null
+          slug?: string
           status?: string
           stripe_customer_id?: string | null
           subscription_ends_at?: string | null
@@ -1014,6 +1017,7 @@ export type Database = {
     }
     Functions: {
       check_event_limits: { Args: { _user_id: string }; Returns: boolean }
+      generate_slug: { Args: { input: string }; Returns: string }
       get_organizer_id: { Args: { _user_id: string }; Returns: string }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
       has_feature: {

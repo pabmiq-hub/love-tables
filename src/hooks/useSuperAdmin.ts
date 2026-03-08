@@ -490,6 +490,7 @@ export function useSuperAdmin() {
           status: "pending",
           plan_id: defaultPlan?.id || null,
           active_modules: ["social"],
+          slug: "",
         });
 
       if (error) throw error;

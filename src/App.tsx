@@ -18,6 +18,7 @@ import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantCheckin from "./pages/ParticipantCheckin";
 import ParticipantTables from "./pages/ParticipantTables";
 import ParticipantAccess from "./pages/ParticipantAccess";
+import OrganizerPortal from "./pages/OrganizerPortal";
 import NotFound from "./pages/NotFound";
 import AvisoLegal from "./pages/AvisoLegal";
 import PoliticaPrivacidad from "./pages/PoliticaPrivacidad";
@@ -46,11 +47,20 @@ const App = () => (
           <Route path="/super-admin/login" element={<SuperAdminLogin />} />
           <Route path="/admin/events/new" element={<CreateEvent />} />
           <Route path="/admin/events/:id" element={<EventDetail />} />
+          {/* Legacy participant routes */}
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
           <Route path="/event/:id/join" element={<ParticipantJoin />} />
           <Route path="/event/:id/checkin" element={<ParticipantCheckin />} />
           <Route path="/event/:id/tables" element={<ParticipantTables />} />
           <Route path="/event/:id/access" element={<ParticipantAccess />} />
+          {/* Slug-based organizer portal routes */}
+          <Route path="/o/:slug" element={<OrganizerPortal />}>
+            <Route path="join/:id" element={<ParticipantJoin />} />
+            <Route path="checkin/:id" element={<ParticipantCheckin />} />
+            <Route path="select/:id" element={<ParticipantSelect />} />
+            <Route path="tables/:id" element={<ParticipantTables />} />
+            <Route path="access/:id" element={<ParticipantAccess />} />
+          </Route>
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
           <Route path="/politica-cookies" element={<PoliticaCookies />} />

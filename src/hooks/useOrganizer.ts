@@ -15,6 +15,7 @@ interface OrganizerProfile {
   subscription_ends_at: string | null;
   active_modules: string[];
   logo_url: string | null;
+  slug: string;
   created_at: string;
   updated_at: string;
 }
