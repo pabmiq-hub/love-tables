@@ -1214,40 +1214,40 @@ const CreateEvent = () => {
                   />
                 </div>
 
-                {/* Registration Form Mode */}
+                {/* Registration Form Customization */}
                 <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
-                  <Label className="font-medium">Formulario de registro</Label>
-                  <p className="text-xs text-muted-foreground">¿Cómo quieres gestionar el formulario de inscripción de participantes?</p>
-                  <div className="grid gap-2 mt-2">
-                    {[
-                      { value: "auto" as const, icon: Bot, label: "Formulario automático", desc: "Usa el formulario B2B estándar con las opciones configuradas arriba" },
-                      { value: "template" as const, icon: ClipboardList, label: "Usar una plantilla guardada", desc: "Selecciona una plantilla de formulario previamente creada" },
-                      { value: "custom" as const, icon: Pencil, label: "Personalizar para este evento", desc: "Configura campos específicos para este evento" },
-                    ].map((opt) => (
-                      <div
-                        key={opt.value}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          registrationFormMode === opt.value
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                        onClick={() => setRegistrationFormMode(opt.value)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <opt.icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium">{opt.label}</p>
-                            <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                          </div>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileEdit className="w-5 h-5 text-primary" />
                       </div>
-                    ))}
+                      <div>
+                        <Label htmlFor="custom-form-pro" className="font-medium cursor-pointer">
+                          Personalizar formulario de registro
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Edita los campos que ven los participantes al inscribirse
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="custom-form-pro"
+                      checked={customFormEnabled}
+                      onCheckedChange={(checked) => {
+                        setCustomFormEnabled(checked);
+                        if (checked && customFormFields.length === 0) {
+                          setCustomFormFields(getDefaultFields("professional"));
+                        }
+                      }}
+                    />
                   </div>
-
-                  {registrationFormMode === "template" && (
-                    <div className="mt-3">
-                      <Label className="text-sm">Seleccionar plantilla</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Puedes crear plantillas desde la sección "Plantillas" del dashboard (plan Enterprise)</p>
+                  {customFormEnabled && (
+                    <div className="mt-4">
+                      <RegistrationFormEditor
+                        fields={customFormFields}
+                        onChange={setCustomFormFields}
+                        eventModule="professional"
+                      />
                     </div>
                   )}
                 </div>
