@@ -1026,6 +1026,44 @@ const CreateEvent = () => {
                     availableAgeRanges={eventPreferences.ageRanges}
                   />
                 </div>
+
+                {/* Registration Form Customization */}
+                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileEdit className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <Label htmlFor="custom-form-social" className="font-medium cursor-pointer">
+                          Personalizar formulario de registro
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Edita los campos que ven los participantes al inscribirse
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="custom-form-social"
+                      checked={customFormEnabled}
+                      onCheckedChange={(checked) => {
+                        setCustomFormEnabled(checked);
+                        if (checked && customFormFields.length === 0) {
+                          setCustomFormFields(getDefaultFields("social"));
+                        }
+                      }}
+                    />
+                  </div>
+                  {customFormEnabled && (
+                    <div className="mt-4">
+                      <RegistrationFormEditor
+                        fields={customFormFields}
+                        onChange={setCustomFormFields}
+                        eventModule="social"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3">
