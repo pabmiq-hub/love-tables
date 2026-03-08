@@ -605,6 +605,97 @@ const ParticipantJoin = () => {
     );
   }
 
+  // Custom registration form (takes priority over default forms)
+  if (customRegistrationForm && customRegistrationForm.formMode === "custom" && customRegistrationForm.fields?.length > 0) {
+    const handleDynamicSubmit = async (formValues: Record<string, any>) => {
+      setIsSubmitting(true);
+      const emailVal = formValues.email || "";
+      setEmail(emailVal);
+
+      // Map known system fields to the edge function expected format
+      const body: Record<string, any> = {
+        eventId,
+        name: formValues.name || "",
+        email: emailVal,
+        phone: formValues.phone || "",
+        isProfessional: eventModule === "professional",
+      };
+
+      // Social system fields
+      if (formValues.birth_date) body.birthDate = formValues.birth_date;
+      if (formValues.gender) body.gender = formValues.gender;
+      if (formValues.preference) body.preference = formValues.preference;
+      if (formValues.dating_preference) body.datingPreference = formValues.dating_preference;
+
+      // Professional system fields
+      if (formValues.entity_type) {
+        body.entityType = formValues.entity_type.toLowerCase() === "cliente" || formValues.entity_type.toLowerCase() === "client" ? "client" : "provider";
+      }
+      if (formValues.company_name) body.companyName = formValues.company_name;
+      if (formValues.sector) body.sector = formValues.sector;
+      if (formValues.company_size) body.companySize = formValues.company_size;
+      if (formValues.needs) body.needs = formValues.needs;
+      if (formValues.solutions) body.solutions = formValues.solutions;
+
+      // Custom fields stored as metadata
+      const customFields: Record<string, any> = {};
+      customRegistrationForm.fields.forEach((f) => {
+        if (!f.system && formValues[f.id] !== undefined) {
+          customFields[f.id] = formValues[f.id];
+        }
+      });
+      if (Object.keys(customFields).length > 0) {
+        body.customFields = customFields;
+      }
+
+      const { data, error } = await supabase.functions.invoke("register-participant", { body });
+
+      if (error || data?.error) {
+        let errorMessage = eventLang === "en" ? "Registration failed" : "Error al registrarse";
+        if (data?.error) errorMessage = data.error;
+        toast({ title: "Error", description: errorMessage, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const baseUrl = window.location.origin;
+      if (data.autoCheckedIn && data.verificationCode) {
+        await supabase.functions.invoke("send-checkin-code", {
+          body: { participantId: data.participantId, eventId, baseUrl },
+        });
+        setVerificationCode(data.verificationCode);
+      } else {
+        await supabase.functions.invoke("send-registration-confirmation", {
+          body: { participantId: data.participantId, eventId },
+        });
+      }
+
+      setAutoCheckedIn(data.autoCheckedIn);
+      setIsSubmitted(true);
+      setIsSubmitting(false);
+    };
+
+    return (
+      <div className="min-h-screen bg-background">
+        <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
+        <main className="container mx-auto px-4 py-8 max-w-md">
+          <DynamicRegistrationForm
+            fields={customRegistrationForm.fields}
+            eventName={eventName}
+            eventDate={eventDate}
+            eventTime={eventTime}
+            eventLocation={eventLocation}
+            registrationSubtitle={registrationSubtitle}
+            registrationDescription={registrationDescription}
+            eventLang={eventLang}
+            isSubmitting={isSubmitting}
+            onSubmit={handleDynamicSubmit}
+          />
+        </main>
+      </div>
+    );
+  }
+
   // B2B Professional form
   if (eventModule === "professional") {
     return (
