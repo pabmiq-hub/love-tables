@@ -41,6 +41,7 @@ export function useOrganizer() {
   const [organizer, setOrganizer] = useState<OrganizerProfile | null>(null);
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
   const [limits, setLimits] = useState<OrganizerLimits | null>(null);
+  const [brandingConfig, setBrandingConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +75,17 @@ export function useOrganizer() {
 
       if (orgData) {
         setOrganizer(orgData as OrganizerProfile);
+
+        // Load branding config
+        const { data: brandingData } = await supabase
+          .from("organizer_branding")
+          .select("*")
+          .eq("organizer_id", orgData.id)
+          .maybeSingle();
+
+        if (brandingData) {
+          setBrandingConfig(brandingData);
+        }
 
         // Load plan if assigned
         if (orgData.plan_id) {
@@ -115,16 +127,23 @@ export function useOrganizer() {
   const isPending = organizer?.status === "pending";
   const isSuspended = organizer?.status === "suspended";
 
-  // Branding helpers
+  // Branding helpers - now driven by organizer_branding table
   const modules = organizer?.active_modules || [];
   const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
-  const isWhiteLabel = isProfessionalOnly && !!organizer?.logo_url;
+  const isWhiteLabel = brandingConfig?.is_white_label === true;
 
   const branding = {
     logoUrl: organizer?.logo_url ?? null,
     companyName: organizer?.company_name ?? null,
     isProfessionalOnly,
     isWhiteLabel,
+    primaryColor: brandingConfig?.primary_color ?? null,
+    secondaryColor: brandingConfig?.secondary_color ?? null,
+    backgroundColor: brandingConfig?.background_color ?? null,
+    fontFamily: brandingConfig?.font_family ?? null,
+    customWelcomeText: brandingConfig?.custom_welcome_text ?? null,
+    customFooterText: brandingConfig?.custom_footer_text ?? null,
+    hideKonektumBranding: brandingConfig?.hide_konektum_branding ?? false,
   };
 
   const hasModule = (moduleCode: string): boolean => {
