@@ -57,12 +57,14 @@ import {
   UserPlus,
   Trash2,
   UserX,
+  Palette,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { OrganizerFeaturesModal } from "@/components/admin/OrganizerFeaturesModal";
 import { CreateOrganizerModal } from "@/components/admin/CreateOrganizerModal";
+import { SuperAdminWhiteLabel } from "@/components/admin/SuperAdminWhiteLabel";
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -434,6 +436,10 @@ export default function SuperAdminDashboard() {
               <Settings className="h-4 w-4 mr-2" />
               Planes
             </TabsTrigger>
+            <TabsTrigger value="whitelabel">
+              <Palette className="h-4 w-4 mr-2" />
+              Marca Blanca
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="organizers" className="space-y-4">
@@ -768,6 +774,10 @@ export default function SuperAdminDashboard() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="whitelabel">
+            <SuperAdminWhiteLabel />
           </TabsContent>
         </Tabs>
       </main>
