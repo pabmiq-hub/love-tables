@@ -4066,9 +4066,6 @@ const EventDetail = () => {
             isProfessional={isProfessionalEvent}
             onSave={handleSaveEmailTemplate}
             onClose={() => setShowEmailEditor(false)}
-            brandLogoUrl={branding.logoUrl}
-            brandName={branding.companyName}
-            isWhiteLabel={branding.isWhiteLabel}
           />
         )}
 

@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Eye, RotateCcw, Mail, Heart, Users, Handshake, Briefcase, Building2 } from "lucide-react";
-import konektumLogo from "@/assets/konektum-logo.png";
 
 export interface EmailTemplate {
   withMatches: {
@@ -93,9 +92,6 @@ interface EmailTemplateEditorProps {
   isProfessional?: boolean;
   onSave: (template: EmailTemplate, professionalTemplate?: ProfessionalEmailTemplate) => void;
   onClose: () => void;
-  brandLogoUrl?: string | null;
-  brandName?: string;
-  isWhiteLabel?: boolean;
 }
 
 const EmailTemplateEditor = ({ 
@@ -104,10 +100,7 @@ const EmailTemplateEditor = ({
   eventName, 
   isProfessional = false,
   onSave, 
-  onClose,
-  brandLogoUrl,
-  brandName = "Konektum",
-  isWhiteLabel = false,
+  onClose 
 }: EmailTemplateEditorProps) => {
   const [currentTemplate, setCurrentTemplate] = useState<EmailTemplate>(template || DEFAULT_TEMPLATE);
   const [currentProfTemplate, setCurrentProfTemplate] = useState<ProfessionalEmailTemplate>(professionalTemplate || DEFAULT_PROFESSIONAL_TEMPLATE);
@@ -135,9 +128,6 @@ const EmailTemplateEditor = ({
     onClose();
   };
 
-  const previewLogo = isWhiteLabel && brandLogoUrl ? brandLogoUrl : konektumLogo;
-  const previewAlt = isWhiteLabel && brandName ? brandName : "Konektum";
-
   const replaceVariables = (text: string) => {
     return text
       .replace(/\{\{nombre\}\}/g, isProfessional ? "Juan García" : "María García")
@@ -150,7 +140,8 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum</h2>
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
@@ -181,7 +172,8 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b">
-          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+          <Handshake className="w-8 h-8 mx-auto mb-2" style={{ color: currentTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum</h2>
         </div>
         <h1 className="text-xl font-bold">{replaceVariables(t.greeting)}</h1>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
@@ -196,7 +188,9 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
-          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum Business</h2>
+          <p className="text-sm text-muted-foreground">Networking Profesional</p>
         </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground">{replaceVariables(t.intro)}</p>
@@ -241,7 +235,9 @@ const EmailTemplateEditor = ({
     return (
       <div className="bg-background rounded-lg p-6 border space-y-4">
         <div className="text-center pb-4 border-b-2" style={{ borderColor: currentProfTemplate.primaryColor }}>
-          <img src={previewLogo} alt={previewAlt} className="h-10 mx-auto mb-2 max-w-[200px] object-contain" />
+          <Building2 className="w-8 h-8 mx-auto mb-2" style={{ color: currentProfTemplate.primaryColor }} />
+          <h2 className="font-bold text-lg">Konektum Business</h2>
+          <p className="text-sm text-muted-foreground">Networking Profesional</p>
         </div>
         <p className="text-base">{replaceVariables(t.greeting)}</p>
         <p className="text-muted-foreground whitespace-pre-line">{replaceVariables(t.message)}</p>
