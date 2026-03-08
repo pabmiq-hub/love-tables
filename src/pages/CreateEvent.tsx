@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -24,6 +24,7 @@ import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
+import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
@@ -169,6 +170,10 @@ const CreateEvent = () => {
   const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
   const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
   const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
+  
+  // Registration form customization (shared between social and professional)
+  const [customFormEnabled, setCustomFormEnabled] = useState(false);
+  const [customFormFields, setCustomFormFields] = useState<FormField[]>([]);
   
   // Professional-specific fields
   const [b2bRotationType, setB2bRotationType] = useState<B2BRotationType>("client_fixed");
@@ -350,6 +355,9 @@ const CreateEvent = () => {
       registration_requirements_enabled: eventModule === "social" ? registrationRequirementsEnabled : false,
       slot_quotas: (eventModule === "social" && registrationRequirementsEnabled ? slotQuotas : null) as unknown as Json,
       group_rounds: (eventModule === "social" && groupRoundsEnabled && groupRounds.length > 0 ? groupRounds : null) as unknown as Json,
+      custom_registration_form: customFormEnabled && customFormFields.length > 0
+        ? { fields: customFormFields, formMode: "custom" } as unknown as Json
+        : null,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -1018,6 +1026,44 @@ const CreateEvent = () => {
                     availableAgeRanges={eventPreferences.ageRanges}
                   />
                 </div>
+
+                {/* Registration Form Customization */}
+                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileEdit className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <Label htmlFor="custom-form-social" className="font-medium cursor-pointer">
+                          Personalizar formulario de registro
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Edita los campos que ven los participantes al inscribirse
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="custom-form-social"
+                      checked={customFormEnabled}
+                      onCheckedChange={(checked) => {
+                        setCustomFormEnabled(checked);
+                        if (checked && customFormFields.length === 0) {
+                          setCustomFormFields(getDefaultFields("social"));
+                        }
+                      }}
+                    />
+                  </div>
+                  {customFormEnabled && (
+                    <div className="mt-4">
+                      <RegistrationFormEditor
+                        fields={customFormFields}
+                        onChange={setCustomFormFields}
+                        eventModule="social"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3">
@@ -1168,40 +1214,40 @@ const CreateEvent = () => {
                   />
                 </div>
 
-                {/* Registration Form Mode */}
+                {/* Registration Form Customization */}
                 <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
-                  <Label className="font-medium">Formulario de registro</Label>
-                  <p className="text-xs text-muted-foreground">¿Cómo quieres gestionar el formulario de inscripción de participantes?</p>
-                  <div className="grid gap-2 mt-2">
-                    {[
-                      { value: "auto" as const, icon: Bot, label: "Formulario automático", desc: "Usa el formulario B2B estándar con las opciones configuradas arriba" },
-                      { value: "template" as const, icon: ClipboardList, label: "Usar una plantilla guardada", desc: "Selecciona una plantilla de formulario previamente creada" },
-                      { value: "custom" as const, icon: Pencil, label: "Personalizar para este evento", desc: "Configura campos específicos para este evento" },
-                    ].map((opt) => (
-                      <div
-                        key={opt.value}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          registrationFormMode === opt.value
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                        onClick={() => setRegistrationFormMode(opt.value)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <opt.icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium">{opt.label}</p>
-                            <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                          </div>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileEdit className="w-5 h-5 text-primary" />
                       </div>
-                    ))}
+                      <div>
+                        <Label htmlFor="custom-form-pro" className="font-medium cursor-pointer">
+                          Personalizar formulario de registro
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Edita los campos que ven los participantes al inscribirse
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="custom-form-pro"
+                      checked={customFormEnabled}
+                      onCheckedChange={(checked) => {
+                        setCustomFormEnabled(checked);
+                        if (checked && customFormFields.length === 0) {
+                          setCustomFormFields(getDefaultFields("professional"));
+                        }
+                      }}
+                    />
                   </div>
-
-                  {registrationFormMode === "template" && (
-                    <div className="mt-3">
-                      <Label className="text-sm">Seleccionar plantilla</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Puedes crear plantillas desde la sección "Plantillas" del dashboard (plan Enterprise)</p>
+                  {customFormEnabled && (
+                    <div className="mt-4">
+                      <RegistrationFormEditor
+                        fields={customFormFields}
+                        onChange={setCustomFormFields}
+                        eventModule="professional"
+                      />
                     </div>
                   )}
                 </div>

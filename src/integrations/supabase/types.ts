@@ -73,6 +73,7 @@ export type Database = {
           custom_dating_preferences: Json | null
           custom_genders: Json | null
           custom_preferences: Json | null
+          custom_registration_form: Json | null
           date: string
           email_template: Json | null
           emails_sent_at: string | null
@@ -116,6 +117,7 @@ export type Database = {
           custom_dating_preferences?: Json | null
           custom_genders?: Json | null
           custom_preferences?: Json | null
+          custom_registration_form?: Json | null
           date: string
           email_template?: Json | null
           emails_sent_at?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           custom_dating_preferences?: Json | null
           custom_genders?: Json | null
           custom_preferences?: Json | null
+          custom_registration_form?: Json | null
           date?: string
           email_template?: Json | null
           emails_sent_at?: string | null
