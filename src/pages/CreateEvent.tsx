@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -24,6 +24,7 @@ import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
+import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
