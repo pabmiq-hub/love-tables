@@ -88,6 +88,7 @@ const ParticipantJoin = () => {
   // Event module type
   const [eventModule, setEventModule] = useState<string>("social");
   const [professionalConfig, setProfessionalConfig] = useState<any>(null);
+  const [customRegistrationForm, setCustomRegistrationForm] = useState<{ fields: FormField[]; formMode: string } | null>(null);
 
   // Event language
   const [eventLang, setEventLang] = useState<Language>("es");
