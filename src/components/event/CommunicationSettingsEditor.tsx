@@ -3,67 +3,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw } from "lucide-react";
+import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  CommunicationTemplates,
+  TemplateKey,
+  StructuredTemplate,
+  DEFAULT_TEMPLATES_ES,
+  DEFAULT_TEMPLATES_EN,
+} from "./communication/types";
+import TemplateEditor from "./communication/TemplateEditor";
+import EmailPreview from "./communication/EmailPreview";
 
-interface CommunicationTemplate {
-  subject: string;
-  body: string;
-}
-
-interface CommunicationTemplates {
-  registration_confirmation: CommunicationTemplate;
-  reminder: CommunicationTemplate;
-  matches: CommunicationTemplate;
-  checkin_code: CommunicationTemplate;
-}
-
-const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
-  registration_confirmation: {
-    subject: "¡Confirmación de inscripción a {{evento}}!",
-    body: "<p>¡Hola <strong>{{nombre}}</strong>! 🎉</p><p>Tu inscripción al evento <strong>{{evento}}</strong> ha sido confirmada con éxito.</p><p>📅 <strong>Fecha:</strong> {{fecha}}</p><p>📍 <strong>Lugar:</strong> {{ubicacion}}</p><p>🕐 <strong>Hora:</strong> {{hora}}</p><p>Te enviaremos un código de acceso antes del evento. ¡Nos vemos pronto!</p>",
-  },
-  reminder: {
-    subject: "Recordatorio: {{evento}} es pronto",
-    body: "<p>¡Hola <strong>{{nombre}}</strong>! 👋</p><p>Te recordamos que el evento <strong>{{evento}}</strong> está a la vuelta de la esquina.</p><p>📅 <strong>Fecha:</strong> {{fecha}}</p><p>📍 <strong>Lugar:</strong> {{ubicacion}}</p><p>🕐 <strong>Hora:</strong> {{hora}}</p><p>No olvides llegar puntual para hacer tu check-in. ¡Te esperamos!</p>",
-  },
-  matches: {
-    subject: "¡Tus resultados de {{evento}}! 🎉",
-    body: "<p>¡Hola <strong>{{nombre}}</strong>! 🎉</p><p>¡Gracias por participar en <strong>{{evento}}</strong>! Aquí tienes tus resultados.</p><p>Los matches aparecerán automáticamente en el email según las selecciones mutuas.</p><p>¡No dudes en contactarles! Los mejores momentos empiezan con una simple conversación. 💕</p>",
-  },
-  checkin_code: {
-    subject: "Tu código de acceso para {{evento}}",
-    body: "<p>¡Hola <strong>{{nombre}}</strong>!</p><p>Tu código de acceso para el evento <strong>{{evento}}</strong> es:</p><p style=\"text-align:center;font-size:24px;font-weight:bold;letter-spacing:4px;\">{{codigo}}</p><p>Presenta este código al llegar al evento para hacer tu check-in.</p>",
-  },
-};
-
-const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
-  registration_confirmation: {
-    subject: "Registration confirmed for {{evento}}!",
-    body: "<p>Hi <strong>{{nombre}}</strong>! 🎉</p><p>Your registration for <strong>{{evento}}</strong> has been confirmed.</p><p>📅 <strong>Date:</strong> {{fecha}}</p><p>📍 <strong>Location:</strong> {{ubicacion}}</p><p>🕐 <strong>Time:</strong> {{hora}}</p><p>We'll send you an access code before the event. See you there!</p>",
-  },
-  reminder: {
-    subject: "Reminder: {{evento}} is coming up",
-    body: "<p>Hi <strong>{{nombre}}</strong>! 👋</p><p>Just a reminder that <strong>{{evento}}</strong> is coming up soon.</p><p>📅 <strong>Date:</strong> {{fecha}}</p><p>📍 <strong>Location:</strong> {{ubicacion}}</p><p>🕐 <strong>Time:</strong> {{hora}}</p><p>Don't forget to arrive on time for check-in. See you there!</p>",
-  },
-  matches: {
-    subject: "Your results from {{evento}}! 🎉",
-    body: "<p>Hi <strong>{{nombre}}</strong>! 🎉</p><p>Thank you for attending <strong>{{evento}}</strong>! Here are your results.</p><p>Your matches will appear automatically based on mutual selections.</p><p>Don't hesitate to reach out! Great moments start with a simple conversation. 💕</p>",
-  },
-  checkin_code: {
-    subject: "Your access code for {{evento}}",
-    body: "<p>Hi <strong>{{nombre}}</strong>!</p><p>Your access code for <strong>{{evento}}</strong> is:</p><p style=\"text-align:center;font-size:24px;font-weight:bold;letter-spacing:4px;\">{{codigo}}</p><p>Show this code at the event to check in.</p>",
-  },
-};
-
-const TABS_CONFIG = [
-  { key: "registration_confirmation" as const, label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
-  { key: "reminder" as const, label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
-  { key: "matches" as const, label: "Resultados", icon: Heart, description: "Email de matches" },
-  { key: "checkin_code" as const, label: "Check-in", icon: UserCheck, description: "Código de acceso" },
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string }[] = [
+  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
+  { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
+  { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
+  { key: "checkin_code", label: "Check-in", icon: UserCheck, description: "Código de acceso" },
 ];
 
 interface CommunicationSettingsEditorProps {
@@ -85,7 +43,7 @@ const CommunicationSettingsEditor = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const defaults = language === "en" ? DEFAULT_TEMPLATES_EN : DEFAULT_TEMPLATES_ES;
-  const [templates, setTemplates] = useState<CommunicationTemplates>(defaults);
+  const [templates, setTemplates] = useState<CommunicationTemplates>({ ...defaults });
 
   useEffect(() => {
     loadTemplates();
@@ -101,24 +59,27 @@ const CommunicationSettingsEditor = ({
 
     if (data?.email_template) {
       const stored = data.email_template as any;
-      if (stored.communication_templates) {
+      if (stored.communication_templates_v2) {
         setTemplates({
           ...defaults,
-          ...stored.communication_templates,
+          ...stored.communication_templates_v2,
         });
+      } else if (stored.communication_templates) {
+        // Migration from old format - keep defaults but preserve any stored data
+        setTemplates({ ...defaults });
       }
     }
     setIsLoading(false);
   };
 
-  const updateTemplate = (key: keyof CommunicationTemplates, field: "subject" | "body", value: string) => {
+  const updateTemplate = (key: TemplateKey, field: keyof StructuredTemplate, value: string) => {
     setTemplates(prev => ({
       ...prev,
       [key]: { ...prev[key], [field]: value },
     }));
   };
 
-  const handleReset = (key: keyof CommunicationTemplates) => {
+  const handleReset = (key: TemplateKey) => {
     setTemplates(prev => ({
       ...prev,
       [key]: defaults[key],
@@ -129,7 +90,6 @@ const CommunicationSettingsEditor = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Load current email_template to merge
       const { data: current } = await supabase
         .from("events")
         .select("email_template")
@@ -139,7 +99,7 @@ const CommunicationSettingsEditor = ({
       const existingTemplate = (current?.email_template as any) || {};
       const updatedTemplate = {
         ...existingTemplate,
-        communication_templates: templates,
+        communication_templates_v2: templates,
       };
 
       const { error } = await supabase
@@ -179,12 +139,53 @@ const CommunicationSettingsEditor = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ajustes de comunicación</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="w-5 h-5 text-primary" />
+          Ajustes de comunicación
+        </CardTitle>
         <CardDescription>
-          Personaliza los mensajes que reciben los participantes en cada paso del evento. Usa variables como <code className="bg-muted px-1 rounded text-xs">{"{{nombre}}"}</code>, <code className="bg-muted px-1 rounded text-xs">{"{{evento}}"}</code>, <code className="bg-muted px-1 rounded text-xs">{"{{fecha}}"}</code>, <code className="bg-muted px-1 rounded text-xs">{"{{ubicacion}}"}</code>, <code className="bg-muted px-1 rounded text-xs">{"{{hora}}"}</code>.
+          Personaliza los mensajes que reciben los participantes. Edita los campos a la izquierda y ve la vista previa en tiempo real a la derecha.
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Branding controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Logo URL</Label>
+            <Input
+              value={templates.logoUrl}
+              onChange={(e) => setTemplates(prev => ({ ...prev, logoUrl: e.target.value }))}
+              placeholder="https://..."
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Nombre de marca</Label>
+            <Input
+              value={templates.brandName}
+              onChange={(e) => setTemplates(prev => ({ ...prev, brandName: e.target.value }))}
+              placeholder="Konektum"
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Color principal</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={templates.primaryColor}
+                onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
+                className="w-10 h-9 p-1 cursor-pointer"
+              />
+              <Input
+                value={templates.primaryColor}
+                onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
+                className="flex-1 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
         <Tabs defaultValue="registration_confirmation" className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
             {TABS_CONFIG.map(tab => (
@@ -196,8 +197,8 @@ const CommunicationSettingsEditor = ({
           </TabsList>
 
           {TABS_CONFIG.map(tab => (
-            <TabsContent key={tab.key} value={tab.key} className="mt-6 space-y-4">
-              <div className="flex items-center justify-between">
+            <TabsContent key={tab.key} value={tab.key} className="mt-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h4 className="font-semibold text-sm">{tab.label}</h4>
                   <p className="text-xs text-muted-foreground">{tab.description}</p>
@@ -208,23 +209,31 @@ const CommunicationSettingsEditor = ({
                 </Button>
               </div>
 
-              <div className="space-y-2">
-                <Label>Asunto del email</Label>
-                <Input
-                  value={templates[tab.key].subject}
-                  onChange={(e) => updateTemplate(tab.key, "subject", e.target.value)}
-                  placeholder="Asunto..."
-                />
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Editor */}
+                <div>
+                  <TemplateEditor
+                    template={templates[tab.key]}
+                    templateKey={tab.key}
+                    onChange={(field, value) => updateTemplate(tab.key, field, value)}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label>Contenido del email</Label>
-                <RichTextEditor
-                  value={templates[tab.key].body}
-                  onChange={(val) => updateTemplate(tab.key, "body", val)}
-                  placeholder="Escribe el contenido del email..."
-                  minHeight="200px"
-                />
+                {/* Preview */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">Vista Previa</span>
+                  </div>
+                  <EmailPreview
+                    template={templates[tab.key]}
+                    templateKey={tab.key}
+                    primaryColor={templates.primaryColor}
+                    logoUrl={templates.logoUrl}
+                    brandName={templates.brandName}
+                    eventName={eventName}
+                  />
+                </div>
               </div>
             </TabsContent>
           ))}
