@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useEffect } from "react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Eye, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
+import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
+import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
 
 interface EventSettingsEditorProps {
   eventId: string;
@@ -62,6 +63,7 @@ const EventSettingsEditor = ({
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [formName, setFormName] = useState(name);
   const [formDate, setFormDate] = useState(date);
@@ -97,7 +99,31 @@ const EventSettingsEditor = ({
     ],
   });
 
+  // Registration form customization
+  const [customFormEnabled, setCustomFormEnabled] = useState(false);
+  const [customFormFields, setCustomFormFields] = useState<FormField[]>([]);
+
   const isProfessional = eventModule === "professional";
+
+  // Load custom registration form from DB
+  useEffect(() => {
+    const loadCustomForm = async () => {
+      const { data } = await supabase
+        .from("events")
+        .select("custom_registration_form")
+        .eq("id", eventId)
+        .single();
+
+      if (data?.custom_registration_form) {
+        const formConfig = data.custom_registration_form as any;
+        if (formConfig.fields && formConfig.formMode === "custom") {
+          setCustomFormEnabled(true);
+          setCustomFormFields(formConfig.fields);
+        }
+      }
+    };
+    loadCustomForm();
+  }, [eventId]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -120,9 +146,11 @@ const EventSettingsEditor = ({
         custom_preferences: formPreferences.preferences,
         custom_dating_preferences: formPreferences.datingPreferences,
         group_rounds: formGroupRoundsEnabled && formGroupRounds.length > 0 ? formGroupRounds : null,
+        custom_registration_form: customFormEnabled && customFormFields.length > 0
+          ? { fields: customFormFields, formMode: "custom" }
+          : null,
       };
 
-      // Update professional_config with rotation_type for B2B events
       if (isProfessional) {
         const updatedProfConfig = {
           ...(professionalConfig || {}),
@@ -159,233 +187,266 @@ const EventSettingsEditor = ({
     }
   };
 
+  // Determine which fields to show in the preview
+  const previewFields = customFormEnabled && customFormFields.length > 0
+    ? customFormFields
+    : getDefaultFields(isProfessional ? "professional" : "social");
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ajustes del Evento</CardTitle>
-        <CardDescription>
-          Modifica la configuración del evento antes de iniciarlo
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Event Name */}
-          <div className="space-y-2">
-            <Label htmlFor="event-name">Nombre del evento</Label>
-            <Input
-              id="event-name"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-            />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ajustes del evento</CardTitle>
+          <CardDescription>
+            Modifica la configuración del evento antes de iniciarlo
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="event-name">Nombre del evento</Label>
+              <Input
+                id="event-name"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-date">Fecha</Label>
+              <Input
+                id="event-date"
+                type="date"
+                value={formDate}
+                onChange={(e) => setFormDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-time">Hora</Label>
+              <Input
+                id="event-time"
+                type="time"
+                value={formEventTime}
+                onChange={(e) => setFormEventTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="event-location">Ubicación</Label>
+              <Input
+                id="event-location"
+                placeholder="Ej: Restaurante El Encuentro, C/ Gran Vía 12"
+                value={formEventLocation}
+                onChange={(e) => setFormEventLocation(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-rounds">Número de rondas</Label>
+              <Input
+                id="event-rounds"
+                type="number"
+                min={1}
+                max={20}
+                value={formRounds}
+                onChange={(e) => setFormRounds(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-table-size">Tamaño de mesa</Label>
+              <Input
+                id="event-table-size"
+                type="number"
+                min={2}
+                max={12}
+                value={formTableSize}
+                onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-duration">Duración de ronda (segundos)</Label>
+              <Input
+                id="event-duration"
+                type="number"
+                min={60}
+                max={3600}
+                step={30}
+                value={formRoundDuration}
+                onChange={(e) => setFormRoundDuration(parseInt(e.target.value) || 300)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {Math.floor(formRoundDuration / 60)} min {formRoundDuration % 60 > 0 ? `${formRoundDuration % 60} seg` : ""}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Modo de rotación</Label>
+              <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed_host">Anfitrión fijo</SelectItem>
+                  <SelectItem value="all_rotate">Todos rotan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="event-date">Fecha</Label>
-            <Input
-              id="event-date"
-              type="date"
-              value={formDate}
-              onChange={(e) => setFormDate(e.target.value)}
-            />
-          </div>
+          {isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base">Tipo de rotación B2B</Label>
+                <p className="text-sm text-muted-foreground">
+                  Define quién permanece fijo en la mesa y quién rota entre mesas
+                </p>
+              </div>
+              <Select value={formB2BRotation} onValueChange={setFormB2BRotation}>
+                <SelectTrigger className="w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client_fixed">Clientes fijos – Proveedores rotan</SelectItem>
+                  <SelectItem value="provider_fixed">Proveedores fijos – Clientes rotan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          {/* Time */}
-          <div className="space-y-2">
-            <Label htmlFor="event-time">Hora</Label>
-            <Input
-              id="event-time"
-              type="time"
-              value={formEventTime}
-              onChange={(e) => setFormEventTime(e.target.value)}
-            />
-          </div>
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base">Paridad de género</Label>
+                <p className="text-sm text-muted-foreground">
+                  Intentar equilibrar hombres y mujeres en cada mesa
+                </p>
+              </div>
+              <Switch
+                checked={formGenderParity}
+                onCheckedChange={setFormGenderParity}
+              />
+            </div>
+          )}
 
-          {/* Location */}
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="event-location">Ubicación</Label>
-            <Input
-              id="event-location"
-              placeholder="Ej: Restaurante El Encuentro, C/ Gran Vía 12"
-              value={formEventLocation}
-              onChange={(e) => setFormEventLocation(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="event-rounds">Número de rondas</Label>
-            <Input
-              id="event-rounds"
-              type="number"
-              min={1}
-              max={20}
-              value={formRounds}
-              onChange={(e) => setFormRounds(parseInt(e.target.value) || 1)}
-            />
-          </div>
-
-          {/* Table Size */}
-          <div className="space-y-2">
-            <Label htmlFor="event-table-size">Tamaño de mesa</Label>
-            <Input
-              id="event-table-size"
-              type="number"
-              min={2}
-              max={12}
-              value={formTableSize}
-              onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
-            />
-          </div>
-
-          {/* Round Duration */}
-          <div className="space-y-2">
-            <Label htmlFor="event-duration">Duración de ronda (segundos)</Label>
-            <Input
-              id="event-duration"
-              type="number"
-              min={60}
-              max={3600}
-              step={30}
-              value={formRoundDuration}
-              onChange={(e) => setFormRoundDuration(parseInt(e.target.value) || 300)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {Math.floor(formRoundDuration / 60)} min {formRoundDuration % 60 > 0 ? `${formRoundDuration % 60} seg` : ""}
-            </p>
-          </div>
-
-          {/* Rotation Mode */}
-          <div className="space-y-2">
-            <Label>Modo de rotación</Label>
-            <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")}>
-              <SelectTrigger>
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base">Idioma del evento</Label>
+              <p className="text-sm text-muted-foreground">
+                Idioma del formulario de inscripción y las comunicaciones con participantes
+              </p>
+            </div>
+            <Select value={formLanguage} onValueChange={(v) => setFormLanguage(v as "es" | "en")}>
+              <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="fixed_host">Anfitrión fijo</SelectItem>
-                <SelectItem value="all_rotate">Todos rotan</SelectItem>
+                <SelectItem value="es">🇪🇸 Español</SelectItem>
+                <SelectItem value="en">🇬🇧 English</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        {/* B2B Rotation Type - only for professional events */}
-        {isProfessional && (
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <Label className="text-base">Tipo de rotación B2B</Label>
-              <p className="text-sm text-muted-foreground">
-                Define quién permanece fijo en la mesa y quién rota entre mesas
-              </p>
+          {/* Registration Form Customization */}
+          <div className="space-y-4 p-4 border rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base">Personalización del formulario de inscripción</Label>
+                <p className="text-sm text-muted-foreground">
+                  Personaliza el subtítulo, la descripción y los campos del formulario
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(true)}>
+                <Eye className="w-4 h-4 mr-1" />
+                Vista previa
+              </Button>
             </div>
-            <Select value={formB2BRotation} onValueChange={setFormB2BRotation}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="client_fixed">Clientes fijos – Proveedores rotan</SelectItem>
-                <SelectItem value="provider_fixed">Proveedores fijos – Clientes rotan</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Gender Parity - only for social events */}
-        {!isProfessional && (
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <Label className="text-base">Paridad de género</Label>
-              <p className="text-sm text-muted-foreground">
-                Intentar equilibrar hombres y mujeres en cada mesa
-              </p>
+            <div className="space-y-2">
+              <Label htmlFor="reg-subtitle">Subtítulo del formulario</Label>
+              <Input
+                id="reg-subtitle"
+                value={formRegSubtitle}
+                onChange={(e) => setFormRegSubtitle(e.target.value)}
+                placeholder={formLanguage === "en" ? "e.g. Fill in your details to participate" : "Ej: Completa tus datos para participar"}
+              />
             </div>
-            <Switch
-              checked={formGenderParity}
-              onCheckedChange={setFormGenderParity}
+            <div className="space-y-2">
+              <Label htmlFor="reg-description">Descripción adicional</Label>
+              <RichTextEditor
+                value={formRegDescription}
+                onChange={setFormRegDescription}
+                placeholder={formLanguage === "en" ? "e.g. Additional event info, dress code, location details..." : "Ej: Información adicional del evento, código de vestimenta, ubicación..."}
+                minHeight="120px"
+              />
+            </div>
+
+            {/* Custom Registration Form Fields */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Campos personalizados del formulario</Label>
+                </div>
+                <Switch
+                  checked={customFormEnabled}
+                  onCheckedChange={(checked) => {
+                    setCustomFormEnabled(checked);
+                    if (checked && customFormFields.length === 0) {
+                      setCustomFormFields(getDefaultFields(isProfessional ? "professional" : "social"));
+                    }
+                  }}
+                />
+              </div>
+              {customFormEnabled && (
+                <RegistrationFormEditor
+                  fields={customFormFields}
+                  onChange={setCustomFormFields}
+                  eventModule={isProfessional ? "professional" : "social"}
+                />
+              )}
+            </div>
+          </div>
+
+          {!isProfessional && (
+            <GroupRoundsEditor
+              enabled={formGroupRoundsEnabled}
+              onEnabledChange={setFormGroupRoundsEnabled}
+              groupRounds={formGroupRounds}
+              onGroupRoundsChange={setFormGroupRounds}
+              totalRounds={formRounds}
+              defaultTableSize={formTableSize}
             />
-          </div>
-        )}
+          )}
 
-        {/* Event Language */}
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div>
-            <Label className="text-base">Idioma del evento</Label>
-            <p className="text-sm text-muted-foreground">
-              Idioma del formulario de inscripción y las comunicaciones con participantes
-            </p>
-          </div>
-          <Select value={formLanguage} onValueChange={(v) => setFormLanguage(v as "es" | "en")}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="es">🇪🇸 Español</SelectItem>
-              <SelectItem value="en">🇬🇧 English</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Registration Form Customization */}
-        <div className="space-y-4 p-4 border rounded-lg">
-          <div>
-            <Label className="text-base">Personalización del formulario de inscripción</Label>
-            <p className="text-sm text-muted-foreground">
-              Personaliza el subtítulo y la descripción que ven los participantes al registrarse
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reg-subtitle">Subtítulo del formulario</Label>
-            <Input
-              id="reg-subtitle"
-              value={formRegSubtitle}
-              onChange={(e) => setFormRegSubtitle(e.target.value)}
-              placeholder={formLanguage === "en" ? "e.g. Fill in your details to participate" : "Ej: Completa tus datos para participar"}
+          {!isProfessional && (
+            <EventPreferencesEditor
+              value={formPreferences}
+              onChange={setFormPreferences}
             />
+          )}
+
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Guardar cambios
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="reg-description">Descripción adicional</Label>
-            <RichTextEditor
-              value={formRegDescription}
-              onChange={setFormRegDescription}
-              placeholder={formLanguage === "en" ? "e.g. Additional event info, dress code, location details..." : "Ej: Información adicional del evento, código de vestimenta, ubicación..."}
-              minHeight="120px"
-            />
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Group Rounds - only for social events */}
-        {!isProfessional && (
-          <GroupRoundsEditor
-            enabled={formGroupRoundsEnabled}
-            onEnabledChange={setFormGroupRoundsEnabled}
-            groupRounds={formGroupRounds}
-            onGroupRoundsChange={setFormGroupRounds}
-            totalRounds={formRounds}
-            defaultTableSize={formTableSize}
-          />
-        )}
-
-        {/* Social preferences - only for social events */}
-        {!isProfessional && (
-          <EventPreferencesEditor
-            value={formPreferences}
-            onChange={setFormPreferences}
-          />
-        )}
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Guardar cambios
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Registration Form Preview Modal */}
+      <RegistrationFormPreviewModal
+        open={showPreviewModal}
+        onOpenChange={setShowPreviewModal}
+        fields={previewFields}
+        eventName={formName}
+        eventDate={formDate}
+        eventTime={formEventTime || null}
+        eventLocation={formEventLocation || null}
+        registrationSubtitle={formRegSubtitle || null}
+        registrationDescription={formRegDescription || null}
+        eventLang={formLanguage}
+      />
+    </>
   );
 };
 
