@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy } from "lucide-react";
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
-import EventSettingsEditor from "@/components/event/EventSettingsEditor";
+import EventSettingsTabs from "@/components/event/EventSettingsTabs";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
 import {
