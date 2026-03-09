@@ -43,6 +43,8 @@ const CommunicationSettingsEditor = ({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const defaults = language === "en" ? DEFAULT_TEMPLATES_EN : DEFAULT_TEMPLATES_ES;
   const [templates, setTemplates] = useState<CommunicationTemplates>({ ...defaults });
 
