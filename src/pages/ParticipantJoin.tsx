@@ -767,7 +767,9 @@ const ParticipantJoin = () => {
             <CardDescription>
               {registrationSubtitle || t.join.formSubtitle}
               {registrationDescription && (
-                <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">{registrationDescription}</span>
+                <div className="block mt-2 text-sm text-foreground/80">
+                  <RichTextRenderer content={registrationDescription} />
+                </div>
               )}
               {eventDate && (
                 <span className="block mt-2 text-primary font-medium">
