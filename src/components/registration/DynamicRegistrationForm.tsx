@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 interface DynamicRegistrationFormProps {
   fields: FormField[];
