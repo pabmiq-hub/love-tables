@@ -153,14 +153,73 @@ const CommunicationSettingsEditor = ({
       <CardContent>
         {/* Branding controls */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Logo URL</Label>
-            <Input
-              value={templates.logoUrl}
-              onChange={(e) => setTemplates(prev => ({ ...prev, logoUrl: e.target.value }))}
-              placeholder="https://..."
-              className="text-xs"
-            />
+           <div className="space-y-2">
+            <Label className="text-xs font-medium">Logo del email</Label>
+            <div className="flex items-center gap-2">
+              {templates.logoUrl ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <img
+                    src={templates.logoUrl}
+                    alt="Logo"
+                    className="h-8 max-w-[80px] object-contain rounded border bg-background p-0.5"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setTemplates(prev => ({ ...prev, logoUrl: "" }))}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  disabled={isUploadingLogo}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {isUploadingLogo ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Upload className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  Subir logo
+                </Button>
+              )}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setIsUploadingLogo(true);
+                  try {
+                    const ext = file.name.split('.').pop();
+                    const path = `email-logos/${eventId}-${Date.now()}.${ext}`;
+                    const { error: uploadError } = await supabaseClient.storage
+                      .from('organizer-logos')
+                      .upload(path, file, { upsert: true });
+                    if (uploadError) throw uploadError;
+                    const { data: { publicUrl } } = supabaseClient.storage
+                      .from('organizer-logos')
+                      .getPublicUrl(path);
+                    setTemplates(prev => ({ ...prev, logoUrl: publicUrl }));
+                    toast({ title: "Logo subido", description: "El logo se ha cargado correctamente" });
+                  } catch (err: any) {
+                    console.error("Error uploading logo:", err);
+                    toast({ title: "Error", description: "No se pudo subir el logo", variant: "destructive" });
+                  } finally {
+                    setIsUploadingLogo(false);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-xs font-medium">Nombre de marca</Label>
