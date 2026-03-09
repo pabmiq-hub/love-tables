@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Building2, Briefcase, ShoppingCart, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Language, translations } from "@/i18n/translations";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 interface ProfessionalConfig {
   sectors?: string[];
