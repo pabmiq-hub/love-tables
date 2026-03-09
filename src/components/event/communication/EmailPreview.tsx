@@ -21,7 +21,8 @@ const SAMPLE_DATA: Record<string, string> = {
 const replaceVars = (text: string, eventName: string) => {
   let result = text;
   for (const [key, val] of Object.entries(SAMPLE_DATA)) {
-    result = result.replaceAll(key, key === "{{evento}}" ? (eventName || "Mi Evento") : val);
+    const replacement = key === "{{evento}}" ? (eventName || "Mi Evento") : val;
+    result = result.split(key).join(replacement);
   }
   return result;
 };
