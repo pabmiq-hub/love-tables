@@ -4028,7 +4028,7 @@ const EventDetail = () => {
           {/* Settings Tab */}
           {eventStatus === "pending" && (
             <TabsContent value="settings">
-              <EventSettingsEditor
+              <EventSettingsTabs
                 eventId={id || ""}
                 name={eventData.name}
                 date={eventData.date}
@@ -4049,6 +4049,7 @@ const EventDetail = () => {
                 module={eventData.module}
                 professionalConfig={eventData.professional_config}
                 groupRounds={eventData.group_rounds}
+                emailTemplate={eventData.email_template}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
