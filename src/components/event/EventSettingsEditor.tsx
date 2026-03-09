@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -343,12 +344,11 @@ const EventSettingsEditor = ({
           </div>
           <div className="space-y-2">
             <Label htmlFor="reg-description">Descripción adicional</Label>
-            <Textarea
-              id="reg-description"
+            <RichTextEditor
               value={formRegDescription}
-              onChange={(e) => setFormRegDescription(e.target.value)}
+              onChange={setFormRegDescription}
               placeholder={formLanguage === "en" ? "e.g. Additional event info, dress code, location details..." : "Ej: Información adicional del evento, código de vestimenta, ubicación..."}
-              rows={3}
+              minHeight="120px"
             />
           </div>
         </div>

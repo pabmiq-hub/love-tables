@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 interface DynamicRegistrationFormProps {
   fields: FormField[];
@@ -79,9 +80,9 @@ const DynamicRegistrationForm = ({
               ? "Fill in your details to participate"
               : "Completa tus datos para participar")}
           {registrationDescription && (
-            <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">
-              {registrationDescription}
-            </span>
+            <div className="block mt-2 text-sm text-foreground/80">
+              <RichTextRenderer content={registrationDescription} />
+            </div>
           )}
           {eventDate && (
             <span className="block mt-2 text-primary font-medium">

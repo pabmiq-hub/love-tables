@@ -17,6 +17,7 @@ import { AGE_RANGES } from "@/lib/excelParser";
 import B2BRegistrationForm, { B2BFormData } from "@/components/registration/B2BRegistrationForm";
 import DynamicRegistrationForm from "@/components/registration/DynamicRegistrationForm";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -767,7 +768,9 @@ const ParticipantJoin = () => {
             <CardDescription>
               {registrationSubtitle || t.join.formSubtitle}
               {registrationDescription && (
-                <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">{registrationDescription}</span>
+                <div className="block mt-2 text-sm text-foreground/80">
+                  <RichTextRenderer content={registrationDescription} />
+                </div>
               )}
               {eventDate && (
                 <span className="block mt-2 text-primary font-medium">

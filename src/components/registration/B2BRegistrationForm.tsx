@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Building2, Briefcase, ShoppingCart, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Language, translations } from "@/i18n/translations";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 interface ProfessionalConfig {
   sectors?: string[];
@@ -128,7 +129,9 @@ const B2BRegistrationForm = ({
         <CardDescription>
           {registrationSubtitle || b2b.formSubtitle}
           {registrationDescription && (
-            <span className="block mt-2 text-sm text-foreground/80 whitespace-pre-line">{registrationDescription}</span>
+            <div className="block mt-2 text-sm text-foreground/80">
+              <RichTextRenderer content={registrationDescription} />
+            </div>
           )}
           {eventDate && (
             <span className="block mt-2 text-primary font-medium">
