@@ -343,12 +343,11 @@ const EventSettingsEditor = ({
           </div>
           <div className="space-y-2">
             <Label htmlFor="reg-description">Descripción adicional</Label>
-            <Textarea
-              id="reg-description"
+            <RichTextEditor
               value={formRegDescription}
-              onChange={(e) => setFormRegDescription(e.target.value)}
+              onChange={setFormRegDescription}
               placeholder={formLanguage === "en" ? "e.g. Additional event info, dress code, location details..." : "Ej: Información adicional del evento, código de vestimenta, ubicación..."}
-              rows={3}
+              minHeight="120px"
             />
           </div>
         </div>
