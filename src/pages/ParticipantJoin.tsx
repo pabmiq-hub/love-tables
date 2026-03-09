@@ -17,6 +17,7 @@ import { AGE_RANGES } from "@/lib/excelParser";
 import B2BRegistrationForm, { B2BFormData } from "@/components/registration/B2BRegistrationForm";
 import DynamicRegistrationForm from "@/components/registration/DynamicRegistrationForm";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
+import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
