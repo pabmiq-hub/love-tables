@@ -91,7 +91,7 @@ const RoundTimer = ({
 
   // Timer countdown effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     if (localIsRunning && timeLeft > 0) {
       interval = setInterval(() => {
