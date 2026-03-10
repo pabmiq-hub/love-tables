@@ -134,7 +134,7 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
               src={logoUrl}
               alt={brandName}
               className="max-h-8 max-w-[160px] mx-auto mb-2"
-              style={{ filter: "brightness(0) invert(1)" }}
+              
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
