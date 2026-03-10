@@ -35,7 +35,7 @@ const RegistrationFormPreviewModal = ({
 }: RegistrationFormPreviewModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle>Vista previa del formulario</DialogTitle>
           <DialogDescription>
