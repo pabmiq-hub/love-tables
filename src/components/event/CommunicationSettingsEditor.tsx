@@ -217,7 +217,9 @@ const CommunicationSettingsEditor = ({
                   setIsUploadingLogo(true);
                   try {
                     const ext = file.name.split('.').pop();
-                    const path = `email-logos/${eventId}-${Date.now()}.${ext}`;
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (!user) throw new Error('No authenticated user');
+                    const path = `${user.id}/email-logo-${eventId}-${Date.now()}.${ext}`;
                     const { error: uploadError } = await supabaseClient.storage
                       .from('organizer-logos')
                       .upload(path, file, { upsert: true });

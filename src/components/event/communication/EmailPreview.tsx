@@ -46,11 +46,10 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
                 src={logoUrl}
                 alt={brandName}
                 className="max-h-8 max-w-[160px] mx-auto mb-2"
-                style={{ filter: "brightness(0) invert(1)" }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
-            <h2 className="text-white font-bold text-lg">{brandName}</h2>
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          )}
+          <h2 className="text-white font-bold text-lg">{brandName}</h2>
           </div>
           <div className="p-6 space-y-3">
             <h1 className="text-xl font-bold">{r(matchesWithoutTemplate.greeting)}</h1>
@@ -135,7 +134,7 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
               src={logoUrl}
               alt={brandName}
               className="max-h-8 max-w-[160px] mx-auto mb-2"
-              style={{ filter: "brightness(0) invert(1)" }}
+              
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
