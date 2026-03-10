@@ -12,6 +12,7 @@ import {
   CommunicationTemplates,
   TemplateKey,
   StructuredTemplate,
+  MatchesWithoutTemplate,
   DEFAULT_TEMPLATES_ES,
   DEFAULT_TEMPLATES_EN,
 } from "./communication/types";
@@ -47,6 +48,7 @@ const CommunicationSettingsEditor = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const defaults = language === "en" ? DEFAULT_TEMPLATES_EN : DEFAULT_TEMPLATES_ES;
   const [templates, setTemplates] = useState<CommunicationTemplates>({ ...defaults });
+  const [matchesVariant, setMatchesVariant] = useState<"with" | "without">("with");
 
   useEffect(() => {
     loadTemplates();
@@ -67,9 +69,6 @@ const CommunicationSettingsEditor = ({
           ...defaults,
           ...stored.communication_templates_v2,
         });
-      } else if (stored.communication_templates) {
-        // Migration from old format - keep defaults but preserve any stored data
-        setTemplates({ ...defaults });
       }
     }
     setIsLoading(false);
@@ -82,10 +81,28 @@ const CommunicationSettingsEditor = ({
     }));
   };
 
+  const updateMatchesExtraField = (fieldName: string, value: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      matches: {
+        ...prev.matches,
+        extraFields: { ...prev.matches.extraFields, [fieldName]: value },
+      },
+    }));
+  };
+
+  const updateMatchesWithout = (field: keyof MatchesWithoutTemplate, value: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      matches_without: { ...prev.matches_without, [field]: value },
+    }));
+  };
+
   const handleReset = (key: TemplateKey) => {
     setTemplates(prev => ({
       ...prev,
       [key]: defaults[key],
+      ...(key === "matches" ? { matches_without: defaults.matches_without } : {}),
     }));
     toast({ title: "Plantilla restaurada", description: "Se han restaurado los valores por defecto" });
   };
@@ -271,13 +288,37 @@ const CommunicationSettingsEditor = ({
                 </Button>
               </div>
 
+              {/* Matches variant toggle */}
+              {tab.key === "matches" && (
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant={matchesVariant === "with" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMatchesVariant("with")}
+                  >
+                    Con matches
+                  </Button>
+                  <Button
+                    variant={matchesVariant === "without" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMatchesVariant("without")}
+                  >
+                    Sin matches
+                  </Button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Editor */}
                 <div>
                   <TemplateEditor
                     template={templates[tab.key]}
                     templateKey={tab.key}
+                    matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
+                    matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
                     onChange={(field, value) => updateTemplate(tab.key, field, value)}
+                    onChangeWithout={tab.key === "matches" ? updateMatchesWithout : undefined}
+                    onChangeExtraField={tab.key === "matches" ? updateMatchesExtraField : undefined}
                   />
                 </div>
 
@@ -294,6 +335,8 @@ const CommunicationSettingsEditor = ({
                     logoUrl={templates.logoUrl}
                     brandName={templates.brandName}
                     eventName={eventName}
+                    matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
+                    matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
                   />
                 </div>
               </div>

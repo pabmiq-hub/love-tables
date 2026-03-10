@@ -8,17 +8,26 @@ export interface StructuredTemplate {
   extraFields?: Record<string, string>;
 }
 
+export interface MatchesWithoutTemplate {
+  subject: string;
+  greeting: string;
+  message: string;
+  closing: string;
+  signature: string;
+}
+
 export interface CommunicationTemplates {
   registration_confirmation: StructuredTemplate;
   reminder: StructuredTemplate;
   matches: StructuredTemplate;
+  matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
 }
 
-export type TemplateKey = keyof Omit<CommunicationTemplates, "primaryColor" | "logoUrl" | "brandName">;
+export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code";
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
@@ -48,6 +57,17 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     intro: "¡Gracias por participar en nuestro evento! Tenemos buenas noticias: ¡has hecho match con otros participantes!",
     closing: "¡No dudes en contactarles! Los mejores momentos empiezan con una simple conversación.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
+    extraFields: {
+      friendshipTitle: "🤝 Tus matches de amistad:",
+      datingTitle: "❤️ Tus matches de ligue:",
+    },
+  },
+  matches_without: {
+    subject: "Gracias por participar en {{evento}}",
+    greeting: "¡Hola {{nombre}}! 👋",
+    message: "¡Gracias por participar en nuestro evento!\n\nAunque en esta ocasión no hubo matches mutuos, ¡no te desanimes! Las conexiones a veces tardan en llegar, y estamos seguros de que en el próximo evento tendrás más suerte.\n\nRecuerda que cada evento es una oportunidad para conocer gente increíble. ¡Esperamos verte muy pronto!",
+    closing: "¡Nos vemos en el próximo evento!",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   checkin_code: {
     subject: "Tu código de acceso - {{evento}}",
@@ -57,7 +77,7 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     signature: "¡Disfruta del evento!\nEquipo Konektum",
   },
   primaryColor: "#e11d48",
-  logoUrl: "https://konektum.com/konektum-logo.png",
+  logoUrl: "",
   brandName: "Konektum",
 };
 
@@ -82,6 +102,17 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     intro: "Thank you for attending our event! We have great news: you matched with other participants!",
     closing: "Don't hesitate to reach out! Great moments start with a simple conversation.",
     signature: "With love,\nThe Konektum Team 💕",
+    extraFields: {
+      friendshipTitle: "🤝 Your friendship matches:",
+      datingTitle: "❤️ Your dating matches:",
+    },
+  },
+  matches_without: {
+    subject: "Thanks for joining {{evento}}",
+    greeting: "Hi {{nombre}}! 👋",
+    message: "Thank you for attending our event!\n\nAlthough there were no mutual matches this time, don't worry! Connections sometimes take time, and we're sure you'll have more luck at the next event.\n\nRemember that every event is an opportunity to meet amazing people. See you soon!",
+    closing: "See you at the next event!",
+    signature: "With love,\nThe Konektum Team 💕",
   },
   checkin_code: {
     subject: "Your access code - {{evento}}",
@@ -91,6 +122,6 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     signature: "Enjoy the event!\nKonektum Team",
   },
   primaryColor: "#e11d48",
-  logoUrl: "https://konektum.com/konektum-logo.png",
+  logoUrl: "",
   brandName: "Konektum",
 };

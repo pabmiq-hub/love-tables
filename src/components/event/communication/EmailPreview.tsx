@@ -1,4 +1,4 @@
-import { StructuredTemplate, TemplateKey } from "./types";
+import { StructuredTemplate, MatchesWithoutTemplate, TemplateKey } from "./types";
 
 interface EmailPreviewProps {
   template: StructuredTemplate;
@@ -7,6 +7,8 @@ interface EmailPreviewProps {
   logoUrl: string;
   brandName: string;
   eventName: string;
+  matchesVariant?: "with" | "without";
+  matchesWithoutTemplate?: MatchesWithoutTemplate;
 }
 
 const SAMPLE_DATA: Record<string, string> = {
@@ -27,8 +29,41 @@ const replaceVars = (text: string, eventName: string) => {
   return result;
 };
 
-const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName, eventName }: EmailPreviewProps) => {
+const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName, eventName, matchesVariant = "with", matchesWithoutTemplate }: EmailPreviewProps) => {
   const r = (t: string) => replaceVars(t, eventName);
+
+  // Render "sin matches" preview
+  if (templateKey === "matches" && matchesVariant === "without" && matchesWithoutTemplate) {
+    return (
+      <div className="bg-muted/30 rounded-lg p-4 min-h-[400px]">
+        <div className="bg-background rounded-lg border overflow-hidden shadow-sm">
+          <div
+            className="p-6 text-center"
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
+          >
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt={brandName}
+                className="max-h-8 max-w-[160px] mx-auto mb-2"
+                style={{ filter: "brightness(0) invert(1)" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
+            <h2 className="text-white font-bold text-lg">{brandName}</h2>
+          </div>
+          <div className="p-6 space-y-3">
+            <h1 className="text-xl font-bold">{r(matchesWithoutTemplate.greeting)}</h1>
+            <p className="text-muted-foreground whitespace-pre-line text-sm leading-relaxed">{r(matchesWithoutTemplate.message)}</p>
+            <p className="text-muted-foreground text-sm">{r(matchesWithoutTemplate.closing)}</p>
+            <div className="border-t pt-3 mt-4">
+              <p className="text-xs text-muted-foreground whitespace-pre-line">{r(matchesWithoutTemplate.signature)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderExtraContent = () => {
     switch (templateKey) {
@@ -48,14 +83,14 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
         return (
           <div className="space-y-3 my-4">
             <div className="rounded-lg p-4" style={{ backgroundColor: `${primaryColor}10` }}>
-              <h4 className="font-semibold text-sm mb-2">🤝 Tus matches de amistad:</h4>
+              <h4 className="font-semibold text-sm mb-2">{template.extraFields?.friendshipTitle || "🤝 Tus matches de amistad:"}</h4>
               <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
                 <li>Carlos López - 📞 +34 612 345 678</li>
                 <li>Ana Martínez - 📞 +34 698 765 432</li>
               </ul>
             </div>
             <div className="rounded-lg p-4" style={{ backgroundColor: `${primaryColor}10` }}>
-              <h4 className="font-semibold text-sm mb-2">❤️ Tus matches de ligue:</h4>
+              <h4 className="font-semibold text-sm mb-2">{template.extraFields?.datingTitle || "❤️ Tus matches de ligue:"}</h4>
               <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
                 <li>Pablo Ruiz - 📞 +34 654 321 987</li>
               </ul>
