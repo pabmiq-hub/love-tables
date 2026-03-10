@@ -96,10 +96,10 @@ const DynamicRegistrationForm = ({
           )}
         </CardDescription>
         {registrationDescription && (
-          <div className="mt-3 text-sm text-foreground/80">
+          <div className="mt-4 text-sm text-foreground/80 text-left border-t pt-4">
             <RichTextRenderer
               content={registrationDescription}
-              className="prose-p:mb-3 prose-p:leading-relaxed"
+              className="prose-p:mb-4 prose-p:leading-relaxed prose-headings:mb-2 prose-ul:mb-3 prose-ol:mb-3 prose-li:mb-1 [&_p]:mb-4 [&_p]:leading-relaxed [&_br]:block [&_br]:mb-2"
             />
           </div>
         )}
