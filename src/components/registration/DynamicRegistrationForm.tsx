@@ -79,11 +79,6 @@ const DynamicRegistrationForm = ({
             (eventLang === "en"
               ? "Fill in your details to participate"
               : "Completa tus datos para participar")}
-          {registrationDescription && (
-            <div className="block mt-2 text-sm text-foreground/80">
-              <RichTextRenderer content={registrationDescription} />
-            </div>
-          )}
           {eventDate && (
             <span className="block mt-2 text-primary font-medium">
               📅{" "}
@@ -100,6 +95,14 @@ const DynamicRegistrationForm = ({
             </span>
           )}
         </CardDescription>
+        {registrationDescription && (
+          <div className="mt-3 text-sm text-foreground/80">
+            <RichTextRenderer
+              content={registrationDescription}
+              className="prose-p:mb-3 prose-p:leading-relaxed"
+            />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
