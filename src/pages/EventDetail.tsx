@@ -2781,29 +2781,6 @@ const EventDetail = () => {
                   <span className="hidden sm:inline">Selecciones</span>
                 </TabsTrigger>
               )}
-              {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("basic_emails") || isSuperAdmin) && (
-                <TabsTrigger value="emails" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
-                  <Mail className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Emails</span>
-                </TabsTrigger>
-              )}
-              {(eventStatus === "active" || eventStatus === "completed") && !hasFeature("basic_emails") && !isSuperAdmin && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all opacity-50 cursor-not-allowed">
-                      <Mail className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Emails</span>
-                      <Lock className="w-3 h-3 ml-1 text-muted-foreground" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      <span>Disponible en planes superiores</span>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              )}
               {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("analytics") || isSuperAdmin) && (
                 <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <BarChart3 className="w-4 h-4 sm:mr-2" />
