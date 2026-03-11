@@ -59,9 +59,9 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, selectorId: rawSelectorId, verificationCode, selections } = await req.json();
+    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId } = await req.json();
     
-    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}`);
+    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikeId: ${superLikeId || 'none'}`);
 
     // Validate required fields
     if (!eventId || (!rawSelectorId && !verificationCode)) {
