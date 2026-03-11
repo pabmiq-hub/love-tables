@@ -631,7 +631,7 @@ export function DashboardAnalytics({ data }: DashboardAnalyticsProps) {
         </TabsContent>
 
         {/* ==================== SOCIAL TAB ==================== */}
-        <TabsContent value="social" className="space-y-10 mt-6">
+        <TabsContent value="social" className="mt-6">
           {socialEvents.length === 0 ? (
             <EmptyState
               emoji="🎉"
@@ -641,80 +641,7 @@ export function DashboardAnalytics({ data }: DashboardAnalyticsProps) {
               ctaTo="/admin/events/new"
             />
           ) : (
-            <>
-              {/* Social KPIs */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <PartyPopper className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Resumen social</h2>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <KpiCard icon={Calendar} value={socialData.socialEvents} label="Eventos sociales" color="text-primary" />
-                  <KpiCard icon={Users} value={socialData.socialParticipants} label="Participantes" color="text-primary" />
-                  <KpiCard icon={Heart} value={socialData.socialMatches} label="Matches mutuos" color="text-accent" />
-                  <KpiCard icon={Percent} value={`${socialData.submissionRate}%`} label="Enviaron selecciones" color="text-primary" />
-                </div>
-              </section>
-
-              {/* Demographics */}
-              {(socialData.genderData.length > 0 || socialData.ageData.length > 0) && (
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <Users className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Demografía de participantes</h2>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {socialData.genderData.length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-0"><CardTitle className="text-base">Distribución por género</CardTitle></CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={260}>
-                            <PieChart>
-                              <Pie data={socialData.genderData} cx="50%" cy="45%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" strokeWidth={2} stroke="hsl(var(--background))">
-                                {socialData.genderData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
-                              </Pie>
-                              <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} participantes`, ""]} />
-                              <Legend verticalAlign="bottom" height={36} formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-                    )}
-                    {socialData.ageData.length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-0"><CardTitle className="text-base">Distribución por rango de edad</CardTitle></CardHeader>
-                        <CardContent>
-                          <ResponsiveContainer width="100%" height={260}>
-                            <BarChart data={socialData.ageData} margin={{ left: 0, right: 10 }}>
-                              <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                              <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} participantes`, ""]} />
-                              <Bar dataKey="value" name="Participantes" radius={[6, 6, 0, 0]} barSize={36}>
-                                {socialData.ageData.map((_, idx) => <Cell key={idx} fill={AGE_COLORS[idx % AGE_COLORS.length]} />)}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* Selection metrics */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <Handshake className="w-5 h-5 text-primary" />
-                  <h2 className="text-lg font-semibold">Métricas de selección</h2>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <KpiCard icon={Send} value={socialData.avgSent} label="Media selecciones enviadas" color="text-primary" />
-                  <KpiCard icon={Inbox} value={socialData.avgReceived} label="Media selecciones recibidas" color="text-primary" />
-                  <KpiCard icon={Heart} value={`${socialData.matchRatio}%`} label="Ratio de coincidencia" color="text-accent" />
-                  <KpiCard icon={Percent} value={`${socialData.submissionRate}%`} label="Participación en selección" color="text-primary" />
-                </div>
-              </section>
-            </>
+            <SocialAnalyticsTab data={data} />
           )}
         </TabsContent>
 
