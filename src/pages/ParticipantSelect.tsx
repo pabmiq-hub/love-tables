@@ -96,6 +96,7 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setSuperLikeEnabled((event as any).super_like_enabled || false);
 
         if (event.status === 'completed') {
           setStep("completed");
