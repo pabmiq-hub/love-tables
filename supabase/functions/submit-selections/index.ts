@@ -284,6 +284,43 @@ serve(async (req) => {
       .update({ selection_submitted_at: new Date().toISOString() })
       .eq('id', selectorId);
 
+    // Trigger super like notification if applicable
+    if (superLikeId && event.super_like_enabled) {
+      // Check if the super like was actually inserted (not a duplicate)
+      const superLikeInserted = selectionsToInsert.some(
+        (s: { selected_id: string; is_super_like: boolean }) => s.selected_id === superLikeId && s.is_super_like
+      );
+      if (superLikeInserted) {
+        // Verify this participant hasn't already sent a super like before (double check)
+        const { data: existingSuperLikes } = await supabase
+          .from('participant_selections')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('selector_id', selectorId)
+          .eq('is_super_like', true);
+        
+        // Only send notification if this is the first super like (should be 1 - the one we just inserted)
+        if (existingSuperLikes && existingSuperLikes.length <= 1) {
+          try {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+            await fetch(`${supabaseUrl}/functions/v1/send-super-like-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify({ eventId, recipientId: superLikeId }),
+            });
+            console.log(`[submit-selections] Super like notification triggered for recipient: ${superLikeId}`);
+          } catch (notifError) {
+            console.error('[submit-selections] Error sending super like notification:', notifError);
+            // Don't fail the whole request for a notification error
+          }
+        }
+      }
+    }
+
     const totalSelections = alreadySelectedIds.size + newSelections.length;
     console.log(`[submit-selections] Successfully saved ${newSelections.length} new selections. Total: ${totalSelections}`);
     
