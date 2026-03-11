@@ -22,6 +22,7 @@ export interface CommunicationTemplates {
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
+  super_like: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
