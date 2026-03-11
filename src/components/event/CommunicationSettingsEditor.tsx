@@ -270,7 +270,7 @@ const CommunicationSettingsEditor = ({
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {TABS_CONFIG.map(tab => (
+            {TABS_CONFIG.filter(tab => !tab.socialOnly || module === 'social').map(tab => (
               <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
                 <tab.icon className="w-4 h-4 mr-1.5" />
                 <span className="hidden sm:inline">{tab.label}</span>
