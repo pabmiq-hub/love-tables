@@ -80,7 +80,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, language')
+          .select('status, current_round, language, super_like_enabled')
           .eq('id', eventId)
           .single();
 
