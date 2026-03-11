@@ -13,6 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid,
 } from "recharts";
 import type { AnalyticsData } from "@/pages/AdminDashboard";
+import { SocialAnalyticsTab } from "./analytics/SocialAnalyticsTab";
 
 interface DashboardAnalyticsProps {
   data: AnalyticsData;
