@@ -182,6 +182,20 @@ const ParticipantSelect = () => {
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
 
+      // Check if participant already used their super like
+      if (superLikeEnabled && verifiedParticipant) {
+        const { data: superLikes } = await supabase
+          .from('participant_selections')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('selector_id', verifiedParticipant.id)
+          .eq('is_super_like', true)
+          .limit(1);
+        if (superLikes && superLikes.length > 0) {
+          setExistingSuperLike(true);
+        }
+      }
+
       const userPreference = verifiedParticipant.preference || null;
       setCurrentUserPreference(userPreference);
 
