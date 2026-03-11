@@ -24,6 +24,8 @@ interface Event {
   participants_count: number;
   status: string;
   module: string | null;
+  tables: any;
+  rounds: number;
 }
 
 export interface ParticipantRecord {
