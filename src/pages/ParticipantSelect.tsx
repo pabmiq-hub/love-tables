@@ -565,6 +565,14 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
+            {superLikeEnabled && !existingSuperLike && (
+              <p className="text-xs text-center text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
+                <Star className="w-3.5 h-3.5" />
+                {superLikeId 
+                  ? (eventLang === "es" ? "Super Like asignado — se notificará anónimamente al destinatario" : "Super Like assigned — recipient will be notified anonymously")
+                  : (eventLang === "es" ? "Puedes dar 1 Super Like por evento — el destinatario recibirá una notificación anónima" : "You can give 1 Super Like per event — recipient gets an anonymous notification")}
+              </p>
+            )}
             <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
