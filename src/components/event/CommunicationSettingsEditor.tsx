@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X } from "lucide-react";
+import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star } from "lucide-react";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -19,11 +19,12 @@ import {
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string }[] = [
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Check-in", icon: UserCheck, description: "Código de acceso" },
+  { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
 ];
 
 interface CommunicationSettingsEditorProps {
@@ -269,7 +270,7 @@ const CommunicationSettingsEditor = ({
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {TABS_CONFIG.map(tab => (
+            {TABS_CONFIG.filter(tab => !tab.socialOnly || module === 'social').map(tab => (
               <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
                 <tab.icon className="w-4 h-4 mr-1.5" />
                 <span className="hidden sm:inline">{tab.label}</span>

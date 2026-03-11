@@ -59,9 +59,9 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, selectorId: rawSelectorId, verificationCode, selections } = await req.json();
+    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId } = await req.json();
     
-    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}`);
+    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikeId: ${superLikeId || 'none'}`);
 
     // Validate required fields
     if (!eventId || (!rawSelectorId && !verificationCode)) {
@@ -157,10 +157,10 @@ serve(async (req) => {
 
     // Supabase client already created above
 
-    // Verify the event exists
+    // Verify the event exists and check super_like_enabled
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status')
+      .select('id, status, super_like_enabled')
       .eq('id', eventId)
       .single();
 
@@ -257,12 +257,13 @@ serve(async (req) => {
       );
     }
 
-    // Insert new selections
+    // Insert new selections (mark super like if applicable)
     const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => ({
       event_id: eventId,
       selector_id: selectorId,
       selected_id: s.selected_id,
       selection_type: s.selection_type,
+      is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
     }));
 
     const { error: insertError } = await supabase
@@ -282,6 +283,43 @@ serve(async (req) => {
       .from('participants')
       .update({ selection_submitted_at: new Date().toISOString() })
       .eq('id', selectorId);
+
+    // Trigger super like notification if applicable
+    if (superLikeId && event.super_like_enabled) {
+      // Check if the super like was actually inserted (not a duplicate)
+      const superLikeInserted = selectionsToInsert.some(
+        (s: { selected_id: string; is_super_like: boolean }) => s.selected_id === superLikeId && s.is_super_like
+      );
+      if (superLikeInserted) {
+        // Verify this participant hasn't already sent a super like before (double check)
+        const { data: existingSuperLikes } = await supabase
+          .from('participant_selections')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('selector_id', selectorId)
+          .eq('is_super_like', true);
+        
+        // Only send notification if this is the first super like (should be 1 - the one we just inserted)
+        if (existingSuperLikes && existingSuperLikes.length <= 1) {
+          try {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+            await fetch(`${supabaseUrl}/functions/v1/send-super-like-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+              },
+              body: JSON.stringify({ eventId, recipientId: superLikeId }),
+            });
+            console.log(`[submit-selections] Super like notification triggered for recipient: ${superLikeId}`);
+          } catch (notifError) {
+            console.error('[submit-selections] Error sending super like notification:', notifError);
+            // Don't fail the whole request for a notification error
+          }
+        }
+      }
+    }
 
     const totalSelections = alreadySelectedIds.size + newSelections.length;
     console.log(`[submit-selections] Successfully saved ${newSelections.length} new selections. Total: ${totalSelections}`);

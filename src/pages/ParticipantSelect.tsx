@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -61,6 +61,9 @@ const ParticipantSelect = () => {
   const [existingSelections, setExistingSelections] = useState<ExistingSelection[]>([]);
   const [eventStatus, setEventStatus] = useState<string>("");
   const [currentRound, setCurrentRound] = useState<number>(0);
+  const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
+  const [superLikeId, setSuperLikeId] = useState<string | null>(null);
+  const [existingSuperLike, setExistingSuperLike] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -77,7 +80,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, language')
+          .select('status, current_round, language, super_like_enabled')
           .eq('id', eventId)
           .single();
 
@@ -93,6 +96,7 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setSuperLikeEnabled((event as any).super_like_enabled || false);
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -177,6 +181,20 @@ const ParticipantSelect = () => {
       setParticipants(participantsData);
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
+
+      // Check if participant already used their super like
+      if (superLikeEnabled && verifiedParticipant) {
+        const { data: superLikes } = await supabase
+          .from('participant_selections')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('selector_id', verifiedParticipant.id)
+          .eq('is_super_like', true)
+          .limit(1);
+        if (superLikes && superLikes.length > 0) {
+          setExistingSuperLike(true);
+        }
+      }
 
       const userPreference = verifiedParticipant.preference || null;
       setCurrentUserPreference(userPreference);
@@ -264,6 +282,22 @@ const ParticipantSelect = () => {
     return state.friendship || state.dating || state.alreadySelected;
   };
 
+  const toggleSuperLike = (participantId: string) => {
+    if (existingSuperLike) {
+      toast({
+        title: eventLang === "es" ? "Super Like ya usado" : "Super Like already used",
+        description: eventLang === "es" ? "Ya has enviado tu Super Like en este evento" : "You already used your Super Like in this event",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (superLikeId === participantId) {
+      setSuperLikeId(null);
+    } else {
+      setSuperLikeId(participantId);
+    }
+  };
+
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
       case 'friendship': return t.select.friendship;
@@ -306,7 +340,7 @@ const ParticipantSelect = () => {
     });
 
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections }
+      body: { eventId, verificationCode, selections, superLikeId }
     });
 
     if (error || data?.error) {
@@ -498,7 +532,7 @@ const ParticipantSelect = () => {
                       {isAlreadySelected ? (
                         <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
                       ) : (
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 items-center">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
                             <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
@@ -509,6 +543,20 @@ const ParticipantSelect = () => {
                               <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
                             </label>
                           )}
+                          {superLikeEnabled && !existingSuperLike && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSuperLike(person.id)}
+                              className={`ml-auto p-1.5 rounded-full transition-all ${
+                                superLikeId === person.id 
+                                  ? 'bg-amber-400 text-white scale-110 shadow-md' 
+                                  : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-50'
+                              }`}
+                              title={eventLang === "es" ? "Super Like (1 por evento)" : "Super Like (1 per event)"}
+                            >
+                              <Star className={`w-5 h-5 ${superLikeId === person.id ? 'fill-current' : ''}`} />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -517,6 +565,14 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
+            {superLikeEnabled && !existingSuperLike && (
+              <p className="text-xs text-center text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
+                <Star className="w-3.5 h-3.5" />
+                {superLikeId 
+                  ? (eventLang === "es" ? "Super Like asignado — se notificará anónimamente al destinatario" : "Super Like assigned — recipient will be notified anonymously")
+                  : (eventLang === "es" ? "Puedes dar 1 Super Like por evento — el destinatario recibirá una notificación anónima" : "You can give 1 Super Like per event — recipient gets an anonymous notification")}
+              </p>
+            )}
             <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>

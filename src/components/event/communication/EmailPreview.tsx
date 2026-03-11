@@ -116,6 +116,21 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
             </div>
           </div>
         );
+      case "super_like":
+        return (
+          <div className="text-center my-5">
+            <div className="inline-block rounded-lg p-5" style={{ backgroundColor: "#f8f9fa" }}>
+              <div className="text-4xl mb-2">⭐</div>
+              <p className="text-sm font-medium text-muted-foreground">¡Alguien te ha dado un Super Like!</p>
+            </div>
+            <a
+              className="inline-block mt-4 py-3 px-7 rounded-lg text-white font-bold text-sm no-underline"
+              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
+            >
+              Enviar mis selecciones
+            </a>
+          </div>
+        );
       default:
         return null;
     }

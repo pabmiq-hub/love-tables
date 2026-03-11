@@ -86,6 +86,7 @@ const EventSettingsEditor = ({
   const [formGroupRounds, setFormGroupRounds] = useState<GroupRound[]>(
     (initialGroupRounds as GroupRound[]) || []
   );
+  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(false);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -110,7 +111,7 @@ const EventSettingsEditor = ({
     const loadCustomForm = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form")
+        .select("custom_registration_form, super_like_enabled")
         .eq("id", eventId)
         .single();
 
@@ -120,6 +121,9 @@ const EventSettingsEditor = ({
           setCustomFormEnabled(true);
           setCustomFormFields(formConfig.fields);
         }
+      }
+      if (data) {
+        setFormSuperLikeEnabled((data as any).super_like_enabled || false);
       }
     };
     loadCustomForm();
@@ -149,6 +153,7 @@ const EventSettingsEditor = ({
         custom_registration_form: customFormEnabled && customFormFields.length > 0
           ? { fields: customFormFields, formMode: "custom" }
           : null,
+        super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
       };
 
       if (isProfessional) {
@@ -320,6 +325,21 @@ const EventSettingsEditor = ({
               <Switch
                 checked={formGenderParity}
                 onCheckedChange={setFormGenderParity}
+              />
+            </div>
+          )}
+
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base">⭐ Super Like</Label>
+                <p className="text-sm text-muted-foreground">
+                  Permite a cada participante enviar 1 Super Like por evento. El destinatario recibirá un email anónimo animándole a enviar sus selecciones.
+                </p>
+              </div>
+              <Switch
+                checked={formSuperLikeEnabled}
+                onCheckedChange={setFormSuperLikeEnabled}
               />
             </div>
           )}

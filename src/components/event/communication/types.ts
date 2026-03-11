@@ -22,18 +22,20 @@ export interface CommunicationTemplates {
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
+  super_like: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
 }
 
-export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code";
+export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code" | "super_like";
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
+  super_like: ["{{nombre}}", "{{evento}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
@@ -75,6 +77,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     intro: "Has sido registrado/a en el evento {{evento}}. Usa este código para hacer tu check-in y acceder a tu panel.",
     closing: "Guarda este código, lo necesitarás durante y después del evento.",
     signature: "¡Disfruta del evento!\nEquipo Konektum",
+  },
+  super_like: {
+    subject: "✨ ¡Alguien te ha seleccionado en {{evento}}!",
+    greeting: "¡Hola {{nombre}}! ✨",
+    intro: "¡Alguien de tu evento te ha elegido con un Super Like! No pierdas la oportunidad de descubrir si hay match.\n\nEntra en tu panel de participante y envía tus selecciones.",
+    closing: "¡Las mejores conexiones empiezan con un simple paso!",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
   logoUrl: "",
@@ -120,6 +129,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     intro: "You have been registered for the event {{evento}}. Use this code to check in and access your panel.",
     closing: "Save this code, you will need it during and after the event.",
     signature: "Enjoy the event!\nKonektum Team",
+  },
+  super_like: {
+    subject: "✨ Someone selected you at {{evento}}!",
+    greeting: "Hi {{nombre}}! ✨",
+    intro: "Someone at your event chose you with a Super Like! Don't miss the chance to find out if it's a match.\n\nGo to your participant panel and submit your selections.",
+    closing: "The best connections start with a simple step!",
+    signature: "With love,\nThe Konektum Team 💕",
   },
   primaryColor: "#e11d48",
   logoUrl: "",
