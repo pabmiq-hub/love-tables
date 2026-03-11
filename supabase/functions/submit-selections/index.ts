@@ -257,12 +257,13 @@ serve(async (req) => {
       );
     }
 
-    // Insert new selections
+    // Insert new selections (mark super like if applicable)
     const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => ({
       event_id: eventId,
       selector_id: selectorId,
       selected_id: s.selected_id,
       selection_type: s.selection_type,
+      is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
     }));
 
     const { error: insertError } = await supabase
