@@ -157,10 +157,10 @@ serve(async (req) => {
 
     // Supabase client already created above
 
-    // Verify the event exists
+    // Verify the event exists and check super_like_enabled
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status')
+      .select('id, status, super_like_enabled')
       .eq('id', eventId)
       .single();
 
