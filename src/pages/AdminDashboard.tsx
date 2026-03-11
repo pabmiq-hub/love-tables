@@ -39,6 +39,7 @@ export interface ParticipantRecord {
   birth_date: string | null;
   global_participant_id: string | null;
   preference: string | null;
+  dating_preference: string | null;
   entity_type: string | null;
   sector: string | null;
   needs: string[] | null;
