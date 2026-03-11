@@ -103,6 +103,7 @@ export type Database = {
           selection_deadline_hours: number | null
           slot_quotas: Json | null
           status: string
+          super_like_enabled: boolean
           table_size: number
           tables: Json | null
           updated_at: string
@@ -147,6 +148,7 @@ export type Database = {
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
           status?: string
+          super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
           updated_at?: string
@@ -191,6 +193,7 @@ export type Database = {
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
           status?: string
+          super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
           updated_at?: string
@@ -726,6 +729,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
+          is_super_like: boolean
           selected_id: string
           selection_type: string | null
           selector_id: string
@@ -734,6 +738,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
+          is_super_like?: boolean
           selected_id: string
           selection_type?: string | null
           selector_id: string
@@ -742,6 +747,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
+          is_super_like?: boolean
           selected_id?: string
           selection_type?: string | null
           selector_id?: string
