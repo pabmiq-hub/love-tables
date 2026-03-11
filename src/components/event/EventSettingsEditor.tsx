@@ -111,7 +111,7 @@ const EventSettingsEditor = ({
     const loadCustomForm = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form")
+        .select("custom_registration_form, super_like_enabled")
         .eq("id", eventId)
         .single();
 
@@ -121,6 +121,9 @@ const EventSettingsEditor = ({
           setCustomFormEnabled(true);
           setCustomFormFields(formConfig.fields);
         }
+      }
+      if (data) {
+        setFormSuperLikeEnabled((data as any).super_like_enabled || false);
       }
     };
     loadCustomForm();
