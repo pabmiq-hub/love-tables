@@ -61,6 +61,9 @@ const ParticipantSelect = () => {
   const [existingSelections, setExistingSelections] = useState<ExistingSelection[]>([]);
   const [eventStatus, setEventStatus] = useState<string>("");
   const [currentRound, setCurrentRound] = useState<number>(0);
+  const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
+  const [superLikeId, setSuperLikeId] = useState<string | null>(null);
+  const [existingSuperLike, setExistingSuperLike] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
