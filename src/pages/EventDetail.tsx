@@ -2696,17 +2696,6 @@ const EventDetail = () => {
                   </Tooltip>
                 )
               )}
-              {eventStatus === "pending" && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowEmailEditor(true)}>
-                      <Mail className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Email</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="sm:hidden">Personalizar email</TooltipContent>
-                </Tooltip>
-              )}
             </TooltipProvider>
             {eventStatus === "pending" && (
               <AlertDialog>
