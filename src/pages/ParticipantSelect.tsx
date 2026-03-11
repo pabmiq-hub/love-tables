@@ -340,7 +340,7 @@ const ParticipantSelect = () => {
     });
 
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections }
+      body: { eventId, verificationCode, selections, superLikeId }
     });
 
     if (error || data?.error) {
