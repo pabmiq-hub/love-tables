@@ -24,6 +24,8 @@ interface Event {
   participants_count: number;
   status: string;
   module: string | null;
+  tables: any;
+  rounds: number;
 }
 
 export interface ParticipantRecord {
@@ -37,6 +39,7 @@ export interface ParticipantRecord {
   birth_date: string | null;
   global_participant_id: string | null;
   preference: string | null;
+  dating_preference: string | null;
   entity_type: string | null;
   sector: string | null;
   needs: string[] | null;
@@ -172,7 +175,7 @@ const AdminDashboard = () => {
     // Load participants filtered by organizer's events
     const { data: pData } = await supabase
       .from("participants")
-      .select("id, event_id, name, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id, preference, entity_type, sector, needs, solutions")
+      .select("id, event_id, name, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id, preference, dating_preference, entity_type, sector, needs, solutions")
       .in("event_id", eventIds);
     if (pData) setParticipants(pData as ParticipantRecord[]);
 
