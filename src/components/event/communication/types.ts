@@ -130,6 +130,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     closing: "Save this code, you will need it during and after the event.",
     signature: "Enjoy the event!\nKonektum Team",
   },
+  super_like: {
+    subject: "✨ Someone selected you at {{evento}}!",
+    greeting: "Hi {{nombre}}! ✨",
+    intro: "Someone at your event chose you with a Super Like! Don't miss the chance to find out if it's a match.\n\nGo to your participant panel and submit your selections.",
+    closing: "The best connections start with a simple step!",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
   primaryColor: "#e11d48",
   logoUrl: "",
   brandName: "Konektum",
