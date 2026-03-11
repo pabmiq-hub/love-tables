@@ -153,6 +153,7 @@ const EventSettingsEditor = ({
         custom_registration_form: customFormEnabled && customFormFields.length > 0
           ? { fields: customFormFields, formMode: "custom" }
           : null,
+        super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
       };
 
       if (isProfessional) {
