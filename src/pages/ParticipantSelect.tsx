@@ -532,7 +532,7 @@ const ParticipantSelect = () => {
                       {isAlreadySelected ? (
                         <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
                       ) : (
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 items-center">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
                             <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
@@ -542,6 +542,20 @@ const ParticipantSelect = () => {
                               <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
                               <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
                             </label>
+                          )}
+                          {superLikeEnabled && !existingSuperLike && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSuperLike(person.id)}
+                              className={`ml-auto p-1.5 rounded-full transition-all ${
+                                superLikeId === person.id 
+                                  ? 'bg-amber-400 text-white scale-110 shadow-md' 
+                                  : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-50'
+                              }`}
+                              title={eventLang === "es" ? "Super Like (1 por evento)" : "Super Like (1 per event)"}
+                            >
+                              <Star className={`w-5 h-5 ${superLikeId === person.id ? 'fill-current' : ''}`} />
+                            </button>
                           )}
                         </div>
                       )}
