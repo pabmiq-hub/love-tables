@@ -324,6 +324,21 @@ const EventSettingsEditor = ({
             </div>
           )}
 
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label className="text-base">⭐ Super Like</Label>
+                <p className="text-sm text-muted-foreground">
+                  Permite a cada participante enviar 1 Super Like por evento. El destinatario recibirá un email anónimo animándole a enviar sus selecciones.
+                </p>
+              </div>
+              <Switch
+                checked={formSuperLikeEnabled}
+                onCheckedChange={setFormSuperLikeEnabled}
+              />
+            </div>
+          )}
+
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <Label className="text-base">Idioma del evento</Label>
