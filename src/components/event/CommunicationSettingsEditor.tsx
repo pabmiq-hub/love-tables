@@ -19,11 +19,12 @@ import {
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string }[] = [
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Check-in", icon: UserCheck, description: "Código de acceso" },
+  { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
 ];
 
 interface CommunicationSettingsEditorProps {
