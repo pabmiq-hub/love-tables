@@ -282,6 +282,22 @@ const ParticipantSelect = () => {
     return state.friendship || state.dating || state.alreadySelected;
   };
 
+  const toggleSuperLike = (participantId: string) => {
+    if (existingSuperLike) {
+      toast({
+        title: eventLang === "es" ? "Super Like ya usado" : "Super Like already used",
+        description: eventLang === "es" ? "Ya has enviado tu Super Like en este evento" : "You already used your Super Like in this event",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (superLikeId === participantId) {
+      setSuperLikeId(null);
+    } else {
+      setSuperLikeId(participantId);
+    }
+  };
+
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
       case 'friendship': return t.select.friendship;
