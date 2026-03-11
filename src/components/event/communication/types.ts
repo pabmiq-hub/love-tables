@@ -28,13 +28,14 @@ export interface CommunicationTemplates {
   brandName: string;
 }
 
-export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code";
+export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code" | "super_like";
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
+  super_like: ["{{nombre}}", "{{evento}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
