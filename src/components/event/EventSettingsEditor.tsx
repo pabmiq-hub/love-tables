@@ -86,6 +86,7 @@ const EventSettingsEditor = ({
   const [formGroupRounds, setFormGroupRounds] = useState<GroupRound[]>(
     (initialGroupRounds as GroupRound[]) || []
   );
+  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(false);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
