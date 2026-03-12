@@ -324,6 +324,25 @@ const ParticipantAccess = () => {
     setStep("done");
   };
 
+  const handleSubmitEmpty = async () => {
+    if (!verifiedParticipant || !eventId) return;
+    setIsSubmitting(true);
+
+    const { data, error } = await supabase.functions.invoke('submit-selections', {
+      body: { eventId, verificationCode, selections: [] }
+    });
+
+    if (error || data?.error) {
+      toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    toast({ title: t.access.selectionsSaved, description: "Tu respuesta ha sido registrada" });
+    setIsSubmitting(false);
+    setStep("done");
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
