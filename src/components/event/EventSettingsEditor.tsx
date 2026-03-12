@@ -253,7 +253,7 @@ const EventSettingsEditor = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-rounds">Número de rondas</Label>
+              <Label htmlFor="event-rounds">Número de rondas {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
               <Input
                 id="event-rounds"
                 type="number"
