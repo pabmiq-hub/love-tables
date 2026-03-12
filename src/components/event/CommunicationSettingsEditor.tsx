@@ -182,103 +182,130 @@ const CommunicationSettingsEditor = ({
       </CardHeader>
       <CardContent>
         {/* Branding controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border">
            <div className="space-y-2">
-            <Label className="text-xs font-medium">Logo del email</Label>
-            <div className="flex items-center gap-2">
-              {templates.logoUrl ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <img
-                    src={templates.logoUrl}
-                    alt="Logo"
-                    className="h-8 max-w-[80px] object-contain rounded border bg-background p-0.5"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setTemplates(prev => ({ ...prev, logoUrl: "" }))}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  disabled={isUploadingLogo}
-                  onClick={() => logoInputRef.current?.click()}
-                >
-                  {isUploadingLogo ? (
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Upload className="w-3.5 h-3.5 mr-1.5" />
-                  )}
-                  Subir logo
-                </Button>
-              )}
-              <input
-                ref={logoInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setIsUploadingLogo(true);
-                  try {
-                    const ext = file.name.split('.').pop();
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) throw new Error('No authenticated user');
-                    const path = `${user.id}/email-logo-${eventId}-${Date.now()}.${ext}`;
-                    const { error: uploadError } = await supabaseClient.storage
-                      .from('organizer-logos')
-                      .upload(path, file, { upsert: true });
-                    if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabaseClient.storage
-                      .from('organizer-logos')
-                      .getPublicUrl(path);
-                    setTemplates(prev => ({ ...prev, logoUrl: publicUrl }));
-                    toast({ title: "Logo subido", description: "El logo se ha cargado correctamente" });
-                  } catch (err: any) {
-                    console.error("Error uploading logo:", err);
-                    toast({ title: "Error", description: "No se pudo subir el logo", variant: "destructive" });
-                  } finally {
-                    setIsUploadingLogo(false);
-                    e.target.value = '';
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Nombre de marca</Label>
-            <Input
-              value={templates.brandName}
-              onChange={(e) => setTemplates(prev => ({ ...prev, brandName: e.target.value }))}
-              placeholder="Konektum"
-              className="text-xs"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">Color principal</Label>
-            <div className="flex gap-2">
-              <Input
-                type="color"
-                value={templates.primaryColor}
-                onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
-                className="w-10 h-9 p-1 cursor-pointer"
-              />
-              <Input
-                value={templates.primaryColor}
-                onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
-                className="flex-1 text-xs"
-              />
-            </div>
-          </div>
-        </div>
+             <Label className="text-xs font-medium">Logo del email</Label>
+             <div className="flex items-center gap-2">
+               {templates.logoUrl ? (
+                 <div className="flex items-center gap-2 flex-1">
+                   <img
+                     src={templates.logoUrl}
+                     alt="Logo"
+                     className="max-w-[120px] object-contain rounded border bg-background p-0.5"
+                     style={{ maxHeight: `${Math.min(56, Math.max(24, Number(templates.logoHeight) || 48))}px` }}
+                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                   />
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-7 w-7"
+                     onClick={() => setTemplates(prev => ({ ...prev, logoUrl: "" }))}
+                   >
+                     <X className="w-3.5 h-3.5" />
+                   </Button>
+                 </div>
+               ) : (
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   className="flex-1 text-xs"
+                   disabled={isUploadingLogo}
+                   onClick={() => logoInputRef.current?.click()}
+                 >
+                   {isUploadingLogo ? (
+                     <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                   ) : (
+                     <Upload className="w-3.5 h-3.5 mr-1.5" />
+                   )}
+                   Subir logo
+                 </Button>
+               )}
+               <input
+                 ref={logoInputRef}
+                 type="file"
+                 accept="image/*"
+                 className="hidden"
+                 onChange={async (e) => {
+                   const file = e.target.files?.[0];
+                   if (!file) return;
+                   setIsUploadingLogo(true);
+                   try {
+                     const ext = file.name.split('.').pop();
+                     const { data: { user } } = await supabaseClient.auth.getUser();
+                     if (!user) throw new Error('No authenticated user');
+                     const path = `${user.id}/email-logo-${eventId}-${Date.now()}.${ext}`;
+                     const { error: uploadError } = await supabaseClient.storage
+                       .from('organizer-logos')
+                       .upload(path, file, { upsert: true });
+                     if (uploadError) throw uploadError;
+                     const { data: { publicUrl } } = supabaseClient.storage
+                       .from('organizer-logos')
+                       .getPublicUrl(path);
+                     setTemplates(prev => ({ ...prev, logoUrl: publicUrl }));
+                     toast({ title: "Logo subido", description: "El logo se ha cargado correctamente" });
+                   } catch (err: any) {
+                     console.error("Error uploading logo:", err);
+                     toast({ title: "Error", description: "No se pudo subir el logo", variant: "destructive" });
+                   } finally {
+                     setIsUploadingLogo(false);
+                     e.target.value = '';
+                   }
+                 }}
+               />
+             </div>
+           </div>
+           <div className="space-y-2">
+             <Label className="text-xs font-medium">Nombre de marca</Label>
+             <Input
+               value={templates.brandName}
+               onChange={(e) => setTemplates(prev => ({ ...prev, brandName: e.target.value }))}
+               placeholder="Konektum"
+               className="text-xs"
+             />
+           </div>
+           <div className="space-y-2">
+             <Label className="text-xs font-medium">Cabecera común</Label>
+             <Input
+               value={templates.headerTitle}
+               onChange={(e) => setTemplates(prev => ({ ...prev, headerTitle: e.target.value }))}
+               placeholder={language === "en" ? "Welcome to the event!" : "¡Bienvenido/a al evento!"}
+               className="text-xs"
+             />
+           </div>
+           <div className="space-y-2">
+             <Label className="text-xs font-medium">Tamaño del logo (px)</Label>
+             <Input
+               type="number"
+               min={24}
+               max={120}
+               value={templates.logoHeight}
+               onChange={(e) => {
+                 const value = Number(e.target.value);
+                 setTemplates(prev => ({
+                   ...prev,
+                   logoHeight: Number.isFinite(value) ? Math.min(120, Math.max(24, value)) : prev.logoHeight,
+                 }));
+               }}
+               className="text-xs"
+             />
+           </div>
+           <div className="space-y-2">
+             <Label className="text-xs font-medium">Color principal</Label>
+             <div className="flex gap-2">
+               <Input
+                 type="color"
+                 value={templates.primaryColor}
+                 onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
+                 className="w-10 h-9 p-1 cursor-pointer"
+               />
+               <Input
+                 value={templates.primaryColor}
+                 onChange={(e) => setTemplates(prev => ({ ...prev, primaryColor: e.target.value }))}
+                 className="flex-1 text-xs"
+               />
+             </div>
+           </div>
+         </div>
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
