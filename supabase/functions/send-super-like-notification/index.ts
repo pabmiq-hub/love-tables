@@ -156,8 +156,8 @@ serve(async (req) => {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f5f5;">
   <div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">
-    ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height:40px;max-width:200px;margin-bottom:12px;" />` : ''}
-    <h1 style="color:white;margin:0;font-size:24px;">⭐ Super Like</h1>
+    ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:12px;" />` : ''}
+    <h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1>
   </div>
   
   <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
