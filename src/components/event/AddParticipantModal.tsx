@@ -104,7 +104,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !birthDate || !gender) return;
+    if (!name.trim() || !birthDate || !gender || !email.trim() || !phone.trim()) return;
 
     const age = getAge(birthDate);
     if (age < 18) {
@@ -167,24 +167,26 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Ej: tu@email.com"
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono de contacto</Label>
+              <Label htmlFor="phone">Teléfono de contacto *</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ej: +34 612 345 678"
+                required
               />
             </div>
 
@@ -294,7 +296,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
                 type="submit" 
                 variant="hero" 
                 className="flex-1"
-                disabled={isUnder18 || !birthDate || !gender || !name.trim()}
+                disabled={isUnder18 || !birthDate || !gender || !name.trim() || !email.trim() || !phone.trim()}
               >
                 Añadir
               </Button>

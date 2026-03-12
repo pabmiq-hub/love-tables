@@ -15,10 +15,21 @@ const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
-// Rate limiting helpers
+function replaceVariables(text: string, vars: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(key, value);
+  }
+  return result;
+}
+
+function nl2br(text: string): string {
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const DELAY_BETWEEN_EMAILS = 550; // 550ms = ~1.8 emails/sec (under 2/sec limit)
-const RATE_LIMIT_RETRY_DELAY = 2000; // Wait 2 seconds if rate limited
+const DELAY_BETWEEN_EMAILS = 550;
+const RATE_LIMIT_RETRY_DELAY = 2000;
 const MAX_RETRIES = 3;
 
 const sendEmailWithRetry = async (
@@ -72,10 +83,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.log("No authorization header provided");
       return new Response(
         JSON.stringify({ error: "Unauthorized - No token provided" }), 
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -84,7 +93,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Create auth client to verify token
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!
@@ -92,17 +100,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
     if (authError || !user) {
-      console.log("Invalid token:", authError?.message);
       return new Response(
         JSON.stringify({ error: "Invalid or expired token" }), 
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Authenticated user:", user.id);
-
     const { event_id, participant_ids } = await req.json();
-    console.log("Processing reminder for event:", event_id, "participants:", participant_ids?.length);
 
     if (!event_id) {
       return new Response(
@@ -131,7 +135,6 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Helper to log email results
     const logEmailResult = async (participantId: string, status: string, errorMessage?: string) => {
       try {
         await supabase.from("email_logs").insert({
@@ -147,10 +150,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // Verify user is the event organizer
+    // Get event with email_template
     const { data: event } = await supabase
       .from("events")
-      .select("name, organizer_id, language")
+      .select("name, organizer_id, language, email_template")
       .eq("id", event_id)
       .single();
 
@@ -161,10 +164,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Load organizer branding for logo
+    if (event.organizer_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden - You are not the organizer of this event" }), 
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const isEn = event.language === 'en';
+
+    // Load organizer branding defaults
     const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
-    let reminderLogoUrl = KONEKTUM_LOGO_URL;
-    let reminderBrandName = "Konektum";
+    let defaultLogoUrl = KONEKTUM_LOGO_URL;
+    let defaultBrandName = "Konektum";
     
     if (event.organizer_id) {
       const { data: organizer } = await supabase
@@ -177,23 +189,33 @@ const handler = async (req: Request): Promise<Response> => {
         const modules = organizer.active_modules || [];
         const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
         if (isProfessionalOnly && organizer.logo_url) {
-          reminderLogoUrl = organizer.logo_url;
-          reminderBrandName = organizer.company_name || "Konektum";
+          defaultLogoUrl = organizer.logo_url;
+          defaultBrandName = organizer.company_name || "Konektum";
         }
       }
     }
 
-    if (event.organizer_id !== user.id) {
-      console.log("User is not the organizer. User:", user.id, "Organizer:", event.organizer_id);
-      return new Response(
-        JSON.stringify({ error: "Forbidden - You are not the organizer of this event" }), 
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Read customized template
+    const emailTemplate = event.email_template as any;
+    const tpl = emailTemplate?.reminder;
+    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = emailTemplate?.brandName || defaultBrandName;
+
+    // Determine sender
+    let senderFrom = `${brandName} <noreply@konektum.com>`;
+    if (event.organizer_id) {
+      const { data: resendConfig } = await supabase
+        .from("organizer_resend_config")
+        .select("resend_api_key, sender_email, sender_name")
+        .eq("organizer_id", (await supabase.from("organizers").select("id").eq("user_id", event.organizer_id).single()).data?.id || '')
+        .eq("is_verified", true)
+        .maybeSingle();
+      
+      if (resendConfig) {
+        senderFrom = `${resendConfig.sender_name || brandName} <${resendConfig.sender_email}>`;
+      }
     }
-
-    console.log("Authorization verified - user is event organizer");
-
-    const isEn = event.language === 'en';
 
     // Get participants
     const { data: participants } = await supabase
@@ -207,8 +229,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const baseUrl = "https://konektum.com";
 
-    console.log(`Starting to send reminders to ${participants?.length || 0} participants with rate limiting...`);
-
     for (let i = 0; i < (participants || []).length; i++) {
       const participant = participants![i];
       stats.total++;
@@ -220,67 +240,80 @@ const handler = async (req: Request): Promise<Response> => {
 
       const selectionUrl = `${baseUrl}/event/${event_id}/access`;
 
+      // Template variables for this participant
+      const vars: Record<string, string> = {
+        "{{nombre}}": participant.name,
+        "{{evento}}": event.name,
+      };
+
+      const subject = tpl?.subject
+        ? replaceVariables(tpl.subject, vars)
+        : (isEn ? `⏰ Reminder: Send your selections for ${event.name}!` : `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`);
+      
+      const greeting = tpl?.greeting
+        ? replaceVariables(tpl.greeting, vars)
+        : (isEn ? `Hi ${participant.name}! 👋` : `¡Hola ${participant.name}! 👋`);
+      
+      const intro = tpl?.intro
+        ? replaceVariables(tpl.intro, vars)
+        : (isEn
+          ? `You still have time to submit your matches for the event <strong>${escapeHtml(event.name)}</strong>!\n\nDon't miss the opportunity to connect with the people you met.`
+          : `¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.`);
+      
+      const closing = tpl?.closing
+        ? replaceVariables(tpl.closing, vars)
+        : (isEn ? 'We hope you had a great time! 💕' : '¡Esperamos que hayas pasado un buen rato! 💕');
+      
+      const signature = tpl?.signature
+        ? replaceVariables(tpl.signature, vars)
+        : (isEn
+          ? `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`
+          : `Este es un recordatorio automático de ${brandName}.\nSi ya has enviado tus selecciones, ignora este mensaje.`);
+
       const html = `
         <!DOCTYPE html>
         <html>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eee;">
-            <img src="${reminderLogoUrl}" alt="${escapeHtml(reminderBrandName)}" style="max-height: 40px; max-width: 200px;" />
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+          <div style="background: ${primaryColor}; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />` : ''}
+            <h1 style="color: white; margin: 0; font-size: 24px;">${isEn ? 'Don\'t forget your selections!' : '¡No olvides tus selecciones!'}</h1>
           </div>
           
-          <h1 style="color: #333;">${isEn ? `Hello ${escapeHtml(participant.name)}! 👋` : `¡Hola ${escapeHtml(participant.name)}! 👋`}</h1>
-          
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            ${isEn
-              ? `You still have time to submit your matches for the event <strong>${escapeHtml(event.name)}</strong>!`
-              : `¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!`
-            }
-          </p>
-          
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            ${isEn
-              ? 'Don\'t miss the opportunity to connect with the people you met. Click the button below to send your selections:'
-              : 'No te pierdas la oportunidad de conectar con las personas que conociste. Haz clic en el botón de abajo para enviar tus selecciones:'
-            }
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${selectionUrl}" 
-               style="background: linear-gradient(135deg, #e11d48, #f43f5e); 
-                      color: white; 
-                      padding: 14px 28px; 
-                      border-radius: 8px; 
-                      text-decoration: none; 
-                      font-weight: bold;
-                      display: inline-block;">
-              ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
-            </a>
+          <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <p style="font-size: 18px; margin-bottom: 20px;">${nl2br(greeting)}</p>
+            
+            <div style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              ${nl2br(intro)}
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${selectionUrl}" 
+                 style="background: ${primaryColor}; 
+                        color: white; 
+                        padding: 14px 28px; 
+                        border-radius: 8px; 
+                        text-decoration: none; 
+                        font-weight: bold;
+                        display: inline-block;">
+                ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
+              </a>
+            </div>
+            
+            <p style="color: #888; font-size: 14px; text-align: center;">
+              ${nl2br(closing)}
+            </p>
           </div>
           
-          <p style="color: #888; font-size: 14px; text-align: center;">
-            ${isEn ? 'We hope you had a great time! 💕' : '¡Esperamos que hayas pasado un buen rato! 💕'}
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="color: #888; font-size: 12px; text-align: center;">
-            ${isEn
-              ? `This is an automatic reminder from ${escapeHtml(reminderBrandName)}.<br>If you have already sent your selections, please ignore this message.`
-              : `Este es un recordatorio automático de ${escapeHtml(reminderBrandName)}.<br>Si ya has enviado tus selecciones, ignora este mensaje.`
-            }
-          </p>
+          <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
+            <p>${nl2br(signature)}</p>
+          </div>
         </body>
         </html>
       `;
 
       const result = await sendEmailWithRetry(
         resendApiKey,
-        { 
-          from: "Konektum <noreply@konektum.com>", 
-          to: [participant.email], 
-          subject: isEn ? `⏰ Reminder: Send your selections for ${event.name}!` : `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`, 
-          html 
-        },
+        { from: senderFrom, to: [participant.email], subject, html },
         participant.name
       );
 
@@ -293,12 +326,10 @@ const handler = async (req: Request): Promise<Response> => {
         await logEmailResult(participant.id, 'failed', result.error);
       }
 
-      // Rate limiting: wait between emails (except for the last one)
       if (i < (participants || []).length - 1) {
         await delay(DELAY_BETWEEN_EMAILS);
       }
       
-      // Log progress every 10 emails
       if ((i + 1) % 10 === 0) {
         console.log(`Progress: ${i + 1}/${participants?.length} reminders processed`);
       }
@@ -307,15 +338,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Reminder sending completed:", stats);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        stats,
-        errors: errors.length > 0 ? errors : undefined 
-      }), 
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
+      JSON.stringify({ success: true, stats, errors: errors.length > 0 ? errors : undefined }), 
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);

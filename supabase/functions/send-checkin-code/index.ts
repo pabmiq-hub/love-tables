@@ -18,6 +18,18 @@ const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
+function replaceVariables(text: string, vars: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(key, value);
+  }
+  return result;
+}
+
+function nl2br(text: string): string {
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
 async function sendWithRetry(resend: any, emailPayload: any, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const result = await resend.emails.send(emailPayload);
@@ -34,19 +46,13 @@ async function sendWithRetry(resend: any, emailPayload: any, maxRetries = 3) {
   return { error: { message: "Rate limit exceeded after retries", statusCode: 429 } };
 }
 
-interface CheckinCodeRequest {
-  participantId: string;
-  eventId: string;
-  baseUrl: string;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { participantId, eventId, baseUrl }: CheckinCodeRequest = await req.json();
+    const { participantId, eventId, baseUrl } = await req.json();
 
     if (!participantId || !eventId || !baseUrl) {
       return new Response(
@@ -67,7 +73,6 @@ serve(async (req) => {
       .single();
 
     if (participantError || !participant) {
-      console.error("[send-checkin-code] Participant not found:", participantError);
       return new Response(
         JSON.stringify({ error: "Participante no encontrado" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -88,15 +93,14 @@ serve(async (req) => {
       );
     }
 
-    // Get event details including language and organizer
+    // Get event details including email_template
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date, language, organizer_id")
+      .select("id, name, date, language, organizer_id, email_template")
       .eq("id", eventId)
       .single();
 
     if (eventError || !event) {
-      console.error("[send-checkin-code] Event not found:", eventError);
       return new Response(
         JSON.stringify({ error: "Evento no encontrado" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -106,10 +110,10 @@ serve(async (req) => {
     const lang = event.language || 'es';
     const isEn = lang === 'en';
 
-    // Load organizer branding for logo
+    // Load organizer branding defaults
     const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
-    let logoUrl = KONEKTUM_LOGO_URL;
-    let brandName = "Konektum";
+    let defaultLogoUrl = KONEKTUM_LOGO_URL;
+    let defaultBrandName = "Konektum";
     
     if (event.organizer_id) {
       const { data: organizer } = await supabase
@@ -122,45 +126,79 @@ serve(async (req) => {
         const modules = organizer.active_modules || [];
         const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
         if (isProfessionalOnly && organizer.logo_url) {
-          logoUrl = organizer.logo_url;
-          brandName = organizer.company_name || "Konektum";
+          defaultLogoUrl = organizer.logo_url;
+          defaultBrandName = organizer.company_name || "Konektum";
         }
       }
     }
 
-    // Use the published domain
+    // Read customized template from event
+    const emailTemplate = event.email_template as any;
+    const tpl = emailTemplate?.checkin_code;
+    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = emailTemplate?.brandName || defaultBrandName;
+
+    // Template variables
+    const vars: Record<string, string> = {
+      "{{nombre}}": participant.name,
+      "{{evento}}": event.name,
+      "{{codigo}}": participant.verification_code,
+    };
+
+    // Use customized template or defaults
+    const subject = tpl?.subject
+      ? replaceVariables(tpl.subject, vars)
+      : (isEn ? `Your access code - ${event.name}` : `Tu código de acceso - ${event.name}`);
+    
+    const greeting = tpl?.greeting
+      ? replaceVariables(tpl.greeting, vars)
+      : (isEn ? `Hi ${participant.name}!` : `¡Hola ${participant.name}!`);
+    
+    const intro = tpl?.intro
+      ? replaceVariables(tpl.intro, vars)
+      : (isEn
+        ? `You have been registered for the event ${event.name}. Use this code to check in and access your panel.`
+        : `Has sido registrado/a en el evento ${event.name}. Usa este código para hacer tu check-in y acceder a tu panel.`);
+    
+    const closing = tpl?.closing
+      ? replaceVariables(tpl.closing, vars)
+      : (isEn ? "Save this code, you will need it during and after the event." : "Guarda este código, lo necesitarás durante y después del evento.");
+    
+    const signature = tpl?.signature
+      ? replaceVariables(tpl.signature, vars)
+      : (isEn ? `Enjoy the event!\n${brandName} Team` : `¡Disfruta del evento!\nEquipo ${brandName}`);
+
     const publishedBaseUrl = "https://konektum.com";
     const accessUrl = `${publishedBaseUrl}/event/${eventId}/access`;
 
     const emailPayload = {
-      from: "Konektum <noreply@konektum.com>",
+      from: `${brandName} <noreply@konektum.com>`,
       to: [participant.email],
-      subject: isEn ? `Your access code - ${event.name}` : `Tu código de acceso - ${event.name}`,
+      subject,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${isEn ? 'Access code' : 'Código de acceso'}</title>
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />
+          <div style="background: ${primaryColor}; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />` : ''}
             <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Welcome to the event!' : '¡Bienvenido/a al evento!'}</h1>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">${isEn ? 'Hello' : 'Hola'} <strong>${escapeHtml(participant.name)}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">${nl2br(greeting)}</p>
             
-            <p>${isEn
-              ? `You have been registered for the event <strong>${escapeHtml(event.name)}</strong>. Use this code to check in and access your panel.`
-              : `Has sido registrado/a en el evento <strong>${escapeHtml(event.name)}</strong>. Usa este código para hacer tu check-in y acceder a tu panel.`
-            }</p>
+            <div style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              ${nl2br(intro)}
+            </div>
             
             <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
               <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">${isEn ? 'Your personal access code:' : 'Tu código personal de acceso:'}</p>
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace;">
+              <div style="background: ${primaryColor}; color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace;">
                 ${participant.verification_code}
               </div>
             </div>
@@ -175,32 +213,41 @@ serve(async (req) => {
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
               <p style="font-weight: bold; margin-bottom: 15px;">${isEn ? 'Access your panel:' : 'Accede a tu panel:'}</p>
               <div style="text-align: center;">
-                <a href="${accessUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                <a href="${accessUrl}" style="display: inline-block; background: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                   🎫 ${isEn ? 'My event panel' : 'Mi panel del evento'}
                 </a>
               </div>
-              <p style="color: #888; font-size: 13px; text-align: center; margin-top: 10px;">
-                ${isEn ? 'From your panel you can see your tables and send your selections.' : 'Desde tu panel podrás ver tus mesas y enviar tus selecciones.'}
-              </p>
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
               <p style="margin: 0; color: #856404; font-size: 14px;">
-                <strong>⚠️ ${isEn ? 'Important:' : 'Importante:'}</strong> ${isEn ? 'Save this code, you will need it during and after the event.' : 'Guarda este código, lo necesitarás durante y después del evento.'}
+                <strong>⚠️ ${isEn ? 'Important:' : 'Importante:'}</strong> ${nl2br(closing)}
               </p>
             </div>
           </div>
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
-            <p>${isEn ? 'Enjoy the event!' : '¡Disfruta del evento!'}</p>
-            <p>${isEn ? `${escapeHtml(brandName)} Team` : `Equipo ${escapeHtml(brandName)}`}</p>
+            <p>${nl2br(signature)}</p>
           </div>
         </body>
         </html>
       `,
     };
 
-    // Send with retry
+    // Check for organizer's own Resend config
+    if (event.organizer_id) {
+      const { data: resendConfig } = await supabase
+        .from("organizer_resend_config")
+        .select("resend_api_key, sender_email, sender_name")
+        .eq("organizer_id", (await supabase.from("organizers").select("id").eq("user_id", event.organizer_id).single()).data?.id || '')
+        .eq("is_verified", true)
+        .maybeSingle();
+      
+      if (resendConfig) {
+        emailPayload.from = `${resendConfig.sender_name || brandName} <${resendConfig.sender_email}>`;
+      }
+    }
+
     const emailResponse = await sendWithRetry(resend, emailPayload);
 
     // Log to email_logs
