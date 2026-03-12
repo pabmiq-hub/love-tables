@@ -261,6 +261,7 @@ const EventSettingsEditor = ({
                 max={20}
                 value={formRounds}
                 onChange={(e) => setFormRounds(parseInt(e.target.value) || 1)}
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
