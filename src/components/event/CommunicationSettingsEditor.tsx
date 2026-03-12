@@ -125,9 +125,14 @@ const CommunicationSettingsEditor = ({
         .single();
 
       const existingTemplate = (current?.email_template as any) || {};
+      const sanitizedLogoHeight = Math.min(120, Math.max(24, Number(templates.logoHeight) || defaults.logoHeight));
       const updatedTemplate = {
         ...existingTemplate,
-        communication_templates_v2: templates,
+        communication_templates_v2: {
+          ...templates,
+          logoHeight: sanitizedLogoHeight,
+          headerTitle: templates.headerTitle?.trim() || defaults.headerTitle,
+        },
       };
 
       const { error } = await supabase
