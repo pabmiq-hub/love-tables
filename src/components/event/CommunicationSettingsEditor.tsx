@@ -66,10 +66,17 @@ const CommunicationSettingsEditor = ({
     if (data?.email_template) {
       const stored = data.email_template as any;
       if (stored.communication_templates_v2) {
-        setTemplates({
+        const merged = {
           ...defaults,
           ...stored.communication_templates_v2,
-        });
+        } as CommunicationTemplates;
+
+        const parsedLogoHeight = Number(merged.logoHeight);
+        merged.logoHeight = Number.isFinite(parsedLogoHeight)
+          ? Math.min(120, Math.max(24, parsedLogoHeight))
+          : defaults.logoHeight;
+
+        setTemplates(merged);
       }
     }
     setIsLoading(false);
