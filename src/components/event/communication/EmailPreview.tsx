@@ -164,12 +164,12 @@ const EmailPreview = ({
             <img
               src={logoUrl}
               alt={brandName}
-              className="max-h-8 max-w-[160px] mx-auto mb-2"
-              
+              className="max-w-[220px] mx-auto mb-2 object-contain"
+              style={{ maxHeight: `${safeLogoHeight}px` }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
-          <h2 className="text-white font-bold text-lg">{brandName}</h2>
+          <h2 className="text-white font-bold text-lg">{headerText}</h2>
         </div>
 
         {/* Body */}
