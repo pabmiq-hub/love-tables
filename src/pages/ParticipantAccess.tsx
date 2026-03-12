@@ -471,6 +471,21 @@ const ParticipantAccess = () => {
             )}
           </CardHeader>
           <CardContent>
+            {/* Round Timer */}
+            {timerData && currentRound > 0 && eventStatus !== 'completed' && (
+              <div className="mb-4">
+                <ParticipantRoundTimer
+                  roundDuration={timerData.roundDuration}
+                  activeRound={currentRound}
+                  totalRounds={totalRounds}
+                  roundStartedAt={timerData.roundStartedAt}
+                  roundPausedAt={timerData.roundPausedAt}
+                  roundElapsedSeconds={timerData.roundElapsedSeconds}
+                  completedRounds={timerData.completedRounds}
+                  lang={eventLang}
+                />
+              </div>
+            )}
             <Tabs defaultValue="tables" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
