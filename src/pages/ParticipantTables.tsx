@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Heart, KeyRound, Table2, AlertCircle } from "lucide-react";
+import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
