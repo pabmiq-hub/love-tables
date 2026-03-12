@@ -93,7 +93,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds')
       .eq('id', eventId)
       .single();
 
@@ -137,6 +137,9 @@ serve(async (req) => {
       );
     }
 
+    const currentRound = event.current_round || 0;
+    const completedRounds: number[] = event.completed_rounds || [];
+
     // Extract table assignments for this participant
     const tables = event.tables as any;
     if (!tables || !Array.isArray(tables) || tables.length === 0) {
@@ -147,19 +150,31 @@ serve(async (req) => {
           assignments: [],
           existingSelections: [],
           message: 'Las mesas aún no han sido asignadas',
-          currentRound: event.current_round,
-          totalRounds: event.rounds
+          currentRound,
+          totalRounds: event.rounds,
+          timer: {
+            roundDuration: event.round_duration,
+            roundStartedAt: event.round_started_at,
+            roundPausedAt: event.round_paused_at,
+            roundElapsedSeconds: event.round_elapsed_seconds || 0,
+            completedRounds,
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Collect all tablemate IDs to fetch their preferences in bulk
+    // Only include rounds up to current_round (or completed rounds)
     const tablemateIds = new Set<string>();
     const assignments: { round: number; table: number; tablemateEntries: { id: string; name: string }[] }[] = [];
     
     for (const roundData of tables) {
       const roundNumber = roundData.round;
+      
+      // Only include rounds that are completed or currently active
+      if (roundNumber > currentRound) continue;
+      
       const roundTables = roundData.tables;
       if (!roundTables || !Array.isArray(roundTables)) continue;
       
@@ -216,7 +231,7 @@ serve(async (req) => {
       selection_type: s.selection_type,
     }));
 
-    console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id}`);
+    console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
     return new Response(
       JSON.stringify({ 
@@ -224,8 +239,15 @@ serve(async (req) => {
         participantPreference: participant.preference,
         assignments: finalAssignments,
         existingSelections,
-        currentRound: event.current_round,
-        totalRounds: event.rounds
+        currentRound,
+        totalRounds: event.rounds,
+        timer: {
+          roundDuration: event.round_duration,
+          roundStartedAt: event.round_started_at,
+          roundPausedAt: event.round_paused_at,
+          roundElapsedSeconds: event.round_elapsed_seconds || 0,
+          completedRounds,
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
