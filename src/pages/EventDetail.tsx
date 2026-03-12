@@ -272,6 +272,8 @@ const EventDetail = () => {
       language: event.language || "es",
       professional_config: event.professional_config as unknown as ProfessionalConfig | null,
       group_rounds: event.group_rounds as unknown as Array<{ round: number; table_size: number }> | null,
+      checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
+      checkin_open: (event as any).checkin_open ?? false,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
