@@ -199,6 +199,11 @@ const ParticipantAccess = () => {
       setTableAssignments(assignments);
       setTotalRounds(data.totalRounds);
 
+      // Store timer data
+      if (data.timer) {
+        setTimerData(data.timer);
+      }
+
       const existingSelections: ExistingSelection[] = data.existingSelections || [];
       const existingMap = new Map<string, string>();
       existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
