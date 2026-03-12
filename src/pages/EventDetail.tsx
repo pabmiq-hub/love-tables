@@ -2654,41 +2654,40 @@ const EventDetail = () => {
               {participants.length} participantes • {participants.filter(p => p.checked_in).length} check-in ✅
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <TooltipProvider>
-              {/* Copy event button - visible in all statuses */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setShowCopyEventDialog(true)}>
-                    <Copy className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Copiar</span>
+              {/* QR codes dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <QrCode className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Códigos QR</span>
+                    <ChevronDown className="w-3 h-3 ml-1" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent className="sm:hidden">Copiar evento</TooltipContent>
-              </Tooltip>
-              {/* PENDING: QR Registro + QR Check-in */}
-              {eventStatus === "pending" && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setShowJoinQR(true)}>
-                        <QrCode className="w-4 h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">QR Registro</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="sm:hidden">QR Registro</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setShowCheckinQR(true)}>
-                        <QrCode className="w-4 h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">QR Check-in</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="sm:hidden">QR Check-in</TooltipContent>
-                  </Tooltip>
-                </>
-              )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {eventStatus === "pending" && (
+                    <>
+                      <DropdownMenuItem onClick={() => setShowJoinQR(true)}>
+                        <QrCode className="w-4 h-4 mr-2" />
+                        QR Registro
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowCheckinQR(true)}>
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        QR Check-in
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {(eventStatus === "active" || eventStatus === "completed") && (
+                    <DropdownMenuItem onClick={() => setShowQR(true)}>
+                      <QrCode className="w-4 h-4 mr-2" />
+                      QR Panel participante
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Exclusions - only pending with 2+ checked in */}
               {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
                 (hasFeature("avoid_encounters") || isSuperAdmin) ? (
                   <Tooltip>
@@ -2719,7 +2718,20 @@ const EventDetail = () => {
                   </Tooltip>
                 )
               )}
+
+              {/* Copy event */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setShowCopyEventDialog(true)}>
+                    <Copy className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Copiar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="sm:hidden">Copiar evento</TooltipContent>
+              </Tooltip>
             </TooltipProvider>
+
+            {/* Primary CTA */}
             {eventStatus === "pending" && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -2745,29 +2757,13 @@ const EventDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <TooltipProvider>
-              {/* ACTIVE or COMPLETED: Unified QR Panel del Participante */}
-              {(eventStatus === "active" || eventStatus === "completed") && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowQR(true)}>
-                      <QrCode className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">QR Participante</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="sm:hidden">QR Participante</TooltipContent>
-                </Tooltip>
-              )}
-              {eventStatus === "active" && (
-                <>
-                  <Button variant="hero" size="sm" onClick={() => setShowCloseEventDialog(true)}>
-                    <CheckCircle2 className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Cerrar evento</span>
-                    <span className="sm:hidden">Cerrar</span>
-                  </Button>
-                </>
-              )}
-            </TooltipProvider>
+            {eventStatus === "active" && (
+              <Button variant="hero" size="sm" onClick={() => setShowCloseEventDialog(true)}>
+                <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Cerrar evento</span>
+                <span className="sm:hidden">Cerrar</span>
+              </Button>
+            )}
           </div>
         </div>
 
