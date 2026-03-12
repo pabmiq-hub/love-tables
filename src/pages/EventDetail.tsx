@@ -1854,9 +1854,15 @@ const EventDetail = () => {
       });
     }
 
-    // Auto-send code if participant has email
+    // Auto-send emails if participant has email
     if (newParticipant.email) {
       try {
+        // Send registration confirmation email
+        await supabase.functions.invoke('send-registration-confirmation', {
+          body: { eventId: id, participantId: newParticipant.id }
+        });
+
+        // Generate and send access code
         const { data } = await supabase.functions.invoke('generate-and-send-code', {
           body: { eventId: id, participantId: newParticipant.id }
         });
@@ -1866,7 +1872,7 @@ const EventDetail = () => {
           ));
         }
       } catch (e) {
-        console.error('Error sending code:', e);
+        console.error('Error sending emails:', e);
       }
     }
   };
