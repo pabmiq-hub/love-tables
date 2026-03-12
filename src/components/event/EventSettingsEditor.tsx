@@ -157,6 +157,7 @@ const EventSettingsEditor = ({
           ? { fields: customFormFields, formMode: "custom" }
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
+        checkin_opens_minutes_before: formCheckinMinutes,
       };
 
       if (isProfessional) {
