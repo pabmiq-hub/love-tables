@@ -190,7 +190,12 @@ const ParticipantTables = () => {
               )}
 
               {currentRound && !timerData && (
-
+                <div className="bg-primary/10 rounded-lg p-3 text-center">
+                  <p className="text-sm text-primary">
+                    {t.tables.currentRound} <span className="font-bold">{currentRound}</span> {t.tables.of} {totalRounds}
+                  </p>
+                </div>
+              )}
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>{t.tables.noTablesYet}</p>
