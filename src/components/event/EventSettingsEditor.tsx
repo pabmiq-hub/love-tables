@@ -265,7 +265,7 @@ const EventSettingsEditor = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-table-size">Tamaño de mesa</Label>
+              <Label htmlFor="event-table-size">Tamaño de mesa {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
               <Input
                 id="event-table-size"
                 type="number"
