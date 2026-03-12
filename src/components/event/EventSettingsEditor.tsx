@@ -62,6 +62,7 @@ const EventSettingsEditor = ({
   professionalConfig,
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
+  eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
