@@ -26,6 +26,8 @@ export interface CommunicationTemplates {
   primaryColor: string;
   logoUrl: string;
   brandName: string;
+  headerTitle: string;
+  logoHeight: number;
 }
 
 export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code" | "super_like";
@@ -88,6 +90,8 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
   primaryColor: "#e11d48",
   logoUrl: "",
   brandName: "Konektum",
+  headerTitle: "¡Bienvenido/a al evento!",
+  logoHeight: 48,
 };
 
 export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
@@ -140,4 +144,6 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
   primaryColor: "#e11d48",
   logoUrl: "",
   brandName: "Konektum",
+  headerTitle: "Welcome to the event!",
+  logoHeight: 48,
 };
