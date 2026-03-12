@@ -3035,9 +3035,6 @@ const EventDetail = () => {
                       )}
                     </TooltipProvider>
                   </div>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
                   </div>
                   
                   {/* Search and Filters */}
