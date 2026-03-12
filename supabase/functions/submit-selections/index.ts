@@ -214,11 +214,17 @@ serve(async (req) => {
 
     console.log(`[submit-selections] New selections to add: ${newSelections.length}`);
 
-    // If no new selections, return success (nothing to do)
+    // If no new selections, still mark as submitted and return success
     if (newSelections.length === 0) {
-      console.log('[submit-selections] No new selections to add');
+      console.log('[submit-selections] No new selections to add, marking as submitted');
+      // Update selection_submitted_at even for empty submissions
+      await supabase
+        .from('participants')
+        .update({ selection_submitted_at: new Date().toISOString() })
+        .eq('id', selectorId);
+      
       return new Response(
-        JSON.stringify({ success: true, count: 0, message: 'No hay nuevas selecciones para guardar' }),
+        JSON.stringify({ success: true, count: 0, message: 'Selecciones registradas correctamente' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

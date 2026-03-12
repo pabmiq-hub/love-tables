@@ -3,7 +3,8 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CheckCircle2, Clock, Send, AlertCircle, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Clock, Send, AlertCircle, ChevronDown, MinusCircle } from "lucide-react";
 
 interface Participant {
   id: string;
@@ -33,11 +34,14 @@ const SelectionProgress = ({
 }: SelectionProgressProps) => {
   const [isPendingListOpen, setIsPendingListOpen] = useState(false);
 
-  // Get unique selectors (participants who have submitted)
+  // Use selection_submitted_at as the source of truth for "responded"
+  const respondedParticipants = participants.filter(p => !!p.selection_submitted_at);
+  const pendingParticipants = participants.filter(p => !p.selection_submitted_at);
+
+  // Detect partial submissions: have selections but no formal submission timestamp
   const selectorIds = new Set(selections.map(s => s.selector_id));
-  
-  const respondedParticipants = participants.filter(p => selectorIds.has(p.id));
-  const pendingParticipants = participants.filter(p => !selectorIds.has(p.id));
+  const partialParticipants = pendingParticipants.filter(p => selectorIds.has(p.id));
+  const fullyPendingParticipants = pendingParticipants.filter(p => !selectorIds.has(p.id));
   
   const progressPercentage = participants.length > 0 
     ? Math.round((respondedParticipants.length / participants.length) * 100)
@@ -53,32 +57,41 @@ const SelectionProgress = ({
           Progreso de Selecciones
         </CardTitle>
         <CardDescription>
-          {respondedParticipants.length} de {participants.length} participantes han respondido
+          {respondedParticipants.length} de {participants.length} participantes han enviado sus selecciones
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Respuestas recibidas</span>
+            <span className="text-muted-foreground">Selecciones enviadas</span>
             <span className="font-medium">{progressPercentage}%</span>
           </div>
           <Progress value={progressPercentage} className="h-3" />
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid gap-4 ${partialParticipants.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div className="bg-primary/10 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <CheckCircle2 className="w-4 h-4 text-primary" />
               <span className="text-2xl font-bold text-primary">{respondedParticipants.length}</span>
             </div>
-            <div className="text-sm text-muted-foreground">Han respondido</div>
+            <div className="text-sm text-muted-foreground">Enviado</div>
           </div>
+          {partialParticipants.length > 0 && (
+            <div className="bg-blue-500/10 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <MinusCircle className="w-4 h-4 text-blue-500" />
+                <span className="text-2xl font-bold text-blue-500">{partialParticipants.length}</span>
+              </div>
+              <div className="text-sm text-muted-foreground">Parcial</div>
+            </div>
+          )}
           <div className="bg-amber-500/10 rounded-lg p-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <AlertCircle className="w-4 h-4 text-amber-500" />
-              <span className="text-2xl font-bold text-amber-500">{pendingParticipants.length}</span>
+              <span className="text-2xl font-bold text-amber-500">{fullyPendingParticipants.length}</span>
             </div>
             <div className="text-sm text-muted-foreground">Pendientes</div>
           </div>
@@ -108,17 +121,27 @@ const SelectionProgress = ({
             </div>
             <CollapsibleContent>
               <div className="max-h-48 overflow-y-auto space-y-2 mt-3">
-                {pendingParticipants.map(participant => (
-                  <div 
-                    key={participant.id} 
-                    className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm"
-                  >
-                    <span>{participant.name}</span>
-                    <span className={`text-xs ${participant.email ? 'text-muted-foreground' : 'text-destructive'}`}>
-                      {participant.email ? participant.email : 'Sin email'}
-                    </span>
-                  </div>
-                ))}
+                {pendingParticipants.map(participant => {
+                  const hasPartialSelections = selectorIds.has(participant.id);
+                  return (
+                    <div 
+                      key={participant.id} 
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{participant.name}</span>
+                        {hasPartialSelections && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                            Parcial
+                          </Badge>
+                        )}
+                      </div>
+                      <span className={`text-xs ${participant.email ? 'text-muted-foreground' : 'text-destructive'}`}>
+                        {participant.email ? participant.email : 'Sin email'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -128,7 +151,7 @@ const SelectionProgress = ({
         {pendingParticipants.length === 0 && participants.length > 0 && (
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-center">
             <CheckCircle2 className="w-8 h-8 text-primary mx-auto mb-2" />
-            <p className="font-medium text-primary">¡Todos han respondido!</p>
+            <p className="font-medium text-primary">¡Todos han enviado sus selecciones!</p>
             <p className="text-sm text-muted-foreground">Puedes proceder a cerrar el evento y enviar emails</p>
           </div>
         )}

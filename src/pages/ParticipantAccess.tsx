@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -302,13 +302,6 @@ const ParticipantAccess = () => {
       }
     });
 
-    if (deduped.size === 0) {
-      toast({ title: t.access.noNewSelections, description: t.access.noNewSelectionsDesc });
-      setIsSubmitting(false);
-      setStep("done");
-      return;
-    }
-
     const selections = Array.from(deduped.values()).map(ms => {
       let selectionType = 'friendship';
       if (ms.friendship && ms.dating) selectionType = 'both';
@@ -327,6 +320,25 @@ const ParticipantAccess = () => {
     }
 
     toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
+    setIsSubmitting(false);
+    setStep("done");
+  };
+
+  const handleSubmitEmpty = async () => {
+    if (!verifiedParticipant || !eventId) return;
+    setIsSubmitting(true);
+
+    const { data, error } = await supabase.functions.invoke('submit-selections', {
+      body: { eventId, verificationCode, selections: [] }
+    });
+
+    if (error || data?.error) {
+      toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    toast({ title: t.access.selectionsSaved, description: "Tu respuesta ha sido registrada" });
     setIsSubmitting(false);
     setStep("done");
   };
@@ -629,6 +641,18 @@ const ParticipantAccess = () => {
                     <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.access.send} ${newSelectionsCount} ${t.access.selectionsCount}` : t.access.continueWithout}</>
                   )}
                 </Button>
+
+                {newSelectionsCount === 0 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2" 
+                    onClick={handleSubmitEmpty} 
+                    disabled={isSubmitting}
+                  >
+                    <MinusCircle className="w-4 h-4 mr-2" />
+                    No conecté con nadie
+                  </Button>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
