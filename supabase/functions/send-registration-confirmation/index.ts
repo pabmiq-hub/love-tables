@@ -145,10 +145,14 @@ serve(async (req) => {
 
     // Read customized template from event
     const emailTemplate = event.email_template as any;
-    const tpl = emailTemplate?.registration_confirmation;
-    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
-    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
-    const brandName = emailTemplate?.brandName || defaultBrandName;
+    const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
+    const tpl = communicationTemplate?.registration_confirmation;
+    const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
+    const headerTitle = communicationTemplate?.headerTitle || (isEn ? "Welcome to the event!" : "¡Bienvenido/a al evento!");
+    const rawLogoHeight = Number(communicationTemplate?.logoHeight ?? emailTemplate?.logoHeight ?? 48);
+    const logoHeight = Number.isFinite(rawLogoHeight) ? Math.min(120, Math.max(24, rawLogoHeight)) : 48;
 
     // Template variables
     const vars: Record<string, string> = {
