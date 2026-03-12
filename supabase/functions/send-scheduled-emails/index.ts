@@ -129,27 +129,32 @@ const generateEmailHtml = (
   eventName: string,
   friendshipMatches: { name: string; phone: string | null }[],
   datingMatches: { name: string; phone: string | null }[],
-  orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean }
+  orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean },
+  options?: { primaryColor?: string; logoUrl?: string | null; brandName?: string | null; headerTitle?: string; logoHeight?: number }
 ): string => {
   const hasMatches = friendshipMatches.length > 0 || datingMatches.length > 0;
   const variables = { nombre: name, evento: eventName };
-  
-  const logoUrl = orgBranding?.isProfessionalOnly && orgBranding?.logoUrl ? orgBranding.logoUrl : KONEKTUM_LOGO_URL;
-  const brandName = orgBranding?.isProfessionalOnly && orgBranding?.companyName ? escapeHtml(orgBranding.companyName) : "Konektum";
-  const logoHtml = `<img src="${escapeHtml(logoUrl)}" alt="${brandName}" style="max-height:40px;max-width:200px;" />`;
-  
+
+  const resolvedLogoUrl = options?.logoUrl || (orgBranding?.isProfessionalOnly && orgBranding?.logoUrl ? orgBranding.logoUrl : KONEKTUM_LOGO_URL);
+  const resolvedBrandName = options?.brandName || (orgBranding?.isProfessionalOnly && orgBranding?.companyName ? orgBranding.companyName : "Konektum");
+  const logoHeight = Number.isFinite(Number(options?.logoHeight)) ? Math.min(120, Math.max(24, Number(options?.logoHeight))) : 48;
+  const primaryColor = options?.primaryColor || template.primaryColor || "#e11d48";
+  const headerTitle = options?.headerTitle || resolvedBrandName;
+
+  const logoHtml = `<img src="${escapeHtml(resolvedLogoUrl)}" alt="${escapeHtml(resolvedBrandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:12px;" />`;
+
   if (hasMatches) {
     const t = template.withMatches;
-    const friendshipList = friendshipMatches.length > 0 
-      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.friendshipTitle}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
+    const friendshipList = friendshipMatches.length > 0
+      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.friendshipTitle)}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
     const datingList = datingMatches.length > 0
-      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${t.datingTitle}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
-    
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;">${logoHtml}</div><h1>${replaceVariables(t.greeting, variables)}</h1><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
-  } else {
-    const t = template.withoutMatches;
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><div style="text-align:center;padding-bottom:20px;border-bottom:1px solid #eee;">${logoHtml}</div><h1>${replaceVariables(t.greeting, variables)}</h1><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${t.signature}</p></body></html>`;
+      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.datingTitle)}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : ''}</li>`).join('')}</ul></div>` : '';
+
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f5f5f5;"><div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">${logoHtml}<h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1></div><div style="background:white;padding:30px;border-radius:0 0 10px 10px;"><h2>${replaceVariables(t.greeting, variables)}</h2><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${escapeHtml(t.signature)}</p></div></body></html>`;
   }
+
+  const t = template.withoutMatches;
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f5f5f5;"><div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">${logoHtml}<h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1></div><div style="background:white;padding:30px;border-radius:0 0 10px 10px;"><h2>${replaceVariables(t.greeting, variables)}</h2><p style="white-space:pre-line;">${replaceVariables(t.message, variables)}</p><p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${escapeHtml(t.signature)}</p></div></body></html>`;
 };
 
 const generateProfessionalEmailHtml = (
