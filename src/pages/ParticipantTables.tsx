@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Heart, KeyRound, Table2, AlertCircle } from "lucide-react";
+import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,13 @@ const ParticipantTables = () => {
   const [currentRound, setCurrentRound] = useState<number | null>(null);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [timerData, setTimerData] = useState<{
+    roundDuration: number;
+    roundStartedAt: string | null;
+    roundPausedAt: string | null;
+    roundElapsedSeconds: number;
+    completedRounds: number[];
+  } | null>(null);
   
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [eventStatus, setEventStatus] = useState<string>("");
@@ -103,6 +111,9 @@ const ParticipantTables = () => {
     setAssignments(data.assignments || []);
     setCurrentRound(data.currentRound);
     setTotalRounds(data.totalRounds);
+    if (data.timer) {
+      setTimerData(data.timer);
+    }
     setIsLoaded(true);
     setIsVerifying(false);
   };
@@ -164,14 +175,27 @@ const ParticipantTables = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {currentRound && (
+              {/* Round Timer */}
+              {timerData && currentRound && currentRound > 0 && (
+                <ParticipantRoundTimer
+                  roundDuration={timerData.roundDuration}
+                  activeRound={currentRound}
+                  totalRounds={totalRounds}
+                  roundStartedAt={timerData.roundStartedAt}
+                  roundPausedAt={timerData.roundPausedAt}
+                  roundElapsedSeconds={timerData.roundElapsedSeconds}
+                  completedRounds={timerData.completedRounds}
+                  lang={eventLang}
+                />
+              )}
+
+              {currentRound && !timerData && (
                 <div className="bg-primary/10 rounded-lg p-3 text-center">
                   <p className="text-sm text-primary">
                     {t.tables.currentRound} <span className="font-bold">{currentRound}</span> {t.tables.of} {totalRounds}
                   </p>
                 </div>
               )}
-
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>{t.tables.noTablesYet}</p>

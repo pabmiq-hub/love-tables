@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock } from "lucide-react";
+import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,6 +53,15 @@ const ParticipantAccess = () => {
   const [tableAssignments, setTableAssignments] = useState<TableAssignment[]>([]);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
+
+  // Timer state
+  const [timerData, setTimerData] = useState<{
+    roundDuration: number;
+    roundStartedAt: string | null;
+    roundPausedAt: string | null;
+    roundElapsedSeconds: number;
+    completedRounds: number[];
+  } | null>(null);
 
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -188,6 +198,11 @@ const ParticipantAccess = () => {
       const assignments: TableAssignment[] = data.assignments || [];
       setTableAssignments(assignments);
       setTotalRounds(data.totalRounds);
+
+      // Store timer data
+      if (data.timer) {
+        setTimerData(data.timer);
+      }
 
       const existingSelections: ExistingSelection[] = data.existingSelections || [];
       const existingMap = new Map<string, string>();
@@ -456,6 +471,21 @@ const ParticipantAccess = () => {
             )}
           </CardHeader>
           <CardContent>
+            {/* Round Timer */}
+            {timerData && currentRound > 0 && eventStatus !== 'completed' && (
+              <div className="mb-4">
+                <ParticipantRoundTimer
+                  roundDuration={timerData.roundDuration}
+                  activeRound={currentRound}
+                  totalRounds={totalRounds}
+                  roundStartedAt={timerData.roundStartedAt}
+                  roundPausedAt={timerData.roundPausedAt}
+                  roundElapsedSeconds={timerData.roundElapsedSeconds}
+                  completedRounds={timerData.completedRounds}
+                  lang={eventLang}
+                />
+              </div>
+            )}
             <Tabs defaultValue="tables" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
