@@ -2836,193 +2836,37 @@ const EventDetail = () => {
                         }
                       </CardDescription>
                     </div>
-                  <div className="flex flex-wrap gap-2">
-                    <TooltipProvider>
-                      {/* Always visible: Add participant + Export */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-                            <Plus className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Añadir</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Añadir participante</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={exportToCSV}
-                            disabled={participants.length === 0}
-                          >
-                            <Download className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Exportar</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
-                      </Tooltip>
-                      
-                      {/* Check-in open/close toggle for pending events */}
-                      {eventStatus === "pending" && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant={eventData?.checkin_open ? "default" : "outline"} 
-                              size="sm"
-                              onClick={async () => {
-                                const newValue = !eventData?.checkin_open;
-                                await supabase
-                                  .from("events")
-                                  .update({ checkin_open: newValue } as any)
-                                  .eq("id", id);
-                                setEventData(prev => prev ? { ...prev, checkin_open: newValue } : prev);
-                                toast({
-                                  title: newValue ? "Check-in abierto" : "Check-in cerrado",
-                                  description: newValue 
-                                    ? "Los participantes pueden hacer check-in ahora" 
-                                    : "El check-in está cerrado para los participantes",
-                                });
-                              }}
-                            >
-                              {eventData?.checkin_open ? (
-                                <>
-                                  <Lock className="w-4 h-4 sm:mr-2" />
-                                  <span className="hidden sm:inline">Cerrar check-in</span>
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="w-4 h-4 sm:mr-2" />
-                                  <span className="hidden sm:inline">Abrir check-in</span>
-                                </>
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">
-                            {eventData?.checkin_open ? "Cerrar check-in" : "Abrir check-in"}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Add participant */}
+                    <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                      <Plus className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Añadir</span>
+                    </Button>
 
-                      {eventStatus === "pending" && participants.length > 0 && (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" onClick={handleCheckInAll}>
-                                <UserCheck className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Check-in todos</span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="sm:hidden">Check-in todos</TooltipContent>
-                          </Tooltip>
-                          {participants.some(p => p.checked_in) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <RotateCcw className="w-4 h-4 sm:mr-2" />
-                                  <span className="hidden sm:inline">Deshacer</span>
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Deshacer check-in de todos?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción deshará el check-in de los {participants.filter(p => p.checked_in).length} participantes confirmados.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleUncheckInAll}>
-                                    Confirmar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={handleSendBulkCodes}
-                                disabled={isSendingBulkCodes}
-                              >
-                                {isSendingBulkCodes ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-                                    <span className="hidden sm:inline">
-                                      {bulkCodeProgress ? `${bulkCodeProgress.current}/${bulkCodeProgress.total}` : "Enviando..."}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send className="w-4 h-4 sm:mr-2" />
-                                    <span className="hidden sm:inline">Enviar códigos ({participants.filter(p => !p.verification_code && p.email).length})</span>
-                                  </>
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Enviar códigos a participantes sin código ({participants.filter(p => !p.verification_code && p.email).length} pendientes)</TooltipContent>
-                          </Tooltip>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                                <UserX className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Eliminar todos</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar todos los participantes?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción eliminará a los {participants.length} participantes del evento. No se puede deshacer.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={handleDeleteAllParticipants}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Eliminar todos
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="excel-upload"
-                      />
-                      {(hasFeature("excel_import") || isSuperAdmin) ? (
+                    {/* Excel import */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="excel-upload"
+                    />
+                    {(hasFeature("excel_import") || isSuperAdmin) ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isLoadingExcel}
+                      >
+                        <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">{isLoadingExcel ? "Cargando..." : "Excel"}</span>
+                      </Button>
+                    ) : (
+                      <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => fileInputRef.current?.click()}
-                              disabled={isLoadingExcel}
-                            >
-                              <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">{isLoadingExcel ? "Cargando..." : "Excel"}</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent className="sm:hidden">Cargar Excel</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              disabled
-                              className="opacity-50"
-                            >
+                            <Button variant="outline" size="sm" disabled className="opacity-50">
                               <FileSpreadsheet className="w-4 h-4 sm:mr-2" />
                               <span className="hidden sm:inline">Excel</span>
                               <Lock className="w-3 h-3 ml-1" />
@@ -3035,8 +2879,100 @@ const EventDetail = () => {
                             </div>
                           </TooltipContent>
                         </Tooltip>
-                      )}
-                    </TooltipProvider>
+                      </TooltipProvider>
+                    )}
+
+                    {/* Check-in controls dropdown */}
+                    {eventStatus === "pending" && participants.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant={eventData?.checkin_open ? "default" : "outline"} size="sm">
+                            <UserCheck className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Check-in</span>
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={async () => {
+                            const newValue = !eventData?.checkin_open;
+                            await supabase
+                              .from("events")
+                              .update({ checkin_open: newValue } as any)
+                              .eq("id", id);
+                            setEventData(prev => prev ? { ...prev, checkin_open: newValue } : prev);
+                            toast({
+                              title: newValue ? "Check-in abierto" : "Check-in cerrado",
+                              description: newValue 
+                                ? "Los participantes pueden hacer check-in ahora" 
+                                : "El check-in está cerrado para los participantes",
+                            });
+                          }}>
+                            {eventData?.checkin_open ? (
+                              <><Lock className="w-4 h-4 mr-2" /> Cerrar check-in</>
+                            ) : (
+                              <><UserCheck className="w-4 h-4 mr-2" /> Abrir check-in</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleCheckInAll}>
+                            <Check className="w-4 h-4 mr-2" />
+                            Check-in todos
+                          </DropdownMenuItem>
+                          {participants.some(p => p.checked_in) && (
+                            <DropdownMenuItem onClick={handleUncheckInAll}>
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              Deshacer check-in todos
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
+                    {/* More actions dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreVertical className="w-4 h-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Más</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {eventStatus === "pending" && participants.length > 0 && (
+                          <>
+                            <DropdownMenuItem 
+                              onClick={handleSendBulkCodes}
+                              disabled={isSendingBulkCodes}
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              {isSendingBulkCodes 
+                                ? (bulkCodeProgress ? `Enviando ${bulkCodeProgress.current}/${bulkCodeProgress.total}...` : "Enviando...")
+                                : `Enviar códigos (${participants.filter(p => !p.verification_code && p.email).length})`
+                              }
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuItem 
+                          onClick={exportToCSV}
+                          disabled={participants.length === 0}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Exportar CSV
+                        </DropdownMenuItem>
+                        {eventStatus === "pending" && participants.length > 0 && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={handleDeleteAllParticipants}
+                            >
+                              <UserX className="w-4 h-4 mr-2" />
+                              Eliminar todos
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   </div>
                   
