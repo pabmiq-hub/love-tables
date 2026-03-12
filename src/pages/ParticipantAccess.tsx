@@ -622,6 +622,18 @@ const ParticipantAccess = () => {
                     <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.access.send} ${newSelectionsCount} ${t.access.selectionsCount}` : t.access.continueWithout}</>
                   )}
                 </Button>
+
+                {newSelectionsCount === 0 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2" 
+                    onClick={handleSubmitEmpty} 
+                    disabled={isSubmitting}
+                  >
+                    <MinusCircle className="w-4 h-4 mr-2" />
+                    No conecté con nadie
+                  </Button>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
