@@ -32,6 +32,13 @@ const ParticipantTables = () => {
   const [currentRound, setCurrentRound] = useState<number | null>(null);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [timerData, setTimerData] = useState<{
+    roundDuration: number;
+    roundStartedAt: string | null;
+    roundPausedAt: string | null;
+    roundElapsedSeconds: number;
+    completedRounds: number[];
+  } | null>(null);
   
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [eventStatus, setEventStatus] = useState<string>("");
