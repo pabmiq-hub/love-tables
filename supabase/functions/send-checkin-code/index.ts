@@ -134,10 +134,14 @@ serve(async (req) => {
 
     // Read customized template from event
     const emailTemplate = event.email_template as any;
-    const tpl = emailTemplate?.checkin_code;
-    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
-    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
-    const brandName = emailTemplate?.brandName || defaultBrandName;
+    const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
+    const tpl = communicationTemplate?.checkin_code;
+    const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
+    const headerTitle = communicationTemplate?.headerTitle || (isEn ? "Welcome to the event!" : "¡Bienvenido/a al evento!");
+    const rawLogoHeight = Number(communicationTemplate?.logoHeight ?? emailTemplate?.logoHeight ?? 48);
+    const logoHeight = Number.isFinite(rawLogoHeight) ? Math.min(120, Math.max(24, rawLogoHeight)) : 48;
 
     // Template variables
     const vars: Record<string, string> = {
@@ -185,8 +189,8 @@ serve(async (req) => {
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
           <div style="background: ${primaryColor}; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />` : ''}
-            <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Welcome to the event!' : '¡Bienvenido/a al evento!'}</h1>
+            ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: ${logoHeight}px; max-width: 260px; margin-bottom: 12px;" />` : ''}
+            <h1 style="color: white; margin: 0; font-size: 28px;">${escapeHtml(headerTitle)}</h1>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">

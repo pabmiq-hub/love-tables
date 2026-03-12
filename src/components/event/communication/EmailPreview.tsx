@@ -5,7 +5,9 @@ interface EmailPreviewProps {
   templateKey: TemplateKey;
   primaryColor: string;
   logoUrl: string;
+  logoHeight?: number;
   brandName: string;
+  headerTitle?: string;
   eventName: string;
   matchesVariant?: "with" | "without";
   matchesWithoutTemplate?: MatchesWithoutTemplate;
@@ -29,8 +31,21 @@ const replaceVars = (text: string, eventName: string) => {
   return result;
 };
 
-const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName, eventName, matchesVariant = "with", matchesWithoutTemplate }: EmailPreviewProps) => {
+const EmailPreview = ({
+  template,
+  templateKey,
+  primaryColor,
+  logoUrl,
+  logoHeight = 48,
+  brandName,
+  headerTitle,
+  eventName,
+  matchesVariant = "with",
+  matchesWithoutTemplate,
+}: EmailPreviewProps) => {
   const r = (t: string) => replaceVars(t, eventName);
+  const headerText = headerTitle?.trim() || brandName;
+  const safeLogoHeight = Math.min(120, Math.max(24, Number(logoHeight) || 48));
 
   // Render "sin matches" preview
   if (templateKey === "matches" && matchesVariant === "without" && matchesWithoutTemplate) {
@@ -45,11 +60,12 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
               <img
                 src={logoUrl}
                 alt={brandName}
-                className="max-h-8 max-w-[160px] mx-auto mb-2"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          )}
-          <h2 className="text-white font-bold text-lg">{brandName}</h2>
+                className="max-w-[220px] mx-auto mb-2 object-contain"
+                style={{ maxHeight: `${safeLogoHeight}px` }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
+            <h2 className="text-white font-bold text-lg">{headerText}</h2>
           </div>
           <div className="p-6 space-y-3">
             <h1 className="text-xl font-bold">{r(matchesWithoutTemplate.greeting)}</h1>
@@ -148,12 +164,12 @@ const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName,
             <img
               src={logoUrl}
               alt={brandName}
-              className="max-h-8 max-w-[160px] mx-auto mb-2"
-              
+              className="max-w-[220px] mx-auto mb-2 object-contain"
+              style={{ maxHeight: `${safeLogoHeight}px` }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
-          <h2 className="text-white font-bold text-lg">{brandName}</h2>
+          <h2 className="text-white font-bold text-lg">{headerText}</h2>
         </div>
 
         {/* Body */}
