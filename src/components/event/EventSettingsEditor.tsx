@@ -210,7 +210,11 @@ const EventSettingsEditor = ({
         <CardHeader>
           <CardTitle>Ajustes del evento</CardTitle>
           <CardDescription>
-            Modifica la configuración del evento antes de iniciarlo
+            {isLocked 
+              ? "Algunos ajustes estructurales están bloqueados porque el evento ya ha comenzado"
+              : "Modifica la configuración del evento antes de iniciarlo"}
+          </CardDescription>
+        </CardHeader>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
