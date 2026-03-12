@@ -3892,6 +3892,7 @@ const EventDetail = () => {
                 professionalConfig={eventData.professional_config}
                 groupRounds={eventData.group_rounds}
                 emailTemplate={eventData.email_template}
+                checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
