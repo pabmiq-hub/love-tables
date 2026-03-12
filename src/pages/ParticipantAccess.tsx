@@ -302,13 +302,6 @@ const ParticipantAccess = () => {
       }
     });
 
-    if (deduped.size === 0) {
-      toast({ title: t.access.noNewSelections, description: t.access.noNewSelectionsDesc });
-      setIsSubmitting(false);
-      setStep("done");
-      return;
-    }
-
     const selections = Array.from(deduped.values()).map(ms => {
       let selectionType = 'friendship';
       if (ms.friendship && ms.dating) selectionType = 'both';
