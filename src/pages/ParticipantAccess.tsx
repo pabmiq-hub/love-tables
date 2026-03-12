@@ -54,6 +54,15 @@ const ParticipantAccess = () => {
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
 
+  // Timer state
+  const [timerData, setTimerData] = useState<{
+    roundDuration: number;
+    roundStartedAt: string | null;
+    roundPausedAt: string | null;
+    roundElapsedSeconds: number;
+    completedRounds: number[];
+  } | null>(null);
+
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
