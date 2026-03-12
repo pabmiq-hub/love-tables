@@ -273,6 +273,7 @@ const EventSettingsEditor = ({
                 max={12}
                 value={formTableSize}
                 onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
