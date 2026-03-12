@@ -2835,6 +2835,72 @@ const EventDetail = () => {
                     </div>
                   <div className="flex flex-wrap gap-2">
                     <TooltipProvider>
+                      {/* Always visible: Add participant + Export */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                            <Plus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Añadir</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Añadir participante</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={exportToCSV}
+                            disabled={participants.length === 0}
+                          >
+                            <Download className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Exportar</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
+                      </Tooltip>
+                      
+                      {/* Check-in open/close toggle for pending events */}
+                      {eventStatus === "pending" && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant={eventData?.checkin_open ? "default" : "outline"} 
+                              size="sm"
+                              onClick={async () => {
+                                const newValue = !eventData?.checkin_open;
+                                await supabase
+                                  .from("events")
+                                  .update({ checkin_open: newValue } as any)
+                                  .eq("id", id);
+                                setEventData(prev => prev ? { ...prev, checkin_open: newValue } : prev);
+                                toast({
+                                  title: newValue ? "Check-in abierto" : "Check-in cerrado",
+                                  description: newValue 
+                                    ? "Los participantes pueden hacer check-in ahora" 
+                                    : "El check-in está cerrado para los participantes",
+                                });
+                              }}
+                            >
+                              {eventData?.checkin_open ? (
+                                <>
+                                  <Lock className="w-4 h-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Cerrar check-in</span>
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="w-4 h-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Abrir check-in</span>
+                                </>
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="sm:hidden">
+                            {eventData?.checkin_open ? "Cerrar check-in" : "Abrir check-in"}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+
                       {eventStatus === "pending" && participants.length > 0 && (
                         <>
                           <Tooltip>
@@ -2967,28 +3033,8 @@ const EventDetail = () => {
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-                            <Plus className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Añadir</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Añadir manual</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={exportToCSV}
-                            disabled={participants.length === 0}
-                          >
-                            <Download className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Exportar</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
+                    </TooltipProvider>
+                  </div>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
