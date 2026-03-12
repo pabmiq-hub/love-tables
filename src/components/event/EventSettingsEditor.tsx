@@ -110,6 +110,7 @@ const EventSettingsEditor = ({
   const [customFormFields, setCustomFormFields] = useState<FormField[]>([]);
 
   const isProfessional = eventModule === "professional";
+  const isLocked = eventStatus !== "pending";
 
   // Load custom registration form from DB
   useEffect(() => {
