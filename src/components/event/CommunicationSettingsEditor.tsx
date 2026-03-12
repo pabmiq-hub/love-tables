@@ -375,7 +375,9 @@ const CommunicationSettingsEditor = ({
                     templateKey={tab.key}
                     primaryColor={templates.primaryColor}
                     logoUrl={templates.logoUrl}
+                    logoHeight={templates.logoHeight}
                     brandName={templates.brandName}
+                    headerTitle={templates.headerTitle}
                     eventName={eventName}
                     matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
                     matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
