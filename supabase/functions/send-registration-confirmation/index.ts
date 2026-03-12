@@ -9,6 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 async function sendWithRetry(resend: any, emailPayload: any, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const result = await resend.emails.send(emailPayload);
@@ -23,6 +32,18 @@ async function sendWithRetry(resend: any, emailPayload: any, maxRetries = 3) {
     return result;
   }
   return { error: { message: "Rate limit exceeded after retries", statusCode: 429 } };
+}
+
+function replaceVariables(text: string, vars: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(key, value);
+  }
+  return result;
+}
+
+function nl2br(text: string): string {
+  return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
 interface RegistrationConfirmationRequest {
@@ -71,10 +92,10 @@ serve(async (req) => {
       );
     }
 
-    // Get event details including language, time, location, organizer
+    // Get event details including email_template
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date, language, event_time, event_location, organizer_id")
+      .select("id, name, date, language, event_time, event_location, organizer_id, email_template")
       .eq("id", eventId)
       .single();
 
@@ -89,10 +110,21 @@ serve(async (req) => {
     const lang = event.language || 'es';
     const isEn = lang === 'en';
 
-    // Load organizer branding for logo
+    // Format event date
+    const eventDate = new Date(event.date);
+    const formattedDate = eventDate.toLocaleDateString(isEn ? "en-US" : "es-ES", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const formattedTime = event.event_time || '';
+    const formattedDateTime = formattedTime ? `${formattedDate}, ${formattedTime}` : formattedDate;
+
+    // Load organizer branding defaults
     const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
-    let logoUrl = KONEKTUM_LOGO_URL;
-    let brandName = "Konektum";
+    let defaultLogoUrl = KONEKTUM_LOGO_URL;
+    let defaultBrandName = "Konektum";
     
     if (event.organizer_id) {
       const { data: organizer } = await supabase
@@ -105,39 +137,62 @@ serve(async (req) => {
         const modules = organizer.active_modules || [];
         const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
         if (isProfessionalOnly && organizer.logo_url) {
-          logoUrl = organizer.logo_url;
-          brandName = organizer.company_name || "Konektum";
+          defaultLogoUrl = organizer.logo_url;
+          defaultBrandName = organizer.company_name || "Konektum";
         }
       }
     }
 
-    // Format event date
-    const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString(isEn ? "en-US" : "es-ES", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    // Read customized template from event
+    const emailTemplate = event.email_template as any;
+    const tpl = emailTemplate?.registration_confirmation;
+    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = emailTemplate?.brandName || defaultBrandName;
 
-    const formattedTime = event.event_time || '';
-    const formattedDateTime = formattedTime 
-      ? `${formattedDate}, ${formattedTime}` 
-      : formattedDate;
+    // Template variables
+    const vars: Record<string, string> = {
+      "{{nombre}}": participant.name,
+      "{{evento}}": event.name,
+      "{{fecha}}": formattedDateTime,
+      "{{ubicacion}}": event.event_location || (isEn ? 'TBD' : 'Por confirmar'),
+      "{{hora}}": formattedTime || (isEn ? 'TBD' : 'Por confirmar'),
+    };
+
+    // Use customized template or defaults
+    const subject = tpl?.subject
+      ? replaceVariables(tpl.subject, vars)
+      : (isEn ? `Registration confirmed! - ${event.name}` : `¡Registro confirmado! - ${event.name}`);
+    
+    const greeting = tpl?.greeting
+      ? replaceVariables(tpl.greeting, vars)
+      : (isEn ? `Hi ${participant.name}! 🎉` : `¡Hola ${participant.name}! 🎉`);
+    
+    const intro = tpl?.intro
+      ? replaceVariables(tpl.intro, vars)
+      : (isEn
+        ? `Your registration for ${event.name} has been confirmed.\n\n📅 Date: ${formattedDateTime}\n📍 Location: ${event.event_location || 'TBD'}\n🕐 Time: ${formattedTime || 'TBD'}`
+        : `Tu registro para ${event.name} ha sido confirmado.\n\n📅 Fecha: ${formattedDateTime}\n📍 Lugar: ${event.event_location || 'Por confirmar'}\n🕐 Hora: ${formattedTime || 'Por confirmar'}`);
+    
+    const closing = tpl?.closing
+      ? replaceVariables(tpl.closing, vars)
+      : (isEn ? "We'll send you an access code before the event. Make sure to arrive on time!" : "Te enviaremos un código de acceso antes del evento. ¡Asegúrate de llegar a tiempo!");
+    
+    const signature = tpl?.signature
+      ? replaceVariables(tpl.signature, vars)
+      : (isEn ? `See you at the event!\n${brandName} Team 🎉` : `¡Nos vemos en el evento!\nEquipo ${brandName} 🎉`);
 
     // Build calendar links
-    const eventDateStr = event.date.replace(/-/g, ''); // YYYYMMDD
+    const eventDateStr = event.date.replace(/-/g, '');
     let startDateTime = eventDateStr;
     let endDateTime = eventDateStr;
 
     if (event.event_time) {
-      // Parse time like "18:00" or "18:30"
       const timeParts = event.event_time.match(/(\d{1,2}):(\d{2})/);
       if (timeParts) {
         const hours = timeParts[1].padStart(2, '0');
         const mins = timeParts[2];
         startDateTime = `${eventDateStr}T${hours}${mins}00`;
-        // Default 2h duration
         const endH = String(parseInt(hours) + 2).padStart(2, '0');
         endDateTime = `${eventDateStr}T${endH}${mins}00`;
       }
@@ -146,22 +201,21 @@ serve(async (req) => {
     const calendarTitle = encodeURIComponent(event.name);
     const calendarLocation = encodeURIComponent(event.event_location || '');
     const calendarDetails = encodeURIComponent(
-      isEn ? `Event organized via Konektum` : `Evento organizado a través de Konektum`
+      isEn ? `Event organized via ${brandName}` : `Evento organizado a través de ${brandName}`
     );
 
     const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calendarTitle}&dates=${startDateTime}/${endDateTime}&location=${calendarLocation}&details=${calendarDetails}`;
 
-    // Build .ics content
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Konektum//Event//EN',
+      `PRODID:-//${brandName}//Event//EN`,
       'BEGIN:VEVENT',
       `DTSTART:${startDateTime}`,
       `DTEND:${endDateTime}`,
       `SUMMARY:${event.name}`,
       `LOCATION:${event.event_location || ''}`,
-      `DESCRIPTION:${isEn ? 'Event organized via Konektum' : 'Evento organizado a través de Konektum'}`,
+      `DESCRIPTION:${isEn ? `Event organized via ${brandName}` : `Evento organizado a través de ${brandName}`}`,
       'END:VEVENT',
       'END:VCALENDAR',
     ].join('\r\n');
@@ -172,7 +226,7 @@ serve(async (req) => {
       <div style="text-align: center; margin: 25px 0;">
         <p style="font-weight: bold; color: #333; margin-bottom: 15px;">📅 ${isEn ? 'Add to your calendar' : 'Añadir a tu calendario'}</p>
         <div style="display: inline-block;">
-          <a href="${googleCalUrl}" target="_blank" style="display: inline-block; padding: 12px 24px; background: #4285f4; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 6px;">
+          <a href="${googleCalUrl}" target="_blank" style="display: inline-block; padding: 12px 24px; background: ${primaryColor}; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 6px;">
             Google Calendar
           </a>
           <a href="${icsDataUri}" download="${event.name.replace(/[^a-zA-Z0-9]/g, '_')}.ics" style="display: inline-block; padding: 12px 24px; background: #333; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 6px;">
@@ -183,71 +237,58 @@ serve(async (req) => {
     `;
 
     const emailPayload = {
-      from: "Konektum <noreply@konektum.com>",
+      from: `${brandName} <noreply@konektum.com>`,
       to: [participant.email],
-      subject: isEn ? `Registration confirmed! - ${event.name}` : `¡Registro confirmado! - ${event.name}`,
+      subject,
       html: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${isEn ? 'Registration confirmed' : 'Registro confirmado'}</title>
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <img src="${logoUrl}" alt="${brandName}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />
+          <div style="background: ${primaryColor}; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height: 40px; max-width: 200px; margin-bottom: 12px;" />` : ''}
             <h1 style="color: white; margin: 0; font-size: 28px;">${isEn ? 'Registration confirmed!' : '¡Registro confirmado!'}</h1>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <p style="font-size: 18px; margin-bottom: 20px;">${isEn ? 'Hello' : 'Hola'} <strong>${participant.name}</strong>,</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">${nl2br(greeting)}</p>
             
-            <p>${isEn ? `Your registration for <strong>${event.name}</strong> has been confirmed.` : `Tu registro para <strong>${event.name}</strong> ha sido confirmado.`}</p>
-            
-            <p style="margin-bottom: 5px;"><strong>📅 ${isEn ? 'Date' : 'Fecha'}:</strong> ${formattedDateTime}</p>
-            ${event.event_location ? `<p style="margin-bottom: 5px;"><strong>📍 ${isEn ? 'Location' : 'Lugar'}:</strong> ${event.event_location}</p>` : ''}
+            <div style="color: #555; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              ${nl2br(intro)}
+            </div>
             
             ${calendarButtonsHtml}
             
-            <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
-              <p style="margin: 0; color: #666; font-size: 16px; font-weight: 500;">
-                ${isEn ? 'Your spot is reserved!' : '¡Ya tienes tu plaza reservada!'}
-              </p>
-            </div>
-            
-            <div style="background: #e8f4fd; border-radius: 10px; padding: 20px; margin: 25px 0;">
-              <p style="font-weight: bold; color: #333; margin-top: 0;">📱 ${isEn ? 'What will happen on event day?' : '¿Qué pasará el día del evento?'}</p>
-              <ol style="color: #555; padding-left: 20px; margin-bottom: 0;">
-                <li style="margin-bottom: 10px;">${isEn ? 'When you arrive, the organizer will <strong>check you in</strong>' : 'Cuando llegues, el organizador hará tu <strong>check-in</strong>'}</li>
-                <li style="margin-bottom: 10px;">${isEn ? 'You will receive a <strong>personal 6-digit code</strong> by email' : 'Recibirás un <strong>código personal de 6 dígitos</strong> por email'}</li>
-                <li style="margin-bottom: 10px;">${isEn ? 'With that code you can:' : 'Con ese código podrás:'}
-                  <ul style="margin-top: 5px;">
-                    <li>${isEn ? '🪑 See your assigned tables during the event' : '🪑 Ver tus mesas asignadas durante el evento'}</li>
-                    <li>${isEn ? '💕 Send your selections after the event' : '💕 Enviar tus selecciones después del evento'}</li>
-                  </ul>
-                </li>
-              </ol>
-            </div>
-            
-            <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
-              <p style="margin: 0; color: #856404; font-size: 14px;">
-                <strong>⚠️ ${isEn ? 'Important:' : 'Importante:'}</strong> ${isEn ? 'Make sure to arrive on time so you don\'t miss any round.' : 'Asegúrate de llegar a tiempo para no perderte ninguna ronda.'}
-              </p>
+            <div style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+              ${nl2br(closing)}
             </div>
           </div>
           
           <div style="text-align: center; margin-top: 20px; color: #888; font-size: 12px;">
-            <p>${isEn ? 'See you at the event!' : '¡Nos vemos en el evento!'}</p>
-            <p>${isEn ? `${brandName} Team` : `Equipo ${brandName}`}</p>
+            <p>${nl2br(signature)}</p>
           </div>
         </body>
         </html>
       `,
     };
 
-    // Send with retry
+    // Check for organizer's own Resend config
+    if (event.organizer_id) {
+      const { data: resendConfig } = await supabase
+        .from("organizer_resend_config")
+        .select("resend_api_key, sender_email, sender_name")
+        .eq("organizer_id", (await supabase.from("organizers").select("id").eq("user_id", event.organizer_id).single()).data?.id || '')
+        .eq("is_verified", true)
+        .maybeSingle();
+      
+      if (resendConfig) {
+        emailPayload.from = `${resendConfig.sender_name || brandName} <${resendConfig.sender_email}>`;
+      }
+    }
+
     const emailResponse = await sendWithRetry(resend, emailPayload);
 
     // Log to email_logs
