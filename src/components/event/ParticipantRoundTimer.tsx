@@ -86,7 +86,7 @@ const ParticipantRoundTimer = ({
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
           <Clock className="w-5 h-5" />
           <span className="font-medium">
-            {t.access.round} {activeRound} {t.access.of || lang === 'es' ? 'de' : 'of'} {totalRounds}
+            {t.access.round} {activeRound} {lang === 'es' ? 'de' : 'of'} {totalRounds}
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
