@@ -100,6 +100,8 @@ interface EventData {
   event_location: string | null;
   professional_config: ProfessionalConfig | null;
   group_rounds: Array<{ round: number; table_size: number }> | null;
+  checkin_opens_minutes_before: number;
+  checkin_open: boolean;
 }
 
 interface DbParticipant {
@@ -270,6 +272,8 @@ const EventDetail = () => {
       language: event.language || "es",
       professional_config: event.professional_config as unknown as ProfessionalConfig | null,
       group_rounds: event.group_rounds as unknown as Array<{ round: number; table_size: number }> | null,
+      checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
+      checkin_open: (event as any).checkin_open ?? false,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -2831,6 +2835,72 @@ const EventDetail = () => {
                     </div>
                   <div className="flex flex-wrap gap-2">
                     <TooltipProvider>
+                      {/* Always visible: Add participant + Export */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                            <Plus className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Añadir</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Añadir participante</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={exportToCSV}
+                            disabled={participants.length === 0}
+                          >
+                            <Download className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Exportar</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
+                      </Tooltip>
+                      
+                      {/* Check-in open/close toggle for pending events */}
+                      {eventStatus === "pending" && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant={eventData?.checkin_open ? "default" : "outline"} 
+                              size="sm"
+                              onClick={async () => {
+                                const newValue = !eventData?.checkin_open;
+                                await supabase
+                                  .from("events")
+                                  .update({ checkin_open: newValue } as any)
+                                  .eq("id", id);
+                                setEventData(prev => prev ? { ...prev, checkin_open: newValue } : prev);
+                                toast({
+                                  title: newValue ? "Check-in abierto" : "Check-in cerrado",
+                                  description: newValue 
+                                    ? "Los participantes pueden hacer check-in ahora" 
+                                    : "El check-in está cerrado para los participantes",
+                                });
+                              }}
+                            >
+                              {eventData?.checkin_open ? (
+                                <>
+                                  <Lock className="w-4 h-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Cerrar check-in</span>
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="w-4 h-4 sm:mr-2" />
+                                  <span className="hidden sm:inline">Abrir check-in</span>
+                                </>
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="sm:hidden">
+                            {eventData?.checkin_open ? "Cerrar check-in" : "Abrir check-in"}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+
                       {eventStatus === "pending" && participants.length > 0 && (
                         <>
                           <Tooltip>
@@ -2963,29 +3033,6 @@ const EventDetail = () => {
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-                            <Plus className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Añadir</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Añadir manual</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={exportToCSV}
-                            disabled={participants.length === 0}
-                          >
-                            <Download className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Exportar</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="sm:hidden">Exportar CSV</TooltipContent>
-                      </Tooltip>
                     </TooltipProvider>
                   </div>
                   </div>
@@ -3845,6 +3892,7 @@ const EventDetail = () => {
                 professionalConfig={eventData.professional_config}
                 groupRounds={eventData.group_rounds}
                 emailTemplate={eventData.email_template}
+                checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}

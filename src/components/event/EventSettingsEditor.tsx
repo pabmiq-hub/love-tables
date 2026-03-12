@@ -35,6 +35,7 @@ interface EventSettingsEditorProps {
   module?: string | null;
   professionalConfig?: any;
   groupRounds?: GroupRound[] | null;
+  checkinOpensMinutesBefore?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -59,6 +60,7 @@ const EventSettingsEditor = ({
   module: eventModule,
   professionalConfig,
   groupRounds: initialGroupRounds,
+  checkinOpensMinutesBefore = 60,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -87,6 +89,7 @@ const EventSettingsEditor = ({
     (initialGroupRounds as GroupRound[]) || []
   );
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(false);
+  const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -154,6 +157,7 @@ const EventSettingsEditor = ({
           ? { fields: customFormFields, formMode: "custom" }
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
+        checkin_opens_minutes_before: formCheckinMinutes,
       };
 
       if (isProfessional) {
@@ -358,6 +362,33 @@ const EventSettingsEditor = ({
               <SelectContent>
                 <SelectItem value="es">🇪🇸 Español</SelectItem>
                 <SelectItem value="en">🇬🇧 English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Check-in timing */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base">Apertura del check-in</Label>
+              <p className="text-sm text-muted-foreground">
+                Tiempo antes del evento en que los participantes pueden hacer check-in
+              </p>
+            </div>
+            <Select value={String(formCheckinMinutes)} onValueChange={(v) => setFormCheckinMinutes(Number(v))}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Solo manualmente</SelectItem>
+                <SelectItem value="30">30 minutos antes</SelectItem>
+                <SelectItem value="60">1 hora antes</SelectItem>
+                <SelectItem value="120">2 horas antes</SelectItem>
+                <SelectItem value="180">3 horas antes</SelectItem>
+                <SelectItem value="360">6 horas antes</SelectItem>
+                <SelectItem value="720">12 horas antes</SelectItem>
+                <SelectItem value="1440">24 horas antes</SelectItem>
+                <SelectItem value="2880">48 horas antes</SelectItem>
+                <SelectItem value="99999">Siempre abierto</SelectItem>
               </SelectContent>
             </Select>
           </div>

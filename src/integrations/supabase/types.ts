@@ -66,6 +66,8 @@ export type Database = {
         Row: {
           avoid_encounters_mode: string
           avoid_previous_encounters: boolean
+          checkin_open: boolean | null
+          checkin_opens_minutes_before: number | null
           completed_rounds: number[] | null
           created_at: string
           current_round: number | null
@@ -111,6 +113,8 @@ export type Database = {
         Insert: {
           avoid_encounters_mode?: string
           avoid_previous_encounters?: boolean
+          checkin_open?: boolean | null
+          checkin_opens_minutes_before?: number | null
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
@@ -156,6 +160,8 @@ export type Database = {
         Update: {
           avoid_encounters_mode?: string
           avoid_previous_encounters?: boolean
+          checkin_open?: boolean | null
+          checkin_opens_minutes_before?: number | null
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
