@@ -111,6 +111,9 @@ const ParticipantTables = () => {
     setAssignments(data.assignments || []);
     setCurrentRound(data.currentRound);
     setTotalRounds(data.totalRounds);
+    if (data.timer) {
+      setTimerData(data.timer);
+    }
     setIsLoaded(true);
     setIsVerifying(false);
   };
