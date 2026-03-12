@@ -5,7 +5,9 @@ interface EmailPreviewProps {
   templateKey: TemplateKey;
   primaryColor: string;
   logoUrl: string;
+  logoHeight?: number;
   brandName: string;
+  headerTitle?: string;
   eventName: string;
   matchesVariant?: "with" | "without";
   matchesWithoutTemplate?: MatchesWithoutTemplate;
