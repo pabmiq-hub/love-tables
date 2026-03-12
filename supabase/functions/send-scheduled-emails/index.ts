@@ -559,7 +559,7 @@ const handler = async (req: Request): Promise<Response> => {
           subject = hasMatches 
             ? replaceVariables(template.withMatches.subject, { nombre: participant.name, evento: event.name }) 
             : replaceVariables(template.withoutMatches.subject, { nombre: participant.name, evento: event.name });
-          html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches, orgBranding || undefined);
+          html = generateEmailHtml(template, participant.name, event.name, friendshipMatches, datingMatches, orgBranding || undefined, socialBranding);
           
           hasMatches ? stats.withMatches++ : stats.withoutMatches++;
         }
