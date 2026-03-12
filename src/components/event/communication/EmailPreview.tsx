@@ -31,8 +31,21 @@ const replaceVars = (text: string, eventName: string) => {
   return result;
 };
 
-const EmailPreview = ({ template, templateKey, primaryColor, logoUrl, brandName, eventName, matchesVariant = "with", matchesWithoutTemplate }: EmailPreviewProps) => {
+const EmailPreview = ({
+  template,
+  templateKey,
+  primaryColor,
+  logoUrl,
+  logoHeight = 48,
+  brandName,
+  headerTitle,
+  eventName,
+  matchesVariant = "with",
+  matchesWithoutTemplate,
+}: EmailPreviewProps) => {
   const r = (t: string) => replaceVars(t, eventName);
+  const headerText = headerTitle?.trim() || brandName;
+  const safeLogoHeight = Math.min(120, Math.max(24, Number(logoHeight) || 48));
 
   // Render "sin matches" preview
   if (templateKey === "matches" && matchesVariant === "without" && matchesWithoutTemplate) {
