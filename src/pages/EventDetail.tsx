@@ -3805,7 +3805,6 @@ const EventDetail = () => {
           </TabsContent>
 
           {/* Settings Tab */}
-          {eventStatus === "pending" && (
             <TabsContent value="settings">
               <EventSettingsTabs
                 eventId={id || ""}
@@ -3830,12 +3829,12 @@ const EventDetail = () => {
                 groupRounds={eventData.group_rounds}
                 emailTemplate={eventData.email_template}
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
+                eventStatus={eventStatus}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
               />
             </TabsContent>
-          )}
         </Tabs>
 
         {/* Email Template Editor Modal */}
