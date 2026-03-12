@@ -197,10 +197,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Read customized template
     const emailTemplate = event.email_template as any;
-    const tpl = emailTemplate?.reminder;
-    const primaryColor = emailTemplate?.primaryColor || "#e11d48";
-    const logoUrl = emailTemplate?.logoUrl || defaultLogoUrl;
-    const brandName = emailTemplate?.brandName || defaultBrandName;
+    const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
+    const tpl = communicationTemplate?.reminder;
+    const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
+    const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
+    const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
+    const headerTitle = communicationTemplate?.headerTitle || (isEn ? "Welcome to the event!" : "¡Bienvenido/a al evento!");
+    const rawLogoHeight = Number(communicationTemplate?.logoHeight ?? emailTemplate?.logoHeight ?? 48);
+    const logoHeight = Number.isFinite(rawLogoHeight) ? Math.min(120, Math.max(24, rawLogoHeight)) : 48;
 
     // Determine sender
     let senderFrom = `${brandName} <noreply@konektum.com>`;
