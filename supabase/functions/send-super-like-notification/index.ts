@@ -6,6 +6,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+function replaceVariables(text: string, vars: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(key, value);
+  }
+  return result;
+}
+
+function nl2br(text: string): string {
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,7 +54,6 @@ serve(async (req) => {
       .single();
 
     if (eventError || !event) {
-      console.error('[send-super-like] Event not found:', eventError);
       return new Response(
         JSON.stringify({ error: 'Event not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -56,130 +76,116 @@ serve(async (req) => {
       .single();
 
     if (recipientError || !recipient || !recipient.email) {
-      console.error('[send-super-like] Recipient not found or no email:', recipientError);
       return new Response(
         JSON.stringify({ error: 'Recipient not found or has no email' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get template
-    const isEnglish = event.language === 'en';
-    let template = {
-      subject: isEnglish
-        ? `✨ Someone selected you at ${event.name}!`
-        : `✨ ¡Alguien te ha seleccionado en ${event.name}!`,
-      greeting: isEnglish
-        ? `Hi ${recipient.name}! ✨`
-        : `¡Hola ${recipient.name}! ✨`,
-      intro: isEnglish
-        ? `Someone at your event chose you with a Super Like! Don't miss the chance to find out if it's a match.\n\nGo to your participant panel and submit your selections.`
-        : `¡Alguien de tu evento te ha elegido con un Super Like! No pierdas la oportunidad de descubrir si hay match.\n\nEntra en tu panel de participante y envía tus selecciones.`,
-      closing: isEnglish
-        ? `The best connections start with a simple step!`
-        : `¡Las mejores conexiones empiezan con un simple paso!`,
-      signature: isEnglish
-        ? `With love,\nThe Konektum Team 💕`
-        : `Con cariño,\nEl equipo de Konektum 💕`,
+    const isEn = event.language === 'en';
+
+    // Read customized template from event
+    const emailTemplate = event.email_template as any;
+    const tpl = emailTemplate?.super_like;
+    const primaryColor = emailTemplate?.primaryColor || '#e11d48';
+    const logoUrl = emailTemplate?.logoUrl || 'https://konektum.com/konektum-logo.png';
+    const brandName = emailTemplate?.brandName || 'Konektum';
+
+    // Template variables
+    const vars: Record<string, string> = {
+      "{{nombre}}": recipient.name,
+      "{{evento}}": event.name,
     };
 
-    // Check for custom template
-    if (event.email_template) {
-      const emailTemplate = event.email_template as any;
-      const customTemplates = emailTemplate?.communication_templates_v2;
-      if (customTemplates?.super_like) {
-        const ct = customTemplates.super_like;
-        template = {
-          subject: (ct.subject || template.subject).replace(/\{\{nombre\}\}/g, recipient.name).replace(/\{\{evento\}\}/g, event.name),
-          greeting: (ct.greeting || template.greeting).replace(/\{\{nombre\}\}/g, recipient.name).replace(/\{\{evento\}\}/g, event.name),
-          intro: (ct.intro || template.intro).replace(/\{\{nombre\}\}/g, recipient.name).replace(/\{\{evento\}\}/g, event.name),
-          closing: (ct.closing || template.closing).replace(/\{\{nombre\}\}/g, recipient.name).replace(/\{\{evento\}\}/g, event.name),
-          signature: (ct.signature || template.signature).replace(/\{\{nombre\}\}/g, recipient.name).replace(/\{\{evento\}\}/g, event.name),
-        };
-      }
-    }
+    const subject = tpl?.subject
+      ? replaceVariables(tpl.subject, vars)
+      : (isEn ? `✨ Someone selected you at ${event.name}!` : `✨ ¡Alguien te ha seleccionado en ${event.name}!`);
 
-    // Get organizer's Resend config
-    let senderEmail = 'onboarding@resend.dev';
-    let senderName = 'Konektum';
-    let resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
+    const greeting = tpl?.greeting
+      ? replaceVariables(tpl.greeting, vars)
+      : (isEn ? `Hi ${recipient.name}! ✨` : `¡Hola ${recipient.name}! ✨`);
+
+    const intro = tpl?.intro
+      ? replaceVariables(tpl.intro, vars)
+      : (isEn
+        ? `Someone at your event chose you with a Super Like! Don't miss the chance to find out if it's a match.\n\nGo to your participant panel and submit your selections.`
+        : `¡Alguien de tu evento te ha elegido con un Super Like! No pierdas la oportunidad de descubrir si hay match.\n\nEntra en tu panel de participante y envía tus selecciones.`);
+
+    const closing = tpl?.closing
+      ? replaceVariables(tpl.closing, vars)
+      : (isEn ? `The best connections start with a simple step!` : `¡Las mejores conexiones empiezan con un simple paso!`);
+
+    const signature = tpl?.signature
+      ? replaceVariables(tpl.signature, vars)
+      : (isEn ? `With love,\nThe ${brandName} Team 💕` : `Con cariño,\nEl equipo de ${brandName} 💕`);
+
+    // Determine sender
+    let senderFrom = `${brandName} <noreply@konektum.com>`;
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
 
     if (event.organizer_id) {
-      const { data: resendConfig } = await supabase
-        .from('organizer_resend_config')
-        .select('resend_api_key, sender_email, sender_name')
-        .eq('organizer_id', event.organizer_id)
+      const { data: orgData } = await supabase
+        .from('organizers')
+        .select('id')
+        .eq('user_id', event.organizer_id)
         .single();
 
-      if (resendConfig) {
-        resendApiKey = resendConfig.resend_api_key || resendApiKey;
-        senderEmail = resendConfig.sender_email || senderEmail;
-        senderName = resendConfig.sender_name || senderName;
-      }
+      if (orgData) {
+        const { data: resendConfig } = await supabase
+          .from('organizer_resend_config')
+          .select('sender_email, sender_name')
+          .eq('organizer_id', orgData.id)
+          .eq('is_verified', true)
+          .maybeSingle();
 
-      // Check verified domain
-      const { data: verifiedDomain } = await supabase
-        .from('organizer_verified_domains')
-        .select('sender_email, sender_name')
-        .eq('organizer_id', event.organizer_id)
-        .eq('status', 'verified')
-        .single();
-
-      if (verifiedDomain) {
-        senderEmail = verifiedDomain.sender_email || senderEmail;
-        senderName = verifiedDomain.sender_name || senderName;
+        if (resendConfig) {
+          senderFrom = `${resendConfig.sender_name || brandName} <${resendConfig.sender_email}>`;
+        }
       }
     }
 
-    // Get branding
-    let primaryColor = '#e11d48';
-    let logoUrl = '';
-    let brandName = 'Konektum';
+    const accessUrl = `https://konektum.com/event/${eventId}/access`;
 
-    if (event.email_template) {
-      const et = event.email_template as any;
-      const ct = et?.communication_templates_v2;
-      if (ct) {
-        primaryColor = ct.primaryColor || primaryColor;
-        logoUrl = ct.logoUrl || logoUrl;
-        brandName = ct.brandName || brandName;
-      }
-    }
-
-    // Build HTML email
     const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-<tr><td style="background:linear-gradient(135deg,${primaryColor},${primaryColor}cc);padding:32px;text-align:center;">
-${logoUrl ? `<img src="${logoUrl}" alt="${brandName}" style="max-height:40px;max-width:160px;margin-bottom:8px;" />` : ''}
-<h2 style="color:#ffffff;margin:0;font-size:18px;">${brandName}</h2>
-</td></tr>
-<tr><td style="padding:32px;">
-<h1 style="margin:0 0 16px;font-size:22px;color:#18181b;">${template.greeting}</h1>
-<p style="color:#52525b;line-height:1.6;white-space:pre-line;margin:0 0 16px;">${template.intro}</p>
-<div style="text-align:center;margin:24px 0;">
-<div style="display:inline-block;background-color:#f8f9fa;border-radius:12px;padding:20px 32px;">
-<div style="font-size:48px;margin-bottom:8px;">⭐</div>
-<p style="font-size:14px;font-weight:600;color:#52525b;margin:0;">${isEnglish ? 'Someone gave you a Super Like!' : '¡Alguien te ha dado un Super Like!'}</p>
-</div>
-</div>
-<p style="color:#52525b;line-height:1.6;margin:0 0 24px;">${template.closing}</p>
-<div style="border-top:1px solid #e4e4e7;padding-top:16px;margin-top:16px;">
-<p style="font-size:12px;color:#a1a1aa;white-space:pre-line;margin:0;">${template.signature}</p>
-</div>
-</td></tr>
-</table>
-</td></tr>
-</table>
+<body style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f5f5;">
+  <div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">
+    ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height:40px;max-width:200px;margin-bottom:12px;" />` : ''}
+    <h1 style="color:white;margin:0;font-size:24px;">⭐ Super Like</h1>
+  </div>
+  
+  <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+    <p style="font-size:18px;margin-bottom:20px;">${nl2br(greeting)}</p>
+    
+    <div style="color:#555;font-size:16px;line-height:1.6;margin-bottom:20px;">
+      ${nl2br(intro)}
+    </div>
+    
+    <div style="text-align:center;margin:24px 0;">
+      <div style="display:inline-block;background:#f8f9fa;border-radius:12px;padding:20px 32px;">
+        <div style="font-size:48px;margin-bottom:8px;">⭐</div>
+        <p style="font-size:14px;font-weight:600;color:#52525b;margin:0;">${isEn ? 'Someone gave you a Super Like!' : '¡Alguien te ha dado un Super Like!'}</p>
+      </div>
+    </div>
+    
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${accessUrl}" style="display:inline-block;background:${primaryColor};color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">
+        ${isEn ? 'Submit my selections' : 'Enviar mis selecciones'}
+      </a>
+    </div>
+    
+    <p style="color:#888;font-size:14px;text-align:center;">${nl2br(closing)}</p>
+  </div>
+  
+  <div style="text-align:center;margin-top:20px;color:#888;font-size:12px;">
+    <p>${nl2br(signature)}</p>
+  </div>
 </body>
 </html>`;
 
-    // Send email via Resend
+    // Send email
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -187,9 +193,9 @@ ${logoUrl ? `<img src="${logoUrl}" alt="${brandName}" style="max-height:40px;max
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${senderName} <${senderEmail}>`,
+        from: senderFrom,
         to: [recipient.email],
-        subject: template.subject,
+        subject,
         html: htmlContent,
       }),
     });
@@ -198,7 +204,6 @@ ${logoUrl ? `<img src="${logoUrl}" alt="${brandName}" style="max-height:40px;max
       const errorText = await emailRes.text();
       console.error('[send-super-like] Resend error:', errorText);
       
-      // Log the failure
       await supabase.from('email_logs').insert({
         event_id: eventId,
         participant_id: recipientId,
@@ -213,7 +218,6 @@ ${logoUrl ? `<img src="${logoUrl}" alt="${brandName}" style="max-height:40px;max
       );
     }
 
-    // Log success
     await supabase.from('email_logs').insert({
       event_id: eventId,
       participant_id: recipientId,
