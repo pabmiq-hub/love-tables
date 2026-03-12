@@ -175,13 +175,21 @@ const ParticipantTables = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {currentRound && (
-                <div className="bg-primary/10 rounded-lg p-3 text-center">
-                  <p className="text-sm text-primary">
-                    {t.tables.currentRound} <span className="font-bold">{currentRound}</span> {t.tables.of} {totalRounds}
-                  </p>
-                </div>
+              {/* Round Timer */}
+              {timerData && currentRound && currentRound > 0 && (
+                <ParticipantRoundTimer
+                  roundDuration={timerData.roundDuration}
+                  activeRound={currentRound}
+                  totalRounds={totalRounds}
+                  roundStartedAt={timerData.roundStartedAt}
+                  roundPausedAt={timerData.roundPausedAt}
+                  roundElapsedSeconds={timerData.roundElapsedSeconds}
+                  completedRounds={timerData.completedRounds}
+                  lang={eventLang}
+                />
               )}
+
+              {currentRound && !timerData && (
 
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
