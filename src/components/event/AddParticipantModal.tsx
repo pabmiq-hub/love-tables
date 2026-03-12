@@ -104,7 +104,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !birthDate || !gender) return;
+    if (!name.trim() || !birthDate || !gender || !email.trim() || !phone.trim()) return;
 
     const age = getAge(birthDate);
     if (age < 18) {
