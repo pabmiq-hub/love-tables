@@ -242,7 +242,7 @@ serve(async (req) => {
         currentRound,
         totalRounds: event.rounds,
         timer: {
-          roundDuration: event.round_duration,
+          roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,
           roundPausedAt: event.round_paused_at,
           roundElapsedSeconds: event.round_elapsed_seconds || 0,
