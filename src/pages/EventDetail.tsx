@@ -3,7 +3,14 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import EventSettingsTabs from "@/components/event/EventSettingsTabs";
