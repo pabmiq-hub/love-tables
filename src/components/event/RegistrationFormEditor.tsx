@@ -93,7 +93,7 @@ const DEFAULT_SOCIAL_FIELDS: FormField[] = [
   { id: "birth_date", type: "date", label: "Fecha de nacimiento", required: true, system: true },
   { id: "gender", type: "select", label: "Género", required: true, system: true, options: ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"] },
   { id: "preference", type: "select", label: "Tipo de conexión", required: true, system: true, options: ["Amistad y ligue", "Solo amistad"] },
-  { id: "dating_preference", type: "select", label: "Preferencia de ligue", required: false, system: true, options: ["Soy un hombre y busco una mujer", "Soy una mujer y busco un hombre", "Soy un hombre y busco un hombre", "Soy una mujer y busco una mujer", "Estoy abierto a todo"] },
+  { id: "dating_preference", type: "select", label: "Preferencia de ligue", required: true, system: true, options: ["Soy un hombre y busco una mujer", "Soy una mujer y busco un hombre", "Soy un hombre y busco un hombre", "Soy una mujer y busco una mujer", "Estoy abierto a todo"] },
 ];
 
 const DEFAULT_PROFESSIONAL_FIELDS: FormField[] = [
@@ -104,8 +104,8 @@ const DEFAULT_PROFESSIONAL_FIELDS: FormField[] = [
   { id: "company_name", type: "text", label: "Nombre de empresa", required: true, system: true },
   { id: "sector", type: "select", label: "Sector", required: true, system: true, options: ["Tecnología", "Marketing", "Finanzas", "Salud", "Educación", "Consultoría", "Industria", "Servicios", "Otro"] },
   { id: "company_size", type: "select", label: "Tamaño de empresa", required: true, system: true, options: ["1-10 empleados", "11-50 empleados", "51-200 empleados", "201-500 empleados", "500+ empleados"] },
-  { id: "needs", type: "multiselect", label: "Necesidades (clientes)", required: false, system: true, options: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"] },
-  { id: "solutions", type: "multiselect", label: "Soluciones (proveedores)", required: false, system: true, options: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"] },
+  { id: "needs", type: "multiselect", label: "Necesidades (clientes)", required: true, system: true, options: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"] },
+  { id: "solutions", type: "multiselect", label: "Soluciones (proveedores)", required: true, system: true, options: ["Desarrollo de software", "Marketing digital", "Consultoría estratégica"] },
 ];
 
 export const getDefaultFields = (module: "social" | "professional"): FormField[] => {
