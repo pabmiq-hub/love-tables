@@ -366,6 +366,33 @@ const EventSettingsEditor = ({
             </Select>
           </div>
 
+          {/* Check-in timing */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base">Apertura del check-in</Label>
+              <p className="text-sm text-muted-foreground">
+                Tiempo antes del evento en que los participantes pueden hacer check-in
+              </p>
+            </div>
+            <Select value={String(formCheckinMinutes)} onValueChange={(v) => setFormCheckinMinutes(Number(v))}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Solo manualmente</SelectItem>
+                <SelectItem value="30">30 minutos antes</SelectItem>
+                <SelectItem value="60">1 hora antes</SelectItem>
+                <SelectItem value="120">2 horas antes</SelectItem>
+                <SelectItem value="180">3 horas antes</SelectItem>
+                <SelectItem value="360">6 horas antes</SelectItem>
+                <SelectItem value="720">12 horas antes</SelectItem>
+                <SelectItem value="1440">24 horas antes</SelectItem>
+                <SelectItem value="2880">48 horas antes</SelectItem>
+                <SelectItem value="99999">Siempre abierto</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Registration Form Customization */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center justify-between">
