@@ -2812,12 +2812,10 @@ const EventDetail = () => {
                   </TooltipContent>
                 </Tooltip>
               )}
-              {eventStatus === "pending" && (
-                <TabsTrigger value="settings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+              <TabsTrigger value="settings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <Settings2 className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Ajustes</span>
                 </TabsTrigger>
-              )}
             </TabsList>
           </div>
 
