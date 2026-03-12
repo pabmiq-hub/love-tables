@@ -47,7 +47,7 @@ const ParticipantCheckin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, status, language")
+        .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before")
         .eq("id", eventId)
         .single();
 
@@ -58,6 +58,27 @@ const ParticipantCheckin = () => {
       }
 
       if (data.status !== 'pending') {
+        setEventExists(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if check-in is allowed based on timing or manual override
+      const checkinOpen = (data as any).checkin_open;
+      const checkinMinutes = (data as any).checkin_opens_minutes_before ?? 60;
+      
+      let isCheckinAllowed = checkinOpen; // Manual override
+      
+      if (!isCheckinAllowed && checkinMinutes > 0 && data.date && (data as any).event_time) {
+        // Calculate if we're within the check-in window
+        const eventDateTime = new Date(`${data.date}T${(data as any).event_time}`);
+        const checkinOpensAt = new Date(eventDateTime.getTime() - checkinMinutes * 60 * 1000);
+        isCheckinAllowed = new Date() >= checkinOpensAt;
+      } else if (!isCheckinAllowed && checkinMinutes === 99999) {
+        isCheckinAllowed = true; // Always open
+      }
+
+      if (!isCheckinAllowed) {
         setEventExists(false);
         setIsLoading(false);
         return;

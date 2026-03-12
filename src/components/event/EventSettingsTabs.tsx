@@ -27,6 +27,7 @@ interface EventSettingsTabsProps {
   professionalConfig?: any;
   groupRounds?: GroupRound[] | null;
   emailTemplate?: any;
+  checkinOpensMinutesBefore?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
