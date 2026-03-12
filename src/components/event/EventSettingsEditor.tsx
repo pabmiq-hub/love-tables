@@ -293,8 +293,8 @@ const EventSettingsEditor = ({
             </div>
             <div className="space-y-2">
               <Label>Modo de rotación</Label>
-              <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")}>
-                <SelectTrigger>
+              <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")} disabled={isLocked}>
+                <SelectTrigger disabled={isLocked}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
