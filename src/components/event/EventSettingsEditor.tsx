@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Eye, ClipboardList } from "lucide-react";
+import { Loader2, Save, Eye, ClipboardList, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
@@ -36,6 +36,7 @@ interface EventSettingsEditorProps {
   professionalConfig?: any;
   groupRounds?: GroupRound[] | null;
   checkinOpensMinutesBefore?: number;
+  eventStatus?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -61,6 +62,7 @@ const EventSettingsEditor = ({
   professionalConfig,
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
+  eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -108,6 +110,7 @@ const EventSettingsEditor = ({
   const [customFormFields, setCustomFormFields] = useState<FormField[]>([]);
 
   const isProfessional = eventModule === "professional";
+  const isLocked = eventStatus !== "pending";
 
   // Load custom registration form from DB
   useEffect(() => {
@@ -207,7 +210,9 @@ const EventSettingsEditor = ({
         <CardHeader>
           <CardTitle>Ajustes del evento</CardTitle>
           <CardDescription>
-            Modifica la configuración del evento antes de iniciarlo
+            {isLocked 
+              ? "Algunos ajustes estructurales están bloqueados porque el evento ya ha comenzado"
+              : "Modifica la configuración del evento antes de iniciarlo"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -248,7 +253,7 @@ const EventSettingsEditor = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-rounds">Número de rondas</Label>
+              <Label htmlFor="event-rounds">Número de rondas {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
               <Input
                 id="event-rounds"
                 type="number"
@@ -256,10 +261,11 @@ const EventSettingsEditor = ({
                 max={20}
                 value={formRounds}
                 onChange={(e) => setFormRounds(parseInt(e.target.value) || 1)}
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-table-size">Tamaño de mesa</Label>
+              <Label htmlFor="event-table-size">Tamaño de mesa {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
               <Input
                 id="event-table-size"
                 type="number"
@@ -267,6 +273,7 @@ const EventSettingsEditor = ({
                 max={12}
                 value={formTableSize}
                 onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
+                disabled={isLocked}
               />
             </div>
             <div className="space-y-2">
@@ -285,9 +292,9 @@ const EventSettingsEditor = ({
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Modo de rotación</Label>
-              <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")}>
-                <SelectTrigger>
+              <Label>Modo de rotación {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
+              <Select value={formRotationMode} onValueChange={(v) => setFormRotationMode(v as "fixed_host" | "all_rotate")} disabled={isLocked}>
+                <SelectTrigger disabled={isLocked}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
