@@ -364,7 +364,35 @@ const handler = async (req: Request): Promise<Response> => {
       
       const isProfessional = event.module === 'professional';
       const defaultTpl = event.language === 'en' ? DEFAULT_TEMPLATE_EN : DEFAULT_TEMPLATE;
-      const template: EmailTemplate = (event.email_template as EmailTemplate) || defaultTpl;
+      const communicationTemplate = (event.email_template as any)?.communication_templates_v2 || null;
+      const template: EmailTemplate = !isProfessional && communicationTemplate?.matches
+        ? {
+            withMatches: {
+              subject: communicationTemplate.matches.subject || defaultTpl.withMatches.subject,
+              greeting: communicationTemplate.matches.greeting || defaultTpl.withMatches.greeting,
+              intro: communicationTemplate.matches.intro || defaultTpl.withMatches.intro,
+              friendshipTitle: communicationTemplate.matches.extraFields?.friendshipTitle || defaultTpl.withMatches.friendshipTitle,
+              datingTitle: communicationTemplate.matches.extraFields?.datingTitle || defaultTpl.withMatches.datingTitle,
+              closing: communicationTemplate.matches.closing || defaultTpl.withMatches.closing,
+              signature: communicationTemplate.matches.signature || defaultTpl.withMatches.signature,
+            },
+            withoutMatches: {
+              subject: communicationTemplate.matches_without?.subject || defaultTpl.withoutMatches.subject,
+              greeting: communicationTemplate.matches_without?.greeting || defaultTpl.withoutMatches.greeting,
+              message: communicationTemplate.matches_without?.message || defaultTpl.withoutMatches.message,
+              closing: communicationTemplate.matches_without?.closing || defaultTpl.withoutMatches.closing,
+              signature: communicationTemplate.matches_without?.signature || defaultTpl.withoutMatches.signature,
+            },
+            primaryColor: communicationTemplate.primaryColor || defaultTpl.primaryColor,
+          }
+        : ((event.email_template as EmailTemplate) || defaultTpl);
+      const socialBranding = {
+        primaryColor: communicationTemplate?.primaryColor || template.primaryColor,
+        logoUrl: communicationTemplate?.logoUrl || null,
+        brandName: communicationTemplate?.brandName || null,
+        headerTitle: communicationTemplate?.headerTitle || (event.language === 'en' ? 'Welcome to the event!' : '¡Bienvenido/a al evento!'),
+        logoHeight: Number.isFinite(Number(communicationTemplate?.logoHeight)) ? Number(communicationTemplate.logoHeight) : 48,
+      };
       const professionalTemplate: ProfessionalEmailTemplate = (event.professional_email_template as ProfessionalEmailTemplate) || DEFAULT_PROFESSIONAL_TEMPLATE;
 
       // Participant interfaces
