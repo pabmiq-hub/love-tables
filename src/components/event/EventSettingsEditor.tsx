@@ -35,6 +35,7 @@ interface EventSettingsEditorProps {
   module?: string | null;
   professionalConfig?: any;
   groupRounds?: GroupRound[] | null;
+  checkinOpensMinutesBefore?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
