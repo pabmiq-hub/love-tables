@@ -296,7 +296,7 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
                 type="submit" 
                 variant="hero" 
                 className="flex-1"
-                disabled={isUnder18 || !birthDate || !gender || !name.trim()}
+                disabled={isUnder18 || !birthDate || !gender || !name.trim() || !email.trim() || !phone.trim()}
               >
                 Añadir
               </Button>
