@@ -167,24 +167,26 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipa
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Ej: tu@email.com"
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono de contacto</Label>
+              <Label htmlFor="phone">Teléfono de contacto *</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ej: +34 612 345 678"
+                required
               />
             </div>
 
