@@ -105,7 +105,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language, date')
           .eq('id', eventId)
           .single();
 
@@ -121,8 +121,10 @@ const ParticipantAccess = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setEventDate(event.date);
 
         if (event.selection_closed_at) {
+          clearSession();
           setStep("expired");
           setIsLoading(false);
           return;
@@ -132,6 +134,7 @@ const ParticipantAccess = () => {
           const deadline = new Date(new Date(event.emails_sent_at).getTime() + event.selection_deadline_hours * 3600000);
           setSelectionDeadline(deadline);
           if (new Date() > deadline) {
+            clearSession();
             setStep("expired");
             setIsLoading(false);
             return;
@@ -140,6 +143,27 @@ const ParticipantAccess = () => {
 
         if (event.status === 'pending' || event.current_round === 0) {
           setStep("not_started");
+          setIsLoading(false);
+          return;
+        }
+
+        // Try to restore session from localStorage
+        const savedSession = sessionKey ? localStorage.getItem(sessionKey) : null;
+        if (savedSession) {
+          try {
+            const session = JSON.parse(savedSession);
+            if (session.verificationCode && !isSessionExpired(event.date)) {
+              setVerificationCode(session.verificationCode);
+              setVerifiedParticipant({ id: session.participantId, name: session.name, email: session.email });
+              setSessionRestored(true);
+              setIsLoading(false);
+              return;
+            } else {
+              clearSession();
+            }
+          } catch {
+            clearSession();
+          }
         }
 
         setIsLoading(false);
