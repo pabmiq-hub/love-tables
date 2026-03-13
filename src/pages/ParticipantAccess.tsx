@@ -445,7 +445,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.expiredTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.expiredDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
