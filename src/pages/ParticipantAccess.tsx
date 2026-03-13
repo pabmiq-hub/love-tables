@@ -66,13 +66,29 @@ const ParticipantAccess = () => {
     completedRounds: number[];
   } | null>(null);
 
-  const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<string>("");
-
-  const [eventLang, setEventLang] = useState<Language>("es");
-  const t = translations[eventLang];
+  const [eventDate, setEventDate] = useState<string>("");
 
   const { toast } = useToast();
+
+  const sessionKey = eventId ? `participant_session_${eventId}` : '';
+
+  const saveSession = (participantId: string, name: string, email: string | undefined, code: string) => {
+    if (!sessionKey) return;
+    localStorage.setItem(sessionKey, JSON.stringify({
+      participantId, name, email, verificationCode: code, timestamp: new Date().toISOString()
+    }));
+  };
+
+  const clearSession = () => {
+    if (sessionKey) localStorage.removeItem(sessionKey);
+  };
+
+  const isSessionExpired = (eventDateStr: string): boolean => {
+    if (!eventDateStr) return false;
+    const eventEnd = new Date(eventDateStr);
+    eventEnd.setHours(23, 59, 59); // end of event day
+    return new Date().getTime() > eventEnd.getTime() + SESSION_EXPIRY_BUFFER_MS;
+  };
 
   useEffect(() => {
     const checkEventStatus = async () => {
