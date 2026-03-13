@@ -380,6 +380,8 @@ const ParticipantAccess = () => {
 
     toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
     setIsSubmitting(false);
+    clearSession();
+    setStep("done");
     setStep("done");
   };
 
