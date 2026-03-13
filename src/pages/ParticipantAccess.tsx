@@ -37,12 +37,15 @@ interface ExistingSelection {
 
 type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "not_started" | "expired";
 
+const SESSION_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour after event
+
 const ParticipantAccess = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
   const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +66,7 @@ const ParticipantAccess = () => {
     completedRounds: number[];
   } | null>(null);
 
+  const [eventDate, setEventDate] = useState<string>("");
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
@@ -70,6 +74,26 @@ const ParticipantAccess = () => {
   const t = translations[eventLang];
 
   const { toast } = useToast();
+
+  const sessionKey = eventId ? `participant_session_${eventId}` : '';
+
+  const saveSession = (participantId: string, name: string, email: string | undefined, code: string) => {
+    if (!sessionKey) return;
+    localStorage.setItem(sessionKey, JSON.stringify({
+      participantId, name, email, verificationCode: code, timestamp: new Date().toISOString()
+    }));
+  };
+
+  const clearSession = () => {
+    if (sessionKey) localStorage.removeItem(sessionKey);
+  };
+
+  const isSessionExpired = (eventDateStr: string): boolean => {
+    if (!eventDateStr) return false;
+    const eventEnd = new Date(eventDateStr);
+    eventEnd.setHours(23, 59, 59); // end of event day
+    return new Date().getTime() > eventEnd.getTime() + SESSION_EXPIRY_BUFFER_MS;
+  };
 
   useEffect(() => {
     const checkEventStatus = async () => {
@@ -81,7 +105,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language, date')
           .eq('id', eventId)
           .single();
 
@@ -97,8 +121,10 @@ const ParticipantAccess = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setEventDate(event.date);
 
         if (event.selection_closed_at) {
+          clearSession();
           setStep("expired");
           setIsLoading(false);
           return;
@@ -108,6 +134,7 @@ const ParticipantAccess = () => {
           const deadline = new Date(new Date(event.emails_sent_at).getTime() + event.selection_deadline_hours * 3600000);
           setSelectionDeadline(deadline);
           if (new Date() > deadline) {
+            clearSession();
             setStep("expired");
             setIsLoading(false);
             return;
@@ -116,6 +143,27 @@ const ParticipantAccess = () => {
 
         if (event.status === 'pending' || event.current_round === 0) {
           setStep("not_started");
+          setIsLoading(false);
+          return;
+        }
+
+        // Try to restore session from localStorage
+        const savedSession = sessionKey ? localStorage.getItem(sessionKey) : null;
+        if (savedSession) {
+          try {
+            const session = JSON.parse(savedSession);
+            if (session.verificationCode && !isSessionExpired(event.date)) {
+              setVerificationCode(session.verificationCode);
+              setVerifiedParticipant({ id: session.participantId, name: session.name, email: session.email });
+              setSessionRestored(true);
+              setIsLoading(false);
+              return;
+            } else {
+              clearSession();
+            }
+          } catch {
+            clearSession();
+          }
         }
 
         setIsLoading(false);
@@ -128,6 +176,14 @@ const ParticipantAccess = () => {
 
     checkEventStatus();
   }, [eventId]);
+
+  // Auto-restore session: once session data is set, auto-confirm identity
+  useEffect(() => {
+    if (sessionRestored && verifiedParticipant && verificationCode) {
+      handleConfirmIdentity();
+      setSessionRestored(false);
+    }
+  }, [sessionRestored, verifiedParticipant, verificationCode]);
 
   useEffect(() => {
     if (!selectionDeadline) return;
@@ -238,6 +294,9 @@ const ParticipantAccess = () => {
 
       setMatchSelections(allSelections);
       setStep("panel");
+
+      // Save session to localStorage
+      saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
     } catch (err) {
       console.error('Error loading data:', err);
       setStep("error");
@@ -321,6 +380,8 @@ const ParticipantAccess = () => {
 
     toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
     setIsSubmitting(false);
+    clearSession();
+    setStep("done");
     setStep("done");
   };
 
@@ -340,6 +401,7 @@ const ParticipantAccess = () => {
 
     toast({ title: t.access.selectionsSaved, description: "Tu respuesta ha sido registrada" });
     setIsSubmitting(false);
+    clearSession();
     setStep("done");
   };
 
@@ -353,7 +415,7 @@ const ParticipantAccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
       </Link>
@@ -370,7 +432,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.notStartedTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.notStartedDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
@@ -383,7 +445,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.expiredTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.expiredDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
@@ -396,7 +458,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.errorTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.errorDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
@@ -669,7 +731,7 @@ const ParticipantAccess = () => {
             <p className="text-muted-foreground mb-6">
               {eventStatus === 'completed' ? t.access.thanksCompleted : t.access.thanksActive}
             </p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
