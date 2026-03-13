@@ -401,6 +401,7 @@ const ParticipantAccess = () => {
 
     toast({ title: t.access.selectionsSaved, description: "Tu respuesta ha sido registrada" });
     setIsSubmitting(false);
+    clearSession();
     setStep("done");
   };
 
