@@ -105,7 +105,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, emails_sent_at, language, date')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date')
           .eq('id', eventId)
           .single();
 
@@ -130,8 +130,8 @@ const ParticipantAccess = () => {
           return;
         }
 
-        if (event.status === 'completed' && event.emails_sent_at && event.selection_deadline_hours) {
-          const deadline = new Date(new Date(event.emails_sent_at).getTime() + event.selection_deadline_hours * 3600000);
+        if (event.status === 'completed' && event.scheduled_email_at) {
+          const deadline = new Date(event.scheduled_email_at);
           setSelectionDeadline(deadline);
           if (new Date() > deadline) {
             clearSession();

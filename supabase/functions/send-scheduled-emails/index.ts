@@ -607,7 +607,8 @@ const handler = async (req: Request): Promise<Response> => {
         .from("events")
         .update({ 
           emails_sent_at: new Date().toISOString(),
-          scheduled_email_at: null 
+          scheduled_email_at: null,
+          selection_closed_at: new Date().toISOString(),
         })
         .eq("id", event.id);
 
