@@ -134,7 +134,7 @@ serve(async (req) => {
       // Filter tables based on current_round and event status
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
-        .select('id, name, phone, preference, dating_preference')
+        .select('id, name, phone, preference, dating_preference, gender')
         .eq('event_id', eventId)
         .order('name');
 

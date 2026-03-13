@@ -207,11 +207,23 @@ const ParticipantSelect = () => {
         userPreference?.toLowerCase().includes('pareja') ||
         userPreference?.toLowerCase().includes('ligue');
 
+      const userDatingPref = verifiedParticipant.dating_preference || '';
+      const userGender = (verifiedParticipant as any).gender || null;
+
       setMatchSelections(tablemates.map(p => {
         const targetPreference = p.preference?.toLowerCase() || '';
         const targetInterestedInDating = targetPreference.includes('sentimental') ||
           targetPreference.includes('pareja') ||
           targetPreference.includes('ligue');
+
+        // Check dating preference compatibility (gender/orientation match)
+        let datingCompatible = false;
+        if (userInterestedInDating && targetInterestedInDating && userDatingPref && p.dating_preference) {
+          datingCompatible = areDatingPreferencesCompatible(
+            userDatingPref, userGender,
+            p.dating_preference, p.gender || null
+          );
+        }
 
         const existingSelection = userExistingSelections.get(p.id);
         const alreadySelected = !!existingSelection;
@@ -220,7 +232,7 @@ const ParticipantSelect = () => {
           participantId: p.id,
           friendship: false,
           dating: false,
-          canShowDating: userInterestedInDating && targetInterestedInDating,
+          canShowDating: userInterestedInDating && targetInterestedInDating && datingCompatible,
           alreadySelected,
           previousSelectionType: existingSelection,
         };
