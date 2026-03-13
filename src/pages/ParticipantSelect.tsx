@@ -20,6 +20,7 @@ interface Participant {
   phone?: string;
   preference?: string;
   dating_preference?: string;
+  gender?: string;
 }
 
 interface MatchSelection {
@@ -43,6 +44,28 @@ interface ExistingSelection {
 }
 
 type Step = "verify_code" | "confirm_identity" | "select" | "done" | "error" | "not_started" | "completed";
+
+const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
+  const openPrefs = ["Estoy abierto a todo", "No binario", "I'm open to all", "Non-binary"];
+  if (openPrefs.some(o => pref1.includes(o)) || openPrefs.some(o => pref2.includes(o))) return true;
+
+  const p1LookingForWoman = pref1.includes("busco una mujer") || pref1.includes("looking for a woman");
+  const p1LookingForMan = pref1.includes("busco un hombre") || pref1.includes("looking for a man");
+  const p2LookingForWoman = pref2.includes("busco una mujer") || pref2.includes("looking for a woman");
+  const p2LookingForMan = pref2.includes("busco un hombre") || pref2.includes("looking for a man");
+
+  const p1IsWoman = gender1 === "Mujer" || gender1 === "Woman" || pref1.includes("Soy una mujer") || pref1.includes("I'm a woman");
+  const p1IsMan = gender1 === "Hombre" || gender1 === "Man" || pref1.includes("Soy un hombre") || pref1.includes("I'm a man");
+  const p2IsWoman = gender2 === "Mujer" || gender2 === "Woman" || pref2.includes("Soy una mujer") || pref2.includes("I'm a woman");
+  const p2IsMan = gender2 === "Hombre" || gender2 === "Man" || pref2.includes("Soy un hombre") || pref2.includes("I'm a man");
+
+  if (p1LookingForWoman && p2IsWoman && p2LookingForMan && p1IsMan) return true;
+  if (p1LookingForMan && p2IsMan && p2LookingForMan && p1IsMan) return true;
+  if (p1LookingForWoman && p2IsWoman && p2LookingForWoman && p1IsWoman) return true;
+  if (p1LookingForMan && p2IsMan && p2LookingForWoman && p1IsWoman) return true;
+
+  return false;
+};
 
 const ParticipantSelect = () => {
   const { id: eventId } = useParams();
@@ -206,11 +229,23 @@ const ParticipantSelect = () => {
         userPreference?.toLowerCase().includes('pareja') ||
         userPreference?.toLowerCase().includes('ligue');
 
+      const userDatingPref = verifiedParticipant.dating_preference || '';
+      const userGender = (verifiedParticipant as any).gender || null;
+
       setMatchSelections(tablemates.map(p => {
         const targetPreference = p.preference?.toLowerCase() || '';
         const targetInterestedInDating = targetPreference.includes('sentimental') ||
           targetPreference.includes('pareja') ||
           targetPreference.includes('ligue');
+
+        // Check dating preference compatibility (gender/orientation match)
+        let datingCompatible = false;
+        if (userInterestedInDating && targetInterestedInDating && userDatingPref && p.dating_preference) {
+          datingCompatible = areDatingPreferencesCompatible(
+            userDatingPref, userGender,
+            p.dating_preference, p.gender || null
+          );
+        }
 
         const existingSelection = userExistingSelections.get(p.id);
         const alreadySelected = !!existingSelection;
@@ -219,7 +254,7 @@ const ParticipantSelect = () => {
           participantId: p.id,
           friendship: false,
           dating: false,
-          canShowDating: userInterestedInDating && targetInterestedInDating,
+          canShowDating: userInterestedInDating && targetInterestedInDating && datingCompatible,
           alreadySelected,
           previousSelectionType: existingSelection,
         };
