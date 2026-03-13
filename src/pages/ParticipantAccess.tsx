@@ -294,6 +294,9 @@ const ParticipantAccess = () => {
 
       setMatchSelections(allSelections);
       setStep("panel");
+
+      // Save session to localStorage
+      saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
     } catch (err) {
       console.error('Error loading data:', err);
       setStep("error");
