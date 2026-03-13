@@ -37,12 +37,15 @@ interface ExistingSelection {
 
 type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "not_started" | "expired";
 
+const SESSION_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour after event
+
 const ParticipantAccess = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
   const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
