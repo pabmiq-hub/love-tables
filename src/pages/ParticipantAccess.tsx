@@ -731,7 +731,7 @@ const ParticipantAccess = () => {
             <p className="text-muted-foreground mb-6">
               {eventStatus === 'completed' ? t.access.thanksCompleted : t.access.thanksActive}
             </p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
