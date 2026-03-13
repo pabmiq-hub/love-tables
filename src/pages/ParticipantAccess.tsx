@@ -177,6 +177,14 @@ const ParticipantAccess = () => {
     checkEventStatus();
   }, [eventId]);
 
+  // Auto-restore session: once session data is set, auto-confirm identity
+  useEffect(() => {
+    if (sessionRestored && verifiedParticipant && verificationCode) {
+      handleConfirmIdentity();
+      setSessionRestored(false);
+    }
+  }, [sessionRestored, verifiedParticipant, verificationCode]);
+
   useEffect(() => {
     if (!selectionDeadline) return;
     const update = () => {
