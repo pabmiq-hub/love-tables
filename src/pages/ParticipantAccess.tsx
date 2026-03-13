@@ -67,6 +67,11 @@ const ParticipantAccess = () => {
   } | null>(null);
 
   const [eventDate, setEventDate] = useState<string>("");
+  const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+
+  const [eventLang, setEventLang] = useState<Language>("es");
+  const t = translations[eventLang];
 
   const { toast } = useToast();
 
