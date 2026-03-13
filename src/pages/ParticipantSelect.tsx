@@ -20,6 +20,7 @@ interface Participant {
   phone?: string;
   preference?: string;
   dating_preference?: string;
+  gender?: string;
 }
 
 interface MatchSelection {
