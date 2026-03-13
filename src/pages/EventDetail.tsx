@@ -2257,7 +2257,7 @@ const EventDetail = () => {
         .update({ 
           status: "completed", 
           selection_deadline_hours: deadlineHours,
-          selection_closed_at: now.toISOString(),
+          emails_sent_at: now.toISOString(),
           scheduled_email_at: scheduledAt.toISOString(),
         })
         .eq("id", id);
