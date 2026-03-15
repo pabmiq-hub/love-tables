@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, Heart, Percent, Send, Inbox, PartyPopper, Calendar,
-  Handshake, TrendingUp, Zap, Star, BarChart3, Eye,
+  Handshake, TrendingUp, Zap, Star, BarChart3, Eye, HeartHandshake,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
