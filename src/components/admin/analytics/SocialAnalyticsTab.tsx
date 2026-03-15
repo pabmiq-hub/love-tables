@@ -483,6 +483,111 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
     return { genderData, ageData };
   }, [uniqueParticipants]);
 
+  // ========== PREFERENCE BREAKDOWN ==========
+  const preferenceBreakdown = useMemo(() => {
+    const PREF_NORMALIZE: Record<string, string> = {
+      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad", "friendship only": "Solo amistad",
+      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
+      "ligue": "Solo ligue", "dating": "Solo ligue", "dating only": "Solo ligue",
+    };
+    const normalizePref = (p: string | null): string => {
+      if (!p) return "Sin especificar";
+      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
+    };
+
+    const overallCounts: Record<string, number> = {};
+    const byGender: Record<string, Record<string, number>> = {};
+
+    socialParticipants.forEach(p => {
+      const pref = normalizePref(p.preference);
+      overallCounts[pref] = (overallCounts[pref] || 0) + 1;
+      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      if (!byGender[gender]) byGender[gender] = {};
+      byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
+    });
+
+    const PREF_COLORS: Record<string, string> = {
+      "Solo amistad": "hsl(210, 70%, 50%)", "Amistad y Ligue": "hsl(262, 60%, 55%)",
+      "Solo ligue": "hsl(346, 77%, 50%)", "Sin especificar": "hsl(240, 5%, 55%)",
+    };
+
+    const overallData = Object.entries(overallCounts)
+      .map(([name, value]) => ({ name, value, fill: PREF_COLORS[name] || PREF_COLORS["Sin especificar"] }))
+      .sort((a, b) => b.value - a.value);
+
+    const prefKeys = [...new Set(socialParticipants.map(p => normalizePref(p.preference)))].sort();
+    const genderBarData = Object.entries(byGender)
+      .filter(([g]) => g !== "Sin especificar")
+      .map(([gender, prefs]) => {
+        const genderTotal = Object.values(prefs).reduce((a, b) => a + b, 0);
+        const row: Record<string, any> = { name: gender, total: genderTotal };
+        prefKeys.forEach(pk => {
+          row[pk] = prefs[pk] || 0;
+          row[`${pk}_pct`] = genderTotal > 0 ? Math.round(((prefs[pk] || 0) / genderTotal) * 100) : 0;
+        });
+        return row;
+      })
+      .sort((a, b) => b.total - a.total);
+
+    // Detailed insights
+    const insights: string[] = [];
+    Object.entries(byGender).forEach(([gender, prefs]) => {
+      if (gender === "Sin especificar") return;
+      const genderTotal = Object.values(prefs).reduce((a, b) => a + b, 0);
+      if (genderTotal === 0) return;
+      Object.entries(prefs)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([pref, count]) => {
+          const pct = Math.round((count / genderTotal) * 100);
+          if (pct > 0) {
+            const genderLabel = gender === "Hombre" ? "los hombres" : gender === "Mujer" ? "las mujeres" : gender;
+            const prefLabel = pref === "Amistad y Ligue" ? "busca amistad y ligue" :
+                             pref === "Solo amistad" ? "solo busca amistad" :
+                             pref === "Solo ligue" ? "solo busca ligue" : "no especificó preferencia";
+            insights.push(`El ${pct}% de ${genderLabel} ${prefLabel}`);
+          }
+        });
+    });
+
+    // Dating orientation breakdown
+    const orientationCounts: Record<string, number> = {};
+    socialParticipants.forEach(p => {
+      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
+        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+      }
+    });
+    const orientationData = Object.entries(orientationCounts)
+      .map(([name, value]) => ({ name: name.length > 35 ? name.substring(0, 35) + "…" : name, fullName: name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // Orientation by gender
+    const orientationByGender: Record<string, Record<string, number>> = {};
+    socialParticipants.forEach(p => {
+      if (!p.dating_preference || p.dating_preference === "none" || p.dating_preference === "no") return;
+      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      if (!orientationByGender[gender]) orientationByGender[gender] = {};
+      orientationByGender[gender][p.dating_preference] = (orientationByGender[gender][p.dating_preference] || 0) + 1;
+    });
+
+    const orientationInsights: string[] = [];
+    Object.entries(orientationByGender).forEach(([gender, orients]) => {
+      if (gender === "Sin especificar") return;
+      const genderTotal = Object.values(orients).reduce((a, b) => a + b, 0);
+      if (genderTotal === 0) return;
+      Object.entries(orients)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([orient, count]) => {
+          const pct = Math.round((count / genderTotal) * 100);
+          if (pct > 0) {
+            const genderLabel = gender === "Hombre" ? "los hombres con interés en ligue" : gender === "Mujer" ? "las mujeres con interés en ligue" : gender;
+            orientationInsights.push(`El ${pct}% de ${genderLabel}: "${orient}"`);
+          }
+        });
+    });
+
+    return { overallData, genderBarData, prefKeys, total: socialParticipants.length, insights, orientationData, orientationInsights, PREF_COLORS };
+  }, [socialParticipants]);
+
   // ========== Basic KPIs ==========
   const basicKpis = useMemo(() => {
     const whoSubmitted = socialParticipants.filter(p => p.selection_submitted_at).length;
