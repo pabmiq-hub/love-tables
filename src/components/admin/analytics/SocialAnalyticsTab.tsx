@@ -704,6 +704,110 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
         </section>
       )}
 
+      {/* PREFERENCE BREAKDOWN */}
+      {preferenceBreakdown.total > 0 && preferenceBreakdown.overallData.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <HeartHandshake className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Preferencias de conexión</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Overall pie chart */}
+            <Card>
+              <CardHeader className="pb-0"><CardTitle className="text-base">Tipo de conexión buscado</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={preferenceBreakdown.overallData} cx="50%" cy="45%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" strokeWidth={2} stroke="hsl(var(--background))">
+                      {preferenceBreakdown.overallData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string) => [`${value} (${preferenceBreakdown.total > 0 ? Math.round((value / preferenceBreakdown.total) * 100) : 0}%)`, name]} />
+                    <Legend verticalAlign="bottom" height={36} formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Stacked bar by gender */}
+            {preferenceBreakdown.genderBarData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-0"><CardTitle className="text-base">Preferencias por género</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={preferenceBreakdown.genderBarData} margin={{ left: 0, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string, props: any) => {
+                        const pctKey = `${name}_pct`;
+                        const pct = props.payload[pctKey];
+                        return [`${value} (${pct}%)`, name];
+                      }} />
+                      {preferenceBreakdown.prefKeys.map((pk, idx) => (
+                        <Bar key={pk} dataKey={pk} name={pk} stackId="a" fill={preferenceBreakdown.PREF_COLORS[pk] || "hsl(240, 5%, 55%)"} radius={idx === preferenceBreakdown.prefKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                      ))}
+                      <Legend verticalAlign="bottom" height={36} formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Insights list */}
+          {preferenceBreakdown.insights.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Desglose detallado por género</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {preferenceBreakdown.insights.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span className="text-sm font-medium">{insight}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dating orientation */}
+          {preferenceBreakdown.orientationData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-0"><CardTitle className="text-base">Orientación de ligue</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={Math.max(200, preferenceBreakdown.orientationData.length * 40 + 40)}>
+                  <BarChart data={preferenceBreakdown.orientationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="name" type="category" width={220} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number, _: string, props: any) => [`${value} participantes`, props.payload.fullName || ""]} />
+                    <Bar dataKey="value" name="Participantes" radius={[0, 6, 6, 0]} barSize={24} fill="hsl(346, 77%, 50%)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Orientation insights by gender */}
+          {preferenceBreakdown.orientationInsights.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Orientación por género</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-2">
+                  {preferenceBreakdown.orientationInsights.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50">
+                      <Heart className="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" />
+                      <span className="text-sm">{insight}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      )}
+
       {/* 2. Gender Reciprocity */}
       {genderReciprocity.chartData.length > 0 && (
         <section className="space-y-4">
