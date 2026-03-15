@@ -251,6 +251,73 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
     };
   }, [participants, selections, matches, inscriptionStats.checkedIn]);
 
+  // ========== PREFERENCE BREAKDOWN ==========
+  const preferenceStats = useMemo(() => {
+    const PREF_NORMALIZE: Record<string, string> = {
+      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad",
+      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
+      "ligue": "Solo ligue", "dating": "Solo ligue",
+    };
+    const normalizePref = (p: string | null): string => {
+      if (!p) return "Sin especificar";
+      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
+    };
+    const normalizeGender = (g: string): string => {
+      const map: Record<string, string> = { man: "Hombre", hombre: "Hombre", woman: "Mujer", mujer: "Mujer", "non-binary": "No binario", "no binario": "No binario" };
+      return map[g.toLowerCase().trim()] || g;
+    };
+
+    const overallCounts: Record<string, number> = {};
+    const byGender: Record<string, Record<string, number>> = {};
+
+    participants.forEach(p => {
+      const pref = normalizePref(p.preference);
+      overallCounts[pref] = (overallCounts[pref] || 0) + 1;
+      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      if (!byGender[gender]) byGender[gender] = {};
+      byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
+    });
+
+    const PREF_COLORS: Record<string, string> = {
+      "Solo amistad": "#3b82f6", "Amistad y Ligue": "#8b5cf6",
+      "Solo ligue": "#ec4899", "Sin especificar": "#94a3b8",
+    };
+
+    const overallData = Object.entries(overallCounts)
+      .map(([name, value]) => ({ name, value, color: PREF_COLORS[name] || "#94a3b8" }))
+      .sort((a, b) => b.value - a.value);
+
+    const insights: string[] = [];
+    Object.entries(byGender).forEach(([gender, prefs]) => {
+      if (gender === "Sin especificar") return;
+      const total = Object.values(prefs).reduce((a, b) => a + b, 0);
+      if (total === 0) return;
+      Object.entries(prefs).sort((a, b) => b[1] - a[1]).forEach(([pref, count]) => {
+        const pct = Math.round((count / total) * 100);
+        if (pct > 0) {
+          const genderLabel = gender === "Hombre" ? "los hombres" : gender === "Mujer" ? "las mujeres" : gender;
+          const prefLabel = pref === "Amistad y Ligue" ? "busca amistad y ligue" :
+                           pref === "Solo amistad" ? "solo busca amistad" :
+                           pref === "Solo ligue" ? "solo busca ligue" : "no especificó";
+          insights.push(`El ${pct}% de ${genderLabel} ${prefLabel}`);
+        }
+      });
+    });
+
+    // Dating orientation
+    const orientationCounts: Record<string, number> = {};
+    (participants as any[]).forEach((p: any) => {
+      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
+        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+      }
+    });
+    const orientationData = Object.entries(orientationCounts)
+      .map(([name, value]) => ({ name: name.length > 30 ? name.substring(0, 30) + "…" : name, fullName: name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return { overallData, insights, orientationData, total: participants.length, PREF_COLORS };
+  }, [participants]);
+
   // ========== NORMALIZED TABLES ==========
   const normalizedTables = useMemo(() => {
     if (!tables || tables.length === 0) return [];
