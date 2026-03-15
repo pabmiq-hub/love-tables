@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, Heart, Percent, Send, Inbox, PartyPopper, Calendar,
-  Handshake, TrendingUp, Zap, Star, BarChart3, Eye,
+  Handshake, TrendingUp, Zap, Star, BarChart3, Eye, HeartHandshake,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -483,6 +483,111 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
     return { genderData, ageData };
   }, [uniqueParticipants]);
 
+  // ========== PREFERENCE BREAKDOWN ==========
+  const preferenceBreakdown = useMemo(() => {
+    const PREF_NORMALIZE: Record<string, string> = {
+      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad", "friendship only": "Solo amistad",
+      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
+      "ligue": "Solo ligue", "dating": "Solo ligue", "dating only": "Solo ligue",
+    };
+    const normalizePref = (p: string | null): string => {
+      if (!p) return "Sin especificar";
+      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
+    };
+
+    const overallCounts: Record<string, number> = {};
+    const byGender: Record<string, Record<string, number>> = {};
+
+    socialParticipants.forEach(p => {
+      const pref = normalizePref(p.preference);
+      overallCounts[pref] = (overallCounts[pref] || 0) + 1;
+      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      if (!byGender[gender]) byGender[gender] = {};
+      byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
+    });
+
+    const PREF_COLORS: Record<string, string> = {
+      "Solo amistad": "hsl(210, 70%, 50%)", "Amistad y Ligue": "hsl(262, 60%, 55%)",
+      "Solo ligue": "hsl(346, 77%, 50%)", "Sin especificar": "hsl(240, 5%, 55%)",
+    };
+
+    const overallData = Object.entries(overallCounts)
+      .map(([name, value]) => ({ name, value, fill: PREF_COLORS[name] || PREF_COLORS["Sin especificar"] }))
+      .sort((a, b) => b.value - a.value);
+
+    const prefKeys = [...new Set(socialParticipants.map(p => normalizePref(p.preference)))].sort();
+    const genderBarData = Object.entries(byGender)
+      .filter(([g]) => g !== "Sin especificar")
+      .map(([gender, prefs]) => {
+        const genderTotal = Object.values(prefs).reduce((a, b) => a + b, 0);
+        const row: Record<string, any> = { name: gender, total: genderTotal };
+        prefKeys.forEach(pk => {
+          row[pk] = prefs[pk] || 0;
+          row[`${pk}_pct`] = genderTotal > 0 ? Math.round(((prefs[pk] || 0) / genderTotal) * 100) : 0;
+        });
+        return row;
+      })
+      .sort((a, b) => b.total - a.total);
+
+    // Detailed insights
+    const insights: string[] = [];
+    Object.entries(byGender).forEach(([gender, prefs]) => {
+      if (gender === "Sin especificar") return;
+      const genderTotal = Object.values(prefs).reduce((a, b) => a + b, 0);
+      if (genderTotal === 0) return;
+      Object.entries(prefs)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([pref, count]) => {
+          const pct = Math.round((count / genderTotal) * 100);
+          if (pct > 0) {
+            const genderLabel = gender === "Hombre" ? "los hombres" : gender === "Mujer" ? "las mujeres" : gender;
+            const prefLabel = pref === "Amistad y Ligue" ? "busca amistad y ligue" :
+                             pref === "Solo amistad" ? "solo busca amistad" :
+                             pref === "Solo ligue" ? "solo busca ligue" : "no especificó preferencia";
+            insights.push(`El ${pct}% de ${genderLabel} ${prefLabel}`);
+          }
+        });
+    });
+
+    // Dating orientation breakdown
+    const orientationCounts: Record<string, number> = {};
+    socialParticipants.forEach(p => {
+      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
+        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+      }
+    });
+    const orientationData = Object.entries(orientationCounts)
+      .map(([name, value]) => ({ name: name.length > 35 ? name.substring(0, 35) + "…" : name, fullName: name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // Orientation by gender
+    const orientationByGender: Record<string, Record<string, number>> = {};
+    socialParticipants.forEach(p => {
+      if (!p.dating_preference || p.dating_preference === "none" || p.dating_preference === "no") return;
+      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      if (!orientationByGender[gender]) orientationByGender[gender] = {};
+      orientationByGender[gender][p.dating_preference] = (orientationByGender[gender][p.dating_preference] || 0) + 1;
+    });
+
+    const orientationInsights: string[] = [];
+    Object.entries(orientationByGender).forEach(([gender, orients]) => {
+      if (gender === "Sin especificar") return;
+      const genderTotal = Object.values(orients).reduce((a, b) => a + b, 0);
+      if (genderTotal === 0) return;
+      Object.entries(orients)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([orient, count]) => {
+          const pct = Math.round((count / genderTotal) * 100);
+          if (pct > 0) {
+            const genderLabel = gender === "Hombre" ? "los hombres con interés en ligue" : gender === "Mujer" ? "las mujeres con interés en ligue" : gender;
+            orientationInsights.push(`El ${pct}% de ${genderLabel}: "${orient}"`);
+          }
+        });
+    });
+
+    return { overallData, genderBarData, prefKeys, total: socialParticipants.length, insights, orientationData, orientationInsights, PREF_COLORS };
+  }, [socialParticipants]);
+
   // ========== Basic KPIs ==========
   const basicKpis = useMemo(() => {
     const whoSubmitted = socialParticipants.filter(p => p.selection_submitted_at).length;
@@ -596,6 +701,110 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
               </Card>
             )}
           </div>
+        </section>
+      )}
+
+      {/* PREFERENCE BREAKDOWN */}
+      {preferenceBreakdown.total > 0 && preferenceBreakdown.overallData.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <HeartHandshake className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Preferencias de conexión</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Overall pie chart */}
+            <Card>
+              <CardHeader className="pb-0"><CardTitle className="text-base">Tipo de conexión buscado</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={preferenceBreakdown.overallData} cx="50%" cy="45%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" strokeWidth={2} stroke="hsl(var(--background))">
+                      {preferenceBreakdown.overallData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string) => [`${value} (${preferenceBreakdown.total > 0 ? Math.round((value / preferenceBreakdown.total) * 100) : 0}%)`, name]} />
+                    <Legend verticalAlign="bottom" height={36} formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Stacked bar by gender */}
+            {preferenceBreakdown.genderBarData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-0"><CardTitle className="text-base">Preferencias por género</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={preferenceBreakdown.genderBarData} margin={{ left: 0, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={tooltipStyle} formatter={(value: number, name: string, props: any) => {
+                        const pctKey = `${name}_pct`;
+                        const pct = props.payload[pctKey];
+                        return [`${value} (${pct}%)`, name];
+                      }} />
+                      {preferenceBreakdown.prefKeys.map((pk, idx) => (
+                        <Bar key={pk} dataKey={pk} name={pk} stackId="a" fill={preferenceBreakdown.PREF_COLORS[pk] || "hsl(240, 5%, 55%)"} radius={idx === preferenceBreakdown.prefKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                      ))}
+                      <Legend verticalAlign="bottom" height={36} formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Insights list */}
+          {preferenceBreakdown.insights.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Desglose detallado por género</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {preferenceBreakdown.insights.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span className="text-sm font-medium">{insight}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dating orientation */}
+          {preferenceBreakdown.orientationData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-0"><CardTitle className="text-base">Orientación de ligue</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={Math.max(200, preferenceBreakdown.orientationData.length * 40 + 40)}>
+                  <BarChart data={preferenceBreakdown.orientationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="name" type="category" width={220} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number, _: string, props: any) => [`${value} participantes`, props.payload.fullName || ""]} />
+                    <Bar dataKey="value" name="Participantes" radius={[0, 6, 6, 0]} barSize={24} fill="hsl(346, 77%, 50%)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Orientation insights by gender */}
+          {preferenceBreakdown.orientationInsights.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Orientación por género</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-2">
+                  {preferenceBreakdown.orientationInsights.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50">
+                      <Heart className="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" />
+                      <span className="text-sm">{insight}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </section>
       )}
 
