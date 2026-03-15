@@ -35,6 +35,7 @@ interface Participant {
   gender?: string | null;
   age_range?: string | null;
   preference?: string | null;
+  dating_preference?: string | null;
   checked_in?: boolean | null;
   selection_submitted_at?: string | null;
 }
