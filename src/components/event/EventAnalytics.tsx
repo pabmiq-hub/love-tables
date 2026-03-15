@@ -565,6 +565,82 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
         </div>
       </div>
 
+      {/* ========== BLOQUE A.5: PREFERENCIAS DE CONEXIÓN ========== */}
+      {preferenceStats.overallData.length > 0 && preferenceStats.overallData.some(d => d.name !== "Sin especificar") && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <HeartHandshake className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Preferencias de conexión</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pie chart */}
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-0 bg-gradient-to-r from-violet-50 to-pink-50">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <HeartHandshake className="w-5 h-5 text-primary" />
+                  Tipo de conexión buscado
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie data={preferenceStats.overallData} cx="50%" cy="45%" innerRadius={60} outerRadius={100} paddingAngle={3} dataKey="value" strokeWidth={2} stroke="#fff">
+                      {preferenceStats.overallData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`${value} (${preferenceStats.total > 0 ? Math.round((Number(value) / preferenceStats.total) * 100) : 0}%)`, ""]} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Legend verticalAlign="bottom" height={36} formatter={(value, entry: any) => <span className="text-sm font-medium">{value} ({entry.payload?.value})</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Insights */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Desglose por género</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {preferenceStats.insights.length > 0 ? (
+                  <div className="space-y-2">
+                    {preferenceStats.insights.map((insight, idx) => (
+                      <div key={idx} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                        <span className="text-primary mt-0.5 font-bold">•</span>
+                        <span className="text-sm font-medium">{insight}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">Sin datos</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Dating orientation horizontal bar */}
+          {preferenceStats.orientationData.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-0 bg-gradient-to-r from-pink-50 to-rose-50">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  Orientación de ligue
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <ResponsiveContainer width="100%" height={Math.max(180, preferenceStats.orientationData.length * 40 + 40)}>
+                  <BarChart data={preferenceStats.orientationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="name" type="category" width={200} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip formatter={(value: number, _: string, props: any) => [`${value} participantes`, props.payload.fullName || ""]} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" name="Participantes" radius={[0, 8, 8, 0]} barSize={24} fill="#ec4899" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* ========== BLOQUE B: MATCHES ========== */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b">
