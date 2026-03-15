@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Percent,
   Trophy,
-  Target
+  Target,
+  HeartHandshake
 } from "lucide-react";
 import {
   PieChart,
