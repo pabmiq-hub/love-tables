@@ -3037,6 +3037,14 @@ const EventDetail = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {/* Status indicator */}
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1">
+                            {eventData?.registration_open 
+                              ? "✅ Inscripciones abiertas" 
+                              : eventData?.waitlist_enabled 
+                                ? "⏳ Cerrado — lista de espera activa"
+                                : "🔒 Inscripciones cerradas"}
+                          </div>
                           <DropdownMenuItem onClick={async () => {
                             const newValue = !eventData?.registration_open;
                             await supabase
@@ -3048,7 +3056,9 @@ const EventDetail = () => {
                               title: newValue ? "Inscripciones abiertas" : "Inscripciones cerradas",
                               description: newValue 
                                 ? "Los participantes pueden registrarse en el evento" 
-                                : "El registro de nuevos participantes está cerrado",
+                                : eventData?.waitlist_enabled
+                                  ? "Inscripciones cerradas. Los nuevos participantes irán a la lista de espera."
+                                  : "El registro de nuevos participantes está cerrado",
                             });
                           }}>
                             {eventData?.registration_open ? (
@@ -3068,7 +3078,9 @@ const EventDetail = () => {
                             toast({
                               title: newValue ? "Lista de espera activada" : "Lista de espera desactivada",
                               description: newValue 
-                                ? "Los participantes pueden unirse a la lista de espera cuando las inscripciones estén cerradas" 
+                                ? eventData?.registration_open
+                                  ? "Lista de espera activada. Cierra las inscripciones para que los nuevos participantes vayan a la lista de espera."
+                                  : "Los nuevos participantes irán a la lista de espera"
                                 : "La lista de espera ha sido desactivada",
                             });
                           }}>
