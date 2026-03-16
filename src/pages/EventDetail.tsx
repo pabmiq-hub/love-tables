@@ -205,7 +205,7 @@ const EventDetail = () => {
   const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
   const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
-  const [showWaitlist, setShowWaitlist] = useState(false);
+  
   
   // Participant filters - Social
   const [filterGender, setFilterGender] = useState<string>("all");
@@ -2874,6 +2874,13 @@ const EventDetail = () => {
                 <Users className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Participantes</span>
               </TabsTrigger>
+              {(eventData?.waitlist_enabled || waitlistEntries.some(w => w.status === 'waiting')) && (
+                <TabsTrigger value="waitlist" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <ListOrdered className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Lista de espera</span>
+                  <span className="ml-1">({waitlistEntries.filter(w => w.status === 'waiting').length})</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                 <Table2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mesas</span>
@@ -3087,15 +3094,6 @@ const EventDetail = () => {
                             <ListOrdered className="w-4 h-4 mr-2" />
                             {eventData?.waitlist_enabled ? "Desactivar lista de espera" : "Activar lista de espera"}
                           </DropdownMenuItem>
-                          {waitlistEntries.length > 0 && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => setShowWaitlist(!showWaitlist)}>
-                                <Users className="w-4 h-4 mr-2" />
-                                Ver lista de espera ({waitlistEntries.filter(w => w.status === 'waiting').length})
-                              </DropdownMenuItem>
-                            </>
-                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -3519,53 +3517,69 @@ const EventDetail = () => {
             </Card>
           </TabsContent>
 
-          {/* Waitlist Panel */}
-          {showWaitlist && waitlistEntries.length > 0 && (
-            <Card className="mb-6">
+          <TabsContent value="waitlist">
+            <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <ListOrdered className="w-5 h-5" />
-                      Lista de espera
-                    </CardTitle>
-                    <CardDescription>
-                      {waitlistEntries.filter(w => w.status === 'waiting').length} personas esperando
-                    </CardDescription>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setShowWaitlist(false)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <ListOrdered className="w-5 h-5" />
+                  Lista de espera
+                </CardTitle>
+                <CardDescription>
+                  {waitlistEntries.filter(w => w.status === 'waiting').length} personas esperando
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => (
-                    <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                        <div>
-                          <p className="font-medium text-sm">{entry.name}</p>
-                          <p className="text-xs text-muted-foreground">{entry.email}</p>
+                {waitlistEntries.filter(w => w.status === 'waiting').length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ListOrdered className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No hay nadie en lista de espera</p>
+                    <p className="text-sm mt-1">Cuando las inscripciones estén cerradas y la lista de espera activa, los nuevos registros aparecerán aquí.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => (
+                      <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                          <div>
+                            <p className="font-medium text-sm">{entry.name}</p>
+                            <p className="text-xs text-muted-foreground">{entry.email}</p>
+                          </div>
+                          {entry.gender && (
+                            <Badge variant="secondary" className="text-xs">{entry.gender}</Badge>
+                          )}
                         </div>
-                        {entry.gender && (
-                          <Badge variant="secondary" className="text-xs">{entry.gender}</Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handlePromoteFromWaitlist(entry)}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Inscribir
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={async () => {
+                              const { error } = await supabase.from('event_waitlist').delete().eq('id', entry.id);
+                              if (!error) {
+                                setWaitlistEntries(prev => prev.filter(w => w.id !== entry.id));
+                                toast({ title: "Eliminado de la lista de espera" });
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePromoteFromWaitlist(entry)}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Inscribir
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
 
           <TabsContent value="tables">
