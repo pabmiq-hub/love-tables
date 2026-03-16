@@ -262,27 +262,13 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
   // ========== PREFERENCE BREAKDOWN ==========
   const preferenceStats = useMemo(() => {
-    const PREF_NORMALIZE: Record<string, string> = {
-      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad",
-      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
-      "ligue": "Solo ligue", "dating": "Solo ligue",
-    };
-    const normalizePref = (p: string | null): string => {
-      if (!p) return "Sin especificar";
-      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
-    };
-    const normalizeGender = (g: string): string => {
-      const map: Record<string, string> = { man: "Hombre", hombre: "Hombre", woman: "Mujer", mujer: "Mujer", "non-binary": "No binario", "no binario": "No binario" };
-      return map[g.toLowerCase().trim()] || g;
-    };
-
     const overallCounts: Record<string, number> = {};
     const byGender: Record<string, Record<string, number>> = {};
 
     participants.forEach(p => {
-      const pref = normalizePref(p.preference);
+      const pref = normalizePreference(p.preference, true);
       overallCounts[pref] = (overallCounts[pref] || 0) + 1;
-      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      const gender = normalizeGenderShared(p.gender);
       if (!byGender[gender]) byGender[gender] = {};
       byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
     });
@@ -307,17 +293,18 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
           const genderLabel = gender === "Hombre" ? "los hombres" : gender === "Mujer" ? "las mujeres" : gender;
           const prefLabel = pref === "Amistad y Ligue" ? "busca amistad y ligue" :
                            pref === "Solo amistad" ? "solo busca amistad" :
-                           pref === "Solo ligue" ? "solo busca ligue" : "no especificó";
+                           pref === "Solo ligue" ? "solo busca ligue" : "no especificó preferencia";
           insights.push(`El ${pct}% de ${genderLabel} ${prefLabel}`);
         }
       });
     });
 
-    // Dating orientation
+    // Dating orientation - normalized
     const orientationCounts: Record<string, number> = {};
-    (participants as any[]).forEach((p: any) => {
-      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
-        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+    participants.forEach(p => {
+      const normalized = normalizeDatingOrientation(p.dating_preference);
+      if (normalized) {
+        orientationCounts[normalized] = (orientationCounts[normalized] || 0) + 1;
       }
     });
     const orientationData = Object.entries(orientationCounts)
