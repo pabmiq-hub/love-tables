@@ -431,6 +431,56 @@ serve(async (req) => {
       );
     }
 
+    // If registration is closed and waitlist is enabled, add to waitlist
+    if (!socialRegistrationOpen && socialWaitlistEnabled && !socialIsFromWaitlist) {
+      const { data: maxPos } = await supabase
+        .from('event_waitlist')
+        .select('position')
+        .eq('event_id', eventId)
+        .order('position', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextPosition = (maxPos?.position || 0) + 1;
+
+      const { error: waitlistError } = await supabase
+        .from('event_waitlist')
+        .insert({
+          event_id: eventId,
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          phone: phone.trim(),
+          gender,
+          birth_date: birthDate,
+          age_range: ageRange,
+          preference: preference || null,
+          dating_preference: datingPreference || null,
+          preferred_age_range: preferredAgeRange || null,
+          is_returning_participant: isReturningParticipant || false,
+          position: nextPosition,
+        });
+
+      if (waitlistError) {
+        if (waitlistError.code === '23505') {
+          return new Response(
+            JSON.stringify({ error: 'Ya estás en la lista de espera de este evento' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        console.error('[register-participant] Error adding to waitlist:', waitlistError);
+        return new Response(
+          JSON.stringify({ error: 'Error al añadir a la lista de espera' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`[register-participant] Added to waitlist: ${name}, position: ${nextPosition}`);
+      return new Response(
+        JSON.stringify({ success: true, waitlisted: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const eventDate = new Date(event.date);
     const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
     const shouldAutoCheckin = new Date() >= oneHourBefore;
