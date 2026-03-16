@@ -438,6 +438,14 @@ const ParticipantJoin = () => {
       return;
     }
 
+    // Check if added to waitlist
+    if (data.waitlisted) {
+      setIsWaitlistSubmission(true);
+      setIsSubmitted(true);
+      setIsSubmitting(false);
+      return;
+    }
+
     const baseUrl = window.location.origin;
     if (data.autoCheckedIn && data.verificationCode) {
       await supabase.functions.invoke('send-checkin-code', {
