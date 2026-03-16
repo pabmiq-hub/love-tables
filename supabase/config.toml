@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.notify-organizer]
 verify_jwt = false
+
+[functions.send-waitlist-confirmation]
+verify_jwt = false
