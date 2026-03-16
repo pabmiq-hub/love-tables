@@ -3094,15 +3094,6 @@ const EventDetail = () => {
                             <ListOrdered className="w-4 h-4 mr-2" />
                             {eventData?.waitlist_enabled ? "Desactivar lista de espera" : "Activar lista de espera"}
                           </DropdownMenuItem>
-                          {waitlistEntries.length > 0 && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => setShowWaitlist(!showWaitlist)}>
-                                <Users className="w-4 h-4 mr-2" />
-                                Ver lista de espera ({waitlistEntries.filter(w => w.status === 'waiting').length})
-                              </DropdownMenuItem>
-                            </>
-                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
