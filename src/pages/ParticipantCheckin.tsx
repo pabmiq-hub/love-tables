@@ -82,7 +82,13 @@ const ParticipantCheckin = () => {
       }
 
       if (!isCheckinAllowed) {
-        setEventExists(false);
+        setCheckinNotYetOpen(true);
+        setCountdownData({
+          name: data.name,
+          date: data.date,
+          time: (data as any).event_time || null,
+          minutes: checkinMinutes,
+        });
         setIsLoading(false);
         return;
       }
