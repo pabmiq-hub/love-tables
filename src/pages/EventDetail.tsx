@@ -106,7 +106,7 @@ interface EventData {
   event_time: string | null;
   event_location: string | null;
   professional_config: ProfessionalConfig | null;
-  group_rounds: Array<{ round: number; table_size: number }> | null;
+  group_rounds: Array<{ round: number; table_size: number; allow_repeats?: boolean }> | null;
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
 }
