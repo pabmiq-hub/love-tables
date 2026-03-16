@@ -110,6 +110,8 @@ interface EventData {
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
   super_like_enabled: boolean;
+  registration_open: boolean;
+  waitlist_enabled: boolean;
 }
 
 interface DbParticipant {
