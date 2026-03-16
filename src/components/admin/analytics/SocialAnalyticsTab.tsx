@@ -10,22 +10,15 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import type { AnalyticsData, ParticipantRecord, SelectionRecord } from "@/pages/AdminDashboard";
+import {
+  normalizeGender,
+  normalizePreference,
+  normalizeDatingOrientation,
+  PREF_COLORS as SHARED_PREF_COLORS,
+  GENDER_COLORS,
+} from "@/lib/analyticsNormalization";
 
 // ==================== CONSTANTS ====================
-
-const GENDER_NORMALIZE: Record<string, string> = {
-  man: "Hombre", hombre: "Hombre",
-  woman: "Mujer", mujer: "Mujer",
-  "non-binary": "No binario", "no binario": "No binario",
-  otro: "Otro", other: "Otro",
-};
-
-const GENDER_COLORS: Record<string, string> = {
-  Hombre: "hsl(210, 70%, 50%)",
-  Mujer: "hsl(346, 77%, 50%)",
-  "No binario": "hsl(262, 60%, 55%)",
-  Otro: "hsl(240, 5%, 55%)",
-};
 
 const AGE_COLORS = [
   "hsl(346, 77%, 50%)", "hsl(25, 95%, 53%)", "hsl(210, 70%, 50%)",
@@ -57,10 +50,6 @@ function ageToRange(age: number): string {
   if (age < 40) return "35-39";
   if (age < 50) return "40-49";
   return "50+";
-}
-
-function normalizeGender(g: string): string {
-  return GENDER_NORMALIZE[g.toLowerCase().trim()] || g;
 }
 
 // ==================== KPI CARD ====================
@@ -155,7 +144,8 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
   const genderReciprocity = useMemo(() => {
     const participantGender = new Map<string, string>();
     socialParticipants.forEach(p => {
-      if (p.gender) participantGender.set(p.id, normalizeGender(p.gender));
+      const g = normalizeGender(p.gender);
+      if (g !== "Sin especificar") participantGender.set(p.id, g);
     });
 
     const sentByGender: Record<string, number> = {};
@@ -459,8 +449,8 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
   const demographics = useMemo(() => {
     const genderCounts: Record<string, number> = {};
     uniqueParticipants.forEach(p => {
-      if (p.gender) {
-        const norm = normalizeGender(p.gender);
+      const norm = normalizeGender(p.gender);
+      if (norm !== "Sin especificar") {
         genderCounts[norm] = (genderCounts[norm] || 0) + 1;
       }
     });
@@ -485,37 +475,22 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
 
   // ========== PREFERENCE BREAKDOWN ==========
   const preferenceBreakdown = useMemo(() => {
-    const PREF_NORMALIZE: Record<string, string> = {
-      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad", "friendship only": "Solo amistad",
-      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
-      "ligue": "Solo ligue", "dating": "Solo ligue", "dating only": "Solo ligue",
-    };
-    const normalizePref = (p: string | null): string => {
-      if (!p) return "Sin especificar";
-      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
-    };
-
     const overallCounts: Record<string, number> = {};
     const byGender: Record<string, Record<string, number>> = {};
 
     socialParticipants.forEach(p => {
-      const pref = normalizePref(p.preference);
+      const pref = normalizePreference(p.preference, true);
       overallCounts[pref] = (overallCounts[pref] || 0) + 1;
-      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      const gender = normalizeGender(p.gender);
       if (!byGender[gender]) byGender[gender] = {};
       byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
     });
 
-    const PREF_COLORS: Record<string, string> = {
-      "Solo amistad": "hsl(210, 70%, 50%)", "Amistad y Ligue": "hsl(262, 60%, 55%)",
-      "Solo ligue": "hsl(346, 77%, 50%)", "Sin especificar": "hsl(240, 5%, 55%)",
-    };
-
     const overallData = Object.entries(overallCounts)
-      .map(([name, value]) => ({ name, value, fill: PREF_COLORS[name] || PREF_COLORS["Sin especificar"] }))
+      .map(([name, value]) => ({ name, value, fill: SHARED_PREF_COLORS[name] || SHARED_PREF_COLORS["Sin especificar"] }))
       .sort((a, b) => b.value - a.value);
 
-    const prefKeys = [...new Set(socialParticipants.map(p => normalizePref(p.preference)))].sort();
+    const prefKeys = [...new Set(Object.values(overallCounts).length > 0 ? Object.keys(overallCounts) : [])].sort();
     const genderBarData = Object.entries(byGender)
       .filter(([g]) => g !== "Sin especificar")
       .map(([gender, prefs]) => {
@@ -549,29 +524,31 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
         });
     });
 
-    // Dating orientation breakdown
+    // Dating orientation breakdown - normalized
     const orientationCounts: Record<string, number> = {};
     socialParticipants.forEach(p => {
-      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
-        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+      const normalized = normalizeDatingOrientation(p.dating_preference);
+      if (normalized) {
+        orientationCounts[normalized] = (orientationCounts[normalized] || 0) + 1;
       }
     });
     const orientationData = Object.entries(orientationCounts)
       .map(([name, value]) => ({ name: name.length > 35 ? name.substring(0, 35) + "…" : name, fullName: name, value }))
       .sort((a, b) => b.value - a.value);
 
-    // Orientation by gender
+    // Orientation by gender - normalized
     const orientationByGender: Record<string, Record<string, number>> = {};
     socialParticipants.forEach(p => {
-      if (!p.dating_preference || p.dating_preference === "none" || p.dating_preference === "no") return;
-      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      const normalized = normalizeDatingOrientation(p.dating_preference);
+      if (!normalized) return;
+      const gender = normalizeGender(p.gender);
+      if (gender === "Sin especificar") return;
       if (!orientationByGender[gender]) orientationByGender[gender] = {};
-      orientationByGender[gender][p.dating_preference] = (orientationByGender[gender][p.dating_preference] || 0) + 1;
+      orientationByGender[gender][normalized] = (orientationByGender[gender][normalized] || 0) + 1;
     });
 
     const orientationInsights: string[] = [];
     Object.entries(orientationByGender).forEach(([gender, orients]) => {
-      if (gender === "Sin especificar") return;
       const genderTotal = Object.values(orients).reduce((a, b) => a + b, 0);
       if (genderTotal === 0) return;
       Object.entries(orients)
@@ -585,7 +562,7 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
         });
     });
 
-    return { overallData, genderBarData, prefKeys, total: socialParticipants.length, insights, orientationData, orientationInsights, PREF_COLORS };
+    return { overallData, genderBarData, prefKeys, total: socialParticipants.length, insights, orientationData, orientationInsights, PREF_COLORS: SHARED_PREF_COLORS };
   }, [socialParticipants]);
 
   // ========== Basic KPIs ==========

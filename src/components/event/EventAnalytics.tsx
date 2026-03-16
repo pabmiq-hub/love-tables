@@ -17,6 +17,13 @@ import {
   HeartHandshake
 } from "lucide-react";
 import {
+  normalizeGender as normalizeGenderShared,
+  normalizePreference,
+  normalizeDatingOrientation,
+  PREF_COLORS as SHARED_PREF_COLORS,
+  GENDER_COLORS as SHARED_GENDER_COLORS,
+} from "@/lib/analyticsNormalization";
+import {
   PieChart,
   Pie,
   Cell,
@@ -69,10 +76,11 @@ interface EventAnalyticsProps {
 }
 
 const GENDER_COLORS: Record<string, string> = {
+  ...SHARED_GENDER_COLORS,
   "Hombre": "#3b82f6",
   "Mujer": "#ec4899", 
   "No binario": "#8b5cf6",
-  "Sin especificar": "#94a3b8"
+  "Sin especificar": "#94a3b8",
 };
 
 const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
@@ -107,9 +115,9 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
     const noShowRate = originalTotal > 0 ? ((noShows / originalTotal) * 100).toFixed(1) : "0";
     const checkinRate = originalTotal > 0 ? ((checkedIn / originalTotal) * 100).toFixed(1) : "0";
 
-    // Gender distribution
+    // Gender distribution - normalized
     const byGender = participants.reduce((acc, p) => {
-      const gender = p.gender || "Sin especificar";
+      const gender = normalizeGenderShared(p.gender);
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -254,27 +262,13 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
   // ========== PREFERENCE BREAKDOWN ==========
   const preferenceStats = useMemo(() => {
-    const PREF_NORMALIZE: Record<string, string> = {
-      "amistad": "Solo amistad", "friendship": "Solo amistad", "solo amistad": "Solo amistad",
-      "amistad y ligue": "Amistad y Ligue", "friendship and dating": "Amistad y Ligue",
-      "ligue": "Solo ligue", "dating": "Solo ligue",
-    };
-    const normalizePref = (p: string | null): string => {
-      if (!p) return "Sin especificar";
-      return PREF_NORMALIZE[p.toLowerCase().trim()] || p;
-    };
-    const normalizeGender = (g: string): string => {
-      const map: Record<string, string> = { man: "Hombre", hombre: "Hombre", woman: "Mujer", mujer: "Mujer", "non-binary": "No binario", "no binario": "No binario" };
-      return map[g.toLowerCase().trim()] || g;
-    };
-
     const overallCounts: Record<string, number> = {};
     const byGender: Record<string, Record<string, number>> = {};
 
     participants.forEach(p => {
-      const pref = normalizePref(p.preference);
+      const pref = normalizePreference(p.preference, true);
       overallCounts[pref] = (overallCounts[pref] || 0) + 1;
-      const gender = p.gender ? normalizeGender(p.gender) : "Sin especificar";
+      const gender = normalizeGenderShared(p.gender);
       if (!byGender[gender]) byGender[gender] = {};
       byGender[gender][pref] = (byGender[gender][pref] || 0) + 1;
     });
@@ -299,17 +293,18 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
           const genderLabel = gender === "Hombre" ? "los hombres" : gender === "Mujer" ? "las mujeres" : gender;
           const prefLabel = pref === "Amistad y Ligue" ? "busca amistad y ligue" :
                            pref === "Solo amistad" ? "solo busca amistad" :
-                           pref === "Solo ligue" ? "solo busca ligue" : "no especificó";
+                           pref === "Solo ligue" ? "solo busca ligue" : "no especificó preferencia";
           insights.push(`El ${pct}% de ${genderLabel} ${prefLabel}`);
         }
       });
     });
 
-    // Dating orientation
+    // Dating orientation - normalized
     const orientationCounts: Record<string, number> = {};
-    (participants as any[]).forEach((p: any) => {
-      if (p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no") {
-        orientationCounts[p.dating_preference] = (orientationCounts[p.dating_preference] || 0) + 1;
+    participants.forEach(p => {
+      const normalized = normalizeDatingOrientation(p.dating_preference);
+      if (normalized) {
+        orientationCounts[normalized] = (orientationCounts[normalized] || 0) + 1;
       }
     });
     const orientationData = Object.entries(orientationCounts)
