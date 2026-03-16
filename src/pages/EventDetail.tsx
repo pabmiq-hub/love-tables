@@ -366,6 +366,17 @@ const EventDetail = () => {
       setExclusions(exclusionsData);
     }
 
+    // Load waitlist
+    const { data: waitlistData } = await supabase
+      .from("event_waitlist" as any)
+      .select("*")
+      .eq("event_id", id)
+      .order("position", { ascending: true });
+
+    if (waitlistData) {
+      setWaitlistEntries(waitlistData as any[]);
+    }
+
     setIsLoading(false);
   };
 
