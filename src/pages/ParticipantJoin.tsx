@@ -519,6 +519,21 @@ const ParticipantJoin = () => {
       return;
     }
 
+    // Check if added to waitlist (B2B)
+    if (result.waitlisted) {
+      try {
+        await supabase.functions.invoke('send-waitlist-confirmation', {
+          body: { eventId, name: result.name || data.name, email: result.email || data.email, position: result.position }
+        });
+      } catch (e) {
+        console.error('Error sending waitlist confirmation email:', e);
+      }
+      setIsWaitlistSubmission(true);
+      setIsSubmitted(true);
+      setIsSubmitting(false);
+      return;
+    }
+
     const baseUrl = window.location.origin;
     if (result.autoCheckedIn && result.verificationCode) {
       await supabase.functions.invoke('send-checkin-code', {
