@@ -449,8 +449,8 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
   const demographics = useMemo(() => {
     const genderCounts: Record<string, number> = {};
     uniqueParticipants.forEach(p => {
-      if (p.gender) {
-        const norm = normalizeGender(p.gender);
+      const norm = normalizeGender(p.gender);
+      if (norm !== "Sin especificar") {
         genderCounts[norm] = (genderCounts[norm] || 0) + 1;
       }
     });
