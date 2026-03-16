@@ -634,7 +634,7 @@ export const translations = {
       emailLabel: "Email *",
       emailPlaceholder: "e.g. you@email.com",
       emailHint: "You will receive your confirmation and access code at this email",
-      phoneLabel: "Phone number (optional)",
+      phoneLabel: "Phone number *",
       phonePlaceholder: "e.g. +44 7700 900000",
       birthDateLabel: "Date of birth *",
       ageRangeHint: "Your age range:",
