@@ -36,6 +36,7 @@ interface EventSettingsEditorProps {
   professionalConfig?: any;
   groupRounds?: GroupRound[] | null;
   checkinOpensMinutesBefore?: number;
+  superLikeEnabled?: boolean;
   eventStatus?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
@@ -62,6 +63,7 @@ const EventSettingsEditor = ({
   professionalConfig,
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
+  superLikeEnabled: initialSuperLikeEnabled = false,
   eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
@@ -90,7 +92,7 @@ const EventSettingsEditor = ({
   const [formGroupRounds, setFormGroupRounds] = useState<GroupRound[]>(
     (initialGroupRounds as GroupRound[]) || []
   );
-  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(false);
+  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
@@ -112,12 +114,17 @@ const EventSettingsEditor = ({
   const isProfessional = eventModule === "professional";
   const isLocked = eventStatus !== "pending";
 
+  // Sync super like prop
+  useEffect(() => {
+    setFormSuperLikeEnabled(initialSuperLikeEnabled);
+  }, [initialSuperLikeEnabled]);
+
   // Load custom registration form from DB
   useEffect(() => {
     const loadCustomForm = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form, super_like_enabled")
+        .select("custom_registration_form")
         .eq("id", eventId)
         .single();
 
@@ -127,9 +134,6 @@ const EventSettingsEditor = ({
           setCustomFormEnabled(true);
           setCustomFormFields(formConfig.fields);
         }
-      }
-      if (data) {
-        setFormSuperLikeEnabled((data as any).super_like_enabled || false);
       }
     };
     loadCustomForm();
