@@ -2874,6 +2874,13 @@ const EventDetail = () => {
                 <Users className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Participantes</span>
               </TabsTrigger>
+              {(eventData?.waitlist_enabled || waitlistEntries.some(w => w.status === 'waiting')) && (
+                <TabsTrigger value="waitlist" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <ListOrdered className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Lista de espera</span>
+                  <span className="ml-1">({waitlistEntries.filter(w => w.status === 'waiting').length})</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                 <Table2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mesas</span>
