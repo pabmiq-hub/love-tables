@@ -195,7 +195,7 @@ export const translations = {
       emailLabel: "Email *",
       emailPlaceholder: "Ej: tu@email.com",
       emailHint: "Recibirás la confirmación y tu código de acceso en este email",
-      phoneLabel: "Teléfono de contacto (opcional)",
+      phoneLabel: "Teléfono de contacto *",
       phonePlaceholder: "Ej: +34 612 345 678",
       birthDateLabel: "Fecha de nacimiento *",
       ageRangeHint: "Tu rango de edad:",
