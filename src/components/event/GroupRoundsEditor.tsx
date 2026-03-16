@@ -4,12 +4,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Plus, X } from "lucide-react";
+import { Users, Plus, X, Repeat, ShieldCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface GroupRound {
   round: number;
   table_size: number;
+  allow_repeats: boolean;
 }
 
 interface GroupRoundsEditorProps {
@@ -39,7 +40,7 @@ const GroupRoundsEditor = ({
     const nextRound = availableRounds[0];
     onGroupRoundsChange([
       ...groupRounds,
-      { round: nextRound, table_size: Math.min(defaultTableSize * 2, 12) },
+      { round: nextRound, table_size: Math.min(defaultTableSize * 2, 12), allow_repeats: true },
     ]);
   };
 
@@ -47,7 +48,7 @@ const GroupRoundsEditor = ({
     onGroupRoundsChange(groupRounds.filter((g) => g.round !== round));
   };
 
-  const handleUpdateRound = (index: number, field: keyof GroupRound, value: number) => {
+  const handleUpdateRound = (index: number, field: keyof GroupRound, value: number | boolean) => {
     const updated = [...groupRounds];
     updated[index] = { ...updated[index], [field]: value };
     onGroupRoundsChange(updated);
@@ -65,7 +66,7 @@ const GroupRoundsEditor = ({
               Rondas grupales
             </Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Rondas especiales con más participantes por mesa (se permiten repeticiones)
+              Rondas especiales con más participantes por mesa
             </p>
           </div>
         </div>
@@ -84,49 +85,69 @@ const GroupRoundsEditor = ({
           {groupRounds
             .sort((a, b) => a.round - b.round)
             .map((gr, idx) => (
-              <div key={gr.round} className="flex items-center gap-2 p-2 rounded-md border bg-background">
-                <div className="flex-1 flex items-center gap-2 flex-wrap">
-                  <Select
-                    value={String(gr.round)}
-                    onValueChange={(v) => handleUpdateRound(idx, "round", parseInt(v))}
-                  >
-                    <SelectTrigger className="w-32 h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={String(gr.round)}>Ronda {gr.round}</SelectItem>
-                      {availableRounds.map((r) => (
-                        <SelectItem key={r} value={String(r)}>
-                          Ronda {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={3}
-                      max={20}
-                      value={gr.table_size}
-                      onChange={(e) =>
-                        handleUpdateRound(idx, "table_size", Math.max(3, Math.min(20, parseInt(e.target.value) || 3)))
-                      }
-                      className="w-16 h-8 text-sm"
-                    />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">por mesa</span>
+              <div key={gr.round} className="flex flex-col gap-2 p-3 rounded-md border bg-background">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 flex-wrap">
+                    <Select
+                      value={String(gr.round)}
+                      onValueChange={(v) => handleUpdateRound(idx, "round", parseInt(v))}
+                    >
+                      <SelectTrigger className="w-32 h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={String(gr.round)}>Ronda {gr.round}</SelectItem>
+                        {availableRounds.map((r) => (
+                          <SelectItem key={r} value={String(r)}>
+                            Ronda {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min={3}
+                        max={20}
+                        value={gr.table_size}
+                        onChange={(e) =>
+                          handleUpdateRound(idx, "table_size", Math.max(3, Math.min(20, parseInt(e.target.value) || 3)))
+                        }
+                        className="w-16 h-8 text-sm"
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">por mesa</span>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    Permite repeticiones
-                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => handleRemoveGroupRound(gr.round)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  onClick={() => handleRemoveGroupRound(gr.round)}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-2 pl-1">
+                  <Switch
+                    id={`allow-repeats-${gr.round}`}
+                    checked={gr.allow_repeats !== false}
+                    onCheckedChange={(checked) => handleUpdateRound(idx, "allow_repeats", checked)}
+                    className="scale-90"
+                  />
+                  <Label htmlFor={`allow-repeats-${gr.round}`} className="text-xs cursor-pointer flex items-center gap-1.5">
+                    {gr.allow_repeats !== false ? (
+                      <>
+                        <Repeat className="w-3 h-3 text-amber-500" />
+                        <span>Permite repeticiones de participantes</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                        <span>Sin repeticiones (misma restricción que rondas normales)</span>
+                      </>
+                    )}
+                  </Label>
+                </div>
               </div>
             ))}
 
@@ -144,8 +165,7 @@ const GroupRoundsEditor = ({
 
           {groupRounds.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Las rondas grupales usan mesas más grandes y permiten que participantes que ya coincidieron
-              vuelvan a sentarse juntos.
+              Las rondas grupales usan mesas más grandes. Puedes configurar si permiten que participantes que ya coincidieron vuelvan a sentarse juntos.
             </p>
           )}
         </div>
