@@ -92,7 +92,7 @@ const EventSettingsEditor = ({
   const [formGroupRounds, setFormGroupRounds] = useState<GroupRound[]>(
     (initialGroupRounds as GroupRound[]) || []
   );
-  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(false);
+  const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
