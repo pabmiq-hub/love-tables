@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export interface GroupRound {
   round: number;
   table_size: number;
-  allow_repeats: boolean;
+  allow_repeats?: boolean;
 }
 
 interface GroupRoundsEditorProps {
