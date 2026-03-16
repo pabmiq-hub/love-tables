@@ -14,7 +14,7 @@ import {
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useFeatures } from "@/hooks/useFeatures";
 
-export type DashboardSection = "home" | "events" | "analytics" | "email" | "account" | "branding" | "templates";
+export type DashboardSection = "home" | "events" | "analytics" | "email" | "settings" | "branding" | "templates";
 
 // Map sidebar items to feature codes (null means always visible)
 const featureMap: Partial<Record<DashboardSection, string>> = {
@@ -41,8 +41,8 @@ const navItems: { id: DashboardSection; label: string; icon: typeof Home }[] = [
   { id: "events", label: "Eventos", icon: Calendar },
   { id: "analytics", label: "Analítica", icon: BarChart3 },
   { id: "email", label: "Email", icon: Mail },
-  { id: "account", label: "Cuenta", icon: Settings },
   { id: "templates", label: "Plantillas", icon: FileText },
+  { id: "settings", label: "Configuración", icon: Settings },
 ];
 
 export function AdminSidebar({ activeSection, onSelect, branding, onLogout }: AdminSidebarProps) {
@@ -51,7 +51,7 @@ export function AdminSidebar({ activeSection, onSelect, branding, onLogout }: Ad
   const { hasFeature, isSuperAdmin } = useFeatures();
 
   const allItems = branding.isProfessionalOnly
-    ? [...navItems, { id: "branding" as DashboardSection, label: "Marca blanca", icon: Palette }]
+    ? [...navItems.slice(0, -1), { id: "branding" as DashboardSection, label: "Marca blanca", icon: Palette }, navItems[navItems.length - 1]]
     : navItems;
 
   return (

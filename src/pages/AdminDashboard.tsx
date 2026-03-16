@@ -13,7 +13,7 @@ import { DashboardHome } from "@/components/admin/DashboardHome";
 import { DashboardEvents } from "@/components/admin/DashboardEvents";
 import { DashboardAnalytics } from "@/components/admin/DashboardAnalytics";
 import { DashboardEmail } from "@/components/admin/DashboardEmail";
-import { DashboardAccount } from "@/components/admin/DashboardAccount";
+import { DashboardSettings } from "@/components/admin/DashboardSettings";
 import { DashboardBranding } from "@/components/admin/DashboardBranding";
 import { DashboardTemplates } from "@/components/admin/DashboardTemplates";
 
