@@ -205,7 +205,7 @@ const EventDetail = () => {
   const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
   const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
-  const [showWaitlist, setShowWaitlist] = useState(false);
+  
   
   // Participant filters - Social
   const [filterGender, setFilterGender] = useState<string>("all");
