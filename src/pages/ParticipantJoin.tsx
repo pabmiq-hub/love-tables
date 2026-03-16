@@ -85,6 +85,9 @@ const ParticipantJoin = () => {
   const [eventLocation, setEventLocation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
+  const [waitlistEnabled, setWaitlistEnabled] = useState(false);
+  const [isWaitlistSubmission, setIsWaitlistSubmission] = useState(false);
 
   // Event module type
   const [eventModule, setEventModule] = useState<string>("social");
@@ -143,7 +146,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled")
         .eq("id", eventId)
         .single();
 
@@ -157,6 +160,22 @@ const ParticipantJoin = () => {
         setEventExists(false);
         setIsLoading(false);
         return;
+      }
+
+      // Check registration status
+      const regOpen = (data as any).registration_open ?? true;
+      const wlEnabled = (data as any).waitlist_enabled ?? false;
+      
+      if (!regOpen && !wlEnabled) {
+        // Registration fully closed, no waitlist
+        setEventExists(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!regOpen && wlEnabled) {
+        setRegistrationClosed(true);
+        setWaitlistEnabled(true);
       }
 
       setEventExists(true);
@@ -419,6 +438,14 @@ const ParticipantJoin = () => {
       return;
     }
 
+    // Check if added to waitlist
+    if (data.waitlisted) {
+      setIsWaitlistSubmission(true);
+      setIsSubmitted(true);
+      setIsSubmitting(false);
+      return;
+    }
+
     const baseUrl = window.location.origin;
     if (data.autoCheckedIn && data.verificationCode) {
       await supabase.functions.invoke('send-checkin-code', {
@@ -518,6 +545,42 @@ const ParticipantJoin = () => {
             </div>
             <h2 className="font-display text-xl font-semibold mb-2">{t.join.eventNotAvailable}</h2>
             <p className="text-muted-foreground">{t.join.eventNotAvailableDesc}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isSubmitted && isWaitlistSubmission) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center animate-scale-in">
+          <CardContent className="pt-6 space-y-6">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+              <Clock className="w-8 h-8 text-amber-500" />
+            </div>
+            <div>
+              <h2 className="font-display text-xl font-semibold mb-2">
+                {eventLang === 'en' ? 'You\'re on the waitlist!' : '¡Estás en la lista de espera!'}
+              </h2>
+              <p className="text-muted-foreground">
+                {eventLang === 'en' 
+                  ? 'We\'ve received your registration. If a spot opens up, you\'ll be automatically registered and notified at '
+                  : 'Hemos recibido tu inscripción. Si se produce una baja, serás inscrito automáticamente y recibirás un email en '
+                }
+                <strong>{email}</strong>
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="text-4xl mb-2">⏳</div>
+              <p className="text-sm text-muted-foreground">
+                {eventLang === 'en' 
+                  ? 'You\'ll receive an email confirmation if your spot is confirmed.'
+                  : 'Recibirás un email de confirmación si tu plaza es confirmada.'
+                }
+              </p>
+            </div>
+            <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} className="h-10 w-auto mx-auto" />
           </CardContent>
         </Card>
       </div>
@@ -786,6 +849,24 @@ const ParticipantJoin = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {registrationClosed && waitlistEnabled && (
+              <div className="mb-4 p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900">
+                <div className="flex items-start gap-2">
+                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-800 dark:text-amber-300 text-sm">
+                      {eventLang === 'en' ? 'Registration is full' : 'Las inscripciones están completas'}
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      {eventLang === 'en' 
+                        ? 'You can fill out the form to join the waitlist. If a spot opens up, you\'ll be automatically registered and notified by email.'
+                        : 'Puedes rellenar el formulario para entrar en la lista de espera. Si se produce una baja, serás inscrito automáticamente y recibirás un email de confirmación.'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">{t.join.nameLabel}</Label>

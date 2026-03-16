@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown, DoorOpen, DoorClosed, ListOrdered } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,6 +110,8 @@ interface EventData {
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
   super_like_enabled: boolean;
+  registration_open: boolean;
+  waitlist_enabled: boolean;
 }
 
 interface DbParticipant {
@@ -202,6 +204,8 @@ const EventDetail = () => {
   const [isCopyingEvent, setIsCopyingEvent] = useState(false);
   const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
   const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
+  const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
+  const [showWaitlist, setShowWaitlist] = useState(false);
   
   // Participant filters - Social
   const [filterGender, setFilterGender] = useState<string>("all");
@@ -283,6 +287,8 @@ const EventDetail = () => {
       checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
       checkin_open: (event as any).checkin_open ?? false,
       super_like_enabled: event.super_like_enabled ?? false,
+      registration_open: (event as any).registration_open ?? true,
+      waitlist_enabled: (event as any).waitlist_enabled ?? false,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -358,6 +364,17 @@ const EventDetail = () => {
 
     if (exclusionsData) {
       setExclusions(exclusionsData);
+    }
+
+    // Load waitlist
+    const { data: waitlistData } = await supabase
+      .from("event_waitlist" as any)
+      .select("*")
+      .eq("event_id", id)
+      .order("position", { ascending: true });
+
+    if (waitlistData) {
+      setWaitlistEntries(waitlistData as any[]);
     }
 
     setIsLoading(false);
@@ -1918,6 +1935,88 @@ const EventDetail = () => {
       title: "Participante eliminado",
       description: "El participante ha sido eliminado del evento",
     });
+
+    // Auto-promote from waitlist if enabled (FIFO)
+    if (eventData?.waitlist_enabled && waitlistEntries.some(w => w.status === 'waiting')) {
+      await handleAutoPromoteWaitlist();
+    }
+  };
+
+  const handleAutoPromoteWaitlist = async () => {
+    const nextInLine = waitlistEntries.find(w => w.status === 'waiting');
+    if (!nextInLine) return;
+    await handlePromoteFromWaitlist(nextInLine);
+  };
+
+  const handlePromoteFromWaitlist = async (entry: any) => {
+    if (!id) return;
+
+    try {
+      // Insert as participant via edge function to handle verification code generation
+      const { data, error } = await supabase.functions.invoke('register-participant', {
+        body: {
+          eventId: id,
+          name: entry.name,
+          email: entry.email,
+          phone: entry.phone || '',
+          gender: entry.gender || '',
+          birthDate: entry.birth_date || '',
+          preference: entry.preference || '',
+          datingPreference: entry.dating_preference || '',
+          preferredAgeRange: entry.preferred_age_range || '',
+          isReturningParticipant: entry.is_returning_participant || false,
+          // B2B fields
+          isProfessional: !!entry.entity_type,
+          entityType: entry.entity_type,
+          companyName: entry.company_name,
+          sector: entry.sector,
+          companySize: entry.company_size,
+          needs: entry.needs,
+          solutions: entry.solutions,
+          fromWaitlist: true,
+        }
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || "No se pudo inscribir al participante",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update waitlist entry status
+      await supabase
+        .from("event_waitlist" as any)
+        .update({ status: 'promoted', promoted_at: new Date().toISOString() } as any)
+        .eq("id", entry.id);
+
+      // Send notification email to promoted participant
+      try {
+        await supabase.functions.invoke('send-registration-confirmation', {
+          body: { eventId: id, participantId: data.participantId, fromWaitlist: true }
+        });
+      } catch (e) {
+        console.error('Error sending waitlist promotion email:', e);
+      }
+
+      // Refresh data
+      setWaitlistEntries(prev => prev.map(w => w.id === entry.id ? { ...w, status: 'promoted' } : w));
+      await loadEventData();
+
+      toast({
+        title: "Participante inscrito",
+        description: `${entry.name} ha sido promovido de la lista de espera`,
+      });
+    } catch (err) {
+      console.error('Error promoting from waitlist:', err);
+      toast({
+        title: "Error",
+        description: "Error al promover participante de la lista de espera",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCheckInAll = async () => {
@@ -2927,7 +3026,68 @@ const EventDetail = () => {
                       </DropdownMenu>
                     )}
 
-                    {/* More actions dropdown */}
+                    {/* Registration controls dropdown */}
+                    {eventStatus === "pending" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant={eventData?.registration_open ? "outline" : "secondary"} size="sm">
+                            {eventData?.registration_open ? <DoorOpen className="w-4 h-4 sm:mr-2" /> : <DoorClosed className="w-4 h-4 sm:mr-2" />}
+                            <span className="hidden sm:inline">{eventData?.registration_open ? "Inscripciones" : "Cerradas"}</span>
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={async () => {
+                            const newValue = !eventData?.registration_open;
+                            await supabase
+                              .from("events")
+                              .update({ registration_open: newValue } as any)
+                              .eq("id", id);
+                            setEventData(prev => prev ? { ...prev, registration_open: newValue } : prev);
+                            toast({
+                              title: newValue ? "Inscripciones abiertas" : "Inscripciones cerradas",
+                              description: newValue 
+                                ? "Los participantes pueden registrarse en el evento" 
+                                : "El registro de nuevos participantes está cerrado",
+                            });
+                          }}>
+                            {eventData?.registration_open ? (
+                              <><DoorClosed className="w-4 h-4 mr-2" /> Cerrar inscripciones</>
+                            ) : (
+                              <><DoorOpen className="w-4 h-4 mr-2" /> Abrir inscripciones</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={async () => {
+                            const newValue = !eventData?.waitlist_enabled;
+                            await supabase
+                              .from("events")
+                              .update({ waitlist_enabled: newValue } as any)
+                              .eq("id", id);
+                            setEventData(prev => prev ? { ...prev, waitlist_enabled: newValue } : prev);
+                            toast({
+                              title: newValue ? "Lista de espera activada" : "Lista de espera desactivada",
+                              description: newValue 
+                                ? "Los participantes pueden unirse a la lista de espera cuando las inscripciones estén cerradas" 
+                                : "La lista de espera ha sido desactivada",
+                            });
+                          }}>
+                            <ListOrdered className="w-4 h-4 mr-2" />
+                            {eventData?.waitlist_enabled ? "Desactivar lista de espera" : "Activar lista de espera"}
+                          </DropdownMenuItem>
+                          {waitlistEntries.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setShowWaitlist(!showWaitlist)}>
+                                <Users className="w-4 h-4 mr-2" />
+                                Ver lista de espera ({waitlistEntries.filter(w => w.status === 'waiting').length})
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -3347,7 +3507,55 @@ const EventDetail = () => {
             </Card>
           </TabsContent>
 
-          {/* Tables Tab */}
+          {/* Waitlist Panel */}
+          {showWaitlist && waitlistEntries.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ListOrdered className="w-5 h-5" />
+                      Lista de espera
+                    </CardTitle>
+                    <CardDescription>
+                      {waitlistEntries.filter(w => w.status === 'waiting').length} personas esperando
+                    </CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowWaitlist(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => (
+                    <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                        <div>
+                          <p className="font-medium text-sm">{entry.name}</p>
+                          <p className="text-xs text-muted-foreground">{entry.email}</p>
+                        </div>
+                        {entry.gender && (
+                          <Badge variant="secondary" className="text-xs">{entry.gender}</Badge>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handlePromoteFromWaitlist(entry)}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Inscribir
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
           <TabsContent value="tables">
             <div className="space-y-6">
               {eventStatus === "active" && tables.length > 0 && (

@@ -159,7 +159,7 @@ serve(async (req) => {
       // Get event
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, name, status, date, module, organizer_id')
+        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled')
         .eq('id', eventId)
         .single();
 
@@ -177,6 +177,17 @@ serve(async (req) => {
         );
       }
 
+      const registrationOpen = event.registration_open ?? true;
+      const waitlistEnabled = event.waitlist_enabled ?? false;
+      const isFromWaitlist = body.fromWaitlist === true;
+
+      if (!registrationOpen && !waitlistEnabled && !isFromWaitlist) {
+        return new Response(
+          JSON.stringify({ error: 'Las inscripciones están cerradas para este evento' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Check duplicate email
       const { data: existingParticipant } = await supabase
         .from('participants')
@@ -189,6 +200,55 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Ya estás registrado en este evento' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // If registration is closed and waitlist is enabled, add to waitlist
+      if (!registrationOpen && waitlistEnabled && !isFromWaitlist) {
+        // Get max position
+        const { data: maxPos } = await supabase
+          .from('event_waitlist')
+          .select('position')
+          .eq('event_id', eventId)
+          .order('position', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const nextPosition = (maxPos?.position || 0) + 1;
+
+        const { error: waitlistError } = await supabase
+          .from('event_waitlist')
+          .insert({
+            event_id: eventId,
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            phone: phone.trim(),
+            entity_type: entityType,
+            company_name: companyName.trim(),
+            sector: sector,
+            company_size: companySize,
+            needs: needs || [],
+            solutions: solutions || [],
+            position: nextPosition,
+          });
+
+        if (waitlistError) {
+          if (waitlistError.code === '23505') {
+            return new Response(
+              JSON.stringify({ error: 'Ya estás en la lista de espera de este evento' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          console.error('[register-participant] Error adding to waitlist:', waitlistError);
+          return new Response(
+            JSON.stringify({ error: 'Error al añadir a la lista de espera' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, waitlisted: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -297,7 +357,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id')
+      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled')
       .eq('id', eventId)
       .single();
 
@@ -312,6 +372,17 @@ serve(async (req) => {
     if (event.status !== 'pending') {
       return new Response(
         JSON.stringify({ error: 'Las inscripciones para este evento están cerradas' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const socialRegistrationOpen = event.registration_open ?? true;
+    const socialWaitlistEnabled = event.waitlist_enabled ?? false;
+    const socialIsFromWaitlist = body.fromWaitlist === true;
+
+    if (!socialRegistrationOpen && !socialWaitlistEnabled && !socialIsFromWaitlist) {
+      return new Response(
+        JSON.stringify({ error: 'Las inscripciones están cerradas para este evento' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -357,6 +428,56 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Ya estás registrado en este evento' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If registration is closed and waitlist is enabled, add to waitlist
+    if (!socialRegistrationOpen && socialWaitlistEnabled && !socialIsFromWaitlist) {
+      const { data: maxPos } = await supabase
+        .from('event_waitlist')
+        .select('position')
+        .eq('event_id', eventId)
+        .order('position', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextPosition = (maxPos?.position || 0) + 1;
+
+      const { error: waitlistError } = await supabase
+        .from('event_waitlist')
+        .insert({
+          event_id: eventId,
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          phone: phone.trim(),
+          gender,
+          birth_date: birthDate,
+          age_range: ageRange,
+          preference: preference || null,
+          dating_preference: datingPreference || null,
+          preferred_age_range: preferredAgeRange || null,
+          is_returning_participant: isReturningParticipant || false,
+          position: nextPosition,
+        });
+
+      if (waitlistError) {
+        if (waitlistError.code === '23505') {
+          return new Response(
+            JSON.stringify({ error: 'Ya estás en la lista de espera de este evento' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        console.error('[register-participant] Error adding to waitlist:', waitlistError);
+        return new Response(
+          JSON.stringify({ error: 'Error al añadir a la lista de espera' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`[register-participant] Added to waitlist: ${name}, position: ${nextPosition}`);
+      return new Response(
+        JSON.stringify({ success: true, waitlisted: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
