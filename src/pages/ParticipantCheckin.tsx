@@ -34,6 +34,8 @@ const ParticipantCheckin = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
   const [eventExists, setEventExists] = useState<boolean | null>(null);
+  const [checkinNotYetOpen, setCheckinNotYetOpen] = useState(false);
+  const [countdownData, setCountdownData] = useState<{ name: string; date: string; time: string | null; minutes: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
