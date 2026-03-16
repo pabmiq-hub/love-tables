@@ -85,6 +85,9 @@ const ParticipantJoin = () => {
   const [eventLocation, setEventLocation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
+  const [waitlistEnabled, setWaitlistEnabled] = useState(false);
+  const [isWaitlistSubmission, setIsWaitlistSubmission] = useState(false);
 
   // Event module type
   const [eventModule, setEventModule] = useState<string>("social");
