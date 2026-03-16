@@ -144,7 +144,8 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
   const genderReciprocity = useMemo(() => {
     const participantGender = new Map<string, string>();
     socialParticipants.forEach(p => {
-      if (p.gender) participantGender.set(p.id, normalizeGender(p.gender));
+      const g = normalizeGender(p.gender);
+      if (g !== "Sin especificar") participantGender.set(p.id, g);
     });
 
     const sentByGender: Record<string, number> = {};
