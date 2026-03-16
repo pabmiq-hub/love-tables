@@ -63,6 +63,7 @@ const EventSettingsEditor = ({
   professionalConfig,
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
+  superLikeEnabled: initialSuperLikeEnabled = false,
   eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
