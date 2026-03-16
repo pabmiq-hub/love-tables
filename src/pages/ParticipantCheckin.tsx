@@ -184,6 +184,20 @@ const ParticipantCheckin = () => {
     );
   }
 
+  if (checkinNotYetOpen && countdownData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <EventCountdown
+          eventName={countdownData.name}
+          eventDate={countdownData.date}
+          eventTime={countdownData.time}
+          language={eventLang}
+          checkinOpensMinutesBefore={countdownData.minutes}
+        />
+      </div>
+    );
+  }
+
   if (!eventExists) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
