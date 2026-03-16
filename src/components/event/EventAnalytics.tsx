@@ -115,9 +115,9 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
     const noShowRate = originalTotal > 0 ? ((noShows / originalTotal) * 100).toFixed(1) : "0";
     const checkinRate = originalTotal > 0 ? ((checkedIn / originalTotal) * 100).toFixed(1) : "0";
 
-    // Gender distribution
+    // Gender distribution - normalized
     const byGender = participants.reduce((acc, p) => {
-      const gender = p.gender || "Sin especificar";
+      const gender = normalizeGenderShared(p.gender);
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
