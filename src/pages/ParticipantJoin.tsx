@@ -440,6 +440,14 @@ const ParticipantJoin = () => {
 
     // Check if added to waitlist
     if (data.waitlisted) {
+      // Send waitlist confirmation email
+      try {
+        await supabase.functions.invoke('send-waitlist-confirmation', {
+          body: { eventId, name: data.name || name.trim(), email: data.email || email.trim(), position: data.position }
+        });
+      } catch (e) {
+        console.error('Error sending waitlist confirmation email:', e);
+      }
       setIsWaitlistSubmission(true);
       setIsSubmitted(true);
       setIsSubmitting(false);
@@ -507,6 +515,21 @@ const ParticipantJoin = () => {
       let errorMessage = b2b.errorMissingFields;
       if (result?.error) errorMessage = result.error;
       toast({ title: "Error", description: errorMessage, variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check if added to waitlist (B2B)
+    if (result.waitlisted) {
+      try {
+        await supabase.functions.invoke('send-waitlist-confirmation', {
+          body: { eventId, name: result.name || data.name, email: result.email || data.email, position: result.position }
+        });
+      } catch (e) {
+        console.error('Error sending waitlist confirmation email:', e);
+      }
+      setIsWaitlistSubmission(true);
+      setIsSubmitted(true);
       setIsSubmitting(false);
       return;
     }
