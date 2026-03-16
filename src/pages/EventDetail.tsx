@@ -3830,6 +3830,7 @@ const EventDetail = () => {
                 groupRounds={eventData.group_rounds}
                 emailTemplate={eventData.email_template}
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
+                superLikeEnabled={eventData.super_like_enabled}
                 eventStatus={eventStatus}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
