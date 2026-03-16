@@ -13,7 +13,7 @@ import { DashboardHome } from "@/components/admin/DashboardHome";
 import { DashboardEvents } from "@/components/admin/DashboardEvents";
 import { DashboardAnalytics } from "@/components/admin/DashboardAnalytics";
 import { DashboardEmail } from "@/components/admin/DashboardEmail";
-import { DashboardAccount } from "@/components/admin/DashboardAccount";
+import { DashboardSettings } from "@/components/admin/DashboardSettings";
 import { DashboardBranding } from "@/components/admin/DashboardBranding";
 import { DashboardTemplates } from "@/components/admin/DashboardTemplates";
 
@@ -256,8 +256,8 @@ const AdminDashboard = () => {
           return <UpgradePrompt title="Gestión de email avanzada" description="Configura tu dominio propio y envía emails personalizados desde tu marca" onUpgrade={() => window.open("/#pricing", "_blank")} />;
         }
         return <DashboardEmail />;
-      case "account":
-        return <DashboardAccount user={user} organizer={organizer} plan={plan} branding={branding} onRefresh={refreshOrganizer} />;
+      case "settings":
+        return <DashboardSettings user={user} organizer={organizer} plan={plan} limits={limits} branding={branding} onRefresh={refreshOrganizer} />;
       case "branding":
         if (!hasFeature("custom_branding") && !isSuperAdmin) {
           return <UpgradePrompt title="Marca blanca" description="Personaliza la experiencia completa con tu propia marca, colores y logo" onUpgrade={() => window.open("/#pricing", "_blank")} />;
