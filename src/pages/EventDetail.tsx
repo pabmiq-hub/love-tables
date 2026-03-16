@@ -285,6 +285,8 @@ const EventDetail = () => {
       checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
       checkin_open: (event as any).checkin_open ?? false,
       super_like_enabled: event.super_like_enabled ?? false,
+      registration_open: (event as any).registration_open ?? true,
+      waitlist_enabled: (event as any).waitlist_enabled ?? false,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
