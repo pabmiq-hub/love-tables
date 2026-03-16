@@ -76,10 +76,11 @@ interface EventAnalyticsProps {
 }
 
 const GENDER_COLORS: Record<string, string> = {
+  ...SHARED_GENDER_COLORS,
   "Hombre": "#3b82f6",
   "Mujer": "#ec4899", 
   "No binario": "#8b5cf6",
-  "Sin especificar": "#94a3b8"
+  "Sin especificar": "#94a3b8",
 };
 
 const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
