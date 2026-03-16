@@ -125,6 +125,9 @@ const ParticipantAccess = () => {
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
         setEventDate(event.date);
+        setEventName(event.name);
+        setEventTime(event.event_time || null);
+        setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
 
         if (event.selection_closed_at) {
           clearSession();
