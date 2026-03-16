@@ -157,7 +157,6 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
       if (receiverGender) receivedByGender[receiverGender] = (receivedByGender[receiverGender] || 0) + 1;
     });
 
-    // Mutual match rate by gender
     const selSet = new Set(socialSelections.map(s => `${s.selector_id}->${s.selected_id}`));
     const matchesByGender: Record<string, { matches: number; totalSent: number }> = {};
     const counted = new Set<string>();
@@ -225,45 +224,27 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
     return { heatData, maxVal };
   }, [socialParticipants, socialSelections]);
 
-  // ========== 4. ROUND ENGAGEMENT ==========
+  // ========== 4. ROUND ENGAGEMENT (only completed rounds) ==========
   const roundEngagement = useMemo(() => {
-    // Build map: participantId -> Set of round numbers they had assignments in
-    const participantRounds = new Map<string, Set<number>>();
-
+    const eventCompletedRounds = new Map<string, Set<number>>();
     socialEvents.forEach(event => {
-      const tables = event.tables as any;
-      if (!tables || !Array.isArray(tables)) return;
-
-      tables.forEach((roundData: any) => {
-        const roundNumber = roundData.round;
-        const roundTables = roundData.tables;
-        if (!roundTables || !Array.isArray(roundTables)) return;
-
-        roundTables.forEach((table: any[]) => {
-          if (!Array.isArray(table)) return;
-          table.forEach((p: any) => {
-            if (!participantRounds.has(p.id)) participantRounds.set(p.id, new Set());
-            participantRounds.get(p.id)!.add(roundNumber);
-          });
-        });
-      });
+      const completed = event.completed_rounds as number[] | null;
+      if (completed && Array.isArray(completed)) {
+        eventCompletedRounds.set(event.id, new Set(completed));
+      }
     });
 
-    // For each match pair, find which round(s) they shared a table
-    const selSet = new Set(socialSelections.map(s => `${s.selector_id}->${s.selected_id}`));
-    const matchesByRound: Record<number, number> = {};
-    const selectionsByRound: Record<number, number> = {};
-    const counted = new Set<string>();
-
-    // Build participant-to-tablemates-per-round map
     const tableMatesByRound = new Map<string, Map<number, Set<string>>>();
 
     socialEvents.forEach(event => {
       const tables = event.tables as any;
       if (!tables || !Array.isArray(tables)) return;
+      const completedSet = eventCompletedRounds.get(event.id);
 
       tables.forEach((roundData: any) => {
         const roundNumber = roundData.round;
+        // Only include rounds that were actually completed
+        if (completedSet && !completedSet.has(roundNumber)) return;
         const roundTables = roundData.tables;
         if (!roundTables || !Array.isArray(roundTables)) return;
 
@@ -281,9 +262,12 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
       });
     });
 
-    // Count selections and matches per round
+    const selSet = new Set(socialSelections.map(s => `${s.selector_id}->${s.selected_id}`));
+    const matchesByRound: Record<number, number> = {};
+    const selectionsByRound: Record<number, number> = {};
+    const counted = new Set<string>();
+
     socialSelections.forEach(s => {
-      // Find which round this pair shared a table
       const selectorRounds = tableMatesByRound.get(s.selector_id);
       if (!selectorRounds) return;
 
@@ -297,16 +281,16 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
             counted.add(pairKey);
             matchesByRound[round] = (matchesByRound[round] || 0) + 1;
           }
-          break; // Count once per selection
+          break;
         }
       }
     });
 
-    const maxRound = Math.max(...Object.keys(selectionsByRound).map(Number), ...Object.keys(matchesByRound).map(Number), 0);
-    const chartData = Array.from({ length: maxRound }, (_, i) => ({
-      name: `Ronda ${i + 1}`,
-      selecciones: selectionsByRound[i + 1] || 0,
-      matches: matchesByRound[i + 1] || 0,
+    const allRounds = [...new Set([...Object.keys(selectionsByRound).map(Number), ...Object.keys(matchesByRound).map(Number)])].sort((a, b) => a - b);
+    const chartData = allRounds.map(r => ({
+      name: `Ronda ${r}`,
+      selecciones: selectionsByRound[r] || 0,
+      matches: matchesByRound[r] || 0,
     }));
 
     return { chartData };
@@ -319,7 +303,6 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
       receivedCounts.set(s.selected_id, (receivedCounts.get(s.selected_id) || 0) + 1);
     });
 
-    // Histogram of received selections
     const histogram: Record<number, number> = {};
     let maxReceived = 0;
     let zeroSelections = 0;
@@ -332,71 +315,18 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
       if (count > maxReceived) maxReceived = count;
     });
 
-    const chartData = Array.from({ length: Math.min(maxReceived + 1, 12) }, (_, i) => ({
+    // Show ALL buckets, not capped at 12
+    const chartData = Array.from({ length: maxReceived + 1 }, (_, i) => ({
       name: `${i}`,
       participantes: histogram[i] || 0,
     }));
 
-    // Top 5 most selected (anonymized)
     const top5 = [...receivedCounts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map((entry, idx) => ({ rank: idx + 1, count: entry[1] }));
 
     return { chartData, zeroSelections, top5, totalParticipants: allSocialParticipantIds.size };
-  }, [socialParticipants, socialSelections]);
-
-  // ========== 6. PREFERENCE VS REALITY ==========
-  const preferenceVsReality = useMemo(() => {
-    const seekingDating = socialParticipants.filter(p =>
-      p.dating_preference && p.dating_preference !== "none" && p.dating_preference !== "no"
-    );
-    const seekingDatingIds = new Set(seekingDating.map(p => p.id));
-
-    // Find dating matches for those who seek it
-    const selMap = new Map<string, Set<string>>();
-    socialSelections.forEach(s => {
-      const key = `${s.selector_id}->${s.selected_id}`;
-      if (!selMap.has(key)) selMap.set(key, new Set());
-      if (s.selection_type) selMap.get(key)!.add(s.selection_type);
-    });
-
-    let datingMatchCount = 0;
-    const whoGotDatingMatch = new Set<string>();
-    const counted = new Set<string>();
-
-    socialSelections.forEach(s => {
-      if (s.selection_type !== "dating") return;
-      const reverse = `${s.selected_id}->${s.selector_id}`;
-      const pairKey = [s.selector_id, s.selected_id].sort().join(":");
-      if (counted.has(pairKey)) return;
-
-      const reverseTypes = selMap.get(reverse);
-      if (reverseTypes?.has("dating")) {
-        counted.add(pairKey);
-        datingMatchCount++;
-        if (seekingDatingIds.has(s.selector_id)) whoGotDatingMatch.add(s.selector_id);
-        if (seekingDatingIds.has(s.selected_id)) whoGotDatingMatch.add(s.selected_id);
-      }
-    });
-
-    const conversionRate = seekingDating.length > 0
-      ? Math.round((whoGotDatingMatch.size / seekingDating.length) * 100)
-      : 0;
-
-    const chartData = [
-      { name: "Buscan romance", value: seekingDating.length, fill: "hsl(346, 77%, 50%)" },
-      { name: "Lograron match", value: whoGotDatingMatch.size, fill: "hsl(262, 60%, 55%)" },
-    ];
-
-    return {
-      seekingCount: seekingDating.length,
-      matchedCount: whoGotDatingMatch.size,
-      conversionRate,
-      datingMatchCount,
-      totalParticipants: socialParticipants.length,
-      chartData,
-    };
   }, [socialParticipants, socialSelections]);
 
   // ========== 7. CONNECTION INDEX ==========
@@ -417,7 +347,6 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
     const maxPossibleConnections = n > 1 ? (n * (n - 1)) / 2 : 1;
     const score = Math.round((socialMatches / maxPossibleConnections) * 1000) / 10;
 
-    // Per-event scores
     const eventScores = socialEvents.map(event => {
       const eventParticipants = socialParticipants.filter(p => p.event_id === event.id);
       const eventSels = socialSelections.filter(s => s.event_id === event.id);
@@ -536,7 +465,7 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
       .map(([name, value]) => ({ name: name.length > 35 ? name.substring(0, 35) + "…" : name, fullName: name, value }))
       .sort((a, b) => b.value - a.value);
 
-    // Orientation by gender - normalized
+    // Orientation by gender - with improved insight text
     const orientationByGender: Record<string, Record<string, number>> = {};
     socialParticipants.forEach(p => {
       const normalized = normalizeDatingOrientation(p.dating_preference);
@@ -556,8 +485,18 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
         .forEach(([orient, count]) => {
           const pct = Math.round((count / genderTotal) * 100);
           if (pct > 0) {
-            const genderLabel = gender === "Hombre" ? "los hombres con interés en ligue" : gender === "Mujer" ? "las mujeres con interés en ligue" : gender;
-            orientationInsights.push(`El ${pct}% de ${genderLabel}: "${orient}"`);
+            const genderLabel = gender === "Hombre" ? "los hombres con interés en ligue" : gender === "Mujer" ? "las mujeres con interés en ligue" : `${gender} con interés en ligue`;
+            // Extract target from orientation to make a cleaner sentence
+            const targetMap: Record<string, string> = {
+              "Soy un hombre y busco una mujer": "buscan una mujer",
+              "Soy un hombre y busco un hombre": "buscan un hombre",
+              "Soy una mujer y busco un hombre": "buscan un hombre",
+              "Soy una mujer y busco una mujer": "buscan una mujer",
+              "Estoy abierto/a a todo": "están abiertos/as a todo",
+              "Prefiero no contestar": "prefieren no contestar",
+            };
+            const action = targetMap[orient] || orient;
+            orientationInsights.push(`El ${pct}% de ${genderLabel} ${action}`);
           }
         });
     });
@@ -602,6 +541,20 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
           <KpiCard icon={Users} value={socialParticipants.length} label="Participantes" color="text-primary" />
           <KpiCard icon={Heart} value={connectionIndex.socialMatches} label="Matches mutuos" color="text-accent" />
           <KpiCard icon={Percent} value={`${basicKpis.submissionRate}%`} label="Enviaron selecciones" color="text-primary" />
+        </div>
+      </section>
+
+      {/* Selection metrics - MOVED TO TOP */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <Handshake className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Métricas de selección</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard icon={Send} value={basicKpis.avgSent} label="Media selecciones enviadas" color="text-primary" />
+          <KpiCard icon={Inbox} value={basicKpis.avgReceived} label="Media selecciones recibidas" color="text-primary" />
+          <KpiCard icon={Heart} value={`${connectionIndex.score}%`} label="Índice de conexión" color="text-accent" />
+          <KpiCard icon={Percent} value={`${basicKpis.submissionRate}%`} label="Participación en selección" color="text-primary" />
         </div>
       </section>
 
@@ -900,14 +853,16 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
             <Card>
               <CardHeader className="pb-0"><CardTitle className="text-base">Distribución de selecciones recibidas</CardTitle></CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={popularity.chartData} margin={{ left: 0, right: 10 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} label={{ value: "Nº selecciones recibidas", position: "insideBottom", offset: -5, fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} label={{ value: "Participantes", angle: -90, position: "insideLeft", fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} participantes`, ""]} />
-                    <Bar dataKey="participantes" name="Participantes" fill="hsl(262, 60%, 55%)" radius={[6, 6, 0, 0]} barSize={28} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="overflow-x-auto">
+                  <ResponsiveContainer width="100%" height={280} minWidth={Math.max(400, popularity.chartData.length * 35)}>
+                    <BarChart data={popularity.chartData} margin={{ left: 0, right: 10, bottom: 20 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} label={{ value: "Nº selecciones recibidas", position: "insideBottom", offset: -15, fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} label={{ value: "Participantes", angle: -90, position: "insideLeft", fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} participantes`, ""]} />
+                      <Bar dataKey="participantes" name="Participantes" fill="hsl(262, 60%, 55%)" radius={[6, 6, 0, 0]} barSize={24} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
             <div className="space-y-4">
@@ -926,22 +881,6 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* 6. Preference vs Reality */}
-      {preferenceVsReality.totalParticipants > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b">
-            <Heart className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-semibold">Preferencia vs realidad</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard icon={Heart} value={preferenceVsReality.seekingCount} label="Buscan romance" color="text-accent" subtitle={`${Math.round((preferenceVsReality.seekingCount / preferenceVsReality.totalParticipants) * 100)}% del total`} />
-            <KpiCard icon={Star} value={preferenceVsReality.matchedCount} label="Lograron match romántico" color="text-purple-500" />
-            <KpiCard icon={Percent} value={`${preferenceVsReality.conversionRate}%`} label="Tasa de conversión" color="text-primary" subtitle="De los que buscan romance" />
-            <KpiCard icon={Handshake} value={preferenceVsReality.datingMatchCount} label="Matches románticos totales" color="text-accent" />
           </div>
         </section>
       )}
@@ -980,20 +919,6 @@ export function SocialAnalyticsTab({ data }: SocialAnalyticsTabProps) {
               </CardContent>
             </Card>
           )}
-        </div>
-      </section>
-
-      {/* Selection metrics */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <Handshake className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold">Métricas de selección</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={Send} value={basicKpis.avgSent} label="Media selecciones enviadas" color="text-primary" />
-          <KpiCard icon={Inbox} value={basicKpis.avgReceived} label="Media selecciones recibidas" color="text-primary" />
-          <KpiCard icon={Heart} value={`${connectionIndex.score}%`} label="Índice de conexión" color="text-accent" />
-          <KpiCard icon={Percent} value={`${basicKpis.submissionRate}%`} label="Participación en selección" color="text-primary" />
         </div>
       </section>
     </div>
