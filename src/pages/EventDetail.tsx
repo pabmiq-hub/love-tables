@@ -2944,7 +2944,68 @@ const EventDetail = () => {
                       </DropdownMenu>
                     )}
 
-                    {/* More actions dropdown */}
+                    {/* Registration controls dropdown */}
+                    {eventStatus === "pending" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant={eventData?.registration_open ? "outline" : "secondary"} size="sm">
+                            {eventData?.registration_open ? <DoorOpen className="w-4 h-4 sm:mr-2" /> : <DoorClosed className="w-4 h-4 sm:mr-2" />}
+                            <span className="hidden sm:inline">{eventData?.registration_open ? "Inscripciones" : "Cerradas"}</span>
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={async () => {
+                            const newValue = !eventData?.registration_open;
+                            await supabase
+                              .from("events")
+                              .update({ registration_open: newValue } as any)
+                              .eq("id", id);
+                            setEventData(prev => prev ? { ...prev, registration_open: newValue } : prev);
+                            toast({
+                              title: newValue ? "Inscripciones abiertas" : "Inscripciones cerradas",
+                              description: newValue 
+                                ? "Los participantes pueden registrarse en el evento" 
+                                : "El registro de nuevos participantes está cerrado",
+                            });
+                          }}>
+                            {eventData?.registration_open ? (
+                              <><DoorClosed className="w-4 h-4 mr-2" /> Cerrar inscripciones</>
+                            ) : (
+                              <><DoorOpen className="w-4 h-4 mr-2" /> Abrir inscripciones</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={async () => {
+                            const newValue = !eventData?.waitlist_enabled;
+                            await supabase
+                              .from("events")
+                              .update({ waitlist_enabled: newValue } as any)
+                              .eq("id", id);
+                            setEventData(prev => prev ? { ...prev, waitlist_enabled: newValue } : prev);
+                            toast({
+                              title: newValue ? "Lista de espera activada" : "Lista de espera desactivada",
+                              description: newValue 
+                                ? "Los participantes pueden unirse a la lista de espera cuando las inscripciones estén cerradas" 
+                                : "La lista de espera ha sido desactivada",
+                            });
+                          }}>
+                            <ListOrdered className="w-4 h-4 mr-2" />
+                            {eventData?.waitlist_enabled ? "Desactivar lista de espera" : "Activar lista de espera"}
+                          </DropdownMenuItem>
+                          {waitlistEntries.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setShowWaitlist(!showWaitlist)}>
+                                <Users className="w-4 h-4 mr-2" />
+                                Ver lista de espera ({waitlistEntries.filter(w => w.status === 'waiting').length})
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
