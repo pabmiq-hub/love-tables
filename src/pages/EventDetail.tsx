@@ -282,6 +282,7 @@ const EventDetail = () => {
       group_rounds: event.group_rounds as unknown as Array<{ round: number; table_size: number; allow_repeats?: boolean }> | null,
       checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
       checkin_open: (event as any).checkin_open ?? false,
+      super_like_enabled: event.super_like_enabled ?? false,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
