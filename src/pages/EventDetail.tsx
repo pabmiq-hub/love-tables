@@ -1935,6 +1935,88 @@ const EventDetail = () => {
       title: "Participante eliminado",
       description: "El participante ha sido eliminado del evento",
     });
+
+    // Auto-promote from waitlist if enabled (FIFO)
+    if (eventData?.waitlist_enabled && waitlistEntries.some(w => w.status === 'waiting')) {
+      await handleAutoPromoteWaitlist();
+    }
+  };
+
+  const handleAutoPromoteWaitlist = async () => {
+    const nextInLine = waitlistEntries.find(w => w.status === 'waiting');
+    if (!nextInLine) return;
+    await handlePromoteFromWaitlist(nextInLine);
+  };
+
+  const handlePromoteFromWaitlist = async (entry: any) => {
+    if (!id) return;
+
+    try {
+      // Insert as participant via edge function to handle verification code generation
+      const { data, error } = await supabase.functions.invoke('register-participant', {
+        body: {
+          eventId: id,
+          name: entry.name,
+          email: entry.email,
+          phone: entry.phone || '',
+          gender: entry.gender || '',
+          birthDate: entry.birth_date || '',
+          preference: entry.preference || '',
+          datingPreference: entry.dating_preference || '',
+          preferredAgeRange: entry.preferred_age_range || '',
+          isReturningParticipant: entry.is_returning_participant || false,
+          // B2B fields
+          isProfessional: !!entry.entity_type,
+          entityType: entry.entity_type,
+          companyName: entry.company_name,
+          sector: entry.sector,
+          companySize: entry.company_size,
+          needs: entry.needs,
+          solutions: entry.solutions,
+          fromWaitlist: true,
+        }
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || "No se pudo inscribir al participante",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update waitlist entry status
+      await supabase
+        .from("event_waitlist" as any)
+        .update({ status: 'promoted', promoted_at: new Date().toISOString() } as any)
+        .eq("id", entry.id);
+
+      // Send notification email to promoted participant
+      try {
+        await supabase.functions.invoke('send-registration-confirmation', {
+          body: { eventId: id, participantId: data.participantId, fromWaitlist: true }
+        });
+      } catch (e) {
+        console.error('Error sending waitlist promotion email:', e);
+      }
+
+      // Refresh data
+      setWaitlistEntries(prev => prev.map(w => w.id === entry.id ? { ...w, status: 'promoted' } : w));
+      await loadEventData();
+
+      toast({
+        title: "Participante inscrito",
+        description: `${entry.name} ha sido promovido de la lista de espera`,
+      });
+    } catch (err) {
+      console.error('Error promoting from waitlist:', err);
+      toast({
+        title: "Error",
+        description: "Error al promover participante de la lista de espera",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCheckInAll = async () => {
