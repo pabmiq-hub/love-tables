@@ -109,6 +109,7 @@ interface EventData {
   group_rounds: Array<{ round: number; table_size: number; allow_repeats?: boolean }> | null;
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
+  super_like_enabled: boolean;
 }
 
 interface DbParticipant {
