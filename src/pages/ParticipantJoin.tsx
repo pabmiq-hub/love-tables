@@ -162,6 +162,22 @@ const ParticipantJoin = () => {
         return;
       }
 
+      // Check registration status
+      const regOpen = (data as any).registration_open ?? true;
+      const wlEnabled = (data as any).waitlist_enabled ?? false;
+      
+      if (!regOpen && !wlEnabled) {
+        // Registration fully closed, no waitlist
+        setEventExists(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!regOpen && wlEnabled) {
+        setRegistrationClosed(true);
+        setWaitlistEnabled(true);
+      }
+
       setEventExists(true);
       setEventName(data.name);
       setEventDate(new Date(data.date));
