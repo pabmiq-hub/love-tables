@@ -26,6 +26,7 @@ interface Event {
   module: string | null;
   tables: any;
   rounds: number;
+  completed_rounds: number[] | null;
 }
 
 export interface ParticipantRecord {
