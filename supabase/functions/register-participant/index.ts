@@ -247,7 +247,7 @@ serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ success: true, waitlisted: true }),
+          JSON.stringify({ success: true, waitlisted: true, position: nextPosition, name: name.trim(), email: email.toLowerCase().trim() }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
