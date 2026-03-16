@@ -114,12 +114,17 @@ const EventSettingsEditor = ({
   const isProfessional = eventModule === "professional";
   const isLocked = eventStatus !== "pending";
 
+  // Sync super like prop
+  useEffect(() => {
+    setFormSuperLikeEnabled(initialSuperLikeEnabled);
+  }, [initialSuperLikeEnabled]);
+
   // Load custom registration form from DB
   useEffect(() => {
     const loadCustomForm = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form, super_like_enabled")
+        .select("custom_registration_form")
         .eq("id", eventId)
         .single();
 
@@ -129,9 +134,6 @@ const EventSettingsEditor = ({
           setCustomFormEnabled(true);
           setCustomFormFields(formConfig.fields);
         }
-      }
-      if (data) {
-        setFormSuperLikeEnabled((data as any).super_like_enabled || false);
       }
     };
     loadCustomForm();
