@@ -431,17 +431,14 @@ const ParticipantAccess = () => {
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
-      {step === "not_started" && (
-        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
-          <CardContent className="pt-8 pb-8">
-            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-8 h-8 text-amber-500" />
-            </div>
-            <h2 className="font-display text-xl font-bold mb-2">{t.access.notStartedTitle}</h2>
-            <p className="text-muted-foreground mb-6">{t.access.notStartedDesc}</p>
-            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
-          </CardContent>
-        </Card>
+      {step === "not_started" && eventDate && (
+        <EventCountdown
+          eventName={eventName}
+          eventDate={eventDate}
+          eventTime={eventTime}
+          language={eventLang}
+          checkinOpensMinutesBefore={checkinMinutes}
+        />
       )}
 
       {step === "expired" && (
