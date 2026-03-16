@@ -3425,7 +3425,55 @@ const EventDetail = () => {
             </Card>
           </TabsContent>
 
-          {/* Tables Tab */}
+          {/* Waitlist Panel */}
+          {showWaitlist && waitlistEntries.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ListOrdered className="w-5 h-5" />
+                      Lista de espera
+                    </CardTitle>
+                    <CardDescription>
+                      {waitlistEntries.filter(w => w.status === 'waiting').length} personas esperando
+                    </CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowWaitlist(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => (
+                    <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                        <div>
+                          <p className="font-medium text-sm">{entry.name}</p>
+                          <p className="text-xs text-muted-foreground">{entry.email}</p>
+                        </div>
+                        {entry.gender && (
+                          <Badge variant="secondary" className="text-xs">{entry.gender}</Badge>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handlePromoteFromWaitlist(entry)}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Inscribir
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
           <TabsContent value="tables">
             <div className="space-y-6">
               {eventStatus === "active" && tables.length > 0 && (
