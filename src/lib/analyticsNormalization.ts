@@ -80,8 +80,10 @@ const DATING_ORIENTATION_NORMALIZE: Record<string, string> = {
   // Open to all
   "estoy abierto a todo": "Estoy abierto/a a todo",
   "estoy abierta a todo": "Estoy abierto/a a todo",
+  "estoy abierto/a a todo": "Estoy abierto/a a todo",
   "i'm open to all": "Estoy abierto/a a todo",
   "i am open to all": "Estoy abierto/a a todo",
+  "open to all": "Estoy abierto/a a todo",
   // Prefer not to say
   "prefiero no decirlo": "Prefiero no contestar",
   "prefer not to say": "Prefiero no contestar",
