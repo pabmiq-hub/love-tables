@@ -551,6 +551,42 @@ const ParticipantJoin = () => {
     );
   }
 
+  if (isSubmitted && isWaitlistSubmission) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center animate-scale-in">
+          <CardContent className="pt-6 space-y-6">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+              <Clock className="w-8 h-8 text-amber-500" />
+            </div>
+            <div>
+              <h2 className="font-display text-xl font-semibold mb-2">
+                {eventLang === 'en' ? 'You\'re on the waitlist!' : '¡Estás en la lista de espera!'}
+              </h2>
+              <p className="text-muted-foreground">
+                {eventLang === 'en' 
+                  ? 'We\'ve received your registration. If a spot opens up, you\'ll be automatically registered and notified at '
+                  : 'Hemos recibido tu inscripción. Si se produce una baja, serás inscrito automáticamente y recibirás un email en '
+                }
+                <strong>{email}</strong>
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="text-4xl mb-2">⏳</div>
+              <p className="text-sm text-muted-foreground">
+                {eventLang === 'en' 
+                  ? 'You\'ll receive an email confirmation if your spot is confirmed.'
+                  : 'Recibirás un email de confirmación si tu plaza es confirmada.'
+                }
+              </p>
+            </div>
+            <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} className="h-10 w-auto mx-auto" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
