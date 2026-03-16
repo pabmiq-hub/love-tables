@@ -203,6 +203,55 @@ serve(async (req) => {
         );
       }
 
+      // If registration is closed and waitlist is enabled, add to waitlist
+      if (!registrationOpen && waitlistEnabled && !isFromWaitlist) {
+        // Get max position
+        const { data: maxPos } = await supabase
+          .from('event_waitlist')
+          .select('position')
+          .eq('event_id', eventId)
+          .order('position', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const nextPosition = (maxPos?.position || 0) + 1;
+
+        const { error: waitlistError } = await supabase
+          .from('event_waitlist')
+          .insert({
+            event_id: eventId,
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
+            phone: phone.trim(),
+            entity_type: entityType,
+            company_name: companyName.trim(),
+            sector: sector,
+            company_size: companySize,
+            needs: needs || [],
+            solutions: solutions || [],
+            position: nextPosition,
+          });
+
+        if (waitlistError) {
+          if (waitlistError.code === '23505') {
+            return new Response(
+              JSON.stringify({ error: 'Ya estás en la lista de espera de este evento' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          console.error('[register-participant] Error adding to waitlist:', waitlistError);
+          return new Response(
+            JSON.stringify({ error: 'Error al añadir a la lista de espera' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, waitlisted: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Auto check-in if event is within 1 hour
       const eventDate = new Date(event.date);
       const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
