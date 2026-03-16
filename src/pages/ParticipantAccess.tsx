@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
+import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,6 +68,9 @@ const ParticipantAccess = () => {
   } | null>(null);
 
   const [eventDate, setEventDate] = useState<string>("");
+  const [eventName, setEventName] = useState<string>("");
+  const [eventTime, setEventTime] = useState<string | null>(null);
+  const [checkinMinutes, setCheckinMinutes] = useState<number>(60);
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
@@ -105,7 +109,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before')
           .eq('id', eventId)
           .single();
 
@@ -122,6 +126,9 @@ const ParticipantAccess = () => {
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
         setEventDate(event.date);
+        setEventName(event.name);
+        setEventTime(event.event_time || null);
+        setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
 
         if (event.selection_closed_at) {
           clearSession();
@@ -424,17 +431,14 @@ const ParticipantAccess = () => {
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
       </div>
 
-      {step === "not_started" && (
-        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
-          <CardContent className="pt-8 pb-8">
-            <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-8 h-8 text-amber-500" />
-            </div>
-            <h2 className="font-display text-xl font-bold mb-2">{t.access.notStartedTitle}</h2>
-            <p className="text-muted-foreground mb-6">{t.access.notStartedDesc}</p>
-            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
-          </CardContent>
-        </Card>
+      {step === "not_started" && eventDate && (
+        <EventCountdown
+          eventName={eventName}
+          eventDate={eventDate}
+          eventTime={eventTime}
+          language={eventLang}
+          checkinOpensMinutesBefore={checkinMinutes}
+        />
       )}
 
       {step === "expired" && (

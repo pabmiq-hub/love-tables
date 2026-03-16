@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Loader2, Heart, KeyRound, User } from "lucide-react";
+import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,8 @@ const ParticipantCheckin = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
   const [eventExists, setEventExists] = useState<boolean | null>(null);
+  const [checkinNotYetOpen, setCheckinNotYetOpen] = useState(false);
+  const [countdownData, setCountdownData] = useState<{ name: string; date: string; time: string | null; minutes: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -47,7 +50,7 @@ const ParticipantCheckin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before")
+        .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before, name")
         .eq("id", eventId)
         .single();
 
@@ -79,7 +82,13 @@ const ParticipantCheckin = () => {
       }
 
       if (!isCheckinAllowed) {
-        setEventExists(false);
+        setCheckinNotYetOpen(true);
+        setCountdownData({
+          name: data.name,
+          date: data.date,
+          time: (data as any).event_time || null,
+          minutes: checkinMinutes,
+        });
         setIsLoading(false);
         return;
       }
@@ -171,6 +180,20 @@ const ParticipantCheckin = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (checkinNotYetOpen && countdownData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <EventCountdown
+          eventName={countdownData.name}
+          eventDate={countdownData.date}
+          eventTime={countdownData.time}
+          language={eventLang}
+          checkinOpensMinutesBefore={countdownData.minutes}
+        />
       </div>
     );
   }
