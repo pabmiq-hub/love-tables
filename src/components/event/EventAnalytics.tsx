@@ -17,6 +17,13 @@ import {
   HeartHandshake
 } from "lucide-react";
 import {
+  normalizeGender as normalizeGenderShared,
+  normalizePreference,
+  normalizeDatingOrientation,
+  PREF_COLORS as SHARED_PREF_COLORS,
+  GENDER_COLORS as SHARED_GENDER_COLORS,
+} from "@/lib/analyticsNormalization";
+import {
   PieChart,
   Pie,
   Cell,
