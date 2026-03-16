@@ -50,7 +50,7 @@ const ParticipantCheckin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before")
+        .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before, name")
         .eq("id", eventId)
         .single();
 
