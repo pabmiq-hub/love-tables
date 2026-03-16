@@ -357,7 +357,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id')
+      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled')
       .eq('id', eventId)
       .single();
 
@@ -372,6 +372,17 @@ serve(async (req) => {
     if (event.status !== 'pending') {
       return new Response(
         JSON.stringify({ error: 'Las inscripciones para este evento están cerradas' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const socialRegistrationOpen = event.registration_open ?? true;
+    const socialWaitlistEnabled = event.waitlist_enabled ?? false;
+    const socialIsFromWaitlist = body.fromWaitlist === true;
+
+    if (!socialRegistrationOpen && !socialWaitlistEnabled && !socialIsFromWaitlist) {
+      return new Response(
+        JSON.stringify({ error: 'Las inscripciones están cerradas para este evento' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
