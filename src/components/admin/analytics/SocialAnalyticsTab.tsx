@@ -10,22 +10,15 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import type { AnalyticsData, ParticipantRecord, SelectionRecord } from "@/pages/AdminDashboard";
+import {
+  normalizeGender,
+  normalizePreference,
+  normalizeDatingOrientation,
+  PREF_COLORS as SHARED_PREF_COLORS,
+  GENDER_COLORS,
+} from "@/lib/analyticsNormalization";
 
 // ==================== CONSTANTS ====================
-
-const GENDER_NORMALIZE: Record<string, string> = {
-  man: "Hombre", hombre: "Hombre",
-  woman: "Mujer", mujer: "Mujer",
-  "non-binary": "No binario", "no binario": "No binario",
-  otro: "Otro", other: "Otro",
-};
-
-const GENDER_COLORS: Record<string, string> = {
-  Hombre: "hsl(210, 70%, 50%)",
-  Mujer: "hsl(346, 77%, 50%)",
-  "No binario": "hsl(262, 60%, 55%)",
-  Otro: "hsl(240, 5%, 55%)",
-};
 
 const AGE_COLORS = [
   "hsl(346, 77%, 50%)", "hsl(25, 95%, 53%)", "hsl(210, 70%, 50%)",
@@ -57,10 +50,6 @@ function ageToRange(age: number): string {
   if (age < 40) return "35-39";
   if (age < 50) return "40-49";
   return "50+";
-}
-
-function normalizeGender(g: string): string {
-  return GENDER_NORMALIZE[g.toLowerCase().trim()] || g;
 }
 
 // ==================== KPI CARD ====================
