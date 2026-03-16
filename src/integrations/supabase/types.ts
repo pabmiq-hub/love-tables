@@ -62,6 +62,89 @@ export type Database = {
           },
         ]
       }
+      event_waitlist: {
+        Row: {
+          age_range: string | null
+          birth_date: string | null
+          company_name: string | null
+          company_size: string | null
+          created_at: string
+          dating_preference: string | null
+          email: string
+          entity_type: string | null
+          event_id: string
+          gender: string | null
+          id: string
+          is_returning_participant: boolean | null
+          name: string
+          needs: string[] | null
+          phone: string | null
+          position: number
+          preference: string | null
+          preferred_age_range: string | null
+          promoted_at: string | null
+          sector: string | null
+          solutions: string[] | null
+          status: string
+        }
+        Insert: {
+          age_range?: string | null
+          birth_date?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          created_at?: string
+          dating_preference?: string | null
+          email: string
+          entity_type?: string | null
+          event_id: string
+          gender?: string | null
+          id?: string
+          is_returning_participant?: boolean | null
+          name: string
+          needs?: string[] | null
+          phone?: string | null
+          position?: number
+          preference?: string | null
+          preferred_age_range?: string | null
+          promoted_at?: string | null
+          sector?: string | null
+          solutions?: string[] | null
+          status?: string
+        }
+        Update: {
+          age_range?: string | null
+          birth_date?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          created_at?: string
+          dating_preference?: string | null
+          email?: string
+          entity_type?: string | null
+          event_id?: string
+          gender?: string | null
+          id?: string
+          is_returning_participant?: boolean | null
+          name?: string
+          needs?: string[] | null
+          phone?: string | null
+          position?: number
+          preference?: string | null
+          preferred_age_range?: string | null
+          promoted_at?: string | null
+          sector?: string | null
+          solutions?: string[] | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_waitlist_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           avoid_encounters_mode: string
@@ -92,6 +175,7 @@ export type Database = {
           participants_count: number
           professional_config: Json | null
           registration_description: string | null
+          registration_open: boolean
           registration_requirements_enabled: boolean | null
           registration_subtitle: string | null
           rotation_mode: string
@@ -109,6 +193,7 @@ export type Database = {
           table_size: number
           tables: Json | null
           updated_at: string
+          waitlist_enabled: boolean
         }
         Insert: {
           avoid_encounters_mode?: string
@@ -139,6 +224,7 @@ export type Database = {
           participants_count?: number
           professional_config?: Json | null
           registration_description?: string | null
+          registration_open?: boolean
           registration_requirements_enabled?: boolean | null
           registration_subtitle?: string | null
           rotation_mode?: string
@@ -156,6 +242,7 @@ export type Database = {
           table_size?: number
           tables?: Json | null
           updated_at?: string
+          waitlist_enabled?: boolean
         }
         Update: {
           avoid_encounters_mode?: string
@@ -186,6 +273,7 @@ export type Database = {
           participants_count?: number
           professional_config?: Json | null
           registration_description?: string | null
+          registration_open?: boolean
           registration_requirements_enabled?: boolean | null
           registration_subtitle?: string | null
           rotation_mode?: string
@@ -203,6 +291,7 @@ export type Database = {
           table_size?: number
           tables?: Json | null
           updated_at?: string
+          waitlist_enabled?: boolean
         }
         Relationships: []
       }
