@@ -299,11 +299,13 @@ serve(async (req) => {
 
       console.log(`[register-participant] B2B participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
+      const sendCodeNowB2B = shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h);
+
       return new Response(
         JSON.stringify({
           success: true,
           participantId: participant.id,
-          verificationCode: shouldAutoCheckin ? verificationCode : null,
+          verificationCode: sendCodeNowB2B ? verificationCode : null,
           autoCheckedIn: shouldAutoCheckin,
           codeSendMode,
         }),
