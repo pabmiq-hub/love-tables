@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN code_send_mode text NOT NULL DEFAULT 'on_registration';

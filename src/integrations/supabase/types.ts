@@ -151,6 +151,7 @@ export type Database = {
           avoid_previous_encounters: boolean
           checkin_open: boolean | null
           checkin_opens_minutes_before: number | null
+          code_send_mode: string
           completed_rounds: number[] | null
           created_at: string
           current_round: number | null
@@ -200,6 +201,7 @@ export type Database = {
           avoid_previous_encounters?: boolean
           checkin_open?: boolean | null
           checkin_opens_minutes_before?: number | null
+          code_send_mode?: string
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
@@ -249,6 +251,7 @@ export type Database = {
           avoid_previous_encounters?: boolean
           checkin_open?: boolean | null
           checkin_opens_minutes_before?: number | null
+          code_send_mode?: string
           completed_rounds?: number[] | null
           created_at?: string
           current_round?: number | null
