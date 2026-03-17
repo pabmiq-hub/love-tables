@@ -464,6 +464,13 @@ const ParticipantJoin = () => {
         }
       });
       setVerificationCode(data.verificationCode);
+    } else if (data.codeSendMode === 'on_registration' && data.verificationCode) {
+      await supabase.functions.invoke('generate-and-send-code', {
+        body: { participantId: data.participantId, eventId }
+      });
+      await supabase.functions.invoke('send-registration-confirmation', {
+        body: { participantId: data.participantId, eventId }
+      });
     } else {
       await supabase.functions.invoke('send-registration-confirmation', {
         body: {
