@@ -543,12 +543,15 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: shouldAutoCheckin ? verificationCode : null,
+        verificationCode: (shouldAutoCheckin || codeSendMode === 'on_registration') ? verificationCode : null,
         autoCheckedIn: shouldAutoCheckin,
+        codeSendMode,
         isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 
           ? 'Registro completado. Se ha realizado el check-in automático. Recibirás un email con tu código de acceso.'
-          : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
+          : codeSendMode === 'on_registration'
+            ? 'Registro completado. Recibirás un email con tu código de acceso.'
+            : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
