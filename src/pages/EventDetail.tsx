@@ -110,6 +110,7 @@ interface EventData {
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
   super_like_enabled: boolean;
+  code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
 }
