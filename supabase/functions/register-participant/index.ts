@@ -258,8 +258,12 @@ serve(async (req) => {
       const shouldAutoCheckin = new Date() >= oneHourBefore;
       const codeSendMode = event.code_send_mode || 'on_registration';
 
+      // For 'automatic' mode: generate code if <24h before event
+      const twentyFourHoursBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
+      const isWithin24h = new Date() >= twentyFourHoursBefore;
+
       let verificationCode: string | null = null;
-      if (shouldAutoCheckin || codeSendMode === 'on_registration') {
+      if (shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h)) {
         verificationCode = await generateUniqueCode(supabase);
       }
 
@@ -295,11 +299,13 @@ serve(async (req) => {
 
       console.log(`[register-participant] B2B participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
+      const sendCodeNowB2B = shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h);
+
       return new Response(
         JSON.stringify({
           success: true,
           participantId: participant.id,
-          verificationCode: shouldAutoCheckin ? verificationCode : null,
+          verificationCode: sendCodeNowB2B ? verificationCode : null,
           autoCheckedIn: shouldAutoCheckin,
           codeSendMode,
         }),
@@ -488,8 +494,12 @@ serve(async (req) => {
     const shouldAutoCheckin = new Date() >= oneHourBefore;
     const codeSendMode = event.code_send_mode || 'on_registration';
 
+    // For 'automatic' mode: generate code if <24h before event
+    const twentyFourHoursBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
+    const isWithin24h = new Date() >= twentyFourHoursBefore;
+
     let verificationCode: string | null = null;
-    if (shouldAutoCheckin || codeSendMode === 'on_registration') {
+    if (shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h)) {
       verificationCode = await generateUniqueCode(supabase);
     }
 
@@ -539,19 +549,23 @@ serve(async (req) => {
 
     console.log(`[register-participant] Participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
+    const sendCodeNow = shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h);
+
     return new Response(
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: (shouldAutoCheckin || codeSendMode === 'on_registration') ? verificationCode : null,
+        verificationCode: sendCodeNow ? verificationCode : null,
         autoCheckedIn: shouldAutoCheckin,
         codeSendMode,
         isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 
           ? 'Registro completado. Se ha realizado el check-in automático. Recibirás un email con tu código de acceso.'
-          : codeSendMode === 'on_registration'
+          : sendCodeNow
             ? 'Registro completado. Recibirás un email con tu código de acceso.'
-            : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
+            : codeSendMode === 'automatic'
+              ? 'Registro completado. Recibirás tu código de acceso automáticamente 24 horas antes del evento.'
+              : 'Registro completado. Recibirás un email de confirmación. El organizador te enviará tu código de acceso.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

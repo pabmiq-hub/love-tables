@@ -410,23 +410,26 @@ const EventSettingsEditor = ({
 
           {/* Code send mode */}
           <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
+            <div className="flex-1 mr-4">
               <Label className="text-base flex items-center gap-2">
                 <KeyRound className="w-4 h-4" />
                 Envío de códigos de acceso
               </Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 {formCodeSendMode === "on_registration"
-                  ? "El código se envía automáticamente cuando el participante se inscribe"
-                  : "Tú decides cuándo enviar los códigos desde el panel de participantes"}
+                  ? "El código se envía automáticamente junto con la confirmación de inscripción"
+                  : formCodeSendMode === "automatic"
+                    ? "El código se envía automáticamente 24h antes del evento. Si alguien se inscribe con menos de 24h, lo recibe al momento"
+                    : "Tú decides cuándo enviar los códigos manualmente desde el panel de participantes"}
               </p>
             </div>
             <Select value={formCodeSendMode} onValueChange={setFormCodeSendMode}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-52">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="on_registration">Al registrarse</SelectItem>
+                <SelectItem value="automatic">Automático (24h antes)</SelectItem>
                 <SelectItem value="manual">Manual</SelectItem>
               </SelectContent>
             </Select>

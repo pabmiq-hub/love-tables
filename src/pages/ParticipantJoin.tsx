@@ -464,7 +464,7 @@ const ParticipantJoin = () => {
         }
       });
       setVerificationCode(data.verificationCode);
-    } else if (data.codeSendMode === 'on_registration' && data.verificationCode) {
+    } else if ((data.codeSendMode === 'on_registration' || (data.codeSendMode === 'automatic')) && data.verificationCode) {
       await supabase.functions.invoke('generate-and-send-code', {
         body: { participantId: data.participantId, eventId }
       });
@@ -547,7 +547,7 @@ const ParticipantJoin = () => {
         body: { participantId: result.participantId, eventId, baseUrl }
       });
       setVerificationCode(result.verificationCode);
-    } else if (result.codeSendMode === 'on_registration' && result.verificationCode) {
+    } else if ((result.codeSendMode === 'on_registration' || (result.codeSendMode === 'automatic')) && result.verificationCode) {
       await supabase.functions.invoke('generate-and-send-code', {
         body: { participantId: result.participantId, eventId }
       });
@@ -765,7 +765,7 @@ const ParticipantJoin = () => {
           body: { participantId: data.participantId, eventId, baseUrl },
         });
         setVerificationCode(data.verificationCode);
-      } else if (data.codeSendMode === 'on_registration' && data.verificationCode) {
+      } else if ((data.codeSendMode === 'on_registration' || (data.codeSendMode === 'automatic')) && data.verificationCode) {
         await supabase.functions.invoke("generate-and-send-code", {
           body: { participantId: data.participantId, eventId },
         });
