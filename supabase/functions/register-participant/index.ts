@@ -258,8 +258,12 @@ serve(async (req) => {
       const shouldAutoCheckin = new Date() >= oneHourBefore;
       const codeSendMode = event.code_send_mode || 'on_registration';
 
+      // For 'automatic' mode: generate code if <24h before event
+      const twentyFourHoursBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
+      const isWithin24h = new Date() >= twentyFourHoursBefore;
+
       let verificationCode: string | null = null;
-      if (shouldAutoCheckin || codeSendMode === 'on_registration') {
+      if (shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h)) {
         verificationCode = await generateUniqueCode(supabase);
       }
 
