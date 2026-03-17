@@ -168,6 +168,7 @@ const EventSettingsEditor = ({
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
+        code_send_mode: formCodeSendMode,
       };
 
       if (isProfessional) {
