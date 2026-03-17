@@ -288,6 +288,7 @@ const EventDetail = () => {
       checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
       checkin_open: (event as any).checkin_open ?? false,
       super_like_enabled: event.super_like_enabled ?? false,
+      code_send_mode: (event as any).code_send_mode ?? 'on_registration',
       registration_open: (event as any).registration_open ?? true,
       waitlist_enabled: (event as any).waitlist_enabled ?? false,
     });
