@@ -256,9 +256,10 @@ serve(async (req) => {
       const eventDate = new Date(event.date);
       const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
       const shouldAutoCheckin = new Date() >= oneHourBefore;
+      const codeSendMode = event.code_send_mode || 'on_registration';
 
       let verificationCode: string | null = null;
-      if (shouldAutoCheckin) {
+      if (shouldAutoCheckin || codeSendMode === 'on_registration') {
         verificationCode = await generateUniqueCode(supabase);
       }
 
