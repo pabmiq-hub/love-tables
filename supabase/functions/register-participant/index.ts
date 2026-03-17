@@ -159,7 +159,7 @@ serve(async (req) => {
       // Get event
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled')
+        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
         .eq('id', eventId)
         .single();
 
@@ -256,9 +256,10 @@ serve(async (req) => {
       const eventDate = new Date(event.date);
       const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
       const shouldAutoCheckin = new Date() >= oneHourBefore;
+      const codeSendMode = event.code_send_mode || 'on_registration';
 
       let verificationCode: string | null = null;
-      if (shouldAutoCheckin) {
+      if (shouldAutoCheckin || codeSendMode === 'on_registration') {
         verificationCode = await generateUniqueCode(supabase);
       }
 
@@ -300,6 +301,7 @@ serve(async (req) => {
           participantId: participant.id,
           verificationCode: shouldAutoCheckin ? verificationCode : null,
           autoCheckedIn: shouldAutoCheckin,
+          codeSendMode,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -357,7 +359,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled')
+      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
       .eq('id', eventId)
       .single();
 
@@ -484,9 +486,10 @@ serve(async (req) => {
     const eventDate = new Date(event.date);
     const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
     const shouldAutoCheckin = new Date() >= oneHourBefore;
+    const codeSendMode = event.code_send_mode || 'on_registration';
 
     let verificationCode: string | null = null;
-    if (shouldAutoCheckin) {
+    if (shouldAutoCheckin || codeSendMode === 'on_registration') {
       verificationCode = await generateUniqueCode(supabase);
     }
 
@@ -540,12 +543,15 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: shouldAutoCheckin ? verificationCode : null,
+        verificationCode: (shouldAutoCheckin || codeSendMode === 'on_registration') ? verificationCode : null,
         autoCheckedIn: shouldAutoCheckin,
+        codeSendMode,
         isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 
           ? 'Registro completado. Se ha realizado el check-in automático. Recibirás un email con tu código de acceso.'
-          : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
+          : codeSendMode === 'on_registration'
+            ? 'Registro completado. Recibirás un email con tu código de acceso.'
+            : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -110,6 +110,7 @@ interface EventData {
   checkin_opens_minutes_before: number;
   checkin_open: boolean;
   super_like_enabled: boolean;
+  code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
 }
@@ -287,6 +288,7 @@ const EventDetail = () => {
       checkin_opens_minutes_before: (event as any).checkin_opens_minutes_before ?? 60,
       checkin_open: (event as any).checkin_open ?? false,
       super_like_enabled: event.super_like_enabled ?? false,
+      code_send_mode: (event as any).code_send_mode ?? 'on_registration',
       registration_open: (event as any).registration_open ?? true,
       waitlist_enabled: (event as any).waitlist_enabled ?? false,
     });
@@ -4065,6 +4067,7 @@ const EventDetail = () => {
                 emailTemplate={eventData.email_template}
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 superLikeEnabled={eventData.super_like_enabled}
+                codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);

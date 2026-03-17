@@ -29,6 +29,7 @@ interface EventSettingsTabsProps {
   emailTemplate?: any;
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
+  codeSendMode?: string;
   eventStatus?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }

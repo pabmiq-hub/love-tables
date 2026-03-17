@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Eye, ClipboardList, Lock } from "lucide-react";
+import { Loader2, Save, Eye, ClipboardList, Lock, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
@@ -37,6 +37,7 @@ interface EventSettingsEditorProps {
   groupRounds?: GroupRound[] | null;
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
+  codeSendMode?: string;
   eventStatus?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
@@ -64,6 +65,7 @@ const EventSettingsEditor = ({
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
   superLikeEnabled: initialSuperLikeEnabled = false,
+  codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
@@ -94,6 +96,7 @@ const EventSettingsEditor = ({
   );
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
+  const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -165,6 +168,7 @@ const EventSettingsEditor = ({
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
+        code_send_mode: formCodeSendMode,
       };
 
       if (isProfessional) {
@@ -400,6 +404,30 @@ const EventSettingsEditor = ({
                 <SelectItem value="1440">24 horas antes</SelectItem>
                 <SelectItem value="2880">48 horas antes</SelectItem>
                 <SelectItem value="99999">Siempre abierto</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Code send mode */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base flex items-center gap-2">
+                <KeyRound className="w-4 h-4" />
+                Envío de códigos de acceso
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {formCodeSendMode === "on_registration"
+                  ? "El código se envía automáticamente cuando el participante se inscribe"
+                  : "Tú decides cuándo enviar los códigos desde el panel de participantes"}
+              </p>
+            </div>
+            <Select value={formCodeSendMode} onValueChange={setFormCodeSendMode}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="on_registration">Al registrarse</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -1,53 +1,108 @@
 
 
-## Current behavior: When are access codes sent?
+## Plan: Sistema de Plantillas para el Dashboard (Plan Enterprise)
 
-The 6-digit access code is sent automatically in these scenarios:
+### Resumen
 
-1. **Self-registration (ParticipantJoin)**: If the participant registers close to the event (auto check-in), `send-checkin-code` is called immediately. Otherwise, only `send-registration-confirmation` is sent (no code yet).
+Crear una nueva sección **"Plantillas"** en el dashboard del organizador (disponible solo en plan Enterprise), con 3 subsecciones: plantillas de formularios de registro, plantillas de emails, y plantillas de eventos. Además, integrar la selección de plantilla de formulario durante la creación de eventos profesionales.
 
-2. **Admin adds participant manually (EventDetail)**: Both `send-registration-confirmation` AND `generate-and-send-code` are called immediately — the participant gets the code right away.
+### 1. Base de datos — Nueva tabla `organizer_templates`
 
-3. **Admin bulk sends codes (EventDetail)**: The organizer can manually trigger "Enviar códigos" for all participants missing codes.
+Una tabla unificada para almacenar todos los tipos de plantilla:
 
-4. **Excel import (EventDetail)**: After importing, codes are generated and sent to all imported participants with email.
+```sql
+CREATE TABLE organizer_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organizer_id UUID NOT NULL,
+  type TEXT NOT NULL, -- 'registration_form' | 'email' | 'event'
+  subtype TEXT, -- 'social' | 'professional' | 'match_results' | 'registration_confirmation' | 'access_code' | 'reminder'
+  name TEXT NOT NULL,
+  description TEXT,
+  content JSONB NOT NULL DEFAULT '{}',
+  is_default BOOLEAN DEFAULT false,
+  version INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-5. **Check-in (checkin-participant)**: If a participant checks in and didn't have a code, one is generated and emailed.
+-- Historial de cambios
+CREATE TABLE template_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID NOT NULL REFERENCES organizer_templates(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  content JSONB NOT NULL,
+  changed_by TEXT, -- descripción del cambio
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-**The gap**: For self-registered participants (scenario 1, no auto check-in), the code is NOT sent at registration — only the confirmation email. The organizer must later bulk-send codes manually.
+RLS: solo el organizador dueño puede CRUD. Super admin puede gestionar todo.
 
----
+Feature gate: crear un nuevo feature code `templates` asignado al plan Enterprise.
 
-## Plan: Add "Envío de códigos" setting to Event Settings
+### 2. Sección "Plantillas" en el Dashboard
 
-**Goal**: Let the organizer configure WHEN access codes are automatically sent to self-registered participants.
+**Nuevo `DashboardSection`: `"templates"`**
 
-### Database change
-Add column `code_send_mode` to `events` table with values:
-- `'on_registration'` — Send code immediately when participant registers (default for new behavior)
-- `'manual'` — Don't auto-send; organizer sends codes manually (current behavior)
+Archivos a modificar/crear:
+- `AdminSidebar.tsx` — Añadir item "Plantillas" con icono `FileText`, gateado por feature `templates`
+- `AdminDashboard.tsx` — Añadir case `"templates"` en `renderSection()` con gate
+- **Nuevo** `src/components/admin/DashboardTemplates.tsx` — Componente principal con 3 tabs:
 
-Default: `'on_registration'`
+**Tab 1: Formularios de registro**
+- Lista de plantillas tipo `registration_form` con subtipo `social` o `professional`
+- Incluir 2-3 plantillas predefinidas (seed) como "B2B Estándar", "Networking Rápido"
+- Botón "Crear nueva plantilla" → editor de campos del formulario
+- El `content` JSON almacena: campos habilitados, orden, opciones de sectores/necesidades/soluciones, textos personalizados
 
-### UI change: `EventSettingsEditor.tsx`
-Add a new card/section "Envío de códigos de acceso" with a select dropdown:
-- **Al registrarse** (`on_registration`): "El código se envía automáticamente cuando el participante se inscribe"
-- **Manual** (`manual`): "Tú decides cuándo enviar los códigos desde el panel de participantes"
+**Tab 2: Correos electrónicos**
+- Plantillas de email por tipo: confirmación de registro, código de acceso, recordatorio de selección, resultados de matches
+- Reutilizar la interfaz de `EmailTemplateEditor` adaptada para guardar como plantilla
+- Cada plantilla guarda el JSON de `EmailTemplate` o `ProfessionalEmailTemplate`
 
-Place it near the check-in settings (after `checkinOpensMinutesBefore`).
+**Tab 3: Plantillas de eventos**
+- Guardar configuraciones completas de eventos (rounds, table_size, rotation, professional_config, etc.) como plantilla reutilizable
+- Al crear evento: opción de "Usar plantilla" que precarga todos los valores
+- Solo necesita actualizar fecha, lugar y descripción
 
-### Logic change: `ParticipantJoin.tsx`
-After successful registration (non-waitlist, non-auto-checkin path):
-- Fetch the event's `code_send_mode`
-- If `'on_registration'`: call `generate-and-send-code` in addition to `send-registration-confirmation`
-- If `'manual'`: only send `send-registration-confirmation` (current behavior)
+**Cada tab incluye:**
+- Lista con nombre, subtipo, fecha de última modificación
+- Acciones: editar, duplicar, eliminar, ver historial de versiones
+- Al guardar cambios → se crea entrada en `template_versions` con el contenido anterior
 
-### Logic change: `register-participant/index.ts`
-Return `codeSendMode` from the event data so the frontend knows which path to take (or handle it server-side in the edge function itself for cleaner architecture).
+### 3. Selección de formulario al crear evento profesional
 
-### Files to modify
-1. **Migration**: Add `code_send_mode text not null default 'on_registration'` to `events`
-2. **EventSettingsEditor.tsx**: Add the setting UI with Select dropdown
-3. **ParticipantJoin.tsx**: Conditionally call `generate-and-send-code` based on mode
-4. **EventDetail.tsx**: Pass new prop to settings editor; ensure manual add still always sends code regardless of mode
+En `CreateEvent.tsx`, añadir un paso intermedio después de seleccionar módulo "professional":
+
+**"¿Cómo quieres gestionar el formulario de registro?"**
+- 🤖 **Formulario automático** — Usa el formulario B2B estándar con las opciones del `professional_config`
+- 📋 **Usar una plantilla guardada** — Selector con las plantillas tipo `registration_form` + subtipo `professional` del organizador
+- ✏️ **Crear formulario personalizado** — Abre el editor inline para configurar campos específicos para este evento
+
+La elección se guarda en `professional_config.registration_form_mode`: `"auto" | "template" | "custom"` y opcionalmente `professional_config.registration_template_id`.
+
+En `ParticipantJoin.tsx`, el `B2BRegistrationForm` leerá el modo y, si es `template`, cargará la configuración de la plantilla para determinar qué campos mostrar y con qué opciones.
+
+### 4. Archivos a crear/modificar
+
+| Archivo | Acción |
+|---|---|
+| `src/components/admin/DashboardTemplates.tsx` | **Crear** — Página principal con 3 tabs |
+| `src/components/admin/templates/FormTemplateEditor.tsx` | **Crear** — Editor de plantillas de formulario |
+| `src/components/admin/templates/EmailTemplateManager.tsx` | **Crear** — Gestión de plantillas de email |
+| `src/components/admin/templates/EventTemplateManager.tsx` | **Crear** — Gestión de plantillas de evento |
+| `src/components/admin/templates/VersionHistoryModal.tsx` | **Crear** — Modal de historial de versiones |
+| `src/components/admin/AdminSidebar.tsx` | **Editar** — Añadir item "Plantillas" |
+| `src/pages/AdminDashboard.tsx` | **Editar** — Añadir section "templates" |
+| `src/pages/CreateEvent.tsx` | **Editar** — Paso de selección de formulario para profesional |
+| `src/pages/ParticipantJoin.tsx` | **Editar** — Cargar config de plantilla si aplica |
+| `src/i18n/translations.ts` | **Editar** — Traducciones para templates |
+| Migración SQL | **Crear** — Tablas `organizer_templates` + `template_versions` + feature `templates` + asignar a plan Enterprise |
+
+### 5. Feature gating
+
+- Nueva feature `templates` en tabla `features`
+- Asignar a plan Enterprise en `plan_features`
+- En sidebar y dashboard, mostrar con candado si no tiene la feature
+- Mostrar `UpgradePrompt` al intentar acceder sin el plan adecuado
 
