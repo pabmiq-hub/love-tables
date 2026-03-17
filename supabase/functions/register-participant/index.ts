@@ -301,6 +301,7 @@ serve(async (req) => {
           participantId: participant.id,
           verificationCode: shouldAutoCheckin ? verificationCode : null,
           autoCheckedIn: shouldAutoCheckin,
+          codeSendMode,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
