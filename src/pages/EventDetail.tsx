@@ -4065,6 +4065,7 @@ const EventDetail = () => {
                 emailTemplate={eventData.email_template}
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 superLikeEnabled={eventData.super_like_enabled}
+                codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
