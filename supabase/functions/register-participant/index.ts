@@ -159,7 +159,7 @@ serve(async (req) => {
       // Get event
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled')
+        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
         .eq('id', eventId)
         .single();
 
