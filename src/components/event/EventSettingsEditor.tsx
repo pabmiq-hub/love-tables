@@ -408,6 +408,30 @@ const EventSettingsEditor = ({
             </Select>
           </div>
 
+          {/* Code send mode */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <Label className="text-base flex items-center gap-2">
+                <KeyRound className="w-4 h-4" />
+                Envío de códigos de acceso
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {formCodeSendMode === "on_registration"
+                  ? "El código se envía automáticamente cuando el participante se inscribe"
+                  : "Tú decides cuándo enviar los códigos desde el panel de participantes"}
+              </p>
+            </div>
+            <Select value={formCodeSendMode} onValueChange={setFormCodeSendMode}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="on_registration">Al registrarse</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Registration Form Customization */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center justify-between">
