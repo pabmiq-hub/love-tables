@@ -65,6 +65,7 @@ const EventSettingsEditor = ({
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
   superLikeEnabled: initialSuperLikeEnabled = false,
+  codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   onUpdate,
 }: EventSettingsEditorProps) => {
