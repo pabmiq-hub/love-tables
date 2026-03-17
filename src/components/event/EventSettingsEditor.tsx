@@ -37,6 +37,7 @@ interface EventSettingsEditorProps {
   groupRounds?: GroupRound[] | null;
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
+  codeSendMode?: string;
   eventStatus?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
