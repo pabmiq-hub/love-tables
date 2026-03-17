@@ -547,19 +547,23 @@ serve(async (req) => {
 
     console.log(`[register-participant] Participant registered: ${participant.id}, autoCheckin: ${shouldAutoCheckin}`);
 
+    const sendCodeNow = shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h);
+
     return new Response(
       JSON.stringify({ 
         success: true,
         participantId: participant.id,
-        verificationCode: (shouldAutoCheckin || codeSendMode === 'on_registration') ? verificationCode : null,
+        verificationCode: sendCodeNow ? verificationCode : null,
         autoCheckedIn: shouldAutoCheckin,
         codeSendMode,
         isReturningParticipant: isActuallyReturning,
         message: shouldAutoCheckin 
           ? 'Registro completado. Se ha realizado el check-in automático. Recibirás un email con tu código de acceso.'
-          : codeSendMode === 'on_registration'
+          : sendCodeNow
             ? 'Registro completado. Recibirás un email con tu código de acceso.'
-            : 'Registro completado. Recibirás un email de confirmación. El día del evento, al hacer check-in, recibirás tu código personal.'
+            : codeSendMode === 'automatic'
+              ? 'Registro completado. Recibirás tu código de acceso automáticamente 24 horas antes del evento.'
+              : 'Registro completado. Recibirás un email de confirmación. El organizador te enviará tu código de acceso.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
