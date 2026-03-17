@@ -547,7 +547,7 @@ const ParticipantJoin = () => {
         body: { participantId: result.participantId, eventId, baseUrl }
       });
       setVerificationCode(result.verificationCode);
-    } else if (result.codeSendMode === 'on_registration' && result.verificationCode) {
+    } else if ((result.codeSendMode === 'on_registration' || (result.codeSendMode === 'automatic')) && result.verificationCode) {
       await supabase.functions.invoke('generate-and-send-code', {
         body: { participantId: result.participantId, eventId }
       });
