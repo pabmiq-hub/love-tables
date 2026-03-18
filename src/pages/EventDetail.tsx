@@ -2450,6 +2450,9 @@ const EventDetail = () => {
         })
         .eq("id", id);
 
+      // Mark no-show participants
+      await markNoShowParticipants();
+
       setEventStatus("completed");
       
       const { data, error } = await supabase.functions.invoke('send-match-emails', {
