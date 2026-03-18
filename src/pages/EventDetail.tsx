@@ -643,7 +643,7 @@ const EventDetail = () => {
     setShowTableConfirmDialog(false);
     toast({
       title: "Evento iniciado",
-      description: `${nonCheckedInIds.length > 0 ? `Se eliminaron ${nonCheckedInIds.length} participantes sin check-in. ` : ""}Las mesas han sido generadas.`,
+      description: `${nonCheckedInParticipants.length > 0 ? `${nonCheckedInParticipants.length} participantes sin check-in en el banco. ` : ""}Las mesas han sido generadas.`,
     });
   };
 
