@@ -3000,9 +3000,9 @@ const EventDetail = () => {
                     <div>
                       <CardTitle>Lista de Participantes</CardTitle>
                       <CardDescription>
-                        {filteredParticipants.length === participants.length 
-                          ? `${participants.length} personas registradas`
-                          : `Mostrando ${filteredParticipants.length} de ${participants.length} participantes`
+                        {filteredParticipants.length === activeParticipants.length 
+                          ? `${activeParticipants.length} personas${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
+                          : `Mostrando ${filteredParticipants.length} de ${activeParticipants.length} participantes${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
                         }
                       </CardDescription>
                     </div>
