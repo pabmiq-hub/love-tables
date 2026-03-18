@@ -2406,6 +2406,9 @@ const EventDetail = () => {
         })
         .eq("id", id);
 
+      // Mark no-show participants
+      await markNoShowParticipants();
+
       setEventStatus("completed");
       await loadEventData();
       setShowCloseEventDialog(false);
