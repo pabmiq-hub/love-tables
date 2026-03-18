@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil, Check, X, Mail } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -110,26 +111,19 @@ const InlineEmailEditor = ({
   }
 
   return (
-    <div className="flex items-center gap-1">
-      {currentEmail ? (
-        <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={currentEmail}>
-          {currentEmail}
-        </span>
-      ) : (
-        <span className="text-xs text-destructive flex items-center gap-1">
-          <Mail className="w-3 h-3" />
-          Sin email
-        </span>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-5 w-5 text-muted-foreground hover:text-primary"
-        onClick={() => setIsEditing(true)}
-      >
-        <Pencil className="w-3 h-3" />
-      </Button>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-primary"
+          onClick={() => setIsEditing(true)}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{currentEmail ? "Editar email" : "Añadir email"}</TooltipContent>
+    </Tooltip>
   );
 };
 
