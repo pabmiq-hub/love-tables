@@ -53,19 +53,8 @@ const getGenderConfig = (gender: string | null) => {
   }
 };
 
-const getInitialColor = (name: string) => {
-  const colors = [
-    "from-pink-500 to-rose-400",
-    "from-violet-500 to-purple-400",
-    "from-blue-500 to-cyan-400",
-    "from-emerald-500 to-teal-400",
-    "from-amber-500 to-orange-400",
-    "from-red-500 to-pink-400",
-    "from-indigo-500 to-blue-400",
-    "from-fuchsia-500 to-pink-400",
-  ];
-  const index = name.charCodeAt(0) % colors.length;
-  return colors[index];
+const getInitialColor = () => {
+  return "from-primary to-primary/70";
 };
 
 const ParticipantCard = ({
@@ -81,7 +70,7 @@ const ParticipantCard = ({
   onEmailUpdated,
 }: ParticipantCardProps) => {
   const genderConfig = getGenderConfig(participant.gender);
-  const gradientColor = getInitialColor(participant.name);
+  const gradientColor = getInitialColor();
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
 
   return (
