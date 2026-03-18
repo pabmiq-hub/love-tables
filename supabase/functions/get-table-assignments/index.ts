@@ -238,6 +238,8 @@ serve(async (req) => {
       JSON.stringify({ 
         participantName: anonymizeName(participant.name),
         participantPreference: participant.preference,
+        participantDatingPreference: participant.dating_preference,
+        participantGender: participant.gender,
         assignments: finalAssignments,
         existingSelections,
         currentRound,
