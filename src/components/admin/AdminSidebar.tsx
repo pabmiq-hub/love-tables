@@ -14,7 +14,7 @@ import {
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useFeatures } from "@/hooks/useFeatures";
 
-export type DashboardSection = "home" | "events" | "analytics" | "email" | "settings" | "branding" | "templates";
+export type DashboardSection = "home" | "events" | "analytics" | "users" | "email" | "settings" | "branding" | "templates";
 
 // Map sidebar items to feature codes (null means always visible)
 const featureMap: Partial<Record<DashboardSection, string>> = {
