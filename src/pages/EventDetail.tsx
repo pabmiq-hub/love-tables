@@ -566,16 +566,21 @@ const EventDetail = () => {
   };
 
   const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
-    // Store original participants count BEFORE deleting non-checked-in
+    // Store original participants count BEFORE filtering
     const originalCount = participants.length;
     
-    // Remove non-checked-in participants from database
-    const nonCheckedInIds = participants.filter(p => !p.checked_in).map(p => p.id);
-    if (nonCheckedInIds.length > 0) {
+    // Keep non-checked-in participants as bench (don't delete them)
+    // Mark them as no-show in global_participants for CRM tracking
+    const nonCheckedInParticipants = participants.filter(p => !p.checked_in);
+    const noShowGlobalIds = nonCheckedInParticipants
+      .filter(p => p.global_participant_id)
+      .map(p => p.global_participant_id as string);
+    
+    if (noShowGlobalIds.length > 0) {
       await supabase
-        .from("participants")
-        .delete()
-        .in("id", nonCheckedInIds);
+        .from("global_participants")
+        .update({ status: "no_show", updated_at: new Date().toISOString() })
+        .in("id", noShowGlobalIds);
     }
 
     // Save tables and update status, set current_round to 1 to start
@@ -626,7 +631,8 @@ const EventDetail = () => {
     
     setCurrentRound(1);
 
-    setParticipants(checkedInParticipants);
+    // Keep all participants in state (bench + active)
+    setParticipants(participants);
     setEventData(prev => prev ? { 
       ...prev, 
       tables: generatedTables, 
@@ -638,7 +644,7 @@ const EventDetail = () => {
     setShowTableConfirmDialog(false);
     toast({
       title: "Evento iniciado",
-      description: `${nonCheckedInIds.length > 0 ? `Se eliminaron ${nonCheckedInIds.length} participantes sin check-in. ` : ""}Las mesas han sido generadas.`,
+      description: `${nonCheckedInParticipants.length > 0 ? `${nonCheckedInParticipants.length} participantes sin check-in en el banco. ` : ""}Las mesas han sido generadas.`,
     });
   };
 
@@ -2617,7 +2623,16 @@ const EventDetail = () => {
   };
 
   // Filter and sort participants
-  const filteredParticipants = participants
+  // Separate bench participants (not checked in during active/completed events)
+  const benchParticipants = (eventStatus === "active" || eventStatus === "completed") 
+    ? participants.filter(p => !p.checked_in) 
+    : [];
+  
+  const activeParticipants = (eventStatus === "active" || eventStatus === "completed")
+    ? participants.filter(p => p.checked_in)
+    : participants;
+
+  const filteredParticipants = activeParticipants
     .filter(p => {
       // Search by name or company name (for professional)
       if (searchTerm) {
@@ -2985,9 +3000,9 @@ const EventDetail = () => {
                     <div>
                       <CardTitle>Lista de Participantes</CardTitle>
                       <CardDescription>
-                        {filteredParticipants.length === participants.length 
-                          ? `${participants.length} personas registradas`
-                          : `Mostrando ${filteredParticipants.length} de ${participants.length} participantes`
+                        {filteredParticipants.length === activeParticipants.length 
+                          ? `${activeParticipants.length} personas${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
+                          : `Mostrando ${filteredParticipants.length} de ${activeParticipants.length} participantes${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
                         }
                       </CardDescription>
                     </div>
@@ -3455,6 +3470,87 @@ const EventDetail = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Bench section - participants who didn't check in */}
+            {benchParticipants.length > 0 && (eventStatus === "active" || eventStatus === "completed") && (
+              <Card className="mt-4 border-dashed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <UserX className="w-4 h-4 text-muted-foreground" />
+                    Banco de participantes
+                  </CardTitle>
+                  <CardDescription>
+                    {benchParticipants.length} participantes sin check-in. Puedes incorporarlos al evento.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {benchParticipants.map((participant) => (
+                      <div key={participant.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="font-medium text-sm">{participant.name}</p>
+                            <p className="text-xs text-muted-foreground">{participant.email || participant.phone || 'Sin contacto'}</p>
+                          </div>
+                          {participant.gender && (
+                            <Badge variant="secondary" className="text-xs">{participant.gender}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {eventStatus === "active" && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={async () => {
+                                // Check in the participant
+                                await supabase
+                                  .from("participants")
+                                  .update({ checked_in: true })
+                                  .eq("id", participant.id);
+                                
+                                // Update global participant status back to active
+                                if (participant.global_participant_id) {
+                                  await supabase
+                                    .from("global_participants")
+                                    .update({ status: "active", updated_at: new Date().toISOString() })
+                                    .eq("id", participant.global_participant_id);
+                                }
+                                
+                                // Update local state
+                                const updatedParticipant = { ...participant, checked_in: true };
+                                setParticipants(prev => prev.map(p => p.id === participant.id ? updatedParticipant : p));
+                                
+                                // Open table assignment modal if tables exist
+                                if (eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+                                  setPendingNewParticipant(updatedParticipant);
+                                  setShowTableAssignmentModal(true);
+                                }
+                                
+                                toast({
+                                  title: "Participante incorporado",
+                                  description: `${participant.name} ha sido añadido al evento`,
+                                });
+                              }}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Incorporar
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteParticipant(participant.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="waitlist">
