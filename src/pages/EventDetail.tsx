@@ -3945,6 +3945,51 @@ const EventDetail = () => {
                         </Button>
                       );
                     })}
+                    {(eventStatus === "active" || eventStatus === "completed") && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddRound}
+                          className="border-dashed"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Ronda
+                        </Button>
+                        {tables.length > 1 && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-dashed text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />
+                                Quitar R{viewingRound}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar Ronda {viewingRound}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se eliminará la Ronda {viewingRound} y se renumerarán las rondas restantes.
+                                  {completedRounds.includes(viewingRound) && " Esta ronda ya fue completada — los encuentros registrados no se eliminarán."}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteRound(viewingRound)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar ronda
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Legend */}
