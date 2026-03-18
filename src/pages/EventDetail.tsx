@@ -1911,6 +1911,10 @@ const EventDetail = () => {
   };
 
   const handleDeleteParticipant = async (participantId: string) => {
+    // Get global_participant_id before deleting
+    const deletedParticipant = participants.find(p => p.id === participantId);
+    const globalId = deletedParticipant?.global_participant_id;
+
     const { error } = await supabase
       .from("participants")
       .delete()
@@ -1933,6 +1937,14 @@ const EventDetail = () => {
       .from("events")
       .update({ participants_count: newParticipants.length })
       .eq("id", id);
+
+    // Update global_participant status to 'removed'
+    if (globalId) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "removed", updated_at: new Date().toISOString() })
+        .eq("id", globalId);
+    }
     
     toast({
       title: "Participante eliminado",
@@ -2045,6 +2057,11 @@ const EventDetail = () => {
   };
 
   const handleDeleteAllParticipants = async () => {
+    // Collect global_participant_ids before deleting
+    const globalIds = participants
+      .map(p => p.global_participant_id)
+      .filter((gid): gid is string => !!gid);
+
     const { error } = await supabase
       .from("participants")
       .delete()
@@ -2065,6 +2082,14 @@ const EventDetail = () => {
       .from("events")
       .update({ participants_count: 0 })
       .eq("id", id);
+
+    // Mark all global_participants as 'removed'
+    if (globalIds.length > 0) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "removed", updated_at: new Date().toISOString() })
+        .in("id", globalIds);
+    }
 
     toast({
       title: "Participantes eliminados",
@@ -2139,11 +2164,27 @@ const EventDetail = () => {
     });
   };
 
+  const markNoShowParticipants = async () => {
+    const noShowGlobalIds = participants
+      .filter(p => !p.checked_in && p.global_participant_id)
+      .map(p => p.global_participant_id as string);
+    
+    if (noShowGlobalIds.length > 0) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "no_show", updated_at: new Date().toISOString() })
+        .in("id", noShowGlobalIds);
+    }
+  };
+
   const handleEndEvent = async () => {
     await supabase
       .from("events")
       .update({ status: "completed" })
       .eq("id", id);
+
+    // Mark participants who didn't check in as no-show
+    await markNoShowParticipants();
 
     setEventStatus("completed");
     setShowQR(true);
@@ -2364,6 +2405,9 @@ const EventDetail = () => {
           scheduled_email_at: scheduledAt.toISOString(),
         })
         .eq("id", id);
+
+      // Mark no-show participants
+      await markNoShowParticipants();
 
       setEventStatus("completed");
       await loadEventData();
