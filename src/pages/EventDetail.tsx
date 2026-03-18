@@ -2164,11 +2164,27 @@ const EventDetail = () => {
     });
   };
 
+  const markNoShowParticipants = async () => {
+    const noShowGlobalIds = participants
+      .filter(p => !p.checked_in && p.global_participant_id)
+      .map(p => p.global_participant_id as string);
+    
+    if (noShowGlobalIds.length > 0) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "no_show", updated_at: new Date().toISOString() })
+        .in("id", noShowGlobalIds);
+    }
+  };
+
   const handleEndEvent = async () => {
     await supabase
       .from("events")
       .update({ status: "completed" })
       .eq("id", id);
+
+    // Mark participants who didn't check in as no-show
+    await markNoShowParticipants();
 
     setEventStatus("completed");
     setShowQR(true);
