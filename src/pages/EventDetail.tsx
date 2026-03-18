@@ -631,7 +631,8 @@ const EventDetail = () => {
     
     setCurrentRound(1);
 
-    setParticipants(checkedInParticipants);
+    // Keep all participants in state (bench + active)
+    setParticipants(participants);
     setEventData(prev => prev ? { 
       ...prev, 
       tables: generatedTables, 
