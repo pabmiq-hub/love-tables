@@ -207,10 +207,10 @@ serve(async (req) => {
       supabase.from('participant_selections').select('selected_id, selection_type').eq('event_id', eventId).eq('selector_id', participant.id)
     ]);
 
-    const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null }>();
+    const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
     if (preferencesResult.data) {
       for (const p of preferencesResult.data) {
-        preferencesMap.set(p.id, { preference: p.preference, dating_preference: p.dating_preference });
+        preferencesMap.set(p.id, { preference: p.preference, dating_preference: p.dating_preference, gender: p.gender });
       }
     }
 
