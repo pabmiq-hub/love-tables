@@ -16,6 +16,7 @@ import { DashboardEmail } from "@/components/admin/DashboardEmail";
 import { DashboardSettings } from "@/components/admin/DashboardSettings";
 import { DashboardBranding } from "@/components/admin/DashboardBranding";
 import { DashboardTemplates } from "@/components/admin/DashboardTemplates";
+import { DashboardUsers } from "@/components/admin/DashboardUsers";
 
 interface Event {
   id: string;
