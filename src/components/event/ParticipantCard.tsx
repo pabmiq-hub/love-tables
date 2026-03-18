@@ -19,15 +19,15 @@ interface ParticipantCardProps {
   participant: {
     id: string;
     name: string;
-    email: string | null;
-    phone: string | null;
-    gender: string | null;
-    age_range: string | null;
-    preference: string | null;
-    entity_type: string | null;
-    company_name: string | null;
-    checked_in: boolean | null;
-    verification_code: string | null;
+    email?: string | null;
+    phone?: string | null;
+    gender?: string | null;
+    age_range?: string | null;
+    preference?: string | null;
+    entity_type?: string | null;
+    company_name?: string | null;
+    checked_in?: boolean | null;
+    verification_code?: string | null;
     created_at: string;
     dating_preference?: string | null;
   };
