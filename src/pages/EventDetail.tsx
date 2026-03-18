@@ -28,6 +28,7 @@ import SelectionProgress from "@/components/event/SelectionProgress";
 import SelectionsViewer from "@/components/event/SelectionsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
+import ParticipantCard from "@/components/event/ParticipantCard";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
@@ -3387,131 +3388,21 @@ const EventDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-2 sm:gap-3">
+                  <div className="grid gap-3">
                     {filteredParticipants.map((participant, index) => (
-                      <div 
+                      <ParticipantCard
                         key={participant.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg animate-fade-in cursor-pointer hover:shadow-md transition-shadow gap-2 sm:gap-4 ${
-                          participant.checked_in ? "bg-primary/10 border border-primary/20" : "bg-muted/50"
-                        }`}
-                        style={{ animationDelay: `${index * 0.05}s` }}
-                        onClick={() => setSelectedParticipant(participant)}
-                      >
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium shrink-0 text-sm sm:text-base ${
-                            participant.checked_in 
-                              ? "bg-primary text-primary-foreground" 
-                              : "bg-gradient-primary text-primary-foreground"
-                          }`}>
-                            {participant.checked_in ? "✓" : participant.name.charAt(0)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium flex items-center gap-2 text-sm sm:text-base truncate">
-                              <span className="truncate">{participant.name}</span>
-                              {participant.checked_in && (
-                                <span className="text-xs bg-primary/20 text-primary px-1.5 sm:px-2 py-0.5 rounded-full shrink-0 hidden sm:inline">✅</span>
-                              )}
-                            </p>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              {isProfessionalEvent ? (
-                                <>
-                                  {participant.company_name || "Sin empresa"} • {participant.entity_type === "client" ? "Cliente" : participant.entity_type === "provider" ? "Proveedor" : participant.entity_type || ""}
-                                </>
-                              ) : (
-                                <>
-                                  {participant.age_range || "Sin rango"} • {participant.preference?.split(' ')[0] || ""}
-                                </>
-                              )}
-                              {participant.created_at && (
-                                <span className="ml-1">• 📅 {new Date(participant.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                              )}
-                            {participant.verification_code ? (
-                                <span className="ml-1 font-mono text-xs text-primary">🔑 {participant.verification_code}</span>
-                              ) : (
-                                <span className="ml-1 text-xs text-muted-foreground">• Sin código</span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-2 justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedParticipant(participant)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <div className="hidden md:block">
-                            <InlineEmailEditor
-                              participantId={participant.id}
-                              currentEmail={participant.email}
-                              onEmailUpdated={(newEmail) => handleUpdateParticipantEmail(participant.id, newEmail)}
-                            />
-                          </div>
-                          {/* Show gender badge for social events, entity type for professional */}
-                          <span className="hidden sm:block">
-                            {isProfessionalEvent ? (
-                              participant.entity_type && (
-                                <Badge variant="secondary" className={participant.entity_type === "client" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"}>
-                                  {participant.entity_type === "client" ? "Cliente" : "Proveedor"}
-                                </Badge>
-                              )
-                            ) : (
-                              getGenderBadge(participant.gender)
-                            )}
-                          </span>
-                          {eventStatus === "pending" && (
-                            <Button
-                              variant={participant.checked_in ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleToggleCheckin(participant.id, participant.checked_in)}
-                              className={`h-8 px-2 ${participant.checked_in ? "bg-primary hover:bg-primary/90" : ""}`}
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {participant.email && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 px-2"
-                                  disabled={isSendingCode === participant.id}
-                                  onClick={() => handleSendCode(participant.id)}
-                                >
-                                  {isSendingCode === participant.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Send className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
-                            </Tooltip>
-                          )}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  ¿Estás seguro de que quieres eliminar a {participant.name}?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteParticipant(participant.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
+                        participant={participant}
+                        index={index}
+                        isProfessional={isProfessionalEvent}
+                        eventStatus={eventStatus}
+                        isSendingCode={isSendingCode}
+                        onView={() => setSelectedParticipant(participant)}
+                        onToggleCheckin={handleToggleCheckin}
+                        onSendCode={handleSendCode}
+                        onDelete={handleDeleteParticipant}
+                        onEmailUpdated={handleUpdateParticipantEmail}
+                      />
                     ))}
                   </div>
                 )}
