@@ -246,12 +246,32 @@ serve(async (req) => {
       );
     }
 
-    if (!validParticipants || validParticipants.length !== selectedIds.length) {
-      console.error('[submit-selections] Some selected participants are not valid');
-      return new Response(
-        JSON.stringify({ error: 'Algunos participantes seleccionados no son válidos' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    const validParticipantIds = new Set(validParticipants?.map(p => p.id) || []);
+    
+    if (validParticipantIds.size < selectedIds.length) {
+      const invalidIds = selectedIds.filter(id => !validParticipantIds.has(id));
+      console.warn(`[submit-selections] Filtering out ${invalidIds.length} invalid participant IDs: ${invalidIds.join(', ')}`);
+      // Filter newSelections to only include valid participants instead of rejecting the whole request
+      const filteredSelections = newSelections.filter(
+        (s: { selected_id: string }) => validParticipantIds.has(s.selected_id)
       );
+      
+      if (filteredSelections.length === 0) {
+        console.log('[submit-selections] No valid selections remaining after filtering, marking as submitted');
+        await supabase
+          .from('participants')
+          .update({ selection_submitted_at: new Date().toISOString() })
+          .eq('id', selectorId);
+        
+        return new Response(
+          JSON.stringify({ success: true, count: 0, message: 'Selecciones registradas correctamente' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Replace newSelections with filtered ones for the rest of the flow
+      newSelections.length = 0;
+      newSelections.push(...filteredSelections);
     }
 
     // Verify selector is not selecting themselves
