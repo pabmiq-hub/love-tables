@@ -28,6 +28,7 @@ import SelectionProgress from "@/components/event/SelectionProgress";
 import SelectionsViewer from "@/components/event/SelectionsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
+import ParticipantCard from "@/components/event/ParticipantCard";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
