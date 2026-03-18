@@ -2623,7 +2623,16 @@ const EventDetail = () => {
   };
 
   // Filter and sort participants
-  const filteredParticipants = participants
+  // Separate bench participants (not checked in during active/completed events)
+  const benchParticipants = (eventStatus === "active" || eventStatus === "completed") 
+    ? participants.filter(p => !p.checked_in) 
+    : [];
+  
+  const activeParticipants = (eventStatus === "active" || eventStatus === "completed")
+    ? participants.filter(p => p.checked_in)
+    : participants;
+
+  const filteredParticipants = activeParticipants
     .filter(p => {
       // Search by name or company name (for professional)
       if (searchTerm) {
