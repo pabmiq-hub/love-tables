@@ -208,6 +208,8 @@ const EventDetail = () => {
   const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
   const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
+  const [showTableEditor, setShowTableEditor] = useState(false);
+  const [editingRoundData, setEditingRoundData] = useState<any>(null);
   
   
   // Participant filters - Social
