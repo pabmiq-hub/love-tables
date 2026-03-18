@@ -3918,7 +3918,7 @@ const EventDetail = () => {
                             Editar mesas
                           </Button>
                         )}
-
+                        {eventStatus === "active" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm">
