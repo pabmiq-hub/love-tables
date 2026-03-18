@@ -1,4 +1,4 @@
-import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock, FileText } from "lucide-react";
+import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock, FileText, UsersRound } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,11 +14,12 @@ import {
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useFeatures } from "@/hooks/useFeatures";
 
-export type DashboardSection = "home" | "events" | "analytics" | "email" | "settings" | "branding" | "templates";
+export type DashboardSection = "home" | "events" | "analytics" | "users" | "email" | "settings" | "branding" | "templates";
 
 // Map sidebar items to feature codes (null means always visible)
 const featureMap: Partial<Record<DashboardSection, string>> = {
   analytics: "analytics",
+  users: "crm",
   email: "auto_emails",
   branding: "custom_branding",
   templates: "templates",
@@ -40,6 +41,7 @@ const navItems: { id: DashboardSection; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Inicio", icon: Home },
   { id: "events", label: "Eventos", icon: Calendar },
   { id: "analytics", label: "Analítica", icon: BarChart3 },
+  { id: "users", label: "Usuarios", icon: UsersRound },
   { id: "email", label: "Email", icon: Mail },
   { id: "templates", label: "Plantillas", icon: FileText },
   { id: "settings", label: "Configuración", icon: Settings },

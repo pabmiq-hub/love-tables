@@ -16,6 +16,7 @@ import { DashboardEmail } from "@/components/admin/DashboardEmail";
 import { DashboardSettings } from "@/components/admin/DashboardSettings";
 import { DashboardBranding } from "@/components/admin/DashboardBranding";
 import { DashboardTemplates } from "@/components/admin/DashboardTemplates";
+import { DashboardUsers } from "@/components/admin/DashboardUsers";
 
 interface Event {
   id: string;
@@ -251,6 +252,11 @@ const AdminDashboard = () => {
           return <UpgradePrompt title="Analítica avanzada" description="Accede a estadísticas detalladas de tus eventos, participantes y matches" onUpgrade={() => window.open("/#pricing", "_blank")} />;
         }
         return <DashboardAnalytics data={analyticsData} />;
+      case "users":
+        if (!hasFeature("crm") && !isSuperAdmin) {
+          return <UpgradePrompt title="CRM de Usuarios" description="Gestiona tu base de datos de participantes, detecta duplicados y envía campañas de remarketing" onUpgrade={() => window.open("/#pricing", "_blank")} />;
+        }
+        return <DashboardUsers />;
       case "email":
         if (!hasFeature("auto_emails") && !isSuperAdmin) {
           return <UpgradePrompt title="Gestión de email avanzada" description="Configura tu dominio propio y envía emails personalizados desde tu marca" onUpgrade={() => window.open("/#pricing", "_blank")} />;
