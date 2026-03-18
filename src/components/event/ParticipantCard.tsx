@@ -28,7 +28,7 @@ interface ParticipantCardProps {
     company_name?: string | null;
     checked_in?: boolean | null;
     verification_code?: string | null;
-    created_at: string;
+    created_at?: string;
     dating_preference?: string | null;
   };
   index: number;
