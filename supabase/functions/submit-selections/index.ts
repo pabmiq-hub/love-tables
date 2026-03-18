@@ -234,7 +234,7 @@ serve(async (req) => {
     
     const { data: validParticipants, error: validError } = await supabase
       .from('participants')
-      .select('id')
+      .select('id, preference, dating_preference, gender')
       .eq('event_id', eventId)
       .in('id', selectedIds);
 
