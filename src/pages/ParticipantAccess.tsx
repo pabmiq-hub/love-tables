@@ -40,6 +40,35 @@ type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "n
 
 const SESSION_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour after event
 
+/**
+ * Check bilateral dating preference compatibility based on gender and orientation.
+ * Both participants must match each other's search criteria.
+ */
+const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
+  const openPrefs = ["Estoy abierto a todo", "Estoy abierta a todo", "Estoy abierto/a a todo", "No binario", "I'm open to all", "I am open to all", "Non-binary"];
+  if (openPrefs.some(o => pref1.includes(o)) || openPrefs.some(o => pref2.includes(o))) return true;
+
+  const p1LookingForWoman = pref1.includes("busco una mujer") || pref1.includes("looking for a woman");
+  const p1LookingForMan = pref1.includes("busco un hombre") || pref1.includes("looking for a man");
+  const p2LookingForWoman = pref2.includes("busco una mujer") || pref2.includes("looking for a woman");
+  const p2LookingForMan = pref2.includes("busco un hombre") || pref2.includes("looking for a man");
+
+  const p1IsWoman = gender1 === "Mujer" || gender1 === "Woman" || pref1.includes("Soy una mujer") || pref1.includes("I'm a woman") || pref1.includes("I am a woman");
+  const p1IsMan = gender1 === "Hombre" || gender1 === "Man" || pref1.includes("Soy un hombre") || pref1.includes("I'm a man") || pref1.includes("I am a man");
+  const p2IsWoman = gender2 === "Mujer" || gender2 === "Woman" || pref2.includes("Soy una mujer") || pref2.includes("I'm a woman") || pref2.includes("I am a woman");
+  const p2IsMan = gender2 === "Hombre" || gender2 === "Man" || pref2.includes("Soy un hombre") || pref2.includes("I'm a man") || pref2.includes("I am a man");
+
+  // Hetero: man→woman & woman→man
+  if (p1IsMan && p1LookingForWoman && p2IsWoman && p2LookingForMan) return true;
+  if (p1IsWoman && p1LookingForMan && p2IsMan && p2LookingForWoman) return true;
+  // Gay: man→man & man→man
+  if (p1IsMan && p1LookingForMan && p2IsMan && p2LookingForMan) return true;
+  // Lesbian: woman→woman & woman→woman
+  if (p1IsWoman && p1LookingForWoman && p2IsWoman && p2LookingForWoman) return true;
+
+  return false;
+};
+
 const ParticipantAccess = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<Step>("verify_code");
