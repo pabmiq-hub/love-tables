@@ -172,10 +172,10 @@ serve(async (req) => {
       );
     }
 
-    // Verify the selector is a participant of this event
+    // Verify the selector is a participant of this event and get their dating info
     const { data: selectorParticipant, error: selectorError } = await supabase
       .from('participants')
-      .select('id, name, event_id')
+      .select('id, name, event_id, preference, dating_preference, gender')
       .eq('id', selectorId)
       .eq('event_id', eventId)
       .single();
