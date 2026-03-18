@@ -4384,6 +4384,16 @@ const EventDetail = () => {
             });
           }}
         />
+
+        {/* Table Editor Modal */}
+        <TableEditorModal
+          open={showTableEditor}
+          roundData={editingRoundData}
+          allParticipants={participants}
+          isCompletedRound={editingRoundData ? completedRounds.includes(editingRoundData.round) : false}
+          onSave={handleTableEditorSave}
+          onClose={() => { setShowTableEditor(false); setEditingRoundData(null); }}
+        />
       </main>
     </div>
   );
