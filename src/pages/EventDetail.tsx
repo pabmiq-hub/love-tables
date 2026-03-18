@@ -566,16 +566,21 @@ const EventDetail = () => {
   };
 
   const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
-    // Store original participants count BEFORE deleting non-checked-in
+    // Store original participants count BEFORE filtering
     const originalCount = participants.length;
     
-    // Remove non-checked-in participants from database
-    const nonCheckedInIds = participants.filter(p => !p.checked_in).map(p => p.id);
-    if (nonCheckedInIds.length > 0) {
+    // Keep non-checked-in participants as bench (don't delete them)
+    // Mark them as no-show in global_participants for CRM tracking
+    const nonCheckedInParticipants = participants.filter(p => !p.checked_in);
+    const noShowGlobalIds = nonCheckedInParticipants
+      .filter(p => p.global_participant_id)
+      .map(p => p.global_participant_id as string);
+    
+    if (noShowGlobalIds.length > 0) {
       await supabase
-        .from("participants")
-        .delete()
-        .in("id", nonCheckedInIds);
+        .from("global_participants")
+        .update({ status: "no_show", updated_at: new Date().toISOString() })
+        .in("id", noShowGlobalIds);
     }
 
     // Save tables and update status, set current_round to 1 to start
