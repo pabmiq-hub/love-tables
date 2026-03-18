@@ -202,7 +202,7 @@ serve(async (req) => {
     // Fetch preferences for all tablemates + existing selections in parallel
     const [preferencesResult, selectionsResult] = await Promise.all([
       tablemateIds.size > 0
-        ? supabase.from('participants').select('id, preference, dating_preference').in('id', Array.from(tablemateIds))
+        ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
       supabase.from('participant_selections').select('selected_id, selection_type').eq('event_id', eventId).eq('selector_id', participant.id)
     ]);
