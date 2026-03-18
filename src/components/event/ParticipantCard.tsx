@@ -82,7 +82,7 @@ const ParticipantCard = ({
 }: ParticipantCardProps) => {
   const genderConfig = getGenderConfig(participant.gender);
   const gradientColor = getInitialColor(participant.name);
-  const registrationDate = new Date(participant.created_at);
+  const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
 
   return (
     <div
