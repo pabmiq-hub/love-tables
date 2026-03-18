@@ -2173,6 +2173,90 @@ const EventDetail = () => {
     });
   };
 
+  const handleAddRound = async () => {
+    if (!eventData?.tables || !Array.isArray(eventData.tables) || !id) return;
+    const currentTables = eventData.tables as any[];
+    const newRoundNumber = currentTables.length + 1;
+    
+    // Create new round with empty tables matching the structure of existing rounds
+    const existingTableCount = currentTables[0]?.tables?.length || Math.ceil(participants.filter(p => p.checked_in).length / (eventData.table_size || 4));
+    const newRound = {
+      round: newRoundNumber,
+      tables: Array.from({ length: Math.max(existingTableCount, 1) }, () => []),
+    };
+
+    const updatedTables = [...currentTables, newRound];
+    const newRoundsCount = eventData.rounds + 1;
+
+    const { error } = await supabase
+      .from("events")
+      .update({ tables: updatedTables, rounds: newRoundsCount })
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo añadir la ronda", variant: "destructive" });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
+    setViewingRound(newRoundNumber);
+    toast({ title: "Ronda añadida", description: `Ronda ${newRoundNumber} creada con mesas vacías. Puedes asignar participantes desde el editor de mesas.` });
+  };
+
+  const handleDeleteRound = async (roundNumber: number) => {
+    if (!eventData?.tables || !Array.isArray(eventData.tables) || !id) return;
+    const currentTables = eventData.tables as any[];
+    if (currentTables.length <= 1) {
+      toast({ title: "No permitido", description: "Debe haber al menos una ronda", variant: "destructive" });
+      return;
+    }
+
+    // Remove the round and re-number subsequent rounds
+    const updatedTables = currentTables
+      .filter((rd: any) => rd.round !== roundNumber)
+      .map((rd: any, idx: number) => ({ ...rd, round: idx + 1 }));
+
+    const newRoundsCount = updatedTables.length;
+    const newCurrentRound = Math.min(currentRound, newRoundsCount);
+    const newCompletedRounds = completedRounds
+      .filter(r => r !== roundNumber)
+      .map(r => {
+        // Re-map completed round numbers
+        const original = currentTables.findIndex((t: any) => t.round === r);
+        return original >= 0 ? updatedTables[currentTables.slice(0, original + 1).filter((t: any) => t.round !== roundNumber).length - 1]?.round || r : r;
+      })
+      .filter(r => r <= newRoundsCount);
+
+    // Simpler approach: recalculate completed rounds based on new numbering
+    const originalOrder = currentTables.map((t: any) => t.round);
+    const keptOriginalRounds = originalOrder.filter((r: number) => r !== roundNumber);
+    const remappedCompleted = completedRounds
+      .filter(r => r !== roundNumber)
+      .map(r => keptOriginalRounds.indexOf(r) + 1)
+      .filter(r => r > 0);
+
+    const { error } = await supabase
+      .from("events")
+      .update({ 
+        tables: updatedTables, 
+        rounds: newRoundsCount, 
+        current_round: newCurrentRound,
+        completed_rounds: remappedCompleted,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo eliminar la ronda", variant: "destructive" });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
+    setCurrentRound(newCurrentRound);
+    setCompletedRounds(remappedCompleted);
+    setViewingRound(Math.min(viewingRound, newRoundsCount));
+    toast({ title: "Ronda eliminada", description: `Se eliminó la ronda ${roundNumber} y se renumeraron las restantes.` });
+  };
+
   const markNoShowParticipants = async () => {
     const noShowGlobalIds = participants
       .filter(p => !p.checked_in && p.global_participant_id)
@@ -3861,6 +3945,51 @@ const EventDetail = () => {
                         </Button>
                       );
                     })}
+                    {(eventStatus === "active" || eventStatus === "completed") && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleAddRound}
+                          className="border-dashed"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Ronda
+                        </Button>
+                        {tables.length > 1 && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-dashed text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />
+                                Quitar R{viewingRound}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar Ronda {viewingRound}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se eliminará la Ronda {viewingRound} y se renumerarán las rondas restantes.
+                                  {completedRounds.includes(viewingRound) && " Esta ronda ya fue completada — los encuentros registrados no se eliminarán."}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteRound(viewingRound)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar ronda
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Legend */}
