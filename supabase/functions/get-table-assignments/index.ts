@@ -223,6 +223,7 @@ serve(async (req) => {
         name: anonymizeName(tm.name),
         preference: preferencesMap.get(tm.id)?.preference || null,
         dating_preference: preferencesMap.get(tm.id)?.dating_preference || null,
+        gender: preferencesMap.get(tm.id)?.gender || null,
       }))
     }));
 
