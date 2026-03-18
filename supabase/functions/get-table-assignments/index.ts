@@ -118,7 +118,7 @@ serve(async (req) => {
     // Find participant by verification code
     const { data: participant, error: participantError } = await supabase
       .from('participants')
-      .select('id, name, checked_in, preference, dating_preference')
+      .select('id, name, checked_in, preference, dating_preference, gender')
       .eq('event_id', eventId)
       .eq('verification_code', verificationCode)
       .maybeSingle();
