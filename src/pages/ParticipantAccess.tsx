@@ -28,7 +28,7 @@ interface MatchSelection {
 interface TableAssignment {
   round: number;
   table: number;
-  tablemates: { id: string; name: string; preference?: string | null; dating_preference?: string | null }[];
+  tablemates: { id: string; name: string; preference?: string | null; dating_preference?: string | null; gender?: string | null }[];
 }
 
 interface ExistingSelection {
