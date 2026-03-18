@@ -1,4 +1,4 @@
-import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock, FileText } from "lucide-react";
+import { Home, Calendar, BarChart3, Mail, Settings, Palette, LogOut, Lock, FileText, UsersRound } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
