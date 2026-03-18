@@ -209,7 +209,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
                   </CardContent>
                 </Card>
               ) : (
-                <RichTextEditor content={body} onChange={setBody} />
+                <RichTextEditor value={body} onChange={setBody} />
               )}
               <p className="text-xs text-muted-foreground mt-2">
                 Variables disponibles: <code>{'{{nombre}}'}</code>, <code>{'{{evento}}'}</code>, <code>{'{{enlace_inscripcion}}'}</code>

@@ -41,6 +41,7 @@ const navItems: { id: DashboardSection; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Inicio", icon: Home },
   { id: "events", label: "Eventos", icon: Calendar },
   { id: "analytics", label: "Analítica", icon: BarChart3 },
+  { id: "users", label: "Usuarios", icon: UsersRound },
   { id: "email", label: "Email", icon: Mail },
   { id: "templates", label: "Plantillas", icon: FileText },
   { id: "settings", label: "Configuración", icon: Settings },
