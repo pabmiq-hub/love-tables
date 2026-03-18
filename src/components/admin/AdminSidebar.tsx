@@ -19,6 +19,7 @@ export type DashboardSection = "home" | "events" | "analytics" | "users" | "emai
 // Map sidebar items to feature codes (null means always visible)
 const featureMap: Partial<Record<DashboardSection, string>> = {
   analytics: "analytics",
+  users: "crm",
   email: "auto_emails",
   branding: "custom_branding",
   templates: "templates",
