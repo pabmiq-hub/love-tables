@@ -1911,6 +1911,10 @@ const EventDetail = () => {
   };
 
   const handleDeleteParticipant = async (participantId: string) => {
+    // Get global_participant_id before deleting
+    const deletedParticipant = participants.find(p => p.id === participantId);
+    const globalId = deletedParticipant?.global_participant_id;
+
     const { error } = await supabase
       .from("participants")
       .delete()
@@ -1933,6 +1937,14 @@ const EventDetail = () => {
       .from("events")
       .update({ participants_count: newParticipants.length })
       .eq("id", id);
+
+    // Update global_participant status to 'removed'
+    if (globalId) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "removed", updated_at: new Date().toISOString() })
+        .eq("id", globalId);
+    }
     
     toast({
       title: "Participante eliminado",
