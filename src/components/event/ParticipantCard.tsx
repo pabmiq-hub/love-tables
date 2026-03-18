@@ -151,10 +151,12 @@ const ParticipantCard = ({
                     <span className="truncate">{participant.email}</span>
                   </span>
                 )}
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {registrationDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                </span>
+                {registrationDate && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {registrationDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                  </span>
+                )}
               </div>
 
               {/* Verification code */}
