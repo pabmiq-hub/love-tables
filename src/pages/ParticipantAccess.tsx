@@ -301,6 +301,8 @@ const ParticipantAccess = () => {
       existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
 
       const participantPreference = data.participantPreference || verifiedParticipant.preference || '';
+      const userDatingPref = data.participantDatingPreference || verifiedParticipant.dating_preference || '';
+      const userGender = data.participantGender || verifiedParticipant.gender || null;
       const userInterestedInDating = participantPreference.toLowerCase().includes('sentimental') ||
         participantPreference.toLowerCase().includes('pareja') ||
         participantPreference.toLowerCase().includes('ligue');
@@ -313,13 +315,22 @@ const ParticipantAccess = () => {
             targetPreference.includes('pareja') ||
             targetPreference.includes('ligue');
 
+          // Check bilateral dating compatibility (gender/orientation)
+          let datingCompatible = false;
+          if (userInterestedInDating && targetInterestedInDating && userDatingPref && tm.dating_preference) {
+            datingCompatible = areDatingPreferencesCompatible(
+              userDatingPref, userGender,
+              tm.dating_preference, tm.gender || null
+            );
+          }
+
           const existingType = existingMap.get(tm.id);
 
           allSelections.push({
             participantId: tm.id,
             friendship: false,
             dating: false,
-            canShowDating: !!(userInterestedInDating && targetInterestedInDating),
+            canShowDating: datingCompatible,
             alreadySelected: !!existingType,
             previousSelectionType: existingType,
             round: assignment.round,
