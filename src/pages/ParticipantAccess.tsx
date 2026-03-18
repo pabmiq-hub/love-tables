@@ -73,7 +73,7 @@ const ParticipantAccess = () => {
   const { id: eventId } = useParams();
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
-  const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string } | null>(null);
+  const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string; gender?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
 
