@@ -283,14 +283,41 @@ serve(async (req) => {
       );
     }
 
-    // Insert new selections (mark super like if applicable)
-    const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => ({
-      event_id: eventId,
-      selector_id: selectorId,
-      selected_id: s.selected_id,
-      selection_type: s.selection_type,
-      is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
-    }));
+    // Server-side dating compatibility validation
+    // Build a map of selected participants' dating info for validation
+    const selectedParticipantMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
+    if (validParticipants) {
+      for (const vp of validParticipants) {
+        selectedParticipantMap.set(vp.id, { preference: vp.preference, dating_preference: vp.dating_preference, gender: vp.gender });
+      }
+    }
+
+    const selectorDatingPref = selectorParticipant.dating_preference || '';
+    const selectorGender = selectorParticipant.gender || null;
+
+    // Validate and downgrade incompatible dating selections to friendship
+    const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => {
+      let selectionType = s.selection_type;
+      
+      if (selectionType === 'dating' || selectionType === 'both') {
+        const target = selectedParticipantMap.get(s.selected_id);
+        const targetDatingPref = target?.dating_preference || '';
+        const targetGender = target?.gender || null;
+        
+        if (!selectorDatingPref || !targetDatingPref || !areDatingCompatible(selectorDatingPref, selectorGender, targetDatingPref, targetGender)) {
+          console.warn(`[submit-selections] Downgrading incompatible dating selection: ${selectorId} → ${s.selected_id}`);
+          selectionType = selectionType === 'both' ? 'friendship' : 'friendship';
+        }
+      }
+
+      return {
+        event_id: eventId,
+        selector_id: selectorId,
+        selected_id: s.selected_id,
+        selection_type: selectionType,
+        is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
+      };
+    });
 
     const { error: insertError } = await supabase
       .from('participant_selections')
