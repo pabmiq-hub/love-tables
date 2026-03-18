@@ -3903,6 +3903,22 @@ const EventDetail = () => {
                           <CardDescription>Distribución de mesas para esta ronda</CardDescription>
                         </div>
                         {eventStatus === "active" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const rd = tables.find(t => t.round === viewingRound);
+                              if (rd) {
+                                setEditingRoundData(rd);
+                                setShowTableEditor(true);
+                              }
+                            }}
+                          >
+                            <Settings2 className="w-4 h-4 mr-2" />
+                            Editar mesas
+                          </Button>
+                        )}
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm">
