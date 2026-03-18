@@ -2057,6 +2057,11 @@ const EventDetail = () => {
   };
 
   const handleDeleteAllParticipants = async () => {
+    // Collect global_participant_ids before deleting
+    const globalIds = participants
+      .map(p => p.global_participant_id)
+      .filter((gid): gid is string => !!gid);
+
     const { error } = await supabase
       .from("participants")
       .delete()
@@ -2077,6 +2082,14 @@ const EventDetail = () => {
       .from("events")
       .update({ participants_count: 0 })
       .eq("id", id);
+
+    // Mark all global_participants as 'removed'
+    if (globalIds.length > 0) {
+      await supabase
+        .from("global_participants")
+        .update({ status: "removed", updated_at: new Date().toISOString() })
+        .in("id", globalIds);
+    }
 
     toast({
       title: "Participantes eliminados",
