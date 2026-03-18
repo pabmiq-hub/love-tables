@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
+import TableEditorModal from "@/components/event/TableEditorModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import EventSettingsTabs from "@/components/event/EventSettingsTabs";
 import { BrandedHeader } from "@/components/BrandedHeader";
@@ -207,6 +208,8 @@ const EventDetail = () => {
   const [showTableAssignmentModal, setShowTableAssignmentModal] = useState(false);
   const [pendingNewParticipant, setPendingNewParticipant] = useState<DbParticipant | null>(null);
   const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
+  const [showTableEditor, setShowTableEditor] = useState(false);
+  const [editingRoundData, setEditingRoundData] = useState<any>(null);
   
   
   // Participant filters - Social
@@ -2622,7 +2625,26 @@ const EventDetail = () => {
     setPendingNewParticipant(null);
   };
 
-  // Filter and sort participants
+  const handleTableEditorSave = async (updatedRoundData: any) => {
+    if (!id || !eventData?.tables) return;
+    const updatedTables = (eventData.tables as any[]).map((rd: any) =>
+      rd.round === updatedRoundData.round ? updatedRoundData : rd
+    );
+    const { error } = await supabase
+      .from("events")
+      .update({ tables: updatedTables })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron guardar los cambios", variant: "destructive" });
+      return;
+    }
+    setEventData(prev => prev ? { ...prev, tables: updatedTables } : prev);
+    setShowTableEditor(false);
+    setEditingRoundData(null);
+    toast({ title: "Mesas actualizadas", description: `Ronda ${updatedRoundData.round} actualizada correctamente` });
+  };
+
+
   // Separate bench participants (not checked in during active/completed events)
   const benchParticipants = (eventStatus === "active" || eventStatus === "completed") 
     ? participants.filter(p => !p.checked_in) 
@@ -3881,6 +3903,22 @@ const EventDetail = () => {
                           <CardDescription>Distribución de mesas para esta ronda</CardDescription>
                         </div>
                         {eventStatus === "active" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const rd = tables.find(t => t.round === viewingRound);
+                              if (rd) {
+                                setEditingRoundData(rd);
+                                setShowTableEditor(true);
+                              }
+                            }}
+                          >
+                            <Settings2 className="w-4 h-4 mr-2" />
+                            Editar mesas
+                          </Button>
+                        )}
+                        {eventStatus === "active" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm">
@@ -4345,6 +4383,16 @@ const EventDetail = () => {
               description: "El participante fue añadido pero no asignado a mesas",
             });
           }}
+        />
+
+        {/* Table Editor Modal */}
+        <TableEditorModal
+          open={showTableEditor}
+          roundData={editingRoundData}
+          allParticipants={participants}
+          isCompletedRound={editingRoundData ? completedRounds.includes(editingRoundData.round) : false}
+          onSave={handleTableEditorSave}
+          onClose={() => { setShowTableEditor(false); setEditingRoundData(null); }}
         />
       </main>
     </div>
