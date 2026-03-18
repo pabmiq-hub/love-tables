@@ -2625,7 +2625,26 @@ const EventDetail = () => {
     setPendingNewParticipant(null);
   };
 
-  // Filter and sort participants
+  const handleTableEditorSave = async (updatedRoundData: any) => {
+    if (!id || !eventData?.tables) return;
+    const updatedTables = (eventData.tables as any[]).map((rd: any) =>
+      rd.round === updatedRoundData.round ? updatedRoundData : rd
+    );
+    const { error } = await supabase
+      .from("events")
+      .update({ tables: updatedTables })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron guardar los cambios", variant: "destructive" });
+      return;
+    }
+    setEventData(prev => prev ? { ...prev, tables: updatedTables } : prev);
+    setShowTableEditor(false);
+    setEditingRoundData(null);
+    toast({ title: "Mesas actualizadas", description: `Ronda ${updatedRoundData.round} actualizada correctamente` });
+  };
+
+
   // Separate bench participants (not checked in during active/completed events)
   const benchParticipants = (eventStatus === "active" || eventStatus === "completed") 
     ? participants.filter(p => !p.checked_in) 
