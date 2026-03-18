@@ -337,6 +337,8 @@ export type Database = {
           id: string
           organizer_id: string
           phone: string | null
+          source_notes: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -347,6 +349,8 @@ export type Database = {
           id?: string
           organizer_id: string
           phone?: string | null
+          source_notes?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -357,6 +361,8 @@ export type Database = {
           id?: string
           organizer_id?: string
           phone?: string | null
+          source_notes?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -1004,6 +1010,104 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remarketing_campaigns: {
+        Row: {
+          body: string
+          created_at: string | null
+          id: string
+          organizer_id: string
+          recipients_count: number | null
+          recipients_filter: Json | null
+          sent_at: string | null
+          status: string
+          subject: string
+          target_event_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          id?: string
+          organizer_id: string
+          recipients_count?: number | null
+          recipients_filter?: Json | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          target_event_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          id?: string
+          organizer_id?: string
+          recipients_count?: number | null
+          recipients_filter?: Json | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          target_event_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_campaigns_target_event_id_fkey"
+            columns: ["target_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remarketing_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          email: string
+          error_message: string | null
+          global_participant_id: string | null
+          id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          email: string
+          error_message?: string | null
+          global_participant_id?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          email?: string
+          error_message?: string | null
+          global_participant_id?: string | null
+          id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remarketing_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_recipients_global_participant_id_fkey"
+            columns: ["global_participant_id"]
+            isOneToOne: false
+            referencedRelation: "global_participants"
             referencedColumns: ["id"]
           },
         ]
