@@ -70,7 +70,7 @@ const ParticipantCard = ({
   onEmailUpdated,
 }: ParticipantCardProps) => {
   const genderConfig = getGenderConfig(participant.gender);
-  const gradientColor = getInitialColor(participant.name);
+  const gradientColor = getInitialColor();
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
 
   return (
