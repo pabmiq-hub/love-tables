@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
+import TableEditorModal from "@/components/event/TableEditorModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
 import EventSettingsTabs from "@/components/event/EventSettingsTabs";
 import { BrandedHeader } from "@/components/BrandedHeader";
