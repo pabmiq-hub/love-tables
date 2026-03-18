@@ -3902,7 +3902,7 @@ const EventDetail = () => {
                           </CardTitle>
                           <CardDescription>Distribución de mesas para esta ronda</CardDescription>
                         </div>
-                        {eventStatus === "active" && (
+                        {(eventStatus === "active" || eventStatus === "completed") && (
                           <Button
                             variant="outline"
                             size="sm"
