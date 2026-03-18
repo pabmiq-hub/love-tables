@@ -49,7 +49,7 @@ export function useCRM() {
   const [loading, setLoading] = useState(false);
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
 
-  const organizerId = organizer?.id;
+  const organizerId = user?.id;
 
   const loadUsers = useCallback(async (filters?: {
     status?: string;
