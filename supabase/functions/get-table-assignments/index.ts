@@ -118,7 +118,7 @@ serve(async (req) => {
     // Find participant by verification code
     const { data: participant, error: participantError } = await supabase
       .from('participants')
-      .select('id, name, checked_in, preference, dating_preference')
+      .select('id, name, checked_in, preference, dating_preference, gender')
       .eq('event_id', eventId)
       .eq('verification_code', verificationCode)
       .maybeSingle();
@@ -147,6 +147,8 @@ serve(async (req) => {
         JSON.stringify({ 
           participantName: anonymizeName(participant.name),
           participantPreference: participant.preference,
+          participantDatingPreference: participant.dating_preference,
+          participantGender: participant.gender,
           assignments: [],
           existingSelections: [],
           message: 'Las mesas aún no han sido asignadas',
@@ -202,15 +204,15 @@ serve(async (req) => {
     // Fetch preferences for all tablemates + existing selections in parallel
     const [preferencesResult, selectionsResult] = await Promise.all([
       tablemateIds.size > 0
-        ? supabase.from('participants').select('id, preference, dating_preference').in('id', Array.from(tablemateIds))
+        ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
       supabase.from('participant_selections').select('selected_id, selection_type').eq('event_id', eventId).eq('selector_id', participant.id)
     ]);
 
-    const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null }>();
+    const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
     if (preferencesResult.data) {
       for (const p of preferencesResult.data) {
-        preferencesMap.set(p.id, { preference: p.preference, dating_preference: p.dating_preference });
+        preferencesMap.set(p.id, { preference: p.preference, dating_preference: p.dating_preference, gender: p.gender });
       }
     }
 
@@ -223,6 +225,7 @@ serve(async (req) => {
         name: anonymizeName(tm.name),
         preference: preferencesMap.get(tm.id)?.preference || null,
         dating_preference: preferencesMap.get(tm.id)?.dating_preference || null,
+        gender: preferencesMap.get(tm.id)?.gender || null,
       }))
     }));
 
@@ -237,6 +240,8 @@ serve(async (req) => {
       JSON.stringify({ 
         participantName: anonymizeName(participant.name),
         participantPreference: participant.preference,
+        participantDatingPreference: participant.dating_preference,
+        participantGender: participant.gender,
         assignments: finalAssignments,
         existingSelections,
         currentRound,
