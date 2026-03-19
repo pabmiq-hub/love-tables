@@ -3578,84 +3578,116 @@ const EventDetail = () => {
             </Card>
 
             {/* Bench section - participants who didn't check in */}
-            {benchParticipants.length > 0 && (eventStatus === "active" || eventStatus === "completed") && (
-              <Card className="mt-4 border-dashed">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <UserX className="w-4 h-4 text-muted-foreground" />
-                    Banco de participantes
-                  </CardTitle>
-                  <CardDescription>
-                    {benchParticipants.length} participantes sin check-in. Puedes incorporarlos al evento.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {benchParticipants.map((participant) => (
-                      <div key={participant.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <p className="font-medium text-sm">{participant.name}</p>
-                            <p className="text-xs text-muted-foreground">{participant.email || participant.phone || 'Sin contacto'}</p>
+            {(eventStatus === "active" || eventStatus === "completed") && (
+              <>
+                {benchParticipants.length > 0 ? (
+                  <Card className="mt-4 border-dashed">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <UserX className="w-4 h-4 text-muted-foreground" />
+                        Banco de participantes
+                      </CardTitle>
+                      <CardDescription>
+                        {benchParticipants.length} participantes sin check-in. Puedes incorporarlos al evento.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {benchParticipants.map((participant) => (
+                          <div key={participant.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                            <div className="flex items-center gap-3">
+                              <div>
+                                <p className="font-medium text-sm">{participant.name}</p>
+                                <p className="text-xs text-muted-foreground">{participant.email || participant.phone || 'Sin contacto'}</p>
+                              </div>
+                              {participant.gender && (
+                                <Badge variant="secondary" className="text-xs">{participant.gender}</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {(eventStatus === "active" || eventStatus === "completed") && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={async () => {
+                                    await supabase
+                                      .from("participants")
+                                      .update({ checked_in: true })
+                                      .eq("id", participant.id);
+                                    
+                                    if (participant.global_participant_id) {
+                                      await supabase
+                                        .from("global_participants")
+                                        .update({ status: "active", updated_at: new Date().toISOString() })
+                                        .eq("id", participant.global_participant_id);
+                                    }
+                                    
+                                    const updatedParticipant = { ...participant, checked_in: true };
+                                    setParticipants(prev => prev.map(p => p.id === participant.id ? updatedParticipant : p));
+                                    
+                                    if (eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+                                      setPendingNewParticipant(updatedParticipant);
+                                      setShowTableAssignmentModal(true);
+                                    }
+                                    
+                                    toast({
+                                      title: "Participante incorporado",
+                                      description: `${participant.name} ha sido añadido al evento`,
+                                    });
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Incorporar
+                                </Button>
+                              )}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar participante del banco?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Se eliminará permanentemente a <strong>{participant.name}</strong> del evento. No podrás incorporarlo después.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteParticipant(participant.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Eliminar definitivamente
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                          {participant.gender && (
-                            <Badge variant="secondary" className="text-xs">{participant.gender}</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {eventStatus === "active" && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={async () => {
-                                // Check in the participant
-                                await supabase
-                                  .from("participants")
-                                  .update({ checked_in: true })
-                                  .eq("id", participant.id);
-                                
-                                // Update global participant status back to active
-                                if (participant.global_participant_id) {
-                                  await supabase
-                                    .from("global_participants")
-                                    .update({ status: "active", updated_at: new Date().toISOString() })
-                                    .eq("id", participant.global_participant_id);
-                                }
-                                
-                                // Update local state
-                                const updatedParticipant = { ...participant, checked_in: true };
-                                setParticipants(prev => prev.map(p => p.id === participant.id ? updatedParticipant : p));
-                                
-                                // Open table assignment modal if tables exist
-                                if (eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
-                                  setPendingNewParticipant(updatedParticipant);
-                                  setShowTableAssignmentModal(true);
-                                }
-                                
-                                toast({
-                                  title: "Participante incorporado",
-                                  description: `${participant.name} ha sido añadido al evento`,
-                                });
-                              }}
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Incorporar
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteParticipant(participant.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                ) : eventData?.original_participants_count && eventData.original_participants_count > (eventData?.participants_count || 0) ? (
+                  <Card className="mt-4 border-dashed border-muted">
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <UserX className="w-4 h-4 shrink-0" />
+                        <p className="text-sm">
+                          Hubo <strong className="text-foreground">{eventData.original_participants_count - (eventData.participants_count || 0)}</strong> no-shows en este evento 
+                          (de {eventData.original_participants_count} inscritos, {eventData.participants_count} asistieron).
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </>
             )}
           </TabsContent>
 
