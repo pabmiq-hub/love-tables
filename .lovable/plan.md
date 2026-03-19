@@ -1,36 +1,108 @@
 
 
-## Diagnóstico del problema del Banquillo
+## Plan: Sistema de Plantillas para el Dashboard (Plan Enterprise)
 
-**Hallazgo clave**: El código actual del banquillo es correcto — filtra participantes con `checked_in = false` y muestra botones "Incorporar" y "Eliminar". Sin embargo, para el evento Slow Friending, los 23 participantes no-show **ya no existen** en la base de datos (solo quedan 60, todos con `checked_in = true`).
+### Resumen
 
-**Causa probable**: Es muy posible que en una versión anterior del código, al iniciar el evento se eliminaban los participantes sin check-in en lugar de preservarlos. El comentario actual dice "Keep non-checked-in participants as bench (don't delete them)", lo que sugiere que esto se cambió después. El evento Slow Friending se inició con la versión anterior que sí los eliminaba.
+Crear una nueva sección **"Plantillas"** en el dashboard del organizador (disponible solo en plan Enterprise), con 3 subsecciones: plantillas de formularios de registro, plantillas de emails, y plantillas de eventos. Además, integrar la selección de plantilla de formulario durante la creación de eventos profesionales.
 
-**Estadística del evento**: `original_participants_count = 83`, `participants_count = 60` → los 23 no-shows se calculan por diferencia, pero los registros ya no están en la tabla `participants`.
+### 1. Base de datos — Nueva tabla `organizer_templates`
 
----
+Una tabla unificada para almacenar todos los tipos de plantilla:
 
-## Plan de mejora para evitar que esto vuelva a pasar
+```sql
+CREATE TABLE organizer_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organizer_id UUID NOT NULL,
+  type TEXT NOT NULL, -- 'registration_form' | 'email' | 'event'
+  subtype TEXT, -- 'social' | 'professional' | 'match_results' | 'registration_confirmation' | 'access_code' | 'reminder'
+  name TEXT NOT NULL,
+  description TEXT,
+  content JSONB NOT NULL DEFAULT '{}',
+  is_default BOOLEAN DEFAULT false,
+  version INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-### 1. Verificar que `finalizeTableGeneration` NO elimina participantes sin check-in
-El código actual ya preserva los participantes. No se necesita cambio aquí — **confirmado correcto**.
+-- Historial de cambios
+CREATE TABLE template_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID NOT NULL REFERENCES organizer_templates(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  content JSONB NOT NULL,
+  changed_by TEXT, -- descripción del cambio
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-### 2. Proteger el botón "Eliminar" en el banquillo
-Actualmente el botón de eliminar en el bench llama a `handleDeleteParticipant` que borra permanentemente el registro. Cambiar esto para que:
-- Muestre un `AlertDialog` de confirmación antes de eliminar
-- El mensaje advierta que se perderá la posibilidad de incorporar al participante
+RLS: solo el organizador dueño puede CRUD. Super admin puede gestionar todo.
 
-### 3. Hacer visible el banquillo incluso sin registros individuales (fallback)
-Si `original_participants_count > participants_count` pero no hay participantes con `checked_in = false`, mostrar una nota informativa indicando cuántos no-shows hubo (calculado por diferencia), para que el dato no se pierda visualmente en la pestaña de participantes.
+Feature gate: crear un nuevo feature code `templates` asignado al plan Enterprise.
 
-### 4. Añadir botón "Incorporar" también en estado `completed`
-Actualmente el botón "Incorporar" solo aparece cuando `eventStatus === "active"`. Cambiarlo para que también aparezca en `completed`, ya que puede haber situaciones donde se necesite rescatar participantes después de cerrar el evento.
+### 2. Sección "Plantillas" en el Dashboard
 
----
+**Nuevo `DashboardSection`: `"templates"`**
 
-### Archivos a modificar
-- **`src/pages/EventDetail.tsx`**: 
-  - Añadir `AlertDialog` al botón eliminar del bench
-  - Mostrar fallback informativo cuando no hay bench pero sí hay no-shows por diferencia
-  - Habilitar "Incorporar" en estado `completed`
+Archivos a modificar/crear:
+- `AdminSidebar.tsx` — Añadir item "Plantillas" con icono `FileText`, gateado por feature `templates`
+- `AdminDashboard.tsx` — Añadir case `"templates"` en `renderSection()` con gate
+- **Nuevo** `src/components/admin/DashboardTemplates.tsx` — Componente principal con 3 tabs:
+
+**Tab 1: Formularios de registro**
+- Lista de plantillas tipo `registration_form` con subtipo `social` o `professional`
+- Incluir 2-3 plantillas predefinidas (seed) como "B2B Estándar", "Networking Rápido"
+- Botón "Crear nueva plantilla" → editor de campos del formulario
+- El `content` JSON almacena: campos habilitados, orden, opciones de sectores/necesidades/soluciones, textos personalizados
+
+**Tab 2: Correos electrónicos**
+- Plantillas de email por tipo: confirmación de registro, código de acceso, recordatorio de selección, resultados de matches
+- Reutilizar la interfaz de `EmailTemplateEditor` adaptada para guardar como plantilla
+- Cada plantilla guarda el JSON de `EmailTemplate` o `ProfessionalEmailTemplate`
+
+**Tab 3: Plantillas de eventos**
+- Guardar configuraciones completas de eventos (rounds, table_size, rotation, professional_config, etc.) como plantilla reutilizable
+- Al crear evento: opción de "Usar plantilla" que precarga todos los valores
+- Solo necesita actualizar fecha, lugar y descripción
+
+**Cada tab incluye:**
+- Lista con nombre, subtipo, fecha de última modificación
+- Acciones: editar, duplicar, eliminar, ver historial de versiones
+- Al guardar cambios → se crea entrada en `template_versions` con el contenido anterior
+
+### 3. Selección de formulario al crear evento profesional
+
+En `CreateEvent.tsx`, añadir un paso intermedio después de seleccionar módulo "professional":
+
+**"¿Cómo quieres gestionar el formulario de registro?"**
+- 🤖 **Formulario automático** — Usa el formulario B2B estándar con las opciones del `professional_config`
+- 📋 **Usar una plantilla guardada** — Selector con las plantillas tipo `registration_form` + subtipo `professional` del organizador
+- ✏️ **Crear formulario personalizado** — Abre el editor inline para configurar campos específicos para este evento
+
+La elección se guarda en `professional_config.registration_form_mode`: `"auto" | "template" | "custom"` y opcionalmente `professional_config.registration_template_id`.
+
+En `ParticipantJoin.tsx`, el `B2BRegistrationForm` leerá el modo y, si es `template`, cargará la configuración de la plantilla para determinar qué campos mostrar y con qué opciones.
+
+### 4. Archivos a crear/modificar
+
+| Archivo | Acción |
+|---|---|
+| `src/components/admin/DashboardTemplates.tsx` | **Crear** — Página principal con 3 tabs |
+| `src/components/admin/templates/FormTemplateEditor.tsx` | **Crear** — Editor de plantillas de formulario |
+| `src/components/admin/templates/EmailTemplateManager.tsx` | **Crear** — Gestión de plantillas de email |
+| `src/components/admin/templates/EventTemplateManager.tsx` | **Crear** — Gestión de plantillas de evento |
+| `src/components/admin/templates/VersionHistoryModal.tsx` | **Crear** — Modal de historial de versiones |
+| `src/components/admin/AdminSidebar.tsx` | **Editar** — Añadir item "Plantillas" |
+| `src/pages/AdminDashboard.tsx` | **Editar** — Añadir section "templates" |
+| `src/pages/CreateEvent.tsx` | **Editar** — Paso de selección de formulario para profesional |
+| `src/pages/ParticipantJoin.tsx` | **Editar** — Cargar config de plantilla si aplica |
+| `src/i18n/translations.ts` | **Editar** — Traducciones para templates |
+| Migración SQL | **Crear** — Tablas `organizer_templates` + `template_versions` + feature `templates` + asignar a plan Enterprise |
+
+### 5. Feature gating
+
+- Nueva feature `templates` en tabla `features`
+- Asignar a plan Enterprise en `plan_features`
+- En sidebar y dashboard, mostrar con candado si no tiene la feature
+- Mostrar `UpgradePrompt` al intentar acceder sin el plan adecuado
 
