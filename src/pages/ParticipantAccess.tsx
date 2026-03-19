@@ -462,10 +462,10 @@ const ParticipantAccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <button onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
-      </Link>
+      </button>
 
       <div className="mb-8 animate-fade-in">
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
