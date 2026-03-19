@@ -3896,7 +3896,7 @@ const EventDetail = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) serán eliminados y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                                Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
