@@ -410,7 +410,7 @@ const ParticipantSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
       </Link>
@@ -439,7 +439,7 @@ const ParticipantSelect = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.select.notStarted}</h2>
             <p className="text-muted-foreground mb-6">{t.select.notStartedDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
@@ -452,7 +452,7 @@ const ParticipantSelect = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.select.eventNotAvailable}</h2>
             <p className="text-muted-foreground mb-6">{t.select.eventNotAvailableDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
@@ -632,7 +632,7 @@ const ParticipantSelect = () => {
             <p className="text-muted-foreground mb-6">
               {eventStatus === 'completed' ? t.select.thanksCompleted : t.select.thanksActive}
             </p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}

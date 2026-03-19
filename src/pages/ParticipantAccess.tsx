@@ -462,10 +462,10 @@ const ParticipantAccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
-      <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      <button onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
-      </Link>
+      </button>
 
       <div className="mb-8 animate-fade-in">
         <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
@@ -489,7 +489,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.expiredTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.expiredDesc}</p>
-            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Button variant="outline" className="w-full" onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>{t.access.backToHome}</Button>
           </CardContent>
         </Card>
       )}
@@ -502,7 +502,7 @@ const ParticipantAccess = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.access.errorTitle}</h2>
             <p className="text-muted-foreground mb-6">{t.access.errorDesc}</p>
-            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Button variant="outline" className="w-full" onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>{t.access.backToHome}</Button>
           </CardContent>
         </Card>
       )}
@@ -775,7 +775,7 @@ const ParticipantAccess = () => {
             <p className="text-muted-foreground mb-6">
               {eventStatus === 'completed' ? t.access.thanksCompleted : t.access.thanksActive}
             </p>
-            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.access.backToHome}</Button></Link>
+            <Button variant="outline" className="w-full" onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>{t.access.backToHome}</Button>
           </CardContent>
         </Card>
       )}
