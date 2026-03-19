@@ -439,7 +439,7 @@ const ParticipantSelect = () => {
             </div>
             <h2 className="font-display text-xl font-bold mb-2">{t.select.notStarted}</h2>
             <p className="text-muted-foreground mb-6">{t.select.notStartedDesc}</p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
