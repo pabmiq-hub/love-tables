@@ -632,7 +632,7 @@ const ParticipantSelect = () => {
             <p className="text-muted-foreground mb-6">
               {eventStatus === 'completed' ? t.select.thanksCompleted : t.select.thanksActive}
             </p>
-            <Link to="/"><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
+            <Link to={`/event/${eventId}/access`}><Button variant="outline" className="w-full">{t.select.backToHome}</Button></Link>
           </CardContent>
         </Card>
       )}
