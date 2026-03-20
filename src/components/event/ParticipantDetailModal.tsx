@@ -68,14 +68,14 @@ const ParticipantDetailModal = ({
   const { toast } = useToast();
   // Find tables where this participant sat
   const getParticipantTables = () => {
-    const participantTables: { round: number; tablemates: { id: string; name: string }[] }[] = [];
+    const participantTables: { round: number; tableNumber: number; tablemates: { id: string; name: string }[] }[] = [];
     
     tables.forEach(roundData => {
-      roundData.tables.forEach(table => {
+      roundData.tables.forEach((table, tableIndex) => {
         const isAtTable = table.some(p => p.id === participant.id);
         if (isAtTable) {
           const tablemates = table.filter(p => p.id !== participant.id);
-          participantTables.push({ round: roundData.round, tablemates });
+          participantTables.push({ round: roundData.round, tableNumber: tableIndex + 1, tablemates });
         }
       });
     });
