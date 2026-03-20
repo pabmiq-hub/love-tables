@@ -345,7 +345,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: eventsToProcess, error: eventsError } = await supabase
       .from("events")
-      .select("id, name, email_template, scheduled_email_at, module, professional_email_template, language")
+      .select("id, name, email_template, scheduled_email_at, module, language")
       .not("scheduled_email_at", "is", null)
       .is("emails_sent_at", null)
       .lte("scheduled_email_at", now);
@@ -393,7 +393,7 @@ const handler = async (req: Request): Promise<Response> => {
         headerTitle: communicationTemplate?.headerTitle || (event.language === 'en' ? 'Welcome to the event!' : '¡Bienvenido/a al evento!'),
         logoHeight: Number.isFinite(Number(communicationTemplate?.logoHeight)) ? Number(communicationTemplate.logoHeight) : 48,
       };
-      const professionalTemplate: ProfessionalEmailTemplate = (event.professional_email_template as ProfessionalEmailTemplate) || DEFAULT_PROFESSIONAL_TEMPLATE;
+      const professionalTemplate: ProfessionalEmailTemplate = DEFAULT_PROFESSIONAL_TEMPLATE;
 
       // Participant interfaces
       interface BaseParticipant {
