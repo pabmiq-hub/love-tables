@@ -389,9 +389,9 @@ const ParticipantDetailModal = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {participantTables.map(({ round, tablemates }) => (
+                {participantTables.map(({ round, tableNumber, tablemates }) => (
                   <div key={round} className="p-3 bg-muted/50 rounded-lg">
-                    <p className="font-medium mb-2">Ronda {round}</p>
+                    <p className="font-medium mb-2">Ronda {round} — Mesa {tableNumber}</p>
                     <div className="flex flex-wrap gap-2">
                       {tablemates.map(mate => (
                         <Badge key={mate.id} variant="secondary">
