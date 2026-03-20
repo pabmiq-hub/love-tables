@@ -345,7 +345,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: eventsToProcess, error: eventsError } = await supabase
       .from("events")
-      .select("id, name, email_template, scheduled_email_at, module, professional_email_template, language")
+      .select("id, name, email_template, scheduled_email_at, module, language")
       .not("scheduled_email_at", "is", null)
       .is("emails_sent_at", null)
       .lte("scheduled_email_at", now);
