@@ -393,7 +393,7 @@ const handler = async (req: Request): Promise<Response> => {
         headerTitle: communicationTemplate?.headerTitle || (event.language === 'en' ? 'Welcome to the event!' : '¡Bienvenido/a al evento!'),
         logoHeight: Number.isFinite(Number(communicationTemplate?.logoHeight)) ? Number(communicationTemplate.logoHeight) : 48,
       };
-      const professionalTemplate: ProfessionalEmailTemplate = (event.professional_email_template as ProfessionalEmailTemplate) || DEFAULT_PROFESSIONAL_TEMPLATE;
+      const professionalTemplate: ProfessionalEmailTemplate = DEFAULT_PROFESSIONAL_TEMPLATE;
 
       // Participant interfaces
       interface BaseParticipant {
