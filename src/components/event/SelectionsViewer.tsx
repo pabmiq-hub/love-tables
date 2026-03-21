@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, User, Heart, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { formatAnonymousName } from "@/lib/utils";
 
 interface DbParticipant {
   id: string;
@@ -180,7 +181,7 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
                               {data.participant.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium text-sm">{data.participant.name}</span>
+                          <span className="font-medium text-sm">{formatAnonymousName(data.participant.name, data.participant.phone || undefined)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -235,7 +236,7 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
                                               {sel.selected.name.charAt(0)}
                                             </AvatarFallback>
                                           </Avatar>
-                                          <span className="text-sm">{sel.selected.name}</span>
+                                          <span className="text-sm">{formatAnonymousName(sel.selected.name, sel.selected.phone || undefined)}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <span className="text-sm">{getTypeLabel(sel.selectionType)}</span>
@@ -267,7 +268,7 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
                                               {rec.selector.name.charAt(0)}
                                             </AvatarFallback>
                                           </Avatar>
-                                          <span className="text-sm">{rec.selector.name}</span>
+                                          <span className="text-sm">{formatAnonymousName(rec.selector.name, rec.selector.phone || undefined)}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <span className="text-sm">{getTypeLabel(rec.selectionType)}</span>
