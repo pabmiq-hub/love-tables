@@ -683,7 +683,7 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
       {/* Names and match info */}
       <div className="flex-1">
         <p className="font-medium">
-          {match.participant1.name} <span className="text-muted-foreground">&</span> {match.participant2.name}
+          {formatAnonymousName(match.participant1.name, match.participant1.phone || undefined)} <span className="text-muted-foreground">&</span> {formatAnonymousName(match.participant2.name, match.participant2.phone || undefined)}
         </p>
         <p className="text-sm text-muted-foreground">¡Match mutuo!</p>
       </div>
