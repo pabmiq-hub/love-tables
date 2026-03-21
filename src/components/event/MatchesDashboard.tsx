@@ -611,7 +611,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{matchInfo.otherParticipant.name}</p>
+                              <p className="font-medium text-sm">{formatAnonymousName(matchInfo.otherParticipant.name, matchInfo.otherParticipant.phone || undefined)}</p>
                               <Badge variant="secondary" className={`text-xs ${getMatchTypeBadgeStyle(matchInfo.matchType)}`}>
                                 {getMatchTypeLabel(matchInfo.matchType)}
                               </Badge>
