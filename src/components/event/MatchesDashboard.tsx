@@ -178,7 +178,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.both.length > 0) {
         lines.push("💕😊 CONEXIONES COMPLETAS:");
         groupedMatches.both.forEach(m => {
-          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
         });
         lines.push("");
       }
@@ -186,7 +186,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.dating.length > 0) {
         lines.push("💕 LIGUES:");
         groupedMatches.dating.forEach(m => {
-          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
         });
         lines.push("");
       }
@@ -194,7 +194,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.friendship.length > 0) {
         lines.push("😊 AMISTADES:");
         groupedMatches.friendship.forEach(m => {
-          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name} - ${m.participant1.phone || "N/A"} / ${m.participant2.phone || "N/A"}`);
+          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
         });
       }
     }
