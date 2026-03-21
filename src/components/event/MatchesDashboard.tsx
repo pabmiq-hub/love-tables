@@ -570,7 +570,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{pm.participant.name}</p>
+                          <p className="font-medium">{formatAnonymousName(pm.participant.name, pm.participant.phone || undefined)}</p>
                           <p className="text-sm text-muted-foreground">
                             {pm.matches.length} {pm.matches.length === 1 ? "match" : "matches"}
                             {pm.participant.phone && (
