@@ -696,7 +696,7 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
             className="flex items-center gap-1 text-primary hover:underline"
           >
             <Phone className="w-3 h-3" />
-            {match.participant1.name.split(' ')[0]}
+            {formatAnonymousName(match.participant1.name, match.participant1.phone || undefined)}
           </a>
         )}
         {match.participant2.phone && (
