@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, User, Heart, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { formatAnonymousName } from "@/lib/utils";
 
 interface DbParticipant {
   id: string;
