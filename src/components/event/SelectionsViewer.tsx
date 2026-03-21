@@ -268,7 +268,7 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
                                               {rec.selector.name.charAt(0)}
                                             </AvatarFallback>
                                           </Avatar>
-                                          <span className="text-sm">{rec.selector.name}</span>
+                                          <span className="text-sm">{formatAnonymousName(rec.selector.name, rec.selector.phone || undefined)}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                           <span className="text-sm">{getTypeLabel(rec.selectionType)}</span>
