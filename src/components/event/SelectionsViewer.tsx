@@ -181,7 +181,7 @@ const SelectionsViewer = ({ selections, participants, matches }: SelectionsViewe
                               {data.participant.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium text-sm">{data.participant.name}</span>
+                          <span className="font-medium text-sm">{formatAnonymousName(data.participant.name, data.participant.phone || undefined)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
