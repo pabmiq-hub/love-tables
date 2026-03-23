@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatAnonymousName } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -178,7 +178,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.both.length > 0) {
         lines.push("💕😊 CONEXIONES COMPLETAS:");
         groupedMatches.both.forEach(m => {
-          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name}`);
         });
         lines.push("");
       }
@@ -186,7 +186,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.dating.length > 0) {
         lines.push("💕 LIGUES:");
         groupedMatches.dating.forEach(m => {
-          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name}`);
         });
         lines.push("");
       }
@@ -194,7 +194,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
       if (groupedMatches.friendship.length > 0) {
         lines.push("😊 AMISTADES:");
         groupedMatches.friendship.forEach(m => {
-          lines.push(`  ${formatAnonymousName(m.participant1.name, m.participant1.phone || undefined)} ↔ ${formatAnonymousName(m.participant2.name, m.participant2.phone || undefined)}`);
+          lines.push(`  ${m.participant1.name} ↔ ${m.participant2.name}`);
         });
       }
     }
@@ -570,7 +570,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{formatAnonymousName(pm.participant.name, pm.participant.phone || undefined)}</p>
+                          <p className="font-medium">{pm.participant.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {pm.matches.length} {pm.matches.length === 1 ? "match" : "matches"}
                             {pm.participant.phone && (
@@ -611,7 +611,7 @@ const MatchesDashboard = ({ matches, selections, participants, eventName, eventS
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{formatAnonymousName(matchInfo.otherParticipant.name, matchInfo.otherParticipant.phone || undefined)}</p>
+                              <p className="font-medium text-sm">{matchInfo.otherParticipant.name}</p>
                               <Badge variant="secondary" className={`text-xs ${getMatchTypeBadgeStyle(matchInfo.matchType)}`}>
                                 {getMatchTypeLabel(matchInfo.matchType)}
                               </Badge>
@@ -683,7 +683,7 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
       {/* Names and match info */}
       <div className="flex-1">
         <p className="font-medium">
-          {formatAnonymousName(match.participant1.name, match.participant1.phone || undefined)} <span className="text-muted-foreground">&</span> {formatAnonymousName(match.participant2.name, match.participant2.phone || undefined)}
+          {match.participant1.name} <span className="text-muted-foreground">&</span> {match.participant2.name}
         </p>
         <p className="text-sm text-muted-foreground">¡Match mutuo!</p>
       </div>
@@ -696,7 +696,7 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
             className="flex items-center gap-1 text-primary hover:underline"
           >
             <Phone className="w-3 h-3" />
-            {formatAnonymousName(match.participant1.name, match.participant1.phone || undefined)}
+            {match.participant1.name}
           </a>
         )}
         {match.participant2.phone && (
@@ -705,7 +705,7 @@ const MatchCard = ({ match, matchType }: { match: Match; matchType: MatchType })
             className="flex items-center gap-1 text-primary hover:underline"
           >
             <Phone className="w-3 h-3" />
-            {formatAnonymousName(match.participant2.name, match.participant2.phone || undefined)}
+            {match.participant2.name}
           </a>
         )}
       </div>
