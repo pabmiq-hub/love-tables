@@ -513,12 +513,12 @@ const handler = async (req: Request): Promise<Response> => {
               if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
               
               if (hasFriendship) {
-                matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone });
-                matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone });
+                matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone });
+                matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone });
               }
               if (hasDating) {
-                matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone });
-                matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone });
+                matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone });
+                matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone });
               }
             }
             processed.add(key);
