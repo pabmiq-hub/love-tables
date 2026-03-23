@@ -15,6 +15,14 @@ const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
+// Anonymize name for social events: "FirstName L." format
+const formatAnonymousName = (fullName: string): string => {
+  const parts = fullName.trim().split(' ');
+  const firstName = parts[0];
+  const lastNameInitial = parts.length > 1 ? parts[1].charAt(0).toUpperCase() + '.' : '';
+  return `${firstName} ${lastNameInitial}`.trim();
+};
+
 interface EmailTemplate {
   withMatches: {
     subject: string;
