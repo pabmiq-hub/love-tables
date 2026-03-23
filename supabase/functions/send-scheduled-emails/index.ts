@@ -15,6 +15,14 @@ const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
+// Anonymize name for social events: "FirstName L." format
+const formatAnonymousName = (fullName: string): string => {
+  const parts = fullName.trim().split(' ');
+  const firstName = parts[0];
+  const lastNameInitial = parts.length > 1 ? parts[1].charAt(0).toUpperCase() + '.' : '';
+  return `${firstName} ${lastNameInitial}`.trim();
+};
+
 interface EmailTemplate {
   withMatches: {
     subject: string;
@@ -505,12 +513,12 @@ const handler = async (req: Request): Promise<Response> => {
               if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
               
               if (hasFriendship) {
-                matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: matchedWith.name, phone: matchedWith.phone });
-                matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: selector.name, phone: selector.phone });
+                matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone });
+                matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone });
               }
               if (hasDating) {
-                matchesByParticipant.get(sel.selector_id)!.dating.push({ name: matchedWith.name, phone: matchedWith.phone });
-                matchesByParticipant.get(sel.selected_id)!.dating.push({ name: selector.name, phone: selector.phone });
+                matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone });
+                matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone });
               }
             }
             processed.add(key);
