@@ -108,11 +108,18 @@ const CommunicationSettingsEditor = ({
   };
 
   const handleReset = (key: TemplateKey) => {
-    setTemplates(prev => ({
-      ...prev,
-      [key]: defaults[key],
-      ...(key === "matches" ? { matches_without: defaults.matches_without } : {}),
-    }));
+    if (key === "registration_confirmation" && registrationVariant === "with_code") {
+      setTemplates(prev => ({
+        ...prev,
+        registration_with_code: defaults.registration_with_code,
+      }));
+    } else {
+      setTemplates(prev => ({
+        ...prev,
+        [key]: defaults[key],
+        ...(key === "matches" ? { matches_without: defaults.matches_without } : {}),
+      }));
+    }
     toast({ title: "Plantilla restaurada", description: "Se han restaurado los valores por defecto" });
   };
 

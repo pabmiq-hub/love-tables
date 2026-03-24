@@ -151,6 +151,37 @@ const EmailPreview = ({
             </div>
           </div>
         );
+      case "registration_with_code":
+        return (
+          <>
+            <div className="rounded-lg p-5 my-4 text-center" style={{ backgroundColor: "#f8f9fa" }}>
+              <p className="text-xs text-muted-foreground mb-2">Tu código personal de acceso:</p>
+              <div
+                className="text-3xl font-bold tracking-[8px] py-4 px-6 rounded-lg text-white font-mono"
+                style={{ background: primaryColor }}
+              >
+                847291
+              </div>
+            </div>
+            <p className="font-semibold text-sm mt-4">Con este código puedes:</p>
+            <ul className="text-sm text-muted-foreground space-y-2 pl-2 mb-4">
+              <li>✅ <strong>Hacer check-in</strong> al llegar al evento (escanea el QR)</li>
+              <li>🪑 <strong>Ver tus mesas</strong> asignadas en cada ronda</li>
+              <li>💕 <strong>Enviar tus selecciones</strong> después del evento</li>
+            </ul>
+            <div className="border-t pt-4 mt-4">
+              <p className="font-semibold text-sm mb-3">Accede a tu panel:</p>
+              <div className="text-center">
+                <span
+                  className="inline-block py-3 px-6 rounded-lg text-white font-bold text-sm"
+                  style={{ background: primaryColor }}
+                >
+                  🎫 Mi panel del evento
+                </span>
+              </div>
+            </div>
+          </>
+        );
       case "super_like":
         return (
           <div className="text-center my-5">
