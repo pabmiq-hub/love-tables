@@ -375,11 +375,17 @@ const CommunicationSettingsEditor = ({
                 {/* Editor */}
                 <div>
                   <TemplateEditor
-                    template={templates[tab.key]}
-                    templateKey={tab.key}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
+                    templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
                     matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
-                    onChange={(field, value) => updateTemplate(tab.key, field, value)}
+                    onChange={(field, value) => {
+                      if (tab.key === "registration_confirmation" && registrationVariant === "with_code") {
+                        updateTemplate("registration_with_code" as TemplateKey, field, value);
+                      } else {
+                        updateTemplate(tab.key, field, value);
+                      }
+                    }}
                     onChangeWithout={tab.key === "matches" ? updateMatchesWithout : undefined}
                     onChangeExtraField={tab.key === "matches" ? updateMatchesExtraField : undefined}
                   />
@@ -392,8 +398,8 @@ const CommunicationSettingsEditor = ({
                     <span className="font-medium text-sm">Vista Previa</span>
                   </div>
                   <EmailPreview
-                    template={templates[tab.key]}
-                    templateKey={tab.key}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
+                    templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     primaryColor={templates.primaryColor}
                     logoUrl={templates.logoUrl}
                     logoHeight={templates.logoHeight}
