@@ -50,6 +50,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     closing: "Te enviaremos un código de acceso antes del evento. ¡Asegúrate de llegar a tiempo!",
     signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
   },
+  registration_with_code: {
+    subject: "¡Registro confirmado! Tu código de acceso - {{evento}}",
+    greeting: "¡Hola {{nombre}}! 🎉",
+    intro: "Tu registro para el evento {{evento}} ha sido confirmado con éxito.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}",
+    closing: "Guarda este código, lo necesitarás para hacer check-in y acceder a tu panel durante y después del evento.",
+    signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
+  },
   reminder: {
     subject: "⏰ Recordatorio: ¡Envía tus selecciones para {{evento}}!",
     greeting: "¡Hola {{nombre}}! 👋",
