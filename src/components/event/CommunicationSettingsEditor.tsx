@@ -19,8 +19,8 @@ import {
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean }[] = [
-  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean }[] = [
+  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
@@ -50,6 +50,7 @@ const CommunicationSettingsEditor = ({
   const defaults = language === "en" ? DEFAULT_TEMPLATES_EN : DEFAULT_TEMPLATES_ES;
   const [templates, setTemplates] = useState<CommunicationTemplates>({ ...defaults });
   const [matchesVariant, setMatchesVariant] = useState<"with" | "without">("with");
+  const [registrationVariant, setRegistrationVariant] = useState<"without_code" | "with_code">("without_code");
 
   useEffect(() => {
     loadTemplates();
