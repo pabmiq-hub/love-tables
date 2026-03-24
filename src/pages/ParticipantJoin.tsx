@@ -465,11 +465,8 @@ const ParticipantJoin = () => {
       });
       setVerificationCode(data.verificationCode);
     } else if ((data.codeSendMode === 'on_registration' || (data.codeSendMode === 'automatic')) && data.verificationCode) {
-      await supabase.functions.invoke('generate-and-send-code', {
-        body: { participantId: data.participantId, eventId }
-      });
       await supabase.functions.invoke('send-registration-confirmation', {
-        body: { participantId: data.participantId, eventId }
+        body: { participantId: data.participantId, eventId, withCode: true }
       });
     } else {
       await supabase.functions.invoke('send-registration-confirmation', {
@@ -548,11 +545,8 @@ const ParticipantJoin = () => {
       });
       setVerificationCode(result.verificationCode);
     } else if ((result.codeSendMode === 'on_registration' || (result.codeSendMode === 'automatic')) && result.verificationCode) {
-      await supabase.functions.invoke('generate-and-send-code', {
-        body: { participantId: result.participantId, eventId }
-      });
       await supabase.functions.invoke('send-registration-confirmation', {
-        body: { participantId: result.participantId, eventId }
+        body: { participantId: result.participantId, eventId, withCode: true }
       });
     } else {
       await supabase.functions.invoke('send-registration-confirmation', {
@@ -766,11 +760,8 @@ const ParticipantJoin = () => {
         });
         setVerificationCode(data.verificationCode);
       } else if ((data.codeSendMode === 'on_registration' || (data.codeSendMode === 'automatic')) && data.verificationCode) {
-        await supabase.functions.invoke("generate-and-send-code", {
-          body: { participantId: data.participantId, eventId },
-        });
         await supabase.functions.invoke("send-registration-confirmation", {
-          body: { participantId: data.participantId, eventId },
+          body: { participantId: data.participantId, eventId, withCode: true },
         });
       } else {
         await supabase.functions.invoke("send-registration-confirmation", {
