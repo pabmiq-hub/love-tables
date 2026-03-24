@@ -18,6 +18,7 @@ export interface MatchesWithoutTemplate {
 
 export interface CommunicationTemplates {
   registration_confirmation: StructuredTemplate;
+  registration_with_code: StructuredTemplate;
   reminder: StructuredTemplate;
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
@@ -30,7 +31,7 @@ export interface CommunicationTemplates {
   logoHeight: number;
 }
 
-export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
