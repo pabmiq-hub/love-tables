@@ -7,21 +7,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Search, Trash2, Eye, Merge, Send, Users, AlertTriangle, RefreshCw } from "lucide-react";
+import { Search, Trash2, Eye, Merge, Send, Users, AlertTriangle, RefreshCw, Filter, X } from "lucide-react";
 import { useCRM, type CRMUser, type DuplicateGroup } from "@/hooks/useCRM";
 import { UserDetailModal } from "./UserDetailModal";
 import { RemarketingCampaignModal } from "./RemarketingCampaignModal";
 
 export function DashboardUsers() {
   const {
-    users, loading, duplicates,
-    loadUsers, deleteUser, findDuplicates, mergeUsers, getOrganizerEvents,
+    users, loading, duplicates, filterOptions,
+    loadUsers, loadFilterOptions, deleteUser, findDuplicates, mergeUsers, getOrganizerEvents,
   } = useCRM();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
-  const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; status: string }>>([]);
+  const [moduleFilter, setModuleFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [preferenceFilter, setPreferenceFilter] = useState("all");
+  const [datingPreferenceFilter, setDatingPreferenceFilter] = useState("all");
+  const [ageRangeFilter, setAgeRangeFilter] = useState("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [events, setEvents] = useState<Array<{ id: string; name: string; date: string; status: string; module?: string | null }>>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [showRemarketing, setShowRemarketing] = useState(false);
@@ -32,15 +38,31 @@ export function DashboardUsers() {
       status: statusFilter,
       eventId: eventFilter !== "all" ? eventFilter : undefined,
       search: search || undefined,
+      moduleType: moduleFilter !== "all" ? moduleFilter : undefined,
+      gender: genderFilter !== "all" ? genderFilter : undefined,
+      preference: preferenceFilter !== "all" ? preferenceFilter : undefined,
+      datingPreference: datingPreferenceFilter !== "all" ? datingPreferenceFilter : undefined,
+      ageRange: ageRangeFilter !== "all" ? ageRangeFilter : undefined,
     });
-  }, [loadUsers, statusFilter, eventFilter, search]);
+  }, [loadUsers, statusFilter, eventFilter, search, moduleFilter, genderFilter, preferenceFilter, datingPreferenceFilter, ageRangeFilter]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     getOrganizerEvents().then(setEvents);
     findDuplicates();
-  }, [getOrganizerEvents, findDuplicates]);
+    loadFilterOptions();
+  }, [getOrganizerEvents, findDuplicates, loadFilterOptions]);
+
+  const hasActiveAdvancedFilters = moduleFilter !== "all" || genderFilter !== "all" || preferenceFilter !== "all" || datingPreferenceFilter !== "all" || ageRangeFilter !== "all";
+
+  const clearAdvancedFilters = () => {
+    setModuleFilter("all");
+    setGenderFilter("all");
+    setPreferenceFilter("all");
+    setDatingPreferenceFilter("all");
+    setAgeRangeFilter("all");
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -117,7 +139,7 @@ export function DashboardUsers() {
         </Card>
       )}
 
-      {/* Filters */}
+      {/* Basic Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -146,10 +168,146 @@ export function DashboardUsers() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          variant={showAdvancedFilters || hasActiveAdvancedFilters ? "default" : "outline"}
+          size="icon"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className="relative"
+        >
+          <Filter className="w-4 h-4" />
+          {hasActiveAdvancedFilters && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full" />
+          )}
+        </Button>
         <Button variant="ghost" size="icon" onClick={refresh}>
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvancedFilters && (
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filtros avanzados
+              </h4>
+              {hasActiveAdvancedFilters && (
+                <Button variant="ghost" size="sm" onClick={clearAdvancedFilters}>
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Limpiar filtros
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Tipo de evento</label>
+                <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="social">Social</SelectItem>
+                    <SelectItem value="professional">Profesional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Género</label>
+                <Select value={genderFilter} onValueChange={setGenderFilter} disabled={moduleFilter === "professional"}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {filterOptions.genders.map(g => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Franja de edad</label>
+                <Select value={ageRangeFilter} onValueChange={setAgeRangeFilter} disabled={moduleFilter === "professional"}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {filterOptions.ageRanges.map(a => (
+                      <SelectItem key={a} value={a}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Preferencia</label>
+                <Select value={preferenceFilter} onValueChange={setPreferenceFilter} disabled={moduleFilter === "professional"}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {filterOptions.preferences.map(p => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Preferencia de ligue</label>
+                <Select value={datingPreferenceFilter} onValueChange={setDatingPreferenceFilter} disabled={moduleFilter === "professional"}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {filterOptions.datingPreferences.map(dp => (
+                      <SelectItem key={dp} value={dp}>{dp}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasActiveAdvancedFilters && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {moduleFilter !== "all" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Tipo: {moduleFilter === "social" ? "Social" : "Profesional"}
+                    <button className="ml-1" onClick={() => setModuleFilter("all")}><X className="w-3 h-3" /></button>
+                  </Badge>
+                )}
+                {genderFilter !== "all" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Género: {genderFilter}
+                    <button className="ml-1" onClick={() => setGenderFilter("all")}><X className="w-3 h-3" /></button>
+                  </Badge>
+                )}
+                {ageRangeFilter !== "all" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Edad: {ageRangeFilter}
+                    <button className="ml-1" onClick={() => setAgeRangeFilter("all")}><X className="w-3 h-3" /></button>
+                  </Badge>
+                )}
+                {preferenceFilter !== "all" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Preferencia: {preferenceFilter}
+                    <button className="ml-1" onClick={() => setPreferenceFilter("all")}><X className="w-3 h-3" /></button>
+                  </Badge>
+                )}
+                {datingPreferenceFilter !== "all" && (
+                  <Badge variant="secondary" className="text-xs">
+                    Ligue: {datingPreferenceFilter}
+                    <button className="ml-1" onClick={() => setDatingPreferenceFilter("all")}><X className="w-3 h-3" /></button>
+                  </Badge>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
