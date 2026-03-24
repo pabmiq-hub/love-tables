@@ -340,21 +340,26 @@ const CommunicationSettingsEditor = ({
 
               {/* Registration variant toggle */}
               {tab.key === "registration_confirmation" && (
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    variant={registrationVariant === "without_code" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setRegistrationVariant("without_code")}
-                  >
-                    Sin código
-                  </Button>
-                  <Button
-                    variant={registrationVariant === "with_code" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setRegistrationVariant("with_code")}
-                  >
-                    Al registrarse (con código)
-                  </Button>
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Sin código:</strong> Confirmación básica (el código se envía más tarde). <strong>Al registrarse:</strong> Confirmación con código de acceso incluido. Si se registran en las 24h previas al evento, recibirán automáticamente la versión con código.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={registrationVariant === "without_code" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setRegistrationVariant("without_code")}
+                    >
+                      Sin código
+                    </Button>
+                    <Button
+                      variant={registrationVariant === "with_code" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setRegistrationVariant("with_code")}
+                    >
+                      Al registrarse (con código)
+                    </Button>
+                  </div>
                 </div>
               )}
 
