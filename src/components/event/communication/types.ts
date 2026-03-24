@@ -111,6 +111,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     closing: "We'll send you an access code before the event. Make sure to arrive on time!",
     signature: "See you at the event!\nKonektum Team 🎉",
   },
+  registration_with_code: {
+    subject: "Registration confirmed! Your access code - {{evento}}",
+    greeting: "Hi {{nombre}}! 🎉",
+    intro: "Your registration for {{evento}} has been confirmed.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}",
+    closing: "Save this code, you will need it to check in and access your panel during and after the event.",
+    signature: "See you at the event!\nKonektum Team 🎉",
+  },
   reminder: {
     subject: "⏰ Reminder: Send your selections for {{evento}}!",
     greeting: "Hi {{nombre}}! 👋",
