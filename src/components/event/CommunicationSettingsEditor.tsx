@@ -331,6 +331,26 @@ const CommunicationSettingsEditor = ({
                 </Button>
               </div>
 
+              {/* Registration variant toggle */}
+              {tab.key === "registration_confirmation" && (
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant={registrationVariant === "without_code" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setRegistrationVariant("without_code")}
+                  >
+                    Sin código
+                  </Button>
+                  <Button
+                    variant={registrationVariant === "with_code" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setRegistrationVariant("with_code")}
+                  >
+                    Al registrarse (con código)
+                  </Button>
+                </div>
+              )}
+
               {/* Matches variant toggle */}
               {tab.key === "matches" && (
                 <div className="flex gap-2 mb-4">
