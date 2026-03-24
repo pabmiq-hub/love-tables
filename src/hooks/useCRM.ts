@@ -41,6 +41,24 @@ export interface DuplicateGroup {
   participants: CRMUser[];
 }
 
+export interface CRMFilters {
+  status?: string;
+  eventId?: string;
+  search?: string;
+  moduleType?: string;
+  gender?: string;
+  preference?: string;
+  datingPreference?: string;
+  ageRange?: string;
+}
+
+export interface FilterOptions {
+  genders: string[];
+  preferences: string[];
+  datingPreferences: string[];
+  ageRanges: string[];
+}
+
 export function useCRM() {
   const { user } = useAuth();
   const { organizer } = useOrganizer();
@@ -48,14 +66,61 @@ export function useCRM() {
   const [users, setUsers] = useState<CRMUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    genders: [],
+    preferences: [],
+    datingPreferences: [],
+    ageRanges: [],
+  });
 
   const organizerId = user?.id;
 
-  const loadUsers = useCallback(async (filters?: {
-    status?: string;
-    eventId?: string;
-    search?: string;
-  }) => {
+  const loadFilterOptions = useCallback(async () => {
+    if (!organizerId) return;
+    try {
+      // Get all events for this organizer that are social
+      const { data: events } = await supabase
+        .from('events')
+        .select('id')
+        .eq('organizer_id', organizerId)
+        .eq('module', 'social');
+
+      if (!events || events.length === 0) return;
+      const eventIds = events.map(e => e.id);
+
+      // Get distinct values from participants of social events
+      const { data: participants } = await supabase
+        .from('participants')
+        .select('gender, preference, dating_preference, age_range')
+        .in('event_id', eventIds)
+        .not('global_participant_id', 'is', null);
+
+      if (!participants) return;
+
+      const genders = new Set<string>();
+      const preferences = new Set<string>();
+      const datingPreferences = new Set<string>();
+      const ageRanges = new Set<string>();
+
+      for (const p of participants) {
+        if (p.gender) genders.add(p.gender);
+        if (p.preference) preferences.add(p.preference);
+        if (p.dating_preference) datingPreferences.add(p.dating_preference);
+        if (p.age_range) ageRanges.add(p.age_range);
+      }
+
+      setFilterOptions({
+        genders: [...genders].sort(),
+        preferences: [...preferences].sort(),
+        datingPreferences: [...datingPreferences].sort(),
+        ageRanges: [...ageRanges].sort(),
+      });
+    } catch (error) {
+      console.error('Error loading filter options:', error);
+    }
+  }, [organizerId]);
+
+  const loadUsers = useCallback(async (filters?: CRMFilters) => {
     if (!organizerId) return;
     setLoading(true);
     try {
@@ -77,7 +142,7 @@ export function useCRM() {
 
       let results = (data || []) as CRMUser[];
 
-      // Filter by event if specified
+      // Apply event filter
       if (filters?.eventId) {
         const { data: eventParticipants } = await supabase
           .from('participants')
@@ -86,6 +151,51 @@ export function useCRM() {
           .not('global_participant_id', 'is', null);
         const gpIds = new Set(eventParticipants?.map(p => p.global_participant_id) || []);
         results = results.filter(u => gpIds.has(u.id));
+      }
+
+      // Apply module type and demographic filters
+      const hasAdvancedFilters = filters?.moduleType || filters?.gender || filters?.preference || filters?.datingPreference || filters?.ageRange;
+      if (hasAdvancedFilters) {
+        // Get events by module type
+        let eventQuery = supabase
+          .from('events')
+          .select('id')
+          .eq('organizer_id', organizerId);
+
+        if (filters?.moduleType && filters.moduleType !== 'all') {
+          eventQuery = eventQuery.eq('module', filters.moduleType);
+        }
+
+        const { data: moduleEvents } = await eventQuery;
+        if (!moduleEvents || moduleEvents.length === 0) {
+          results = [];
+        } else {
+          const moduleEventIds = moduleEvents.map(e => e.id);
+
+          // Get participants matching demographic filters in those events
+          let participantQuery = supabase
+            .from('participants')
+            .select('global_participant_id')
+            .in('event_id', moduleEventIds)
+            .not('global_participant_id', 'is', null);
+
+          if (filters?.gender && filters.gender !== 'all') {
+            participantQuery = participantQuery.eq('gender', filters.gender);
+          }
+          if (filters?.preference && filters.preference !== 'all') {
+            participantQuery = participantQuery.eq('preference', filters.preference);
+          }
+          if (filters?.datingPreference && filters.datingPreference !== 'all') {
+            participantQuery = participantQuery.eq('dating_preference', filters.datingPreference);
+          }
+          if (filters?.ageRange && filters.ageRange !== 'all') {
+            participantQuery = participantQuery.eq('age_range', filters.ageRange);
+          }
+
+          const { data: filteredParticipants } = await participantQuery;
+          const filteredGpIds = new Set(filteredParticipants?.map(p => p.global_participant_id) || []);
+          results = results.filter(u => filteredGpIds.has(u.id));
+        }
       }
 
       setUsers(results);
@@ -99,7 +209,6 @@ export function useCRM() {
   const getUserDetail = useCallback(async (globalParticipantId: string): Promise<CRMUserDetail | null> => {
     if (!organizerId) return null;
     try {
-      // Get global participant
       const { data: gp, error: gpError } = await supabase
         .from('global_participants')
         .select('*')
@@ -107,7 +216,6 @@ export function useCRM() {
         .single();
       if (gpError || !gp) return null;
 
-      // Get all event participations
       const { data: participations } = await supabase
         .from('participants')
         .select('id, event_id, checked_in, selection_submitted_at')
@@ -115,14 +223,12 @@ export function useCRM() {
 
       const eventIds = [...new Set(participations?.map(p => p.event_id) || [])];
       
-      // Get event details
       const { data: events } = eventIds.length > 0
         ? await supabase.from('events').select('id, name, date, module').in('id', eventIds)
         : { data: [] };
 
       const eventsMap = new Map((events || []).map(e => [e.id, e]));
 
-      // Get selections for all participations
       const participantIds = participations?.map(p => p.id) || [];
       let selectionsSent: any[] = [];
       let selectionsReceived: any[] = [];
@@ -141,7 +247,6 @@ export function useCRM() {
         selectionsReceived = received || [];
       }
 
-      // Build event history
       const eventHistory: EventParticipation[] = (participations || []).map(p => {
         const event = eventsMap.get(p.event_id);
         const sent = selectionsSent.filter(s => s.selector_id === p.id);
@@ -185,7 +290,6 @@ export function useCRM() {
   }, [toast]);
 
   const deleteUser = useCallback(async (id: string) => {
-    // First unlink all participants
     await supabase
       .from('participants')
       .update({ global_participant_id: null })
@@ -236,7 +340,6 @@ export function useCRM() {
     });
     phoneMap.forEach((participants, phone) => {
       if (participants.length > 1) {
-        // Avoid duplicating groups already found by email
         const ids = new Set(participants.map(p => p.id));
         const alreadyCovered = groups.some(g => 
           g.participants.every(p => ids.has(p.id)) && g.participants.length === participants.length
@@ -251,7 +354,6 @@ export function useCRM() {
   }, [organizerId]);
 
   const mergeUsers = useCallback(async (primaryId: string, duplicateId: string) => {
-    // Move all participant references to primary
     const { error: updateError } = await supabase
       .from('participants')
       .update({ global_participant_id: primaryId })
@@ -262,7 +364,6 @@ export function useCRM() {
       return false;
     }
 
-    // Update encounters
     await supabase
       .from('participant_encounters')
       .update({ global_participant_1_id: primaryId })
@@ -272,7 +373,6 @@ export function useCRM() {
       .update({ global_participant_2_id: primaryId })
       .eq('global_participant_2_id', duplicateId);
 
-    // Recalculate events_attended for primary
     const { data: eventRows } = await supabase
       .from('participants')
       .select('event_id')
@@ -283,7 +383,6 @@ export function useCRM() {
       .update({ events_attended: distinctEvents })
       .eq('id', primaryId);
 
-    // Delete duplicate
     await supabase.from('global_participants').delete().eq('id', duplicateId);
 
     setUsers(prev => prev.filter(u => u.id !== duplicateId));
@@ -305,7 +404,9 @@ export function useCRM() {
     users,
     loading,
     duplicates,
+    filterOptions,
     loadUsers,
+    loadFilterOptions,
     getUserDetail,
     updateUser,
     deleteUser,
