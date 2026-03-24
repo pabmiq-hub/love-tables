@@ -19,8 +19,8 @@ import {
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean }[] = [
-  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse" },
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean }[] = [
+  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
@@ -50,6 +50,7 @@ const CommunicationSettingsEditor = ({
   const defaults = language === "en" ? DEFAULT_TEMPLATES_EN : DEFAULT_TEMPLATES_ES;
   const [templates, setTemplates] = useState<CommunicationTemplates>({ ...defaults });
   const [matchesVariant, setMatchesVariant] = useState<"with" | "without">("with");
+  const [registrationVariant, setRegistrationVariant] = useState<"without_code" | "with_code">("without_code");
 
   useEffect(() => {
     loadTemplates();
@@ -107,11 +108,18 @@ const CommunicationSettingsEditor = ({
   };
 
   const handleReset = (key: TemplateKey) => {
-    setTemplates(prev => ({
-      ...prev,
-      [key]: defaults[key],
-      ...(key === "matches" ? { matches_without: defaults.matches_without } : {}),
-    }));
+    if (key === "registration_confirmation" && registrationVariant === "with_code") {
+      setTemplates(prev => ({
+        ...prev,
+        registration_with_code: defaults.registration_with_code,
+      }));
+    } else {
+      setTemplates(prev => ({
+        ...prev,
+        [key]: defaults[key],
+        ...(key === "matches" ? { matches_without: defaults.matches_without } : {}),
+      }));
+    }
     toast({ title: "Plantilla restaurada", description: "Se han restaurado los valores por defecto" });
   };
 
@@ -330,6 +338,31 @@ const CommunicationSettingsEditor = ({
                 </Button>
               </div>
 
+              {/* Registration variant toggle */}
+              {tab.key === "registration_confirmation" && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Sin código:</strong> Confirmación básica (el código se envía más tarde). <strong>Al registrarse:</strong> Confirmación con código de acceso incluido. Si se registran en las 24h previas al evento, recibirán automáticamente la versión con código.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={registrationVariant === "without_code" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setRegistrationVariant("without_code")}
+                    >
+                      Sin código
+                    </Button>
+                    <Button
+                      variant={registrationVariant === "with_code" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setRegistrationVariant("with_code")}
+                    >
+                      Al registrarse (con código)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Matches variant toggle */}
               {tab.key === "matches" && (
                 <div className="flex gap-2 mb-4">
@@ -354,11 +387,17 @@ const CommunicationSettingsEditor = ({
                 {/* Editor */}
                 <div>
                   <TemplateEditor
-                    template={templates[tab.key]}
-                    templateKey={tab.key}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
+                    templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
                     matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
-                    onChange={(field, value) => updateTemplate(tab.key, field, value)}
+                    onChange={(field, value) => {
+                      if (tab.key === "registration_confirmation" && registrationVariant === "with_code") {
+                        updateTemplate("registration_with_code" as TemplateKey, field, value);
+                      } else {
+                        updateTemplate(tab.key, field, value);
+                      }
+                    }}
                     onChangeWithout={tab.key === "matches" ? updateMatchesWithout : undefined}
                     onChangeExtraField={tab.key === "matches" ? updateMatchesExtraField : undefined}
                   />
@@ -371,8 +410,8 @@ const CommunicationSettingsEditor = ({
                     <span className="font-medium text-sm">Vista Previa</span>
                   </div>
                   <EmailPreview
-                    template={templates[tab.key]}
-                    templateKey={tab.key}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
+                    templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     primaryColor={templates.primaryColor}
                     logoUrl={templates.logoUrl}
                     logoHeight={templates.logoHeight}

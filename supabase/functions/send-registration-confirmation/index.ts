@@ -49,6 +49,7 @@ function nl2br(text: string): string {
 interface RegistrationConfirmationRequest {
   participantId: string;
   eventId: string;
+  withCode?: boolean;
 }
 
 serve(async (req) => {
@@ -57,7 +58,7 @@ serve(async (req) => {
   }
 
   try {
-    const { participantId, eventId }: RegistrationConfirmationRequest = await req.json();
+    const { participantId, eventId, withCode }: RegistrationConfirmationRequest = await req.json();
 
     if (!participantId || !eventId) {
       return new Response(
@@ -73,7 +74,7 @@ serve(async (req) => {
     // Get participant details
     const { data: participant, error: participantError } = await supabase
       .from("participants")
-      .select("id, name, email")
+      .select("id, name, email, verification_code")
       .eq("id", participantId)
       .single();
 
@@ -125,15 +126,17 @@ serve(async (req) => {
     const KONEKTUM_LOGO_URL = "https://konektum.com/konektum-logo.png";
     let defaultLogoUrl = KONEKTUM_LOGO_URL;
     let defaultBrandName = "Konektum";
+    let organizerId: string | null = null;
     
     if (event.organizer_id) {
       const { data: organizer } = await supabase
         .from("organizers")
-        .select("company_name, logo_url, active_modules")
+        .select("id, company_name, logo_url, active_modules")
         .eq("user_id", event.organizer_id)
         .maybeSingle();
       
       if (organizer) {
+        organizerId = organizer.id;
         const modules = organizer.active_modules || [];
         const isProfessionalOnly = modules.length === 1 && modules[0] === "professional";
         if (isProfessionalOnly && organizer.logo_url) {
@@ -146,13 +149,21 @@ serve(async (req) => {
     // Read customized template from event
     const emailTemplate = event.email_template as any;
     const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
-    const tpl = communicationTemplate?.registration_confirmation;
+    
+    // Decide which template to use based on withCode flag
+    const useWithCode = withCode === true;
+    const tpl = useWithCode
+      ? (communicationTemplate?.registration_with_code || null)
+      : (communicationTemplate?.registration_confirmation || null);
+    
     const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
     const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
     const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
     const headerTitle = communicationTemplate?.headerTitle || (isEn ? "Welcome to the event!" : "¡Bienvenido/a al evento!");
     const rawLogoHeight = Number(communicationTemplate?.logoHeight ?? emailTemplate?.logoHeight ?? 48);
     const logoHeight = Number.isFinite(rawLogoHeight) ? Math.min(120, Math.max(24, rawLogoHeight)) : 48;
+
+    const verificationCode = participant.verification_code || '';
 
     // Template variables
     const vars: Record<string, string> = {
@@ -161,30 +172,51 @@ serve(async (req) => {
       "{{fecha}}": formattedDateTime,
       "{{ubicacion}}": event.event_location || (isEn ? 'TBD' : 'Por confirmar'),
       "{{hora}}": formattedTime || (isEn ? 'TBD' : 'Por confirmar'),
+      "{{codigo}}": verificationCode,
     };
 
-    // Use customized template or defaults
-    const subject = tpl?.subject
-      ? replaceVariables(tpl.subject, vars)
-      : (isEn ? `Registration confirmed! - ${event.name}` : `¡Registro confirmado! - ${event.name}`);
-    
-    const greeting = tpl?.greeting
-      ? replaceVariables(tpl.greeting, vars)
-      : (isEn ? `Hi ${participant.name}! 🎉` : `¡Hola ${participant.name}! 🎉`);
-    
-    const intro = tpl?.intro
-      ? replaceVariables(tpl.intro, vars)
-      : (isEn
+    // Default templates based on variant
+    let defaultSubject: string;
+    let defaultGreeting: string;
+    let defaultIntro: string;
+    let defaultClosing: string;
+    let defaultSignature: string;
+
+    if (useWithCode) {
+      defaultSubject = isEn
+        ? `Registration confirmed! Your access code - ${event.name}`
+        : `¡Registro confirmado! Tu código de acceso - ${event.name}`;
+      defaultGreeting = isEn ? `Hi ${participant.name}! 🎉` : `¡Hola ${participant.name}! 🎉`;
+      defaultIntro = isEn
         ? `Your registration for ${event.name} has been confirmed.\n\n📅 Date: ${formattedDateTime}\n📍 Location: ${event.event_location || 'TBD'}\n🕐 Time: ${formattedTime || 'TBD'}`
-        : `Tu registro para ${event.name} ha sido confirmado.\n\n📅 Fecha: ${formattedDateTime}\n📍 Lugar: ${event.event_location || 'Por confirmar'}\n🕐 Hora: ${formattedTime || 'Por confirmar'}`);
-    
-    const closing = tpl?.closing
-      ? replaceVariables(tpl.closing, vars)
-      : (isEn ? "We'll send you an access code before the event. Make sure to arrive on time!" : "Te enviaremos un código de acceso antes del evento. ¡Asegúrate de llegar a tiempo!");
-    
-    const signature = tpl?.signature
-      ? replaceVariables(tpl.signature, vars)
-      : (isEn ? `See you at the event!\n${brandName} Team 🎉` : `¡Nos vemos en el evento!\nEquipo ${brandName} 🎉`);
+        : `Tu registro para ${event.name} ha sido confirmado.\n\n📅 Fecha: ${formattedDateTime}\n📍 Lugar: ${event.event_location || 'Por confirmar'}\n🕐 Hora: ${formattedTime || 'Por confirmar'}`;
+      defaultClosing = isEn
+        ? "Save this code, you will need it to check in and access your panel during and after the event."
+        : "Guarda este código, lo necesitarás para hacer check-in y acceder a tu panel durante y después del evento.";
+      defaultSignature = isEn
+        ? `See you at the event!\n${brandName} Team 🎉`
+        : `¡Nos vemos en el evento!\nEquipo ${brandName} 🎉`;
+    } else {
+      defaultSubject = isEn
+        ? `Registration confirmed! - ${event.name}`
+        : `¡Registro confirmado! - ${event.name}`;
+      defaultGreeting = isEn ? `Hi ${participant.name}! 🎉` : `¡Hola ${participant.name}! 🎉`;
+      defaultIntro = isEn
+        ? `Your registration for ${event.name} has been confirmed.\n\n📅 Date: ${formattedDateTime}\n📍 Location: ${event.event_location || 'TBD'}\n🕐 Time: ${formattedTime || 'TBD'}`
+        : `Tu registro para ${event.name} ha sido confirmado.\n\n📅 Fecha: ${formattedDateTime}\n📍 Lugar: ${event.event_location || 'Por confirmar'}\n🕐 Hora: ${formattedTime || 'Por confirmar'}`;
+      defaultClosing = isEn
+        ? "We'll send you an access code before the event. Make sure to arrive on time!"
+        : "Te enviaremos un código de acceso antes del evento. ¡Asegúrate de llegar a tiempo!";
+      defaultSignature = isEn
+        ? `See you at the event!\n${brandName} Team 🎉`
+        : `¡Nos vemos en el evento!\nEquipo ${brandName} 🎉`;
+    }
+
+    const subject = tpl?.subject ? replaceVariables(tpl.subject, vars) : defaultSubject;
+    const greeting = tpl?.greeting ? replaceVariables(tpl.greeting, vars) : defaultGreeting;
+    const intro = tpl?.intro ? replaceVariables(tpl.intro, vars) : defaultIntro;
+    const closing = tpl?.closing ? replaceVariables(tpl.closing, vars) : defaultClosing;
+    const signature = tpl?.signature ? replaceVariables(tpl.signature, vars) : defaultSignature;
 
     // Build calendar links
     const eventDateStr = event.date.replace(/-/g, '');
@@ -240,6 +272,29 @@ serve(async (req) => {
       </div>
     `;
 
+    // Build access code block HTML (only for withCode variant)
+    const baseUrl = `https://love-tables.lovable.app`;
+    const accessUrl = `${baseUrl}/event/${eventId}/access`;
+    const codeBlockHtml = useWithCode && verificationCode ? `
+      <div style="text-align: center; margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+        <p style="color: #666; font-size: 14px; margin: 0 0 10px;">${isEn ? 'Your personal access code:' : 'Tu código personal de acceso:'}</p>
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 15px 20px; background: ${primaryColor}; color: white; border-radius: 10px; font-family: 'Courier New', monospace; display: inline-block;">
+          ${escapeHtml(verificationCode)}
+        </div>
+      </div>
+      <p style="font-weight: bold; color: #333; font-size: 15px;">${isEn ? 'With this code you can:' : 'Con este código puedes:'}</p>
+      <ul style="color: #555; font-size: 14px; line-height: 2;">
+        <li>✅ <strong>${isEn ? 'Check in' : 'Hacer check-in'}</strong> ${isEn ? 'when you arrive (scan the QR)' : 'al llegar al evento (escanea el QR)'}</li>
+        <li>🪑 <strong>${isEn ? 'See your tables' : 'Ver tus mesas'}</strong> ${isEn ? 'assigned for each round' : 'asignadas en cada ronda'}</li>
+        <li>💕 <strong>${isEn ? 'Submit your selections' : 'Enviar tus selecciones'}</strong> ${isEn ? 'after the event' : 'después del evento'}</li>
+      </ul>
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="${accessUrl}" target="_blank" style="display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, ${primaryColor}, ${adjustColorHex(primaryColor, 30)}); color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 15px;">
+          🎫 ${isEn ? 'My event panel' : 'Mi panel del evento'}
+        </a>
+      </div>
+    ` : '';
+
     const emailPayload = {
       from: `${brandName} <noreply@konektum.com>`,
       to: [participant.email],
@@ -264,6 +319,8 @@ serve(async (req) => {
               ${nl2br(intro)}
             </div>
             
+            ${codeBlockHtml}
+            
             ${calendarButtonsHtml}
             
             <div style="color: #555; font-size: 15px; line-height: 1.6; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
@@ -280,11 +337,11 @@ serve(async (req) => {
     };
 
     // Check for organizer's own Resend config
-    if (event.organizer_id) {
+    if (event.organizer_id && organizerId) {
       const { data: resendConfig } = await supabase
         .from("organizer_resend_config")
         .select("resend_api_key, sender_email, sender_name")
-        .eq("organizer_id", (await supabase.from("organizers").select("id").eq("user_id", event.organizer_id).single()).data?.id || '')
+        .eq("organizer_id", organizerId)
         .eq("is_verified", true)
         .maybeSingle();
       
@@ -302,7 +359,7 @@ serve(async (req) => {
     await supabase.from("email_logs").insert({
       event_id: eventId,
       participant_id: participantId,
-      email_type: "registration_confirmation",
+      email_type: useWithCode ? "registration_with_code" : "registration_confirmation",
       status: logStatus,
       error_message: logError,
       sent_at: logStatus === "sent" ? new Date().toISOString() : null,
@@ -316,7 +373,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("[send-registration-confirmation] Email sent successfully:", emailResponse);
+    console.log(`[send-registration-confirmation] Email sent successfully (withCode=${useWithCode}):`, emailResponse);
 
     return new Response(
       JSON.stringify({ success: true, emailId: emailResponse.data?.id }),
@@ -331,3 +388,15 @@ serve(async (req) => {
     );
   }
 });
+
+function adjustColorHex(hex: string, amount: number): string {
+  try {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const r = Math.min(255, ((num >> 16) & 0xff) + amount);
+    const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+    const b = Math.min(255, (num & 0xff) + amount);
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+  } catch {
+    return hex;
+  }
+}

@@ -18,6 +18,7 @@ export interface MatchesWithoutTemplate {
 
 export interface CommunicationTemplates {
   registration_confirmation: StructuredTemplate;
+  registration_with_code: StructuredTemplate;
   reminder: StructuredTemplate;
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
@@ -30,10 +31,11 @@ export interface CommunicationTemplates {
   logoHeight: number;
 }
 
-export type TemplateKey = "registration_confirmation" | "reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
+  registration_with_code: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}", "{{codigo}}"],
   reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
@@ -46,6 +48,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     greeting: "¡Hola {{nombre}}! 🎉",
     intro: "Tu registro para el evento {{evento}} ha sido confirmado con éxito.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}",
     closing: "Te enviaremos un código de acceso antes del evento. ¡Asegúrate de llegar a tiempo!",
+    signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
+  },
+  registration_with_code: {
+    subject: "¡Registro confirmado! Tu código de acceso - {{evento}}",
+    greeting: "¡Hola {{nombre}}! 🎉",
+    intro: "Tu registro para el evento {{evento}} ha sido confirmado con éxito.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}",
+    closing: "Guarda este código, lo necesitarás para hacer check-in y acceder a tu panel durante y después del evento.",
     signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
   },
   reminder: {
@@ -100,6 +109,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     greeting: "Hi {{nombre}}! 🎉",
     intro: "Your registration for {{evento}} has been confirmed.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}",
     closing: "We'll send you an access code before the event. Make sure to arrive on time!",
+    signature: "See you at the event!\nKonektum Team 🎉",
+  },
+  registration_with_code: {
+    subject: "Registration confirmed! Your access code - {{evento}}",
+    greeting: "Hi {{nombre}}! 🎉",
+    intro: "Your registration for {{evento}} has been confirmed.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}",
+    closing: "Save this code, you will need it to check in and access your panel during and after the event.",
     signature: "See you at the event!\nKonektum Team 🎉",
   },
   reminder: {
