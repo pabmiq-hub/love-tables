@@ -95,6 +95,42 @@ export function normalizeDatingOrientation(d: string | null | undefined): string
   return DATING_ORIENTATION_NORMALIZE[d.toLowerCase().trim()] || d;
 }
 
+// ==================== AGE RANGE NORMALIZATION ====================
+
+export function normalizeAgeRange(ageRange: string | null | undefined): string {
+  if (!ageRange) return "Sin especificar";
+
+  const raw = ageRange.trim();
+  if (!raw) return "Sin especificar";
+
+  const cleaned = raw
+    .toLowerCase()
+    .replace(/años?|years?/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (["sin especificar", "not specified", "unspecified", "n/a", "na"].includes(cleaned)) {
+    return "Sin especificar";
+  }
+
+  const rangeMatch = cleaned.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
+  if (rangeMatch) {
+    const min = Number(rangeMatch[1]);
+    const max = Number(rangeMatch[2]);
+    if (!Number.isNaN(min) && !Number.isNaN(max)) {
+      return `${min}–${max}`;
+    }
+  }
+
+  const plusMatch = cleaned.match(/^\+?\s*(\d{1,2})\s*\+?$|^(\d{1,2})\s*(?:o más|o mas|or more)$/);
+  const plusValue = plusMatch ? Number(plusMatch[1] ?? plusMatch[2]) : Number.NaN;
+  if (!Number.isNaN(plusValue)) {
+    return `+ ${plusValue}`;
+  }
+
+  return raw;
+}
+
 // ==================== COLORS ====================
 
 export const PREF_COLORS: Record<string, string> = {
