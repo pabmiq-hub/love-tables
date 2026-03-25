@@ -174,6 +174,7 @@ export type Database = {
           organizer_id: string | null
           original_participants_count: number | null
           participants_count: number
+          preliminary_round: Json | null
           professional_config: Json | null
           registration_description: string | null
           registration_open: boolean
@@ -224,6 +225,7 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          preliminary_round?: Json | null
           professional_config?: Json | null
           registration_description?: string | null
           registration_open?: boolean
@@ -274,6 +276,7 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          preliminary_round?: Json | null
           professional_config?: Json | null
           registration_description?: string | null
           registration_open?: boolean

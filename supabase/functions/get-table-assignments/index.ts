@@ -93,7 +93,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round')
       .eq('id', eventId)
       .single();
 
@@ -193,6 +193,28 @@ serve(async (req) => {
           mates.forEach((m: any) => tablemateIds.add(m.id));
           assignments.push({
             round: roundNumber,
+            table: tableIndex + 1,
+            tablemateEntries: mates
+          });
+          break;
+        }
+      }
+    }
+
+    // Also process preliminary round if exists
+    const preliminaryRound = (event as any).preliminary_round;
+    if (preliminaryRound?.enabled && Array.isArray(preliminaryRound.tables)) {
+      for (let tableIndex = 0; tableIndex < preliminaryRound.tables.length; tableIndex++) {
+        const table = preliminaryRound.tables[tableIndex];
+        if (!Array.isArray(table)) continue;
+        const isInTable = table.some((p: any) => p.id === participant.id);
+        if (isInTable) {
+          const mates = table
+            .filter((p: any) => p.id !== participant.id)
+            .map((p: any) => ({ id: p.id, name: p.name }));
+          mates.forEach((m: any) => tablemateIds.add(m.id));
+          assignments.push({
+            round: 0,
             table: tableIndex + 1,
             tablemateEntries: mates
           });

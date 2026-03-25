@@ -115,6 +115,7 @@ interface EventData {
   code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
+  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null } | null;
 }
 
 interface DbParticipant {
@@ -295,6 +296,7 @@ const EventDetail = () => {
       code_send_mode: (event as any).code_send_mode ?? 'on_registration',
       registration_open: (event as any).registration_open ?? true,
       waitlist_enabled: (event as any).waitlist_enabled ?? false,
+      preliminary_round: (event as any).preliminary_round as EventData['preliminary_round'] ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -2810,6 +2812,65 @@ const EventDetail = () => {
     });
   };
 
+  // Preliminary round: assign checked-in participants to ad-hoc tables
+  const handleAssignPreliminaryTables = async () => {
+    if (!id || !eventData) return;
+
+    const prelimRound = eventData.preliminary_round || { enabled: true, tables: [], started_at: null };
+    const existingPrelimParticipantIds = new Set<string>();
+    (prelimRound.tables || []).forEach((table: any[]) => {
+      table.forEach((p: any) => existingPrelimParticipantIds.add(p.id));
+    });
+
+    // Get checked-in participants not yet in preliminary tables
+    const unassigned = participants.filter(p => p.checked_in && !existingPrelimParticipantIds.has(p.id));
+
+    if (unassigned.length < 2) {
+      toast({
+        title: "Sin participantes",
+        description: "Necesitas al menos 2 participantes con check-in sin mesa preliminar asignada",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Shuffle and group into tables of table_size
+    const shuffled = [...unassigned].sort(() => Math.random() - 0.5);
+    const tableSize = eventData.table_size || 4;
+    const newTables: any[][] = [];
+    for (let i = 0; i < shuffled.length; i += tableSize) {
+      const group = shuffled.slice(i, i + tableSize);
+      if (group.length >= 2) {
+        newTables.push(group.map(p => ({ id: p.id, name: p.name })));
+      } else if (newTables.length > 0) {
+        // Add remainders to last table
+        group.forEach(p => newTables[newTables.length - 1].push({ id: p.id, name: p.name }));
+      }
+    }
+
+    const updatedPrelim = {
+      enabled: true,
+      tables: [...(prelimRound.tables || []), ...newTables],
+      started_at: prelimRound.started_at || new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("events")
+      .update({ preliminary_round: updatedPrelim } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron crear las mesas preliminares", variant: "destructive" });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, preliminary_round: updatedPrelim } : prev);
+    toast({
+      title: "Mesas preliminares creadas",
+      description: `${newTables.length} mesa(s) nueva(s) con ${unassigned.length} participantes`,
+    });
+  };
+
   // Get unique values for filter options - Social
   const uniqueGenders = [...new Set(participants.map(p => p.gender).filter(Boolean))];
   const uniqueAgeRanges = [...new Set(participants.map(p => p.age_range).filter(Boolean))];
@@ -3202,6 +3263,19 @@ const EventDetail = () => {
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    )}
+
+                    {/* Preliminary Round - assign tables button */}
+                    {eventStatus === "pending" && eventData?.preliminary_round?.enabled && !isProfessionalEvent && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAssignPreliminaryTables}
+                        disabled={participants.filter(p => p.checked_in).length < 2}
+                      >
+                        <Table2 className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Mesa preliminar</span>
+                      </Button>
                     )}
 
                     {/* Registration controls dropdown */}
@@ -3941,6 +4015,42 @@ const EventDetail = () => {
                         </AlertDialog>
                       )}
                     </div>
+                    
+                    {/* Preliminary Round Tables - shown during pending state */}
+                    {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                      <div className="mt-8">
+                        <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+                          🎯 Ronda Preliminar (Ronda 0)
+                          <Badge variant="secondary">{(eventData.preliminary_round.tables || []).length} mesas</Badge>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => (
+                            <Card key={tableIndex} className="border-l-4 border-l-amber-400">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Table2 className="w-4 h-4 text-amber-500" />
+                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
+                                    <span className="text-xs text-muted-foreground">({table.length})</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Preliminar</Badge>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {table.map((p: any) => (
+                                    <div key={p.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                      <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-medium">
+                                        {p.name.charAt(0)}
+                                      </div>
+                                      <span className="text-sm truncate">{p.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : tables.length === 0 ? (
@@ -4302,6 +4412,7 @@ const EventDetail = () => {
                 superLikeEnabled={eventData.super_like_enabled}
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
+                preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}

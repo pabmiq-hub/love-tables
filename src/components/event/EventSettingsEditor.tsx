@@ -13,6 +13,8 @@ import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEdit
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
 import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
+import { FeatureGate } from "@/components/FeatureGate";
+import { useFeatures } from "@/hooks/useFeatures";
 
 interface EventSettingsEditorProps {
   eventId: string;
@@ -39,6 +41,7 @@ interface EventSettingsEditorProps {
   superLikeEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
+  preliminaryRoundEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -67,9 +70,11 @@ const EventSettingsEditor = ({
   superLikeEnabled: initialSuperLikeEnabled = false,
   codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
+  preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
+  const { hasFeature } = useFeatures();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
@@ -97,6 +102,7 @@ const EventSettingsEditor = ({
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
+  const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -170,6 +176,13 @@ const EventSettingsEditor = ({
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
       };
+
+      // Handle preliminary round
+      if (!isProfessional && formPreliminaryRoundEnabled) {
+        updates.preliminary_round = { enabled: true, tables: [], started_at: null };
+      } else if (!formPreliminaryRoundEnabled) {
+        updates.preliminary_round = null;
+      }
 
       if (isProfessional) {
         const updatedProfConfig = {
@@ -434,6 +447,25 @@ const EventSettingsEditor = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Preliminary Round - Social only, Enterprise feature */}
+          {!isProfessional && (
+            <FeatureGate feature="preliminary_round">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <Label className="text-base">🎯 Ronda Preliminar</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Crea mesas de relleno mientras los participantes llegan, sin tener en cuenta preferencias. 
+                    Ideal para que nadie espere sentado antes de iniciar el evento.
+                  </p>
+                </div>
+                <Switch
+                  checked={formPreliminaryRoundEnabled}
+                  onCheckedChange={setFormPreliminaryRoundEnabled}
+                />
+              </div>
+            </FeatureGate>
+          )}
 
           {/* Registration Form Customization */}
           <div className="space-y-4 p-4 border rounded-lg">
