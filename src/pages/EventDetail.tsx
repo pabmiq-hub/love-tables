@@ -3265,6 +3265,19 @@ const EventDetail = () => {
                       </DropdownMenu>
                     )}
 
+                    {/* Preliminary Round - assign tables button */}
+                    {eventStatus === "pending" && eventData?.preliminary_round?.enabled && !isProfessionalEvent && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAssignPreliminaryTables}
+                        disabled={participants.filter(p => p.checked_in).length < 2}
+                      >
+                        <Table2 className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Mesa preliminar</span>
+                      </Button>
+                    )}
+
                     {/* Registration controls dropdown */}
                     {eventStatus === "pending" && (
                       <DropdownMenu>
