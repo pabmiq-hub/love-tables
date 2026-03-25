@@ -4304,6 +4304,7 @@ const EventDetail = () => {
                 superLikeEnabled={eventData.super_like_enabled}
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
+                preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
