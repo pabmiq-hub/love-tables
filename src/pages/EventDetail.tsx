@@ -4015,6 +4015,42 @@ const EventDetail = () => {
                         </AlertDialog>
                       )}
                     </div>
+                    
+                    {/* Preliminary Round Tables - shown during pending state */}
+                    {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                      <div className="mt-8">
+                        <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+                          🎯 Ronda Preliminar (Ronda 0)
+                          <Badge variant="secondary">{(eventData.preliminary_round.tables || []).length} mesas</Badge>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => (
+                            <Card key={tableIndex} className="border-l-4 border-l-amber-400">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Table2 className="w-4 h-4 text-amber-500" />
+                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
+                                    <span className="text-xs text-muted-foreground">({table.length})</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Preliminar</Badge>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {table.map((p: any) => (
+                                    <div key={p.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
+                                      <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-medium">
+                                        {p.name.charAt(0)}
+                                      </div>
+                                      <span className="text-sm truncate">{p.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : tables.length === 0 ? (
