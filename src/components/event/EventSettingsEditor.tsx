@@ -448,6 +448,25 @@ const EventSettingsEditor = ({
             </Select>
           </div>
 
+          {/* Preliminary Round - Social only, Enterprise feature */}
+          {!isProfessional && (
+            <FeatureGate feature="preliminary_round">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <Label className="text-base">🎯 Ronda Preliminar</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Crea mesas de relleno mientras los participantes llegan, sin tener en cuenta preferencias. 
+                    Ideal para que nadie espere sentado antes de iniciar el evento.
+                  </p>
+                </div>
+                <Switch
+                  checked={formPreliminaryRoundEnabled}
+                  onCheckedChange={setFormPreliminaryRoundEnabled}
+                />
+              </div>
+            </FeatureGate>
+          )}
+
           {/* Registration Form Customization */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center justify-between">
