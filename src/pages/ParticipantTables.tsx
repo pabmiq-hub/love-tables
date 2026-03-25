@@ -216,7 +216,7 @@ const ParticipantTables = () => {
                         <span className={`text-sm font-medium ${
                           currentRound === assignment.round ? 'text-primary' : 'text-muted-foreground'
                         }`}>
-                          {t.tables.round} {assignment.round}
+                          {assignment.round === 0 ? t.tables.round + ' 0 — ' + (eventLang === 'es' ? 'Bienvenida' : 'Welcome') : `${t.tables.round} ${assignment.round}`}
                         </span>
                         {currentRound === assignment.round && (
                           <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">
