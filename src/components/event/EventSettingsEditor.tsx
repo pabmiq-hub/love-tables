@@ -177,6 +177,13 @@ const EventSettingsEditor = ({
         code_send_mode: formCodeSendMode,
       };
 
+      // Handle preliminary round
+      if (!isProfessional && formPreliminaryRoundEnabled) {
+        updates.preliminary_round = { enabled: true, tables: [], started_at: null };
+      } else if (!formPreliminaryRoundEnabled) {
+        updates.preliminary_round = null;
+      }
+
       if (isProfessional) {
         const updatedProfConfig = {
           ...(professionalConfig || {}),
