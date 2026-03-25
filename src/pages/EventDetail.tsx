@@ -2812,6 +2812,65 @@ const EventDetail = () => {
     });
   };
 
+  // Preliminary round: assign checked-in participants to ad-hoc tables
+  const handleAssignPreliminaryTables = async () => {
+    if (!id || !eventData) return;
+
+    const prelimRound = eventData.preliminary_round || { enabled: true, tables: [], started_at: null };
+    const existingPrelimParticipantIds = new Set<string>();
+    (prelimRound.tables || []).forEach((table: any[]) => {
+      table.forEach((p: any) => existingPrelimParticipantIds.add(p.id));
+    });
+
+    // Get checked-in participants not yet in preliminary tables
+    const unassigned = participants.filter(p => p.checked_in && !existingPrelimParticipantIds.has(p.id));
+
+    if (unassigned.length < 2) {
+      toast({
+        title: "Sin participantes",
+        description: "Necesitas al menos 2 participantes con check-in sin mesa preliminar asignada",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Shuffle and group into tables of table_size
+    const shuffled = [...unassigned].sort(() => Math.random() - 0.5);
+    const tableSize = eventData.table_size || 4;
+    const newTables: any[][] = [];
+    for (let i = 0; i < shuffled.length; i += tableSize) {
+      const group = shuffled.slice(i, i + tableSize);
+      if (group.length >= 2) {
+        newTables.push(group.map(p => ({ id: p.id, name: p.name })));
+      } else if (newTables.length > 0) {
+        // Add remainders to last table
+        group.forEach(p => newTables[newTables.length - 1].push({ id: p.id, name: p.name }));
+      }
+    }
+
+    const updatedPrelim = {
+      enabled: true,
+      tables: [...(prelimRound.tables || []), ...newTables],
+      started_at: prelimRound.started_at || new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("events")
+      .update({ preliminary_round: updatedPrelim } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron crear las mesas preliminares", variant: "destructive" });
+      return;
+    }
+
+    setEventData(prev => prev ? { ...prev, preliminary_round: updatedPrelim } : prev);
+    toast({
+      title: "Mesas preliminares creadas",
+      description: `${newTables.length} mesa(s) nueva(s) con ${unassigned.length} participantes`,
+    });
+  };
+
   // Get unique values for filter options - Social
   const uniqueGenders = [...new Set(participants.map(p => p.gender).filter(Boolean))];
   const uniqueAgeRanges = [...new Set(participants.map(p => p.age_range).filter(Boolean))];
