@@ -115,6 +115,7 @@ interface EventData {
   code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
+  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null } | null;
 }
 
 interface DbParticipant {
