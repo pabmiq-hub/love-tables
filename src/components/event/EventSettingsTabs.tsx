@@ -31,6 +31,7 @@ interface EventSettingsTabsProps {
   superLikeEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
+  preliminaryRoundEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
