@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useOrganizer } from './useOrganizer';
 import { useToast } from './use-toast';
+import { normalizeAgeRange, normalizeDatingOrientation, normalizeGender, normalizePreference } from '@/lib/analyticsNormalization';
 
 export interface CRMUser {
   id: string;
@@ -59,6 +60,21 @@ export interface FilterOptions {
   ageRanges: string[];
 }
 
+interface ParticipantFilterRow {
+  global_participant_id: string | null;
+  gender: string | null;
+  preference: string | null;
+  dating_preference: string | null;
+  age_range: string | null;
+}
+
+const normalizeParticipantFilters = (participant: Omit<ParticipantFilterRow, 'global_participant_id'>) => ({
+  gender: normalizeGender(participant.gender),
+  preference: normalizePreference(participant.preference, true),
+  datingPreference: normalizeDatingOrientation(participant.dating_preference) || 'Sin especificar',
+  ageRange: normalizeAgeRange(participant.age_range),
+});
+
 export function useCRM() {
   const { user } = useAuth();
   const { organizer } = useOrganizer();
@@ -103,10 +119,11 @@ export function useCRM() {
       const ageRanges = new Set<string>();
 
       for (const p of participants) {
-        if (p.gender) genders.add(p.gender);
-        if (p.preference) preferences.add(p.preference);
-        if (p.dating_preference) datingPreferences.add(p.dating_preference);
-        if (p.age_range) ageRanges.add(p.age_range);
+        const normalized = normalizeParticipantFilters(p);
+        genders.add(normalized.gender);
+        preferences.add(normalized.preference);
+        datingPreferences.add(normalized.datingPreference);
+        ageRanges.add(normalized.ageRange);
       }
 
       setFilterOptions({
@@ -175,25 +192,28 @@ export function useCRM() {
           // Get participants matching demographic filters in those events
           let participantQuery = supabase
             .from('participants')
-            .select('global_participant_id')
+            .select('global_participant_id, gender, preference, dating_preference, age_range')
             .in('event_id', moduleEventIds)
             .not('global_participant_id', 'is', null);
 
-          if (filters?.gender && filters.gender !== 'all') {
-            participantQuery = participantQuery.eq('gender', filters.gender);
-          }
-          if (filters?.preference && filters.preference !== 'all') {
-            participantQuery = participantQuery.eq('preference', filters.preference);
-          }
-          if (filters?.datingPreference && filters.datingPreference !== 'all') {
-            participantQuery = participantQuery.eq('dating_preference', filters.datingPreference);
-          }
-          if (filters?.ageRange && filters.ageRange !== 'all') {
-            participantQuery = participantQuery.eq('age_range', filters.ageRange);
-          }
-
           const { data: filteredParticipants } = await participantQuery;
-          const filteredGpIds = new Set(filteredParticipants?.map(p => p.global_participant_id) || []);
+
+          const normalizedParticipants = ((filteredParticipants || []) as ParticipantFilterRow[]).filter((p) => {
+            const normalized = normalizeParticipantFilters(p);
+            const matchesGender = !filters?.gender || filters.gender === 'all' || normalized.gender === filters.gender;
+            const matchesPreference = !filters?.preference || filters.preference === 'all' || normalized.preference === filters.preference;
+            const matchesDatingPreference = !filters?.datingPreference || filters.datingPreference === 'all' || normalized.datingPreference === filters.datingPreference;
+            const matchesAgeRange = !filters?.ageRange || filters.ageRange === 'all' || normalized.ageRange === filters.ageRange;
+
+            return matchesGender && matchesPreference && matchesDatingPreference && matchesAgeRange;
+          });
+
+          const filteredGpIds = new Set(
+            normalizedParticipants
+              .map(p => p.global_participant_id)
+              .filter((id): id is string => Boolean(id))
+          );
+
           results = results.filter(u => filteredGpIds.has(u.id));
         }
       }
