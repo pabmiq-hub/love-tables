@@ -93,6 +93,33 @@ function calculateAgeRange(birthDate: string, customAgeRanges: any[] | null): st
   return "Otro";
 }
 
+function buildEventStartDate(eventDate: string, eventTime?: string | null): Date {
+  const baseDate = new Date(eventDate);
+
+  if (!eventTime) {
+    return baseDate;
+  }
+
+  const [hoursRaw, minutesRaw, secondsRaw] = eventTime.split(':');
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw ?? '0');
+  const seconds = Number(secondsRaw ?? '0');
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || Number.isNaN(seconds)) {
+    return baseDate;
+  }
+
+  const eventStart = new Date(baseDate);
+  eventStart.setHours(hours, minutes, seconds, 0);
+  return eventStart;
+}
+
+function isWithinWindowBeforeStart(eventStart: Date, windowHours: number): boolean {
+  const now = new Date();
+  const windowStart = new Date(eventStart.getTime() - windowHours * 60 * 60 * 1000);
+  return now >= windowStart && now <= eventStart;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -159,7 +186,7 @@ serve(async (req) => {
       // Get event
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, name, status, date, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
+        .select('id, name, status, date, event_time, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
         .eq('id', eventId)
         .single();
 
@@ -253,14 +280,12 @@ serve(async (req) => {
       }
 
       // Auto check-in if event is within 1 hour
-      const eventDate = new Date(event.date);
-      const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
-      const shouldAutoCheckin = new Date() >= oneHourBefore;
+      const eventStartDate = buildEventStartDate(event.date, event.event_time);
+      const shouldAutoCheckin = isWithinWindowBeforeStart(eventStartDate, 1);
       const codeSendMode = event.code_send_mode || 'on_registration';
 
       // For 'automatic' mode: generate code if <24h before event
-      const twentyFourHoursBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
-      const isWithin24h = new Date() >= twentyFourHoursBefore;
+      const isWithin24h = isWithinWindowBeforeStart(eventStartDate, 24);
 
       let verificationCode: string | null = null;
       if (shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h)) {
@@ -365,7 +390,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
+      .select('id, name, status, date, event_time, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
       .eq('id', eventId)
       .single();
 
@@ -489,14 +514,12 @@ serve(async (req) => {
       );
     }
 
-    const eventDate = new Date(event.date);
-    const oneHourBefore = new Date(eventDate.getTime() - 60 * 60 * 1000);
-    const shouldAutoCheckin = new Date() >= oneHourBefore;
+    const eventStartDate = buildEventStartDate(event.date, event.event_time);
+    const shouldAutoCheckin = isWithinWindowBeforeStart(eventStartDate, 1);
     const codeSendMode = event.code_send_mode || 'on_registration';
 
     // For 'automatic' mode: generate code if <24h before event
-    const twentyFourHoursBefore = new Date(eventDate.getTime() - 24 * 60 * 60 * 1000);
-    const isWithin24h = new Date() >= twentyFourHoursBefore;
+    const isWithin24h = isWithinWindowBeforeStart(eventStartDate, 24);
 
     let verificationCode: string | null = null;
     if (shouldAutoCheckin || codeSendMode === 'on_registration' || (codeSendMode === 'automatic' && isWithin24h)) {
