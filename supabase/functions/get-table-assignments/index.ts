@@ -201,6 +201,28 @@ serve(async (req) => {
       }
     }
 
+    // Also process preliminary round if exists
+    const preliminaryRound = (event as any).preliminary_round;
+    if (preliminaryRound?.enabled && Array.isArray(preliminaryRound.tables)) {
+      for (let tableIndex = 0; tableIndex < preliminaryRound.tables.length; tableIndex++) {
+        const table = preliminaryRound.tables[tableIndex];
+        if (!Array.isArray(table)) continue;
+        const isInTable = table.some((p: any) => p.id === participant.id);
+        if (isInTable) {
+          const mates = table
+            .filter((p: any) => p.id !== participant.id)
+            .map((p: any) => ({ id: p.id, name: p.name }));
+          mates.forEach((m: any) => tablemateIds.add(m.id));
+          assignments.push({
+            round: 0,
+            table: tableIndex + 1,
+            tablemateEntries: mates
+          });
+          break;
+        }
+      }
+    }
+
     // Fetch preferences for all tablemates + existing selections in parallel
     const [preferencesResult, selectionsResult] = await Promise.all([
       tablemateIds.size > 0
