@@ -296,6 +296,7 @@ const EventDetail = () => {
       code_send_mode: (event as any).code_send_mode ?? 'on_registration',
       registration_open: (event as any).registration_open ?? true,
       waitlist_enabled: (event as any).waitlist_enabled ?? false,
+      preliminary_round: (event as any).preliminary_round as EventData['preliminary_round'] ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
