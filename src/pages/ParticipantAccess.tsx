@@ -111,6 +111,11 @@ const ParticipantAccess = () => {
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
+  // Preliminary round confirmation
+  const [preliminaryConfirmation, setPreliminaryConfirmation] = useState<boolean | null>(null);
+  const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
+  const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
+
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
 
