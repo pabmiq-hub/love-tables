@@ -115,7 +115,7 @@ interface EventData {
   code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
-  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null } | null;
+  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null; closed_at?: string | null; confirmations?: Record<string, boolean>; dismissed_tables?: number[] } | null;
 }
 
 interface DbParticipant {
@@ -322,17 +322,37 @@ const EventDetail = () => {
       .eq("event_id", id);
 
     if (selectionsData && participantsData) {
+      // Build set of participant IDs in dismissed preliminary tables
+      const prelimRound = (event as any).preliminary_round;
+      const dismissedPrelimParticipantIds = new Set<string>();
+      if (prelimRound?.enabled && Array.isArray(prelimRound.tables) && Array.isArray(prelimRound.dismissed_tables)) {
+        for (const dismissedIdx of prelimRound.dismissed_tables) {
+          const table = prelimRound.tables[dismissedIdx];
+          if (Array.isArray(table)) {
+            table.forEach((p: any) => dismissedPrelimParticipantIds.add(p.id));
+          }
+        }
+      }
+
+      // Filter out selections where both parties are from dismissed preliminary tables
+      const filteredSelections = selectionsData.filter(sel => {
+        if (dismissedPrelimParticipantIds.has(sel.selector_id) && dismissedPrelimParticipantIds.has(sel.selected_id)) {
+          return false;
+        }
+        return true;
+      });
+
       // Store raw selections
-      setSelections(selectionsData);
+      setSelections(filteredSelections);
       
       const mutualMatches: Match[] = [];
       const processed = new Set<string>();
 
-      selectionsData.forEach(sel => {
+      filteredSelections.forEach(sel => {
         const key = [sel.selector_id, sel.selected_id].sort().join('-');
         if (processed.has(key)) return;
 
-        const reverse = selectionsData.find(
+        const reverse = filteredSelections.find(
           s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id
         );
 
@@ -590,15 +610,25 @@ const EventDetail = () => {
 
     // Save tables and update status, set current_round to 1 to start
     // Also save original_participants_count for no-show analytics
+    // Close preliminary round if active
+    const updatePayload: any = { 
+      tables: generatedTables,
+      status: "active",
+      participants_count: checkedInParticipants.length,
+      original_participants_count: originalCount,
+      current_round: 1
+    };
+    
+    if (eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0) {
+      updatePayload.preliminary_round = {
+        ...eventData.preliminary_round,
+        closed_at: new Date().toISOString(),
+      };
+    }
+    
     await supabase
       .from("events")
-      .update({ 
-        tables: generatedTables,
-        status: "active",
-        participants_count: checkedInParticipants.length,
-        original_participants_count: originalCount,
-        current_round: 1
-      })
+      .update(updatePayload)
       .eq("id", id);
     
     // Record encounters for intelligent exclusions in future events
@@ -3076,14 +3106,19 @@ const EventDetail = () => {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.</span>
+                      {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                        <span className="block bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-amber-800 dark:text-amber-300 text-sm">
+                          🎯 Hay una ronda preliminar activa con {(eventData.preliminary_round.tables || []).length} mesa(s) y {(eventData.preliminary_round.tables || []).flat().length} participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales.
+                        </span>
+                      )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleStartEvent}>
-                      Confirmar e iniciar
+                      {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 ? "Cerrar preliminar e iniciar" : "Confirmar e iniciar"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -4001,14 +4036,19 @@ const EventDetail = () => {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                              <AlertDialogDescription className="space-y-2">
+                                <span className="block">Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.</span>
+                                {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                                  <span className="block bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-amber-800 dark:text-amber-300 text-sm">
+                                    🎯 Hay una ronda preliminar activa con {(eventData.preliminary_round.tables || []).length} mesa(s) y {(eventData.preliminary_round.tables || []).flat().length} participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales.
+                                  </span>
+                                )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
                               <AlertDialogAction onClick={handleStartEvent}>
-                                Confirmar e iniciar
+                                {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 ? "Cerrar preliminar e iniciar" : "Confirmar e iniciar"}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -4021,33 +4061,89 @@ const EventDetail = () => {
                       <div className="mt-8">
                         <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
                           🎯 Ronda Preliminar (Ronda 0)
-                          <Badge variant="secondary">{(eventData.preliminary_round.tables || []).length} mesas</Badge>
+                          <Badge variant="secondary">
+                            {(eventData.preliminary_round.tables || []).filter((_, i) => !(eventData.preliminary_round?.dismissed_tables || []).includes(i)).length} mesas activas
+                          </Badge>
+                          {(eventData.preliminary_round.dismissed_tables || []).length > 0 && (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              {(eventData.preliminary_round.dismissed_tables || []).length} invalidada(s)
+                            </Badge>
+                          )}
                         </h3>
+                        {/* Confirmation status summary */}
+                        {eventData.preliminary_round.confirmations && Object.keys(eventData.preliminary_round.confirmations).length > 0 && (
+                          <div className="mb-4 text-sm text-muted-foreground">
+                            {Object.values(eventData.preliminary_round.confirmations).filter(v => v === true).length} confirmados · {Object.values(eventData.preliminary_round.confirmations).filter(v => v === false).length} negados · {(eventData.preliminary_round.tables || []).flat().length - Object.keys(eventData.preliminary_round.confirmations).length} pendientes
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => (
-                            <Card key={tableIndex} className="border-l-4 border-l-amber-400">
+                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => {
+                            const isDismissed = (eventData.preliminary_round?.dismissed_tables || []).includes(tableIndex);
+                            const confirmations = eventData.preliminary_round?.confirmations || {};
+                            const confirmedCount = table.filter((p: any) => confirmations[p.id] === true).length;
+                            const deniedCount = table.filter((p: any) => confirmations[p.id] === false).length;
+                            
+                            return (
+                            <Card key={tableIndex} className={`border-l-4 ${isDismissed ? 'border-l-muted opacity-60' : 'border-l-amber-400'}`}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
-                                    <Table2 className="w-4 h-4 text-amber-500" />
-                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
+                                    <Table2 className={`w-4 h-4 ${isDismissed ? 'text-muted-foreground' : 'text-amber-500'}`} />
+                                    <span className={`font-medium ${isDismissed ? 'line-through text-muted-foreground' : ''}`}>Mesa {tableIndex + 1}</span>
                                     <span className="text-xs text-muted-foreground">({table.length})</span>
                                   </div>
-                                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Preliminar</Badge>
+                                  {isDismissed ? (
+                                    <Badge variant="destructive" className="text-xs">Invalidada</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                                      {confirmedCount > 0 ? `${confirmedCount}/${table.length} ✓` : 'Preliminar'}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="space-y-1.5">
-                                  {table.map((p: any) => (
-                                    <div key={p.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                      <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-medium">
+                                  {table.map((p: any) => {
+                                    const status = confirmations[p.id];
+                                    return (
+                                    <div key={p.id} className={`flex items-center gap-2 p-2 rounded-md ${isDismissed ? 'bg-muted/30' : 'bg-background/50'}`}>
+                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                                        status === true ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                                        status === false ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+                                        'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                      }`}>
                                         {p.name.charAt(0)}
                                       </div>
-                                      <span className="text-sm truncate">{p.name}</span>
+                                      <span className={`text-sm truncate ${isDismissed ? 'text-muted-foreground' : ''}`}>{p.name}</span>
+                                      {status === true && <CheckCircle2 className="w-3 h-3 text-green-500 ml-auto shrink-0" />}
+                                      {status === false && <X className="w-3 h-3 text-red-500 ml-auto shrink-0" />}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
+                                {isDismissed && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full mt-3"
+                                    onClick={async () => {
+                                      if (!id || !eventData?.preliminary_round) return;
+                                      const newDismissed = (eventData.preliminary_round.dismissed_tables || []).filter(i => i !== tableIndex);
+                                      const newConfirmations = { ...(eventData.preliminary_round.confirmations || {}) };
+                                      // Reset negative confirmations for this table
+                                      table.forEach((p: any) => { if (newConfirmations[p.id] === false) delete newConfirmations[p.id]; });
+                                      const updated = { ...eventData.preliminary_round, dismissed_tables: newDismissed, confirmations: newConfirmations };
+                                      await supabase.from("events").update({ preliminary_round: updated } as any).eq("id", id);
+                                      setEventData(prev => prev ? { ...prev, preliminary_round: updated } : prev);
+                                      toast({ title: "Mesa recuperada", description: `Mesa ${tableIndex + 1} ha sido restaurada` });
+                                    }}
+                                  >
+                                    <RotateCcw className="w-3 h-3 mr-1" />
+                                    Recuperar mesa
+                                  </Button>
+                                )}
                               </CardContent>
                             </Card>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}

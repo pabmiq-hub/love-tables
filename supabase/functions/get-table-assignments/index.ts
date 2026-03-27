@@ -105,7 +105,12 @@ serve(async (req) => {
       );
     }
 
-    if (event.status !== 'active' && event.status !== 'completed') {
+    // Allow access for pending events if there's a preliminary round with tables
+    const hasPreliminaryTables = (event as any).preliminary_round?.enabled && 
+      Array.isArray((event as any).preliminary_round?.tables) && 
+      (event as any).preliminary_round.tables.length > 0;
+
+    if (event.status !== 'active' && event.status !== 'completed' && !hasPreliminaryTables) {
       return new Response(
         JSON.stringify({ 
           error: 'Las asignaciones de mesa solo están disponibles cuando el evento ha comenzado',
@@ -203,22 +208,37 @@ serve(async (req) => {
 
     // Also process preliminary round if exists
     const preliminaryRound = (event as any).preliminary_round;
+    const dismissedTables: number[] = preliminaryRound?.dismissed_tables || [];
+    const prelimConfirmations: Record<string, boolean> = preliminaryRound?.confirmations || {};
+    let preliminaryConfirmation: boolean | null = null;
+    
     if (preliminaryRound?.enabled && Array.isArray(preliminaryRound.tables)) {
-      for (let tableIndex = 0; tableIndex < preliminaryRound.tables.length; tableIndex++) {
-        const table = preliminaryRound.tables[tableIndex];
-        if (!Array.isArray(table)) continue;
-        const isInTable = table.some((p: any) => p.id === participant.id);
-        if (isInTable) {
-          const mates = table
-            .filter((p: any) => p.id !== participant.id)
-            .map((p: any) => ({ id: p.id, name: p.name }));
-          mates.forEach((m: any) => tablemateIds.add(m.id));
-          assignments.push({
-            round: 0,
-            table: tableIndex + 1,
-            tablemateEntries: mates
-          });
-          break;
+      // Check participant's confirmation status
+      if (participant.id in prelimConfirmations) {
+        preliminaryConfirmation = prelimConfirmations[participant.id];
+      }
+      
+      // Only show round 0 if participant hasn't explicitly denied AND table not dismissed
+      if (preliminaryConfirmation !== false) {
+        for (let tableIndex = 0; tableIndex < preliminaryRound.tables.length; tableIndex++) {
+          // Skip dismissed tables
+          if (dismissedTables.includes(tableIndex)) continue;
+          
+          const table = preliminaryRound.tables[tableIndex];
+          if (!Array.isArray(table)) continue;
+          const isInTable = table.some((p: any) => p.id === participant.id);
+          if (isInTable) {
+            const mates = table
+              .filter((p: any) => p.id !== participant.id)
+              .map((p: any) => ({ id: p.id, name: p.name }));
+            mates.forEach((m: any) => tablemateIds.add(m.id));
+            assignments.push({
+              round: 0,
+              table: tableIndex + 1,
+              tablemateEntries: mates
+            });
+            break;
+          }
         }
       }
     }
@@ -268,6 +288,7 @@ serve(async (req) => {
         existingSelections,
         currentRound,
         totalRounds: event.rounds,
+        preliminaryConfirmation,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,

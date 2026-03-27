@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.send-automatic-codes]
 verify_jwt = false
+
+[functions.confirm-preliminary]
+verify_jwt = false

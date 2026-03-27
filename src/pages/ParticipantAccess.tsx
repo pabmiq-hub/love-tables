@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { translations, Language } from "@/i18n/translations";
 
@@ -103,6 +111,11 @@ const ParticipantAccess = () => {
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
+  // Preliminary round confirmation
+  const [preliminaryConfirmation, setPreliminaryConfirmation] = useState<boolean | null>(null);
+  const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
+  const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
+
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
 
@@ -138,7 +151,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round')
           .eq('id', eventId)
           .single();
 
@@ -177,7 +190,11 @@ const ParticipantAccess = () => {
           }
         }
 
-        if (event.status === 'pending' || event.current_round === 0) {
+        // Allow access if preliminary round has tables (even if event is pending)
+        const prelimRound = (event as any).preliminary_round;
+        const hasPrelimTables = prelimRound?.enabled && Array.isArray(prelimRound?.tables) && prelimRound.tables.length > 0;
+        
+        if ((event.status === 'pending' || event.current_round === 0) && !hasPrelimTables) {
           setStep("not_started");
           setIsLoading(false);
           return;
@@ -299,6 +316,15 @@ const ParticipantAccess = () => {
       const existingSelections: ExistingSelection[] = data.existingSelections || [];
       const existingMap = new Map<string, string>();
       existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
+
+      // Handle preliminary round confirmation status
+      const prelimConfirm = data.preliminaryConfirmation;
+      setPreliminaryConfirmation(prelimConfirm);
+      const hasRound0 = assignments.some((a: TableAssignment) => a.round === 0);
+      if (hasRound0 && prelimConfirm === null) {
+        // Participant hasn't answered yet - show modal
+        setShowPreliminaryModal(true);
+      }
 
       const participantPreference = data.participantPreference || verifiedParticipant.preference || '';
       const userDatingPref = data.participantDatingPreference || verifiedParticipant.dating_preference || '';
@@ -452,6 +478,36 @@ const ParticipantAccess = () => {
     setStep("done");
   };
 
+  const handlePreliminaryConfirmation = async (confirmed: boolean) => {
+    if (!eventId || !verificationCode) return;
+    setIsConfirmingPreliminary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('confirm-preliminary', {
+        body: { eventId, verificationCode, confirmed }
+      });
+      
+      if (error || data?.error) {
+        toast({ title: t.access.error, description: data?.error || 'Error', variant: "destructive" });
+        setIsConfirmingPreliminary(false);
+        return;
+      }
+
+      setPreliminaryConfirmation(confirmed);
+      setShowPreliminaryModal(false);
+      
+      if (!confirmed) {
+        // Remove round 0 assignments from state
+        setTableAssignments(prev => prev.filter(a => a.round !== 0));
+        setMatchSelections(prev => prev.filter(ms => ms.round !== 0));
+      }
+    } catch (err) {
+      console.error('Error confirming preliminary:', err);
+      toast({ title: t.access.error, description: t.access.errorSaving, variant: "destructive" });
+    } finally {
+      setIsConfirmingPreliminary(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
@@ -462,6 +518,38 @@ const ParticipantAccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+      {/* Preliminary Round Confirmation Modal */}
+      <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-2">
+              <HelpCircle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <DialogTitle className="text-center">{t.access.preliminaryQuestion}</DialogTitle>
+            <DialogDescription className="text-center">
+              {t.access.preliminaryQuestionDesc}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => handlePreliminaryConfirmation(false)}
+              disabled={isConfirmingPreliminary}
+            >
+              {t.access.preliminaryNo}
+            </Button>
+            <Button 
+              variant="hero" 
+              className="flex-1" 
+              onClick={() => handlePreliminaryConfirmation(true)}
+              disabled={isConfirmingPreliminary}
+            >
+              {isConfirmingPreliminary ? <Loader2 className="w-4 h-4 animate-spin" /> : t.access.preliminaryYes}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <button onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
