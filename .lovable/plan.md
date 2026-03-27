@@ -1,55 +1,105 @@
 
 
-## Ronda Preliminar — Plan de implementación
+## Ronda Preliminar — Plan completo con confirmación de participación
 
-### Concepto
+### Resumen
 
-La **ronda preliminar** es una ronda "0" opcional que el organizador activa antes de iniciar oficialmente el evento. A medida que los participantes hacen check-in, el organizador puede ir creando mesas ad hoc (sin preferencias, puro relleno) para que nadie espere sentado. Cuando el organizador pulsa "Iniciar evento", el algoritmo principal genera las rondas oficiales (1, 2, 3...) con todas las preferencias, ignorando la ronda preliminar en la lógica de no-repetición (o incluyéndola opcionalmente).
+Implementar el sistema de confirmación para la ronda preliminar, gestión de mesas invalidadas por el admin, y mejoras de transición al inicio del evento. Los participantes confirman si realmente estuvieron en la ronda 0 antes de poder enviar selecciones de esa ronda.
 
-Los participantes de la ronda preliminar pueden seleccionar a sus compañeros de mesa igual que en cualquier ronda oficial.
+### 1. Modelo de datos ampliado
 
-### Modelo de datos
+El campo `preliminary_round` en `events` pasa a tener esta estructura:
 
-**No se necesitan nuevas tablas.** Se reutiliza la estructura existente:
+```text
+{
+  enabled: true,
+  tables: [[{id, name}, ...], ...],
+  started_at: "2026-03-27T...",
+  closed_at: "2026-03-27T..." | null,
+  confirmations: { "participant-id": true/false },
+  dismissed_tables: [1, 3]  // índices de mesas invalidadas
+}
+```
 
-- **Campo nuevo en `events`**: `preliminary_round jsonb DEFAULT null`
-  - Formato: `{ "enabled": true, "tables": [[{id, name}, ...], [...]], "started_at": "..." }`
-  - Cuando es `null`, la funcionalidad está desactivada.
+No requiere migración SQL — es el mismo campo `jsonb` existente. Solo se amplía la estructura del JSON.
 
-Esto separa la ronda preliminar del array principal `tables` (que contiene las rondas oficiales), evitando conflictos con el algoritmo de generación.
+### 2. Nuevo edge function: `confirm-preliminary`
 
-### Flujo del organizador (UX)
+- **Endpoint**: `supabase/functions/confirm-preliminary/index.ts`
+- **Input**: `{ eventId, verificationCode, confirmed: boolean }`
+- **Lógica**:
+  1. Valida código de verificación (6 dígitos) y eventId (UUID)
+  2. Busca al participante por `verification_code` + `event_id`
+  3. Lee `preliminary_round` del evento
+  4. Encuentra en qué mesa está el participante
+  5. Guarda `confirmations[participantId] = confirmed`
+  6. Si `confirmed === false` y **todos** los participantes de esa mesa también dijeron `false`, añade el índice de la mesa a `dismissed_tables`
+  7. Actualiza el campo `preliminary_round` en la tabla `events`
 
-1. **En la pestaña Ajustes** (`EventSettingsEditor`): nuevo toggle "Ronda preliminar" (solo visible en módulo social, gated por feature `preliminary_round` → plan empresa). Descripción: *"Crea mesas de relleno mientras los participantes llegan, sin tener en cuenta preferencias."*
+### 3. Actualizar `get-table-assignments`
 
-2. **En la pestaña Participantes** (estado `pending`): cuando la ronda preliminar está habilitada, aparece un botón **"Asignar mesa preliminar"** que agrupa automáticamente a los participantes con check-in que aún no tienen mesa preliminar en grupos del tamaño configurado (`table_size`). El organizador también puede añadir manualmente participantes a mesas preliminares existentes.
+- Filtrar mesas cuyo índice esté en `dismissed_tables` → no devolver esas asignaciones de ronda 0
+- Incluir un campo `preliminaryConfirmation` en la respuesta: `true`, `false`, o `null` (no respondido)
+- Si `confirmation === false`, no devolver la ronda 0 para ese participante
 
-3. **En la pestaña Mesas**: se muestra una sección "Ronda Preliminar (Ronda 0)" encima de las rondas oficiales, con las mesas generadas. El organizador puede editarlas.
+### 4. Panel del participante (`ParticipantAccess.tsx`)
 
-4. **"Iniciar evento"** sigue funcionando exactamente igual: genera rondas 1..N con el algoritmo de preferencias usando **todos** los participantes con check-in. La ronda preliminar queda como ronda 0 separada.
+**Flujo de confirmación:**
 
-### Flujo del participante
+```text
+Participante accede → carga asignaciones
+  ¿Tiene ronda 0?
+    NO → panel normal (solo rondas oficiales)
+    SÍ → ¿Ya confirmó?
+      true  → muestra ronda 0 + oficiales normalmente
+      false → oculta ronda 0
+      null  → Modal: "¿Participaste en la ronda de bienvenida?"
+              [Sí, participé] → llama confirm-preliminary(true), muestra ronda 0
+              [No participé]  → llama confirm-preliminary(false), oculta ronda 0
+```
 
-- **Panel del participante** (`ParticipantAccess`): muestra la ronda preliminar como "Ronda 0" o "Ronda de bienvenida" junto con las demás rondas. Los compañeros de mesa aparecen y son seleccionables (amistad/ligue).
-- **Vista de mesas** (`ParticipantTables`): incluye la ronda 0 si existe.
+- El modal aparece al entrar en la pestaña "Selecciones" por primera vez
+- Estado local `preliminaryConfirmed: boolean | null` basado en la respuesta del edge function
+- La ronda 0 se muestra/oculta en ambas pestañas (mesas y selecciones)
+- Las selecciones de ronda 0 **pueden enviarse más tarde** igual que las rondas oficiales (dentro del plazo de selección del evento)
 
-### Cambios técnicos por archivo
+### 5. Panel del administrador (`EventDetail.tsx`)
 
-| Archivo | Cambio |
+**Dialog de transición al iniciar evento:**
+- Si `preliminary_round.enabled` y hay mesas creadas, el dialog "Iniciar evento" muestra:
+  > "Hay una ronda preliminar activa con X mesas y Y participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales."
+- Al confirmar: guarda `closed_at = now()` en el JSON antes de generar las rondas oficiales
+
+**Gestión de mesas invalidadas en pestaña Mesas:**
+- Mesas en `dismissed_tables`: se muestran con estilo gris/tachado + badge "Invalidada"
+- Botón "Recuperar mesa" en cada mesa invalidada → elimina el índice de `dismissed_tables` y resetea las confirmaciones negativas de esa mesa
+- Mesas activas muestran estado de confirmación: "2/4 confirmados", "Pendiente", etc.
+
+**Badge en lista de participantes:**
+- Si un participante tiene mesa preliminar asignada, mostrar badge "En mesa preliminar" junto a su nombre
+
+### 6. Matches (`MatchesDashboard.tsx`)
+
+- Al calcular matches, excluir selecciones donde el `selected_id` pertenece a una mesa en `dismissed_tables` de la ronda 0
+- Las selecciones de ronda 0 confirmadas se tratan exactamente igual que las de rondas oficiales
+
+### 7. Archivos a crear/modificar
+
+| Archivo | Acción |
 |---|---|
-| **Migración SQL** | Añadir columna `preliminary_round jsonb DEFAULT null` a `events` |
-| **EventSettingsEditor.tsx** | Toggle "Ronda preliminar" con `FeatureGate` para plan empresa |
-| **EventDetail.tsx** | (1) Botón "Asignar mesa preliminar" que agrupa checked-in sin mesa en grupos aleatorios y guarda en `preliminary_round.tables`. (2) Mostrar ronda 0 en pestaña Mesas. (3) Al iniciar evento, la ronda preliminar no se toca. |
-| **ParticipantAccess.tsx** | Leer `preliminary_round` del evento y mostrar ronda 0 con sus compañeros seleccionables |
-| **ParticipantTables.tsx** | Incluir ronda 0 en las asignaciones de mesa |
-| **ParticipantSelect.tsx** | Incluir compañeros de ronda 0 en la lista de selecciones |
-| **MatchesDashboard.tsx** | Considerar selecciones de ronda 0 en los matches |
-| **features (seed)** | Insertar feature `preliminary_round` vinculada al plan empresa |
+| `supabase/functions/confirm-preliminary/index.ts` | **Crear** — endpoint de confirmación |
+| `supabase/config.toml` | Añadir `[functions.confirm-preliminary]` con `verify_jwt = false` |
+| `supabase/functions/get-table-assignments/index.ts` | Modificar — filtrar dismissed, incluir campo confirmación |
+| `src/pages/ParticipantAccess.tsx` | Modificar — modal de confirmación, lógica de visibilidad ronda 0 |
+| `src/pages/EventDetail.tsx` | Modificar — dialog transición, mesas invalidadas, badge participantes, botón recuperar |
+| `src/components/event/MatchesDashboard.tsx` | Modificar — excluir selecciones de mesas dismissed |
 
-### Ventajas de este enfoque
+### 8. Internacionalización
 
-- **No rompe nada**: la ronda preliminar vive en un campo separado (`preliminary_round`), el array `tables` y el algoritmo principal no se modifican.
-- **Intuitivo**: el organizador ve claramente "Ronda 0 (preliminar)" vs "Rondas oficiales 1-N".
-- **Compatible con selecciones**: los participantes pueden seleccionar a compañeros de la ronda preliminar como en cualquier otra ronda.
-- **Feature-gated**: solo disponible para plan empresa vía `FeatureGate`.
+Añadir traducciones en `src/i18n/translations.ts`:
+- "¿Participaste en la ronda de bienvenida?" / "Did you participate in the welcome round?"
+- "Sí, participé" / "Yes, I did"
+- "No participé" / "No, I didn't"
+- "Mesa invalidada" / "Table invalidated"
+- "Recuperar mesa" / "Recover table"
 
