@@ -474,6 +474,36 @@ const ParticipantAccess = () => {
     setStep("done");
   };
 
+  const handlePreliminaryConfirmation = async (confirmed: boolean) => {
+    if (!eventId || !verificationCode) return;
+    setIsConfirmingPreliminary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('confirm-preliminary', {
+        body: { eventId, verificationCode, confirmed }
+      });
+      
+      if (error || data?.error) {
+        toast({ title: t.access.error, description: data?.error || 'Error', variant: "destructive" });
+        setIsConfirmingPreliminary(false);
+        return;
+      }
+
+      setPreliminaryConfirmation(confirmed);
+      setShowPreliminaryModal(false);
+      
+      if (!confirmed) {
+        // Remove round 0 assignments from state
+        setTableAssignments(prev => prev.filter(a => a.round !== 0));
+        setMatchSelections(prev => prev.filter(ms => ms.round !== 0));
+      }
+    } catch (err) {
+      console.error('Error confirming preliminary:', err);
+      toast({ title: t.access.error, description: t.access.errorSaving, variant: "destructive" });
+    } finally {
+      setIsConfirmingPreliminary(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
