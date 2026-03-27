@@ -437,6 +437,10 @@ export const translations = {
       selectionsSaved: "¡Selecciones guardadas!",
       error: "Error",
       errorSaving: "No se pudieron guardar las selecciones.",
+      preliminaryQuestion: "¿Participaste en la ronda de bienvenida?",
+      preliminaryQuestionDesc: "Antes de iniciar el evento, se organizó una ronda de bienvenida. ¿Estuviste en una mesa durante esa ronda?",
+      preliminaryYes: "Sí, participé",
+      preliminaryNo: "No participé",
     },
   },
 
@@ -876,6 +880,10 @@ export const translations = {
       selectionsSaved: "Selections saved!",
       error: "Error",
       errorSaving: "Could not save selections.",
+      preliminaryQuestion: "Did you participate in the welcome round?",
+      preliminaryQuestionDesc: "Before the event started, a welcome round was organized. Were you at a table during that round?",
+      preliminaryYes: "Yes, I did",
+      preliminaryNo: "No, I didn't",
     },
   },
 };
