@@ -322,8 +322,28 @@ const EventDetail = () => {
       .eq("event_id", id);
 
     if (selectionsData && participantsData) {
+      // Build set of participant IDs in dismissed preliminary tables
+      const prelimRound = (event as any).preliminary_round;
+      const dismissedPrelimParticipantIds = new Set<string>();
+      if (prelimRound?.enabled && Array.isArray(prelimRound.tables) && Array.isArray(prelimRound.dismissed_tables)) {
+        for (const dismissedIdx of prelimRound.dismissed_tables) {
+          const table = prelimRound.tables[dismissedIdx];
+          if (Array.isArray(table)) {
+            table.forEach((p: any) => dismissedPrelimParticipantIds.add(p.id));
+          }
+        }
+      }
+
+      // Filter out selections where both parties are from dismissed preliminary tables
+      const filteredSelections = selectionsData.filter(sel => {
+        if (dismissedPrelimParticipantIds.has(sel.selector_id) && dismissedPrelimParticipantIds.has(sel.selected_id)) {
+          return false;
+        }
+        return true;
+      });
+
       // Store raw selections
-      setSelections(selectionsData);
+      setSelections(filteredSelections);
       
       const mutualMatches: Match[] = [];
       const processed = new Set<string>();
