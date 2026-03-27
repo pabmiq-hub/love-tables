@@ -115,7 +115,7 @@ interface EventData {
   code_send_mode: string;
   registration_open: boolean;
   waitlist_enabled: boolean;
-  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null } | null;
+  preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null; closed_at?: string | null; confirmations?: Record<string, boolean>; dismissed_tables?: number[] } | null;
 }
 
 interface DbParticipant {
