@@ -514,6 +514,38 @@ const ParticipantAccess = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+      {/* Preliminary Round Confirmation Modal */}
+      <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-2">
+              <HelpCircle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <DialogTitle className="text-center">{t.access.preliminaryQuestion}</DialogTitle>
+            <DialogDescription className="text-center">
+              {t.access.preliminaryQuestionDesc}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => handlePreliminaryConfirmation(false)}
+              disabled={isConfirmingPreliminary}
+            >
+              {t.access.preliminaryNo}
+            </Button>
+            <Button 
+              variant="hero" 
+              className="flex-1" 
+              onClick={() => handlePreliminaryConfirmation(true)}
+              disabled={isConfirmingPreliminary}
+            >
+              {isConfirmingPreliminary ? <Loader2 className="w-4 h-4 animate-spin" /> : t.access.preliminaryYes}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <button onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
