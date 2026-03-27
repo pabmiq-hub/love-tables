@@ -590,15 +590,25 @@ const EventDetail = () => {
 
     // Save tables and update status, set current_round to 1 to start
     // Also save original_participants_count for no-show analytics
+    // Close preliminary round if active
+    const updatePayload: any = { 
+      tables: generatedTables,
+      status: "active",
+      participants_count: checkedInParticipants.length,
+      original_participants_count: originalCount,
+      current_round: 1
+    };
+    
+    if (eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0) {
+      updatePayload.preliminary_round = {
+        ...eventData.preliminary_round,
+        closed_at: new Date().toISOString(),
+      };
+    }
+    
     await supabase
       .from("events")
-      .update({ 
-        tables: generatedTables,
-        status: "active",
-        participants_count: checkedInParticipants.length,
-        original_participants_count: originalCount,
-        current_round: 1
-      })
+      .update(updatePayload)
       .eq("id", id);
     
     // Record encounters for intelligent exclusions in future events
