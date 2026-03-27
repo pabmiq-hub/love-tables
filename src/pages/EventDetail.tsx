@@ -348,11 +348,11 @@ const EventDetail = () => {
       const mutualMatches: Match[] = [];
       const processed = new Set<string>();
 
-      selectionsData.forEach(sel => {
+      filteredSelections.forEach(sel => {
         const key = [sel.selector_id, sel.selected_id].sort().join('-');
         if (processed.has(key)) return;
 
-        const reverse = selectionsData.find(
+        const reverse = filteredSelections.find(
           s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id
         );
 
