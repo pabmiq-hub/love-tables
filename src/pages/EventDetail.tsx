@@ -3086,14 +3086,19 @@ const EventDetail = () => {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.</span>
+                      {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                        <span className="block bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-amber-800 dark:text-amber-300 text-sm">
+                          🎯 Hay una ronda preliminar activa con {(eventData.preliminary_round.tables || []).length} mesa(s) y {(eventData.preliminary_round.tables || []).flat().length} participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales.
+                        </span>
+                      )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleStartEvent}>
-                      Confirmar e iniciar
+                      {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 ? "Cerrar preliminar e iniciar" : "Confirmar e iniciar"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -4011,14 +4016,19 @@ const EventDetail = () => {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Cerrar inscripciones e iniciar evento?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.
+                              <AlertDialogDescription className="space-y-2">
+                                <span className="block">Esta acción cerrará las inscripciones. Los participantes sin check-in ({participants.filter(p => !p.checked_in).length}) pasarán al banco de reserva y se generarán las mesas automáticamente con los {participants.filter(p => p.checked_in).length} participantes confirmados.</span>
+                                {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
+                                  <span className="block bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 text-amber-800 dark:text-amber-300 text-sm">
+                                    🎯 Hay una ronda preliminar activa con {(eventData.preliminary_round.tables || []).length} mesa(s) y {(eventData.preliminary_round.tables || []).flat().length} participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales.
+                                  </span>
+                                )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
                               <AlertDialogAction onClick={handleStartEvent}>
-                                Confirmar e iniciar
+                                {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 ? "Cerrar preliminar e iniciar" : "Confirmar e iniciar"}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
