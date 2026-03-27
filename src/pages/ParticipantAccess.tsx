@@ -313,6 +313,15 @@ const ParticipantAccess = () => {
       const existingMap = new Map<string, string>();
       existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
 
+      // Handle preliminary round confirmation status
+      const prelimConfirm = data.preliminaryConfirmation;
+      setPreliminaryConfirmation(prelimConfirm);
+      const hasRound0 = assignments.some((a: TableAssignment) => a.round === 0);
+      if (hasRound0 && prelimConfirm === null) {
+        // Participant hasn't answered yet - show modal
+        setShowPreliminaryModal(true);
+      }
+
       const participantPreference = data.participantPreference || verifiedParticipant.preference || '';
       const userDatingPref = data.participantDatingPreference || verifiedParticipant.dating_preference || '';
       const userGender = data.participantGender || verifiedParticipant.gender || null;
