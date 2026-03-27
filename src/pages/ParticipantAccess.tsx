@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { translations, Language } from "@/i18n/translations";
 
