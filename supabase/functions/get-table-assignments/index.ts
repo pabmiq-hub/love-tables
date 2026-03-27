@@ -105,7 +105,12 @@ serve(async (req) => {
       );
     }
 
-    if (event.status !== 'active' && event.status !== 'completed') {
+    // Allow access for pending events if there's a preliminary round with tables
+    const hasPreliminaryTables = (event as any).preliminary_round?.enabled && 
+      Array.isArray((event as any).preliminary_round?.tables) && 
+      (event as any).preliminary_round.tables.length > 0;
+
+    if (event.status !== 'active' && event.status !== 'completed' && !hasPreliminaryTables) {
       return new Response(
         JSON.stringify({ 
           error: 'Las asignaciones de mesa solo están disponibles cuando el evento ha comenzado',
