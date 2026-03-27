@@ -190,7 +190,11 @@ const ParticipantAccess = () => {
           }
         }
 
-        if (event.status === 'pending' || event.current_round === 0) {
+        // Allow access if preliminary round has tables (even if event is pending)
+        const prelimRound = (event as any).preliminary_round;
+        const hasPrelimTables = prelimRound?.enabled && Array.isArray(prelimRound?.tables) && prelimRound.tables.length > 0;
+        
+        if ((event.status === 'pending' || event.current_round === 0) && !hasPrelimTables) {
           setStep("not_started");
           setIsLoading(false);
           return;
