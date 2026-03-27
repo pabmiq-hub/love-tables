@@ -4041,33 +4041,89 @@ const EventDetail = () => {
                       <div className="mt-8">
                         <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
                           🎯 Ronda Preliminar (Ronda 0)
-                          <Badge variant="secondary">{(eventData.preliminary_round.tables || []).length} mesas</Badge>
+                          <Badge variant="secondary">
+                            {(eventData.preliminary_round.tables || []).filter((_, i) => !(eventData.preliminary_round?.dismissed_tables || []).includes(i)).length} mesas activas
+                          </Badge>
+                          {(eventData.preliminary_round.dismissed_tables || []).length > 0 && (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              {(eventData.preliminary_round.dismissed_tables || []).length} invalidada(s)
+                            </Badge>
+                          )}
                         </h3>
+                        {/* Confirmation status summary */}
+                        {eventData.preliminary_round.confirmations && Object.keys(eventData.preliminary_round.confirmations).length > 0 && (
+                          <div className="mb-4 text-sm text-muted-foreground">
+                            {Object.values(eventData.preliminary_round.confirmations).filter(v => v === true).length} confirmados · {Object.values(eventData.preliminary_round.confirmations).filter(v => v === false).length} negados · {(eventData.preliminary_round.tables || []).flat().length - Object.keys(eventData.preliminary_round.confirmations).length} pendientes
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => (
-                            <Card key={tableIndex} className="border-l-4 border-l-amber-400">
+                          {(eventData.preliminary_round.tables || []).map((table: any[], tableIndex: number) => {
+                            const isDismissed = (eventData.preliminary_round?.dismissed_tables || []).includes(tableIndex);
+                            const confirmations = eventData.preliminary_round?.confirmations || {};
+                            const confirmedCount = table.filter((p: any) => confirmations[p.id] === true).length;
+                            const deniedCount = table.filter((p: any) => confirmations[p.id] === false).length;
+                            
+                            return (
+                            <Card key={tableIndex} className={`border-l-4 ${isDismissed ? 'border-l-muted opacity-60' : 'border-l-amber-400'}`}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
-                                    <Table2 className="w-4 h-4 text-amber-500" />
-                                    <span className="font-medium">Mesa {tableIndex + 1}</span>
+                                    <Table2 className={`w-4 h-4 ${isDismissed ? 'text-muted-foreground' : 'text-amber-500'}`} />
+                                    <span className={`font-medium ${isDismissed ? 'line-through text-muted-foreground' : ''}`}>Mesa {tableIndex + 1}</span>
                                     <span className="text-xs text-muted-foreground">({table.length})</span>
                                   </div>
-                                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Preliminar</Badge>
+                                  {isDismissed ? (
+                                    <Badge variant="destructive" className="text-xs">Invalidada</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                                      {confirmedCount > 0 ? `${confirmedCount}/${table.length} ✓` : 'Preliminar'}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="space-y-1.5">
-                                  {table.map((p: any) => (
-                                    <div key={p.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50">
-                                      <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-300 text-xs font-medium">
+                                  {table.map((p: any) => {
+                                    const status = confirmations[p.id];
+                                    return (
+                                    <div key={p.id} className={`flex items-center gap-2 p-2 rounded-md ${isDismissed ? 'bg-muted/30' : 'bg-background/50'}`}>
+                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                                        status === true ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                                        status === false ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+                                        'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                      }`}>
                                         {p.name.charAt(0)}
                                       </div>
-                                      <span className="text-sm truncate">{p.name}</span>
+                                      <span className={`text-sm truncate ${isDismissed ? 'text-muted-foreground' : ''}`}>{p.name}</span>
+                                      {status === true && <CheckCircle2 className="w-3 h-3 text-green-500 ml-auto shrink-0" />}
+                                      {status === false && <X className="w-3 h-3 text-red-500 ml-auto shrink-0" />}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
+                                {isDismissed && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full mt-3"
+                                    onClick={async () => {
+                                      if (!id || !eventData?.preliminary_round) return;
+                                      const newDismissed = (eventData.preliminary_round.dismissed_tables || []).filter(i => i !== tableIndex);
+                                      const newConfirmations = { ...(eventData.preliminary_round.confirmations || {}) };
+                                      // Reset negative confirmations for this table
+                                      table.forEach((p: any) => { if (newConfirmations[p.id] === false) delete newConfirmations[p.id]; });
+                                      const updated = { ...eventData.preliminary_round, dismissed_tables: newDismissed, confirmations: newConfirmations };
+                                      await supabase.from("events").update({ preliminary_round: updated } as any).eq("id", id);
+                                      setEventData(prev => prev ? { ...prev, preliminary_round: updated } : prev);
+                                      toast({ title: "Mesa recuperada", description: `Mesa ${tableIndex + 1} ha sido restaurada` });
+                                    }}
+                                  >
+                                    <RotateCcw className="w-3 h-3 mr-1" />
+                                    Recuperar mesa
+                                  </Button>
+                                )}
                               </CardContent>
                             </Card>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
