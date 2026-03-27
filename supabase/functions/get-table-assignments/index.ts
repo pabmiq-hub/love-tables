@@ -283,6 +283,7 @@ serve(async (req) => {
         existingSelections,
         currentRound,
         totalRounds: event.rounds,
+        preliminaryConfirmation,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,
