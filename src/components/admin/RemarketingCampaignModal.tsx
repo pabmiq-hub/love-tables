@@ -50,7 +50,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const upcomingEvents = events.filter(e => e.status === 'pending' || e.status === 'active');
 
   const registrationLink = targetEventId && organizer?.slug
-    ? `${window.location.origin}/${organizer.slug}/${targetEventId}/join`
+    ? `https://konektum.com/o/${organizer.slug}/join/${targetEventId}`
     : '';
 
   const previewHtml = body
@@ -74,7 +74,6 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     if (!user?.id || !organizer?.id) return;
     setSending(true);
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const { data, error } = await supabase.functions.invoke('send-remarketing-email', {
         body: {
           organizer_id: organizer.id,
