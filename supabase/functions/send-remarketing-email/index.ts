@@ -38,11 +38,15 @@ serve(async (req: Request) => {
     // Verify organizer owns this
     const { data: org } = await supabase
       .from("organizers")
-      .select("id, company_name")
+      .select("id, company_name, slug")
       .eq("id", organizer_id)
       .eq("user_id", user.id)
       .single();
     if (!org) throw new Error("Organizer not found");
+
+    const canonicalRegistrationLink = target_event_id && org.slug
+      ? `https://konektum.com/o/${org.slug}/join/${target_event_id}`
+      : registration_link;
 
     // Check for CRM feature
     const { data: hasFeature } = await supabase.rpc("has_feature", {
@@ -94,7 +98,7 @@ serve(async (req: Request) => {
         const personalizedBody = body
           .replace(/\{\{nombre\}\}/g, escapeHtml(recipient.name))
           .replace(/\{\{evento\}\}/g, escapeHtml(target_event_name))
-          .replace(/\{\{enlace_inscripcion\}\}/g, registration_link);
+          .replace(/\{\{enlace_inscripcion\}\}/g, canonicalRegistrationLink);
 
         const personalizedSubject = subject
           .replace(/\{\{nombre\}\}/g, recipient.name)

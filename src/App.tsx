@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import AdminLogin from "./pages/AdminLogin";
 import SuperAdminLogin from "./pages/SuperAdminLogin";
@@ -29,6 +29,16 @@ import { LanguageProvider } from "./i18n/LanguageContext";
 
 const queryClient = new QueryClient();
 
+const LegacyJoinRedirect = () => {
+  const { slug, id } = useParams<{ slug: string; id: string }>();
+
+  if (!slug || !id) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Navigate to={`/o/${slug}/join/${id}`} replace />;
+};
+
 const App = () => (
   <LanguageProvider>
   <QueryClientProvider client={queryClient}>
@@ -53,6 +63,7 @@ const App = () => (
           <Route path="/event/:id/checkin" element={<ParticipantCheckin />} />
           <Route path="/event/:id/tables" element={<ParticipantTables />} />
           <Route path="/event/:id/access" element={<ParticipantAccess />} />
+          <Route path="/:slug/:id/join" element={<LegacyJoinRedirect />} />
           {/* Slug-based organizer portal routes */}
           <Route path="/o/:slug" element={<OrganizerPortal />}>
             <Route path="join/:id" element={<ParticipantJoin />} />
