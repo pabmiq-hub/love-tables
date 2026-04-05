@@ -199,6 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailTemplate = event.email_template as any;
     const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
     const tpl = communicationTemplate?.reminder;
+    const reminderOptions = communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' };
     const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
     const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
     const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
