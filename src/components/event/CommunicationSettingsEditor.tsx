@@ -13,6 +13,7 @@ import {
   TemplateKey,
   StructuredTemplate,
   MatchesWithoutTemplate,
+  ReminderOptions,
   DEFAULT_TEMPLATES_ES,
   DEFAULT_TEMPLATES_EN,
 } from "./communication/types";
