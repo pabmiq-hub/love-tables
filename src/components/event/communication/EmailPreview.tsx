@@ -43,6 +43,7 @@ const EmailPreview = ({
   eventName,
   matchesVariant = "with",
   matchesWithoutTemplate,
+  reminderOptions,
 }: EmailPreviewProps) => {
   const r = (t: string) => replaceVars(t, eventName);
   const headerText = headerTitle?.trim() || brandName;
