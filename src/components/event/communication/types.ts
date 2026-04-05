@@ -176,4 +176,10 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
   brandName: "Konektum",
   headerTitle: "Welcome to the event!",
   logoHeight: 48,
+  reminderOptions: {
+    showCalendarLinks: true,
+    showUnsubscribe: true,
+    showCountdown: false,
+    unsubscribeText: "If you can't attend, you can unsubscribe by clicking here.",
+  },
 };
