@@ -4513,6 +4513,8 @@ const EventDetail = () => {
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
+                reminderMode={eventData.reminder_mode}
+                reminderScheduledAt={eventData.reminder_scheduled_at}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
