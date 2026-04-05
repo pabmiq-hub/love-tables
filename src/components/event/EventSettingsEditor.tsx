@@ -42,6 +42,8 @@ interface EventSettingsEditorProps {
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;
+  reminderMode?: string;
+  reminderScheduledAt?: string | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
