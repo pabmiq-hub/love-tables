@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Eye, ClipboardList, Lock, KeyRound } from "lucide-react";
+import { Loader2, Save, Eye, ClipboardList, Lock, KeyRound, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
@@ -42,6 +42,8 @@ interface EventSettingsEditorProps {
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;
+  reminderMode?: string;
+  reminderScheduledAt?: string | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -71,6 +73,8 @@ const EventSettingsEditor = ({
   codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
+  reminderMode: initialReminderMode = "manual",
+  reminderScheduledAt: initialReminderScheduledAt = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -103,6 +107,8 @@ const EventSettingsEditor = ({
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
+  const [formReminderMode, setFormReminderMode] = useState(initialReminderMode);
+  const [formReminderScheduledAt, setFormReminderScheduledAt] = useState(initialReminderScheduledAt || "");
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -175,6 +181,8 @@ const EventSettingsEditor = ({
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
+        reminder_mode: formReminderMode,
+        reminder_scheduled_at: formReminderMode === "custom" && formReminderScheduledAt ? formReminderScheduledAt : null,
       };
 
       // Handle preliminary round
@@ -447,6 +455,48 @@ const EventSettingsEditor = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Reminder mode */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex-1 mr-4">
+              <Label className="text-base flex items-center gap-2">
+                <Bell className="w-4 h-4" />
+                Recordatorio del evento
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                {formReminderMode === "manual"
+                  ? "Envía recordatorios manualmente desde el panel del evento"
+                  : formReminderMode === "24h"
+                    ? "Se enviará un recordatorio automáticamente 24h antes del evento"
+                    : formReminderMode === "48h"
+                      ? "Se enviará un recordatorio automáticamente 48h antes del evento"
+                      : "Se enviará un recordatorio en la fecha y hora configurada"}
+              </p>
+            </div>
+            <Select value={formReminderMode} onValueChange={setFormReminderMode}>
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="24h">24h antes del evento</SelectItem>
+                <SelectItem value="48h">48h antes del evento</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formReminderMode === "custom" && (
+            <div className="ml-4 p-4 border rounded-lg bg-muted/30">
+              <Label className="text-sm">Fecha y hora del recordatorio</Label>
+              <Input
+                type="datetime-local"
+                value={formReminderScheduledAt}
+                onChange={(e) => setFormReminderScheduledAt(e.target.value)}
+                className="mt-2 w-64"
+              />
+            </div>
+          )}
 
           {/* Preliminary Round - Social only, Enterprise feature */}
           {!isProfessional && (

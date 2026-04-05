@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown, DoorOpen, DoorClosed, ListOrdered } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown, DoorOpen, DoorClosed, ListOrdered, Bell } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,6 +116,8 @@ interface EventData {
   registration_open: boolean;
   waitlist_enabled: boolean;
   preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null; closed_at?: string | null; confirmations?: Record<string, boolean>; dismissed_tables?: number[] } | null;
+  reminder_mode: string;
+  reminder_scheduled_at: string | null;
 }
 
 interface DbParticipant {
@@ -297,6 +299,8 @@ const EventDetail = () => {
       registration_open: (event as any).registration_open ?? true,
       waitlist_enabled: (event as any).waitlist_enabled ?? false,
       preliminary_round: (event as any).preliminary_round as EventData['preliminary_round'] ?? null,
+      reminder_mode: (event as any).reminder_mode ?? 'manual',
+      reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -3049,8 +3053,8 @@ const EventDetail = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Exclusions - only pending with 2+ checked in */}
-              {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
+              {/* Exclusions - available from event creation */}
+              {eventStatus === "pending" && participants.length >= 2 && (
                 (hasFeature("avoid_encounters") || isSuperAdmin) ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -3386,6 +3390,33 @@ const EventDetail = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {/* Send reminder to all */}
+                        {participants.length > 0 && participants.filter(p => p.email).length > 0 && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id))}
+                              disabled={isSendingReminder}
+                            >
+                              <Bell className="w-4 h-4 mr-2" />
+                              {isSendingReminder ? "Enviando recordatorios..." : `Recordatorio a todos (${participants.filter(p => p.email).length})`}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const checkedIn = participants.filter(p => p.email && p.checked_in);
+                                if (checkedIn.length === 0) {
+                                  toast({ title: "Sin participantes", description: "No hay participantes con check-in y email", variant: "destructive" });
+                                  return;
+                                }
+                                handleSendReminder(checkedIn.map(p => p.id));
+                              }}
+                              disabled={isSendingReminder}
+                            >
+                              <Bell className="w-4 h-4 mr-2" />
+                              Recordatorio check-in ({participants.filter(p => p.email && p.checked_in).length})
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
                         {eventStatus === "pending" && participants.length > 0 && (
                           <>
                             <DropdownMenuItem 
@@ -4509,6 +4540,8 @@ const EventDetail = () => {
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
+                reminderMode={eventData.reminder_mode}
+                reminderScheduledAt={eventData.reminder_scheduled_at}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}

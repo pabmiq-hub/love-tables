@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.confirm-preliminary]
 verify_jwt = false
+
+[functions.handle-participant-cancellation]
+verify_jwt = false

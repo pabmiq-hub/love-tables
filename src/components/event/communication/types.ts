@@ -29,9 +29,17 @@ export interface CommunicationTemplates {
   brandName: string;
   headerTitle: string;
   logoHeight: number;
+  reminderOptions?: ReminderOptions;
 }
 
 export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
+
+export interface ReminderOptions {
+  showCalendarLinks: boolean;
+  showUnsubscribe: boolean;
+  showCountdown: boolean;
+  unsubscribeText: string;
+}
 
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
@@ -101,6 +109,12 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
   brandName: "Konektum",
   headerTitle: "¡Bienvenido/a al evento!",
   logoHeight: 48,
+  reminderOptions: {
+    showCalendarLinks: true,
+    showUnsubscribe: true,
+    showCountdown: false,
+    unsubscribeText: "Si no puedes asistir, puedes darte de baja haciendo clic aquí.",
+  },
 };
 
 export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
@@ -162,4 +176,10 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
   brandName: "Konektum",
   headerTitle: "Welcome to the event!",
   logoHeight: 48,
+  reminderOptions: {
+    showCalendarLinks: true,
+    showUnsubscribe: true,
+    showCountdown: false,
+    unsubscribeText: "If you can't attend, you can unsubscribe by clicking here.",
+  },
 };

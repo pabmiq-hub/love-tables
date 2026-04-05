@@ -180,6 +180,8 @@ export type Database = {
           registration_open: boolean
           registration_requirements_enabled: boolean | null
           registration_subtitle: string | null
+          reminder_mode: string
+          reminder_scheduled_at: string | null
           rotation_mode: string
           round_duration: number
           round_elapsed_seconds: number | null
@@ -231,6 +233,8 @@ export type Database = {
           registration_open?: boolean
           registration_requirements_enabled?: boolean | null
           registration_subtitle?: string | null
+          reminder_mode?: string
+          reminder_scheduled_at?: string | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
@@ -282,6 +286,8 @@ export type Database = {
           registration_open?: boolean
           registration_requirements_enabled?: boolean | null
           registration_subtitle?: string | null
+          reminder_mode?: string
+          reminder_scheduled_at?: string | null
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null

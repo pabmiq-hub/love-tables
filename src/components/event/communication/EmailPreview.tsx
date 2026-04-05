@@ -1,4 +1,4 @@
-import { StructuredTemplate, MatchesWithoutTemplate, TemplateKey } from "./types";
+import { StructuredTemplate, MatchesWithoutTemplate, TemplateKey, ReminderOptions } from "./types";
 
 interface EmailPreviewProps {
   template: StructuredTemplate;
@@ -11,6 +11,7 @@ interface EmailPreviewProps {
   eventName: string;
   matchesVariant?: "with" | "without";
   matchesWithoutTemplate?: MatchesWithoutTemplate;
+  reminderOptions?: ReminderOptions;
 }
 
 const SAMPLE_DATA: Record<string, string> = {
@@ -42,6 +43,7 @@ const EmailPreview = ({
   eventName,
   matchesVariant = "with",
   matchesWithoutTemplate,
+  reminderOptions,
 }: EmailPreviewProps) => {
   const r = (t: string) => replaceVars(t, eventName);
   const headerText = headerTitle?.trim() || brandName;
@@ -133,13 +135,36 @@ const EmailPreview = ({
         );
       case "reminder":
         return (
-          <div className="text-center my-5">
-            <a
-              className="inline-block py-3 px-7 rounded-lg text-white font-bold text-sm no-underline"
-              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
-            >
-              Enviar mis selecciones
-            </a>
+          <div className="space-y-4 my-4">
+            <div className="text-center">
+              <a
+                className="inline-block py-3 px-7 rounded-lg text-white font-bold text-sm no-underline"
+                style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
+              >
+                Enviar mis selecciones
+              </a>
+            </div>
+            {reminderOptions?.showCalendarLinks && (
+              <div className="flex justify-center gap-3 mt-3">
+                <a className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border" style={{ color: primaryColor }}>
+                  📅 Google Calendar
+                </a>
+                <a className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border" style={{ color: primaryColor }}>
+                  🍎 iCalendar
+                </a>
+              </div>
+            )}
+            {reminderOptions?.showCountdown && (
+              <div className="text-center p-3 rounded-lg bg-muted/50 border">
+                <p className="text-xs text-muted-foreground mb-1">Faltan para el evento:</p>
+                <p className="text-lg font-bold" style={{ color: primaryColor }}>2 días, 5 horas</p>
+              </div>
+            )}
+            {reminderOptions?.showUnsubscribe && (
+              <p className="text-center text-xs text-muted-foreground mt-2">
+                <a className="underline" style={{ color: primaryColor }}>{reminderOptions.unsubscribeText || "Si no puedes asistir, haz clic aquí"}</a>
+              </p>
+            )}
           </div>
         );
       case "registration_confirmation":

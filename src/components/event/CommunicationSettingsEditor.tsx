@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import {
   TemplateKey,
   StructuredTemplate,
   MatchesWithoutTemplate,
+  ReminderOptions,
   DEFAULT_TEMPLATES_ES,
   DEFAULT_TEMPLATES_EN,
 } from "./communication/types";
@@ -383,6 +385,45 @@ const CommunicationSettingsEditor = ({
                 </div>
               )}
 
+              {/* Reminder options */}
+              {tab.key === "reminder" && (
+                <div className="space-y-3 mb-4 p-3 border rounded-lg bg-muted/20">
+                  <p className="text-xs font-medium">Contenido opcional del recordatorio:</p>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">📅 Enlaces de calendario (Google / iCal)</Label>
+                    <Switch
+                      checked={templates.reminderOptions?.showCalendarLinks ?? true}
+                      onCheckedChange={(v) => setTemplates(prev => ({ ...prev, reminderOptions: { ...prev.reminderOptions!, showCalendarLinks: v } }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">❌ Opción de darse de baja</Label>
+                    <Switch
+                      checked={templates.reminderOptions?.showUnsubscribe ?? true}
+                      onCheckedChange={(v) => setTemplates(prev => ({ ...prev, reminderOptions: { ...prev.reminderOptions!, showUnsubscribe: v } }))}
+                    />
+                  </div>
+                  {templates.reminderOptions?.showUnsubscribe && (
+                    <div className="space-y-1 ml-4">
+                      <Label className="text-xs">Texto del enlace de baja</Label>
+                      <Input
+                        value={templates.reminderOptions?.unsubscribeText || ""}
+                        onChange={(e) => setTemplates(prev => ({ ...prev, reminderOptions: { ...prev.reminderOptions!, unsubscribeText: e.target.value } }))}
+                        className="text-xs h-8"
+                        placeholder="Si no puedes asistir, haz clic aquí"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">⏱️ Cuenta atrás para el evento</Label>
+                    <Switch
+                      checked={templates.reminderOptions?.showCountdown ?? false}
+                      onCheckedChange={(v) => setTemplates(prev => ({ ...prev, reminderOptions: { ...prev.reminderOptions!, showCountdown: v } }))}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Editor */}
                 <div>
@@ -420,6 +461,7 @@ const CommunicationSettingsEditor = ({
                     eventName={eventName}
                     matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
                     matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
+                    reminderOptions={tab.key === "reminder" ? templates.reminderOptions : undefined}
                   />
                 </div>
               </div>
