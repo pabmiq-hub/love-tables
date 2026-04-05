@@ -456,6 +456,48 @@ const EventSettingsEditor = ({
             </Select>
           </div>
 
+          {/* Reminder mode */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex-1 mr-4">
+              <Label className="text-base flex items-center gap-2">
+                <Bell className="w-4 h-4" />
+                Recordatorio del evento
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                {formReminderMode === "manual"
+                  ? "Envía recordatorios manualmente desde el panel del evento"
+                  : formReminderMode === "24h"
+                    ? "Se enviará un recordatorio automáticamente 24h antes del evento"
+                    : formReminderMode === "48h"
+                      ? "Se enviará un recordatorio automáticamente 48h antes del evento"
+                      : "Se enviará un recordatorio en la fecha y hora configurada"}
+              </p>
+            </div>
+            <Select value={formReminderMode} onValueChange={setFormReminderMode}>
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="24h">24h antes del evento</SelectItem>
+                <SelectItem value="48h">48h antes del evento</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formReminderMode === "custom" && (
+            <div className="ml-4 p-4 border rounded-lg bg-muted/30">
+              <Label className="text-sm">Fecha y hora del recordatorio</Label>
+              <Input
+                type="datetime-local"
+                value={formReminderScheduledAt}
+                onChange={(e) => setFormReminderScheduledAt(e.target.value)}
+                className="mt-2 w-64"
+              />
+            </div>
+          )}
+
           {/* Preliminary Round - Social only, Enterprise feature */}
           {!isProfessional && (
             <FeatureGate feature="preliminary_round">
