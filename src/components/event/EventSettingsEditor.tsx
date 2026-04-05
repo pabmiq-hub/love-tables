@@ -181,6 +181,8 @@ const EventSettingsEditor = ({
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
+        reminder_mode: formReminderMode,
+        reminder_scheduled_at: formReminderMode === "custom" && formReminderScheduledAt ? formReminderScheduledAt : null,
       };
 
       // Handle preliminary round
