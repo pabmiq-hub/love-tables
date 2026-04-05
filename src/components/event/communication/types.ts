@@ -33,6 +33,13 @@ export interface CommunicationTemplates {
 
 export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
 
+export interface ReminderOptions {
+  showCalendarLinks: boolean;
+  showUnsubscribe: boolean;
+  showCountdown: boolean;
+  unsubscribeText: string;
+}
+
 export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   registration_with_code: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}", "{{codigo}}"],
