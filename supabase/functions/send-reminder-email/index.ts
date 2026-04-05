@@ -249,6 +249,9 @@ const handler = async (req: Request): Promise<Response> => {
       const vars: Record<string, string> = {
         "{{nombre}}": participant.name,
         "{{evento}}": event.name,
+        "{{fecha}}": event.date || "",
+        "{{ubicacion}}": event.event_location || "",
+        "{{hora}}": event.event_time || "",
       };
 
       const subject = tpl?.subject
