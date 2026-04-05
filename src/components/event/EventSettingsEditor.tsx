@@ -73,6 +73,8 @@ const EventSettingsEditor = ({
   codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
+  reminderMode: initialReminderMode = "manual",
+  reminderScheduledAt: initialReminderScheduledAt = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
