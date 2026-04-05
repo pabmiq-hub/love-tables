@@ -153,7 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get event with email_template
     const { data: event } = await supabase
       .from("events")
-      .select("name, organizer_id, language, email_template")
+      .select("name, organizer_id, language, email_template, date, event_time, event_location")
       .eq("id", event_id)
       .single();
 
