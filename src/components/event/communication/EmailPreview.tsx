@@ -1,4 +1,4 @@
-import { StructuredTemplate, MatchesWithoutTemplate, TemplateKey } from "./types";
+import { StructuredTemplate, MatchesWithoutTemplate, TemplateKey, ReminderOptions } from "./types";
 
 interface EmailPreviewProps {
   template: StructuredTemplate;
@@ -11,6 +11,7 @@ interface EmailPreviewProps {
   eventName: string;
   matchesVariant?: "with" | "without";
   matchesWithoutTemplate?: MatchesWithoutTemplate;
+  reminderOptions?: ReminderOptions;
 }
 
 const SAMPLE_DATA: Record<string, string> = {
