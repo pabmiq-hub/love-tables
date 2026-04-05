@@ -3390,6 +3390,33 @@ const EventDetail = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {/* Send reminder to all */}
+                        {participants.length > 0 && participants.filter(p => p.email).length > 0 && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id))}
+                              disabled={isSendingReminder}
+                            >
+                              <Bell className="w-4 h-4 mr-2" />
+                              {isSendingReminder ? "Enviando recordatorios..." : `Recordatorio a todos (${participants.filter(p => p.email).length})`}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const checkedIn = participants.filter(p => p.email && p.checked_in);
+                                if (checkedIn.length === 0) {
+                                  toast({ title: "Sin participantes", description: "No hay participantes con check-in y email", variant: "destructive" });
+                                  return;
+                                }
+                                handleSendReminder(checkedIn.map(p => p.id));
+                              }}
+                              disabled={isSendingReminder}
+                            >
+                              <Bell className="w-4 h-4 mr-2" />
+                              Recordatorio check-in ({participants.filter(p => p.email && p.checked_in).length})
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
                         {eventStatus === "pending" && participants.length > 0 && (
                           <>
                             <DropdownMenuItem 
