@@ -461,6 +461,7 @@ const CommunicationSettingsEditor = ({
                     eventName={eventName}
                     matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
                     matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
+                    reminderOptions={tab.key === "reminder" ? templates.reminderOptions : undefined}
                   />
                 </div>
               </div>
