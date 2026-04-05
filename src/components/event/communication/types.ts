@@ -29,6 +29,7 @@ export interface CommunicationTemplates {
   brandName: string;
   headerTitle: string;
   logoHeight: number;
+  reminderOptions?: ReminderOptions;
 }
 
 export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
