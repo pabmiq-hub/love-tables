@@ -3049,8 +3049,8 @@ const EventDetail = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Exclusions - only pending with 2+ checked in */}
-              {eventStatus === "pending" && participants.filter(p => p.checked_in).length >= 2 && (
+              {/* Exclusions - available from event creation */}
+              {eventStatus === "pending" && participants.length >= 2 && (
                 (hasFeature("avoid_encounters") || isSuperAdmin) ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
