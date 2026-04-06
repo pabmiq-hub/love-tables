@@ -3395,11 +3395,18 @@ const EventDetail = () => {
                         {participants.length > 0 && participants.filter(p => p.email).length > 0 && (
                           <>
                             <DropdownMenuItem
-                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id))}
+                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id), "event")}
                               disabled={isSendingReminder}
                             >
                               <Bell className="w-4 h-4 mr-2" />
-                              {isSendingReminder ? "Enviando recordatorios..." : `Recordatorio a todos (${participants.filter(p => p.email).length})`}
+                              {isSendingReminder ? "Enviando..." : `Recordatorio evento a todos (${participants.filter(p => p.email).length})`}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id), "selection")}
+                              disabled={isSendingReminder}
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              {isSendingReminder ? "Enviando..." : `Rec. selecciones a todos (${participants.filter(p => p.email).length})`}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -3408,12 +3415,12 @@ const EventDetail = () => {
                                   toast({ title: "Sin participantes", description: "No hay participantes con check-in y email", variant: "destructive" });
                                   return;
                                 }
-                                handleSendReminder(checkedIn.map(p => p.id));
+                                handleSendReminder(checkedIn.map(p => p.id), "event");
                               }}
                               disabled={isSendingReminder}
                             >
                               <Bell className="w-4 h-4 mr-2" />
-                              Recordatorio check-in ({participants.filter(p => p.email && p.checked_in).length})
+                              Rec. evento check-in ({participants.filter(p => p.email && p.checked_in).length})
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                           </>
