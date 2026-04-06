@@ -23,7 +23,8 @@ import EmailPreview from "./communication/EmailPreview";
 
 const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
-  { key: "reminder", label: "Recordatorio", icon: Bell, description: "Email pre-evento" },
+  { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento" },
+  { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
   { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
