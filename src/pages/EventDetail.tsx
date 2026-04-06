@@ -2400,13 +2400,12 @@ const EventDetail = () => {
     }
   };
 
-  const handleSendReminder = async (participantIds: string[]) => {
+  const handleSendReminder = async (participantIds: string[], reminderType: "event" | "selection" = "selection") => {
     if (!id || participantIds.length === 0) return;
     
     setIsSendingReminder(true);
     
     try {
-      // Get current session for authorization
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
@@ -2416,7 +2415,8 @@ const EventDetail = () => {
       const { data, error } = await supabase.functions.invoke('send-reminder-email', {
         body: { 
           event_id: id, 
-          participant_ids: participantIds 
+          participant_ids: participantIds,
+          reminder_type: reminderType,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -2431,9 +2431,10 @@ const EventDetail = () => {
         throw new Error(data.error);
       }
 
+      const typeLabel = reminderType === "event" ? "del evento" : "de selecciones";
       toast({
         title: "Recordatorios enviados",
-        description: `Se enviaron ${data?.stats?.sent || 0} recordatorios correctamente`,
+        description: `Se enviaron ${data?.stats?.sent || 0} recordatorios ${typeLabel} correctamente`,
       });
     } catch (error: any) {
       console.error("Error sending reminders:", error);
