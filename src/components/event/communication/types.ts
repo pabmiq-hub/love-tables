@@ -20,6 +20,7 @@ export interface CommunicationTemplates {
   registration_confirmation: StructuredTemplate;
   registration_with_code: StructuredTemplate;
   reminder: StructuredTemplate;
+  selection_reminder: StructuredTemplate;
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
@@ -32,7 +33,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -45,6 +46,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   registration_with_code: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}", "{{codigo}}"],
   reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
+  selection_reminder: ["{{nombre}}", "{{evento}}"],
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
   super_like: ["{{nombre}}", "{{evento}}"],
