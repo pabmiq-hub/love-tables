@@ -41,6 +41,8 @@ interface ParticipantCardProps {
   onSendCode: (id: string) => void;
   onDelete: (id: string) => void;
   onEmailUpdated: (id: string, email: string) => void;
+  onSendReminder?: (id: string) => void;
+  isSendingReminder?: boolean;
 }
 
 const getGenderBadge = (gender: string | null) => {
