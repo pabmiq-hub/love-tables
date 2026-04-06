@@ -272,6 +272,80 @@ const handler = async (req: Request): Promise<Response> => {
       ? (isEn ? defaultSelectionReminderEN : defaultSelectionReminderES)
       : (isEn ? defaultEventReminderEN : defaultEventReminderES);
 
+    for (let i = 0; i < (participants || []).length; i++) {
+      const participant = participants![i];
+      stats.total++;
+      
+      if (!participant.email) {
+        stats.noEmail++;
+        continue;
+      }
+
+      const selectionUrl = `${baseUrl}/event/${event_id}/access`;
+
+      const vars: Record<string, string> = {
+        "{{nombre}}": participant.name,
+        "{{evento}}": event.name,
+        "{{fecha}}": event.date || "",
+        "{{ubicacion}}": event.event_location || "",
+        "{{hora}}": event.event_time || "",
+      };
+
+      const subject = tpl?.subject
+        ? replaceVariables(tpl.subject, vars)
+        : replaceVariables(defaults.subject, vars);
+      
+      const greeting = tpl?.greeting
+        ? replaceVariables(tpl.greeting, vars)
+        : replaceVariables(defaults.greeting, vars);
+      
+      const intro = tpl?.intro
+        ? replaceVariables(tpl.intro, vars)
+        : replaceVariables(defaults.intro, vars);
+      
+      const closing = tpl?.closing
+        ? replaceVariables(tpl.closing, vars)
+        : replaceVariables(defaults.closing, vars);
+      
+      const signature = tpl?.signature
+        ? replaceVariables(tpl.signature, vars)
+        : replaceVariables(defaults.signature, vars);
+
+      // CTA button - only for selection reminders
+      const ctaHtml = isSelectionReminder ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${selectionUrl}" 
+                 style="background: ${primaryColor}; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
+              </a>
+            </div>` : '';
+
+      // Calendar links - only for event reminders
+      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && event.date) ? (() => {
+        const eventDate = event.date;
+        const eventTime = event.event_time || "19:00";
+        const eventLoc = event.event_location || "";
+        const startDate = eventDate.replace(/-/g, '') + 'T' + eventTime.replace(':', '') + '00';
+        const endHour = String(Math.min(23, parseInt(eventTime.split(':')[0]) + 2)).padStart(2, '0');
+        const endDate = eventDate.replace(/-/g, '') + 'T' + endHour + eventTime.split(':')[1] + '00';
+        const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${startDate}/${endDate}&location=${encodeURIComponent(eventLoc)}`;
+        return `
+        <div style="text-align: center; margin: 15px 0;">
+          <a href="${gcalUrl}" style="display: inline-block; padding: 8px 16px; border: 1px solid ${primaryColor}; border-radius: 6px; color: ${primaryColor}; text-decoration: none; font-size: 13px; margin: 0 5px;">📅 Google Calendar</a>
+        </div>`;
+      })() : '';
+
+      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && event.date) ? `
+        <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
+          <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${event.date} ${event.event_time ? '🕐 ' + event.event_time : ''}</p>
+        </div>` : '';
+
+      const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `
+        <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
+          <a href="${baseUrl}/event/${event_id}/cancel/${participant.id}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
+        </p>` : '';
+
       const html = `
         <!DOCTYPE html>
         <html>
@@ -288,43 +362,10 @@ const handler = async (req: Request): Promise<Response> => {
               ${nl2br(intro)}
             </div>
             
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${selectionUrl}" 
-                 style="background: ${primaryColor}; 
-                        color: white; 
-                        padding: 14px 28px; 
-                        border-radius: 8px; 
-                        text-decoration: none; 
-                        font-weight: bold;
-                        display: inline-block;">
-                ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
-              </a>
-            </div>
-            
-            ${reminderOptions.showCalendarLinks && event.date ? (() => {
-              const eventDate = event.date;
-              const eventTime = event.event_time || "19:00";
-              const eventLoc = event.event_location || "";
-              const startDate = eventDate.replace(/-/g, '') + 'T' + eventTime.replace(':', '') + '00';
-              const endHour = String(Math.min(23, parseInt(eventTime.split(':')[0]) + 2)).padStart(2, '0');
-              const endDate = eventDate.replace(/-/g, '') + 'T' + endHour + eventTime.split(':')[1] + '00';
-              const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${startDate}/${endDate}&location=${encodeURIComponent(eventLoc)}`;
-              return `
-              <div style="text-align: center; margin: 15px 0;">
-                <a href="${gcalUrl}" style="display: inline-block; padding: 8px 16px; border: 1px solid ${primaryColor}; border-radius: 6px; color: ${primaryColor}; text-decoration: none; font-size: 13px; margin: 0 5px;">📅 Google Calendar</a>
-              </div>`;
-            })() : ''}
-            
-            ${reminderOptions.showCountdown && event.date ? `
-            <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
-              <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
-              <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${event.date} ${event.event_time ? '🕐 ' + event.event_time : ''}</p>
-            </div>` : ''}
-            
-            ${reminderOptions.showUnsubscribe ? `
-            <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
-              <a href="${baseUrl}/event/${event_id}/cancel/${participant.id}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
-            </p>` : ''}
+            ${ctaHtml}
+            ${calendarHtml}
+            ${countdownHtml}
+            ${unsubscribeHtml}
             
             <p style="color: #888; font-size: 14px; text-align: center;">
               ${nl2br(closing)}
