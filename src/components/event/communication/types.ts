@@ -20,6 +20,7 @@ export interface CommunicationTemplates {
   registration_confirmation: StructuredTemplate;
   registration_with_code: StructuredTemplate;
   reminder: StructuredTemplate;
+  selection_reminder: StructuredTemplate;
   matches: StructuredTemplate;
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
@@ -32,7 +33,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -45,6 +46,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   registration_confirmation: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
   registration_with_code: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}", "{{codigo}}"],
   reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
+  selection_reminder: ["{{nombre}}", "{{evento}}"],
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
   super_like: ["{{nombre}}", "{{evento}}"],
@@ -66,6 +68,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
   },
   reminder: {
+    subject: "📅 Recordatorio: ¡No te olvides de {{evento}}!",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "Te recordamos que se acerca el evento {{evento}}.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}\n\n¡Te esperamos! No olvides llegar a tiempo.",
+    closing: "¡Nos vemos pronto! 🎉",
+    signature: "Un saludo,\nEquipo Konektum",
+  },
+  selection_reminder: {
     subject: "⏰ Recordatorio: ¡Envía tus selecciones para {{evento}}!",
     greeting: "¡Hola {{nombre}}! 👋",
     intro: "¡Aún estás a tiempo de indicar tus matches para el evento {{evento}}!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.",
@@ -133,6 +142,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     signature: "See you at the event!\nKonektum Team 🎉",
   },
   reminder: {
+    subject: "📅 Reminder: Don't forget about {{evento}}!",
+    greeting: "Hi {{nombre}}! 👋",
+    intro: "Just a reminder that the event {{evento}} is coming up.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}\n\nWe look forward to seeing you! Make sure to arrive on time.",
+    closing: "See you soon! 🎉",
+    signature: "Best regards,\nKonektum Team",
+  },
+  selection_reminder: {
     subject: "⏰ Reminder: Send your selections for {{evento}}!",
     greeting: "Hi {{nombre}}! 👋",
     intro: "You still have time to submit your matches for the event {{evento}}!\n\nDon't miss the opportunity to connect with the people you met.",

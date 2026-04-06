@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake } from "lucide-react";
+import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell } from "lucide-react";
 import InlineEmailEditor from "./InlineEmailEditor";
 import { normalizePreference } from "@/lib/analyticsNormalization";
 
@@ -41,6 +41,8 @@ interface ParticipantCardProps {
   onSendCode: (id: string) => void;
   onDelete: (id: string) => void;
   onEmailUpdated: (id: string, email: string) => void;
+  onSendReminder?: (id: string) => void;
+  isSendingReminder?: boolean;
 }
 
 const getGenderBadge = (gender: string | null) => {
@@ -79,6 +81,8 @@ const ParticipantCard = ({
   onSendCode,
   onDelete,
   onEmailUpdated,
+  onSendReminder,
+  isSendingReminder,
 }: ParticipantCardProps) => {
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
@@ -154,24 +158,42 @@ const ParticipantCard = ({
             )}
 
             {participant.email && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={isSendingCode === participant.id}
-                    onClick={() => onSendCode(participant.id)}
-                  >
-                    {isSendingCode === participant.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
-              </Tooltip>
+              <>
+                {onSendReminder && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-amber-600"
+                        disabled={isSendingReminder}
+                        onClick={() => onSendReminder(participant.id)}
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Enviar recordatorio</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={isSendingCode === participant.id}
+                      onClick={() => onSendCode(participant.id)}
+                    >
+                      {isSendingCode === participant.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
+                </Tooltip>
+              </>
             )}
 
             <AlertDialog>

@@ -106,7 +106,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { event_id, participant_ids } = await req.json();
+    const { event_id, participant_ids, reminder_type } = await req.json();
+    const isSelectionReminder = reminder_type === "selection";
 
     if (!event_id) {
       return new Response(
@@ -140,7 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("email_logs").insert({
           event_id,
           participant_id: participantId,
-          email_type: 'reminder',
+          email_type: isSelectionReminder ? 'selection_reminder' : 'event_reminder',
           status,
           error_message: errorMessage || null,
           sent_at: status === 'sent' ? new Date().toISOString() : null,
@@ -195,11 +196,14 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Read customized template
+    // Read customized template - pick correct one based on reminder type
     const emailTemplate = event.email_template as any;
     const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
-    const tpl = communicationTemplate?.reminder;
-    const reminderOptions = communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' };
+    const tplKey = isSelectionReminder ? 'selection_reminder' : 'reminder';
+    const tpl = communicationTemplate?.[tplKey] || communicationTemplate?.reminder;
+    const reminderOptions = isSelectionReminder 
+      ? { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' }
+      : (communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' });
     const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
     const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
     const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
@@ -234,6 +238,40 @@ const handler = async (req: Request): Promise<Response> => {
 
     const baseUrl = "https://konektum.com";
 
+    // Default templates for each type
+    const defaultEventReminderES = {
+      subject: `📅 Recordatorio: ¡No te olvides de ${event.name}!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `Te recordamos que se acerca el evento {{evento}}.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}\n\n¡Te esperamos! No olvides llegar a tiempo.`,
+      closing: `¡Nos vemos pronto! 🎉`,
+      signature: `Un saludo,\n${brandName}`,
+    };
+    const defaultEventReminderEN = {
+      subject: `📅 Reminder: Don't forget about ${event.name}!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `Just a reminder that the event {{evento}} is coming up.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}\n\nWe look forward to seeing you!`,
+      closing: `See you soon! 🎉`,
+      signature: `Best regards,\n${brandName}`,
+    };
+    const defaultSelectionReminderES = {
+      subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `¡Aún estás a tiempo de indicar tus matches para el evento {{evento}}!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.`,
+      closing: `¡Esperamos que hayas pasado un buen rato! 💕`,
+      signature: `Este es un recordatorio automático de ${brandName}.\nSi ya has enviado tus selecciones, ignora este mensaje.`,
+    };
+    const defaultSelectionReminderEN = {
+      subject: `⏰ Reminder: Send your selections for ${event.name}!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `You still have time to submit your matches for the event {{evento}}!\n\nDon't miss the opportunity to connect with the people you met.`,
+      closing: `We hope you had a great time! 💕`,
+      signature: `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`,
+    };
+
+    const defaults = isSelectionReminder
+      ? (isEn ? defaultSelectionReminderEN : defaultSelectionReminderES)
+      : (isEn ? defaultEventReminderEN : defaultEventReminderES);
+
     for (let i = 0; i < (participants || []).length; i++) {
       const participant = participants![i];
       stats.total++;
@@ -245,7 +283,6 @@ const handler = async (req: Request): Promise<Response> => {
 
       const selectionUrl = `${baseUrl}/event/${event_id}/access`;
 
-      // Template variables for this participant
       const vars: Record<string, string> = {
         "{{nombre}}": participant.name,
         "{{evento}}": event.name,
@@ -256,27 +293,58 @@ const handler = async (req: Request): Promise<Response> => {
 
       const subject = tpl?.subject
         ? replaceVariables(tpl.subject, vars)
-        : (isEn ? `⏰ Reminder: Send your selections for ${event.name}!` : `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`);
+        : replaceVariables(defaults.subject, vars);
       
       const greeting = tpl?.greeting
         ? replaceVariables(tpl.greeting, vars)
-        : (isEn ? `Hi ${participant.name}! 👋` : `¡Hola ${participant.name}! 👋`);
+        : replaceVariables(defaults.greeting, vars);
       
       const intro = tpl?.intro
         ? replaceVariables(tpl.intro, vars)
-        : (isEn
-          ? `You still have time to submit your matches for the event <strong>${escapeHtml(event.name)}</strong>!\n\nDon't miss the opportunity to connect with the people you met.`
-          : `¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.`);
+        : replaceVariables(defaults.intro, vars);
       
       const closing = tpl?.closing
         ? replaceVariables(tpl.closing, vars)
-        : (isEn ? 'We hope you had a great time! 💕' : '¡Esperamos que hayas pasado un buen rato! 💕');
+        : replaceVariables(defaults.closing, vars);
       
       const signature = tpl?.signature
         ? replaceVariables(tpl.signature, vars)
-        : (isEn
-          ? `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`
-          : `Este es un recordatorio automático de ${brandName}.\nSi ya has enviado tus selecciones, ignora este mensaje.`);
+        : replaceVariables(defaults.signature, vars);
+
+      // CTA button - only for selection reminders
+      const ctaHtml = isSelectionReminder ? `
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${selectionUrl}" 
+                 style="background: ${primaryColor}; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
+              </a>
+            </div>` : '';
+
+      // Calendar links - only for event reminders
+      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && event.date) ? (() => {
+        const eventDate = event.date;
+        const eventTime = event.event_time || "19:00";
+        const eventLoc = event.event_location || "";
+        const startDate = eventDate.replace(/-/g, '') + 'T' + eventTime.replace(':', '') + '00';
+        const endHour = String(Math.min(23, parseInt(eventTime.split(':')[0]) + 2)).padStart(2, '0');
+        const endDate = eventDate.replace(/-/g, '') + 'T' + endHour + eventTime.split(':')[1] + '00';
+        const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${startDate}/${endDate}&location=${encodeURIComponent(eventLoc)}`;
+        return `
+        <div style="text-align: center; margin: 15px 0;">
+          <a href="${gcalUrl}" style="display: inline-block; padding: 8px 16px; border: 1px solid ${primaryColor}; border-radius: 6px; color: ${primaryColor}; text-decoration: none; font-size: 13px; margin: 0 5px;">📅 Google Calendar</a>
+        </div>`;
+      })() : '';
+
+      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && event.date) ? `
+        <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
+          <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${event.date} ${event.event_time ? '🕐 ' + event.event_time : ''}</p>
+        </div>` : '';
+
+      const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `
+        <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
+          <a href="${baseUrl}/event/${event_id}/cancel/${participant.id}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
+        </p>` : '';
 
       const html = `
         <!DOCTYPE html>
@@ -294,43 +362,10 @@ const handler = async (req: Request): Promise<Response> => {
               ${nl2br(intro)}
             </div>
             
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${selectionUrl}" 
-                 style="background: ${primaryColor}; 
-                        color: white; 
-                        padding: 14px 28px; 
-                        border-radius: 8px; 
-                        text-decoration: none; 
-                        font-weight: bold;
-                        display: inline-block;">
-                ${isEn ? 'Send my selections' : 'Enviar mis selecciones'}
-              </a>
-            </div>
-            
-            ${reminderOptions.showCalendarLinks && event.date ? (() => {
-              const eventDate = event.date;
-              const eventTime = event.event_time || "19:00";
-              const eventLoc = event.event_location || "";
-              const startDate = eventDate.replace(/-/g, '') + 'T' + eventTime.replace(':', '') + '00';
-              const endHour = String(Math.min(23, parseInt(eventTime.split(':')[0]) + 2)).padStart(2, '0');
-              const endDate = eventDate.replace(/-/g, '') + 'T' + endHour + eventTime.split(':')[1] + '00';
-              const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.name)}&dates=${startDate}/${endDate}&location=${encodeURIComponent(eventLoc)}`;
-              return `
-              <div style="text-align: center; margin: 15px 0;">
-                <a href="${gcalUrl}" style="display: inline-block; padding: 8px 16px; border: 1px solid ${primaryColor}; border-radius: 6px; color: ${primaryColor}; text-decoration: none; font-size: 13px; margin: 0 5px;">📅 Google Calendar</a>
-              </div>`;
-            })() : ''}
-            
-            ${reminderOptions.showCountdown && event.date ? `
-            <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
-              <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
-              <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${event.date} ${event.event_time ? '🕐 ' + event.event_time : ''}</p>
-            </div>` : ''}
-            
-            ${reminderOptions.showUnsubscribe ? `
-            <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
-              <a href="${baseUrl}/event/${event_id}/cancel/${participant.id}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
-            </p>` : ''}
+            ${ctaHtml}
+            ${calendarHtml}
+            ${countdownHtml}
+            ${unsubscribeHtml}
             
             <p style="color: #888; font-size: 14px; text-align: center;">
               ${nl2br(closing)}

@@ -136,14 +136,6 @@ const EmailPreview = ({
       case "reminder":
         return (
           <div className="space-y-4 my-4">
-            <div className="text-center">
-              <a
-                className="inline-block py-3 px-7 rounded-lg text-white font-bold text-sm no-underline"
-                style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
-              >
-                Enviar mis selecciones
-              </a>
-            </div>
             {reminderOptions?.showCalendarLinks && (
               <div className="flex justify-center gap-3 mt-3">
                 <a className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border" style={{ color: primaryColor }}>
@@ -165,6 +157,19 @@ const EmailPreview = ({
                 <a className="underline" style={{ color: primaryColor }}>{reminderOptions.unsubscribeText || "Si no puedes asistir, haz clic aquí"}</a>
               </p>
             )}
+          </div>
+        );
+      case "selection_reminder":
+        return (
+          <div className="space-y-4 my-4">
+            <div className="text-center">
+              <a
+                className="inline-block py-3 px-7 rounded-lg text-white font-bold text-sm no-underline"
+                style={{ background: `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})` }}
+              >
+                Enviar mis selecciones
+              </a>
+            </div>
           </div>
         );
       case "registration_confirmation":
