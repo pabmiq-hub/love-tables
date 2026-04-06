@@ -68,6 +68,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     signature: "¡Nos vemos en el evento!\nEquipo Konektum 🎉",
   },
   reminder: {
+    subject: "📅 Recordatorio: ¡No te olvides de {{evento}}!",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "Te recordamos que se acerca el evento {{evento}}.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}\n\n¡Te esperamos! No olvides llegar a tiempo.",
+    closing: "¡Nos vemos pronto! 🎉",
+    signature: "Un saludo,\nEquipo Konektum",
+  },
+  selection_reminder: {
     subject: "⏰ Recordatorio: ¡Envía tus selecciones para {{evento}}!",
     greeting: "¡Hola {{nombre}}! 👋",
     intro: "¡Aún estás a tiempo de indicar tus matches para el evento {{evento}}!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.",
