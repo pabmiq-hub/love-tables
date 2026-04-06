@@ -81,6 +81,8 @@ const ParticipantCard = ({
   onSendCode,
   onDelete,
   onEmailUpdated,
+  onSendReminder,
+  isSendingReminder,
 }: ParticipantCardProps) => {
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
