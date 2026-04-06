@@ -196,11 +196,14 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Read customized template
+    // Read customized template - pick correct one based on reminder type
     const emailTemplate = event.email_template as any;
     const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
-    const tpl = communicationTemplate?.reminder;
-    const reminderOptions = communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' };
+    const tplKey = isSelectionReminder ? 'selection_reminder' : 'reminder';
+    const tpl = communicationTemplate?.[tplKey] || communicationTemplate?.reminder;
+    const reminderOptions = isSelectionReminder 
+      ? { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' }
+      : (communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' });
     const primaryColor = communicationTemplate?.primaryColor || emailTemplate?.primaryColor || "#e11d48";
     const logoUrl = communicationTemplate?.logoUrl || emailTemplate?.logoUrl || defaultLogoUrl;
     const brandName = communicationTemplate?.brandName || emailTemplate?.brandName || defaultBrandName;
@@ -235,49 +238,39 @@ const handler = async (req: Request): Promise<Response> => {
 
     const baseUrl = "https://konektum.com";
 
-    for (let i = 0; i < (participants || []).length; i++) {
-      const participant = participants![i];
-      stats.total++;
-      
-      if (!participant.email) {
-        stats.noEmail++;
-        continue;
-      }
+    // Default templates for each type
+    const defaultEventReminderES = {
+      subject: `📅 Recordatorio: ¡No te olvides de ${event.name}!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `Te recordamos que se acerca el evento {{evento}}.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}\n\n¡Te esperamos! No olvides llegar a tiempo.`,
+      closing: `¡Nos vemos pronto! 🎉`,
+      signature: `Un saludo,\n${brandName}`,
+    };
+    const defaultEventReminderEN = {
+      subject: `📅 Reminder: Don't forget about ${event.name}!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `Just a reminder that the event {{evento}} is coming up.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}\n\nWe look forward to seeing you!`,
+      closing: `See you soon! 🎉`,
+      signature: `Best regards,\n${brandName}`,
+    };
+    const defaultSelectionReminderES = {
+      subject: `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `¡Aún estás a tiempo de indicar tus matches para el evento {{evento}}!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.`,
+      closing: `¡Esperamos que hayas pasado un buen rato! 💕`,
+      signature: `Este es un recordatorio automático de ${brandName}.\nSi ya has enviado tus selecciones, ignora este mensaje.`,
+    };
+    const defaultSelectionReminderEN = {
+      subject: `⏰ Reminder: Send your selections for ${event.name}!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `You still have time to submit your matches for the event {{evento}}!\n\nDon't miss the opportunity to connect with the people you met.`,
+      closing: `We hope you had a great time! 💕`,
+      signature: `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`,
+    };
 
-      const selectionUrl = `${baseUrl}/event/${event_id}/access`;
-
-      // Template variables for this participant
-      const vars: Record<string, string> = {
-        "{{nombre}}": participant.name,
-        "{{evento}}": event.name,
-        "{{fecha}}": event.date || "",
-        "{{ubicacion}}": event.event_location || "",
-        "{{hora}}": event.event_time || "",
-      };
-
-      const subject = tpl?.subject
-        ? replaceVariables(tpl.subject, vars)
-        : (isEn ? `⏰ Reminder: Send your selections for ${event.name}!` : `⏰ Recordatorio: ¡Envía tus selecciones para ${event.name}!`);
-      
-      const greeting = tpl?.greeting
-        ? replaceVariables(tpl.greeting, vars)
-        : (isEn ? `Hi ${participant.name}! 👋` : `¡Hola ${participant.name}! 👋`);
-      
-      const intro = tpl?.intro
-        ? replaceVariables(tpl.intro, vars)
-        : (isEn
-          ? `You still have time to submit your matches for the event <strong>${escapeHtml(event.name)}</strong>!\n\nDon't miss the opportunity to connect with the people you met.`
-          : `¡Aún estás a tiempo de indicar tus matches para el evento <strong>${escapeHtml(event.name)}</strong>!\n\nNo te pierdas la oportunidad de conectar con las personas que conociste.`);
-      
-      const closing = tpl?.closing
-        ? replaceVariables(tpl.closing, vars)
-        : (isEn ? 'We hope you had a great time! 💕' : '¡Esperamos que hayas pasado un buen rato! 💕');
-      
-      const signature = tpl?.signature
-        ? replaceVariables(tpl.signature, vars)
-        : (isEn
-          ? `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`
-          : `Este es un recordatorio automático de ${brandName}.\nSi ya has enviado tus selecciones, ignora este mensaje.`);
+    const defaults = isSelectionReminder
+      ? (isEn ? defaultSelectionReminderEN : defaultSelectionReminderES)
+      : (isEn ? defaultEventReminderEN : defaultEventReminderES);
 
       const html = `
         <!DOCTYPE html>
