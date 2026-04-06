@@ -106,7 +106,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { event_id, participant_ids } = await req.json();
+    const { event_id, participant_ids, reminder_type } = await req.json();
+    const isSelectionReminder = reminder_type === "selection";
 
     if (!event_id) {
       return new Response(
