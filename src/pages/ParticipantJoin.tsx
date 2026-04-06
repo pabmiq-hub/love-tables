@@ -180,7 +180,7 @@ const ParticipantJoin = () => {
 
       setEventExists(true);
       setEventName(data.name);
-      setEventDate(new Date(data.date));
+      setEventDate(new Date(data.date + "T12:00:00"));
       setEventTime((data as any).event_time || null);
       setEventLocation((data as any).event_location || null);
       setRegistrationSubtitle(data.registration_subtitle || null);
