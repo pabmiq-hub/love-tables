@@ -4469,7 +4469,7 @@ const EventDetail = () => {
               <SelectionProgress
                 participants={participants}
                 selections={selections}
-                onSendReminder={handleSendReminder}
+                onSendReminder={(ids) => handleSendReminder(ids, "selection")}
                 isSendingReminder={isSendingReminder}
               />
 
