@@ -158,24 +158,42 @@ const ParticipantCard = ({
             )}
 
             {participant.email && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={isSendingCode === participant.id}
-                    onClick={() => onSendCode(participant.id)}
-                  >
-                    {isSendingCode === participant.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
-              </Tooltip>
+              <>
+                {onSendReminder && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-amber-600"
+                        disabled={isSendingReminder}
+                        onClick={() => onSendReminder(participant.id)}
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Enviar recordatorio</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={isSendingCode === participant.id}
+                      onClick={() => onSendCode(participant.id)}
+                    >
+                      {isSendingCode === participant.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{participant.verification_code ? "Reenviar código" : "Enviar código"}</TooltipContent>
+                </Tooltip>
+              </>
             )}
 
             <AlertDialog>
