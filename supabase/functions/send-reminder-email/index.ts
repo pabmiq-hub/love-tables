@@ -27,6 +27,99 @@ function nl2br(text: string): string {
   return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
+function parseEventDate(dateStr?: string | null): Date | null {
+  if (!dateStr) return null;
+
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!iso) return null;
+
+  const year = Number(iso[1]);
+  const month = Number(iso[2]);
+  const day = Number(iso[3]);
+  const parsed = new Date(year, month - 1, day, 12, 0, 0, 0);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function normalizeUpcomingEventDate(dateStr?: string | null, status?: string | null): Date | null {
+  const parsed = parseEventDate(dateStr);
+  if (!parsed) return null;
+
+  if (status !== 'pending') return parsed;
+
+  const normalized = new Date(parsed);
+  const threshold = new Date();
+  threshold.setHours(12, 0, 0, 0);
+  threshold.setMonth(threshold.getMonth() - 6);
+
+  while (normalized < threshold) {
+    normalized.setFullYear(normalized.getFullYear() + 1);
+  }
+
+  return normalized;
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(dateStr?: string | null, status?: string | null, locale = 'es-ES'): string {
+  const normalized = normalizeUpcomingEventDate(dateStr, status);
+  if (!normalized) return dateStr || '';
+
+  return normalized.toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+function serializeTemplate(template?: Record<string, unknown> | null): string {
+  return JSON.stringify({
+    subject: typeof template?.subject === 'string' ? template.subject.trim() : '',
+    greeting: typeof template?.greeting === 'string' ? template.greeting.trim() : '',
+    intro: typeof template?.intro === 'string' ? template.intro.trim() : '',
+    closing: typeof template?.closing === 'string' ? template.closing.trim() : '',
+    signature: typeof template?.signature === 'string' ? template.signature.trim() : '',
+  });
+}
+
+function shouldFallbackToEventReminder(
+  reminderTemplate?: Record<string, unknown> | null,
+  selectionTemplate?: Record<string, unknown> | null,
+): boolean {
+  if (!reminderTemplate) return true;
+
+  const text = [
+    reminderTemplate.subject,
+    reminderTemplate.intro,
+    reminderTemplate.closing,
+    reminderTemplate.signature,
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+
+  const looksLikeSelectionReminder = /(selecciones|matches|people you met|send your selections|submit your matches|indicar tus matches)/i.test(text);
+  const hasEventSignals = /(\{\{fecha\}\}|\{\{ubicacion\}\}|\{\{hora\}\}|fecha|date|ubicación|location)/i.test(text);
+
+  return (
+    serializeTemplate(reminderTemplate) === serializeTemplate(selectionTemplate) ||
+    (looksLikeSelectionReminder && !hasEventSignals)
+  );
+}
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const DELAY_BETWEEN_EMAILS = 550;
 const RATE_LIMIT_RETRY_DELAY = 2000;
@@ -154,7 +247,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get event with email_template
     const { data: event } = await supabase
       .from("events")
-      .select("name, organizer_id, language, email_template, date, event_time, event_location")
+      .select("name, organizer_id, language, email_template, date, event_time, event_location, status")
       .eq("id", event_id)
       .single();
 
@@ -199,8 +292,6 @@ const handler = async (req: Request): Promise<Response> => {
     // Read customized template - pick correct one based on reminder type
     const emailTemplate = event.email_template as any;
     const communicationTemplate = emailTemplate?.communication_templates_v2 || emailTemplate || {};
-    const tplKey = isSelectionReminder ? 'selection_reminder' : 'reminder';
-    const tpl = communicationTemplate?.[tplKey] || communicationTemplate?.reminder;
     const reminderOptions = isSelectionReminder 
       ? { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' }
       : (communicationTemplate?.reminderOptions || { showCalendarLinks: false, showUnsubscribe: false, showCountdown: false, unsubscribeText: '' });
@@ -268,9 +359,19 @@ const handler = async (req: Request): Promise<Response> => {
       signature: `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`,
     };
 
-    const defaults = isSelectionReminder
-      ? (isEn ? defaultSelectionReminderEN : defaultSelectionReminderES)
-      : (isEn ? defaultEventReminderEN : defaultEventReminderES);
+    const eventReminderDefaults = isEn ? defaultEventReminderEN : defaultEventReminderES;
+    const selectionReminderDefaults = isEn ? defaultSelectionReminderEN : defaultSelectionReminderES;
+    const tpl = isSelectionReminder
+      ? (communicationTemplate?.selection_reminder || selectionReminderDefaults)
+      : (
+          shouldFallbackToEventReminder(
+            communicationTemplate?.reminder,
+            communicationTemplate?.selection_reminder,
+          )
+            ? eventReminderDefaults
+            : (communicationTemplate?.reminder || eventReminderDefaults)
+        );
+    const defaults = isSelectionReminder ? selectionReminderDefaults : eventReminderDefaults;
 
     for (let i = 0; i < (participants || []).length; i++) {
       const participant = participants![i];
@@ -282,11 +383,14 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const selectionUrl = `${baseUrl}/event/${event_id}/access`;
+      const normalizedEventDate = normalizeUpcomingEventDate(event.date, event.status);
+      const eventDateForLinks = normalizedEventDate ? toIsoDate(normalizedEventDate) : (event.date || '');
+      const formattedEventDate = formatDisplayDate(event.date, event.status, isEn ? 'en-US' : 'es-ES');
 
       const vars: Record<string, string> = {
         "{{nombre}}": participant.name,
         "{{evento}}": event.name,
-        "{{fecha}}": event.date || "",
+        "{{fecha}}": formattedEventDate,
         "{{ubicacion}}": event.event_location || "",
         "{{hora}}": event.event_time || "",
       };
@@ -321,8 +425,8 @@ const handler = async (req: Request): Promise<Response> => {
             </div>` : '';
 
       // Calendar links - only for event reminders
-      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && event.date) ? (() => {
-        const eventDate = event.date;
+      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && eventDateForLinks) ? (() => {
+        const eventDate = eventDateForLinks;
         const eventTime = event.event_time || "19:00";
         const eventLoc = event.event_location || "";
         const startDate = eventDate.replace(/-/g, '') + 'T' + eventTime.replace(':', '') + '00';
@@ -335,10 +439,10 @@ const handler = async (req: Request): Promise<Response> => {
         </div>`;
       })() : '';
 
-      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && event.date) ? `
+      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && formattedEventDate) ? `
         <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
           <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
-          <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${event.date} ${event.event_time ? '🕐 ' + event.event_time : ''}</p>
+          <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${escapeHtml(formattedEventDate)} ${event.event_time ? '🕐 ' + escapeHtml(event.event_time) : ''}</p>
         </div>` : '';
 
       const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `

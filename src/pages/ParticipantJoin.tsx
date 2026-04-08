@@ -18,6 +18,7 @@ import B2BRegistrationForm, { B2BFormData } from "@/components/registration/B2BR
 import DynamicRegistrationForm from "@/components/registration/DynamicRegistrationForm";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
+import { normalizeUpcomingEventDate } from "@/lib/eventDate";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -180,7 +181,7 @@ const ParticipantJoin = () => {
 
       setEventExists(true);
       setEventName(data.name);
-      setEventDate(new Date(data.date + "T12:00:00"));
+      setEventDate(normalizeUpcomingEventDate(data.date, data.status));
       setEventTime((data as any).event_time || null);
       setEventLocation((data as any).event_location || null);
       setRegistrationSubtitle(data.registration_subtitle || null);
