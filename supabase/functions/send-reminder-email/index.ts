@@ -439,10 +439,19 @@ const handler = async (req: Request): Promise<Response> => {
         </div>`;
       })() : '';
 
+      const locationLine = event.event_location ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">📍 ${escapeHtml(event.event_location)}</p>` : '';
+      const timeLine = event.event_time ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">🕐 ${escapeHtml(event.event_time)}</p>` : '';
+
       const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && formattedEventDate) ? `
-        <div style="text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
-          <p style="font-size: 12px; color: #888; margin: 0 0 4px 0;">${isEn ? 'Event date' : 'Fecha del evento'}:</p>
-          <p style="font-size: 18px; font-weight: bold; color: ${primaryColor}; margin: 0;">📅 ${escapeHtml(formattedEventDate)} ${event.event_time ? '🕐 ' + escapeHtml(event.event_time) : ''}</p>
+        <div style="border-radius: 8px; overflow: hidden; border: 1px solid ${primaryColor}30; margin: 15px 0;">
+          <div style="background: ${primaryColor}; text-align: center; padding: 8px; color: white; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
+            📅 ${isEn ? 'EVENT DETAILS' : 'DETALLES DEL EVENTO'}
+          </div>
+          <div style="padding: 16px; text-align: center; background: ${primaryColor}08;">
+            <p style="font-size: 16px; font-weight: bold; color: ${primaryColor}; margin: 0;">${escapeHtml(formattedEventDate)}</p>
+            ${timeLine}
+            ${locationLine}
+          </div>
         </div>` : '';
 
       const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `

@@ -147,9 +147,15 @@ const EmailPreview = ({
               </div>
             )}
             {reminderOptions?.showCountdown && (
-              <div className="text-center p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground mb-1">Faltan para el evento:</p>
-                <p className="text-lg font-bold" style={{ color: primaryColor }}>2 días, 5 horas</p>
+              <div className="rounded-lg overflow-hidden border my-2" style={{ borderColor: `${primaryColor}30` }}>
+                <div className="text-center py-2 text-white text-xs font-semibold tracking-wide" style={{ background: primaryColor }}>
+                  📅 DETALLES DEL EVENTO
+                </div>
+                <div className="p-4 space-y-2 text-center" style={{ backgroundColor: `${primaryColor}08` }}>
+                  <p className="text-base font-bold" style={{ color: primaryColor }}>sábado, 15 de marzo de 2026</p>
+                  <p className="text-sm text-muted-foreground">🕐 19:00</p>
+                  <p className="text-sm text-muted-foreground">📍 Hotel Palace, Madrid</p>
+                </div>
               </div>
             )}
             {reminderOptions?.showUnsubscribe && (
