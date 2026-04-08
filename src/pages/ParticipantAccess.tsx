@@ -193,8 +193,11 @@ const ParticipantAccess = () => {
         // Allow access if preliminary round has tables (even if event is pending)
         const prelimRound = (event as any).preliminary_round;
         const hasPrelimTables = prelimRound?.enabled && Array.isArray(prelimRound?.tables) && prelimRound.tables.length > 0;
+        const isCheckinOpen = !!(event as any).checkin_open;
         
-        if ((event.status === 'pending' || event.current_round === 0) && !hasPrelimTables) {
+        // Allow verify_code when checkin is open OR event is active/completed
+        // Only block with "not_started" when event is pending, checkin is closed, and no prelim tables
+        if ((event.status === 'pending' || event.current_round === 0) && !hasPrelimTables && !isCheckinOpen) {
           setStep("not_started");
           setIsLoading(false);
           return;
