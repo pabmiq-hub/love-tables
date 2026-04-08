@@ -15,6 +15,49 @@ const escapeHtml = (unsafe: string): string => {
     .replace(/'/g, '&#039;');
 };
 
+const APP_BASE_URL = "https://love-tables.lovable.app";
+const textEncoder = new TextEncoder();
+let cancellationKeyPromise: Promise<CryptoKey> | null = null;
+
+function toBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+async function getCancellationKey(): Promise<CryptoKey> {
+  if (!cancellationKeyPromise) {
+    const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!secret) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+    }
+
+    cancellationKeyPromise = crypto.subtle.importKey(
+      "raw",
+      textEncoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+  }
+
+  return cancellationKeyPromise;
+}
+
+async function createCancellationToken(eventId: string, participantId: string): Promise<string> {
+  const key = await getCancellationKey();
+  const payload = textEncoder.encode(`${eventId}:${participantId}`);
+  const signature = await crypto.subtle.sign("HMAC", key, payload);
+  return toBase64Url(signature);
+}
+
 function replaceVariables(text: string, vars: Record<string, string>): string {
   let result = text;
   for (const [key, value] of Object.entries(vars)) {
@@ -327,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
     const stats = { total: 0, sent: 0, noEmail: 0, failed: 0 };
     const errors: string[] = [];
 
-    const baseUrl = "https://konektum.com";
+    const baseUrl = APP_BASE_URL;
 
     // Default templates for each type
     const defaultEventReminderES = {
@@ -383,6 +426,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const selectionUrl = `${baseUrl}/event/${event_id}/access`;
+      const cancellationToken = await createCancellationToken(event_id, participant.id);
+      const cancellationUrl = `${baseUrl}/event/${event_id}/cancel/${participant.id}?token=${encodeURIComponent(cancellationToken)}`;
       const normalizedEventDate = normalizeUpcomingEventDate(event.date, event.status);
       const eventDateForLinks = normalizedEventDate ? toIsoDate(normalizedEventDate) : (event.date || '');
       const formattedEventDate = formatDisplayDate(event.date, event.status, isEn ? 'en-US' : 'es-ES');
@@ -456,7 +501,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `
         <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
-          <a href="${baseUrl}/event/${event_id}/cancel/${participant.id}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
+          <a href="${cancellationUrl}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
         </p>` : '';
 
       const html = `

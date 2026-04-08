@@ -9,13 +9,56 @@ const corsHeaders = {
 const escapeHtml = (unsafe: string): string =>
   unsafe.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
+const textEncoder = new TextEncoder();
+let cancellationKeyPromise: Promise<CryptoKey> | null = null;
+
+const toBase64Url = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const getCancellationKey = async (): Promise<CryptoKey> => {
+  if (!cancellationKeyPromise) {
+    const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!secret) throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+
+    cancellationKeyPromise = crypto.subtle.importKey(
+      "raw",
+      textEncoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+  }
+
+  return cancellationKeyPromise;
+};
+
+const createCancellationToken = async (eventId: string, participantId: string): Promise<string> => {
+  const key = await getCancellationKey();
+  const payload = textEncoder.encode(`${eventId}:${participantId}`);
+  const signature = await crypto.subtle.sign("HMAC", key, payload);
+  return toBase64Url(signature);
+};
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { event_id, participant_id } = await req.json();
-    if (!event_id || !participant_id) {
-      return new Response(JSON.stringify({ error: "event_id and participant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { event_id, participant_id, token } = await req.json();
+    if (!event_id || !participant_id || !token) {
+      return new Response(JSON.stringify({ error: "event_id, participant_id and token required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const expectedToken = await createCancellationToken(event_id, participant_id);
+    if (token !== expectedToken) {
+      return new Response(JSON.stringify({ error: "Invalid cancellation link" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -33,8 +76,21 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Event not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Get organizer email
-    const { data: organizer } = await supabase.from("organizers").select("contact_email, company_name").eq("user_id", event.organizer_id).maybeSingle();
+    // Get organizer email + sender settings
+    const { data: organizer } = await supabase
+      .from("organizers")
+      .select("id, contact_email, company_name")
+      .eq("user_id", event.organizer_id)
+      .maybeSingle();
+
+    const { data: resendConfig } = organizer?.id
+      ? await supabase
+          .from("organizer_resend_config")
+          .select("sender_email, sender_name")
+          .eq("organizer_id", organizer.id)
+          .eq("is_verified", true)
+          .maybeSingle()
+      : { data: null };
 
     // Mark participant as no-show (keep in DB for recovery)
     await supabase.from("participants").update({ checked_in: false }).eq("id", participant_id);
@@ -61,7 +117,9 @@ serve(async (req: Request) => {
         </div>
       `;
 
-      const senderFrom = `${organizer.company_name || "Konektum"} <noreply@konektum.com>`;
+      const senderFrom = resendConfig?.sender_email
+        ? `${resendConfig.sender_name || organizer.company_name || "Konektum"} <${resendConfig.sender_email}>`
+        : `${organizer?.company_name || "Konektum"} <noreply@konektum.com>`;
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
