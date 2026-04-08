@@ -2214,12 +2214,64 @@ const EventDetail = () => {
     const currentTables = eventData.tables as any[];
     const newRoundNumber = currentTables.length + 1;
     
-    // Create new round with empty tables matching the structure of existing rounds
-    const existingTableCount = currentTables[0]?.tables?.length || Math.ceil(participants.filter(p => p.checked_in).length / (eventData.table_size || 4));
-    const newRound = {
-      round: newRoundNumber,
-      tables: Array.from({ length: Math.max(existingTableCount, 1) }, () => []),
-    };
+    const checkedInParticipants = participants.filter(p => p.checked_in);
+    
+    if (checkedInParticipants.length < 2) {
+      toast({ title: "Error", description: "Se necesitan al menos 2 participantes con check-in", variant: "destructive" });
+      return;
+    }
+
+    // Build pairedHistory from ALL existing rounds to avoid repeats
+    const existingEncounters = new Map<string, Set<string>>();
+    checkedInParticipants.forEach(p => {
+      // Start with global previous encounters if enabled
+      const prevEnc = (eventData.avoid_previous_encounters ? previousEncounters.get(p.id) : undefined);
+      existingEncounters.set(p.id, prevEnc ? new Set(prevEnc) : new Set());
+    });
+    
+    // Add encounters from all existing rounds in this event
+    for (const roundData of currentTables) {
+      if (!roundData.tables) continue;
+      for (const table of roundData.tables) {
+        if (!Array.isArray(table)) continue;
+        for (let i = 0; i < table.length; i++) {
+          for (let j = i + 1; j < table.length; j++) {
+            const id1 = table[i]?.id;
+            const id2 = table[j]?.id;
+            if (id1 && id2) {
+              if (!existingEncounters.has(id1)) existingEncounters.set(id1, new Set());
+              if (!existingEncounters.has(id2)) existingEncounters.set(id2, new Set());
+              existingEncounters.get(id1)!.add(id2);
+              existingEncounters.get(id2)!.add(id1);
+            }
+          }
+        }
+      }
+    }
+
+    // Generate 1 round using the smart algorithm with full encounter history
+    const result = generateSmartTables(
+      checkedInParticipants,
+      1, // Only generate 1 round
+      eventData.table_size || 2,
+      false,
+      eventData.gender_parity || false,
+      existingEncounters,
+      eventData.avoid_encounters_mode || "preference",
+      undefined // No group round config for dynamically added rounds
+    );
+
+    let newRound: any;
+    if (result.tables && result.tables.length > 0) {
+      newRound = { ...result.tables[0], round: newRoundNumber };
+    } else {
+      // Fallback: empty tables
+      const existingTableCount = currentTables[0]?.tables?.length || Math.ceil(checkedInParticipants.length / (eventData.table_size || 4));
+      newRound = {
+        round: newRoundNumber,
+        tables: Array.from({ length: Math.max(existingTableCount, 1) }, () => []),
+      };
+    }
 
     const updatedTables = [...currentTables, newRound];
     const newRoundsCount = eventData.rounds + 1;
@@ -2236,7 +2288,10 @@ const EventDetail = () => {
 
     setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
     setViewingRound(newRoundNumber);
-    toast({ title: "Ronda añadida", description: `Ronda ${newRoundNumber} creada con mesas vacías. Puedes asignar participantes desde el editor de mesas.` });
+    toast({ 
+      title: "Ronda añadida", 
+      description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
+    });
   };
 
   const handleDeleteRound = async (roundNumber: number) => {
