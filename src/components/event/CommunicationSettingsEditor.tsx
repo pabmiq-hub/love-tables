@@ -18,6 +18,7 @@ import {
   DEFAULT_TEMPLATES_ES,
   DEFAULT_TEMPLATES_EN,
 } from "./communication/types";
+import { normalizeCommunicationTemplates } from "./communication/normalizeTemplates";
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
@@ -70,10 +71,10 @@ const CommunicationSettingsEditor = ({
     if (data?.email_template) {
       const stored = data.email_template as any;
       if (stored.communication_templates_v2) {
-        const merged = {
+        const merged = normalizeCommunicationTemplates({
           ...defaults,
           ...stored.communication_templates_v2,
-        } as CommunicationTemplates;
+        } as CommunicationTemplates, defaults);
 
         const parsedLogoHeight = Number(merged.logoHeight);
         merged.logoHeight = Number.isFinite(parsedLogoHeight)

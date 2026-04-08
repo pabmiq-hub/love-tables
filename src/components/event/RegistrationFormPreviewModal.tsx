@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import DynamicRegistrationForm from "@/components/registration/DynamicRegistrationForm";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
+import { parseEventDate } from "@/lib/eventDate";
 
 interface RegistrationFormPreviewModalProps {
   open: boolean;
@@ -46,7 +47,7 @@ const RegistrationFormPreviewModal = ({
           <DynamicRegistrationForm
             fields={fields}
             eventName={eventName}
-            eventDate={eventDate ? new Date(eventDate + "T00:00:00") : null}
+            eventDate={parseEventDate(eventDate)}
             eventTime={eventTime}
             eventLocation={eventLocation}
             registrationSubtitle={registrationSubtitle}
