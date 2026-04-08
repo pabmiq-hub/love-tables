@@ -15,6 +15,7 @@ import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
 import ParticipantJoin from "./pages/ParticipantJoin";
+import ParticipantCancellation from "./pages/ParticipantCancellation";
 import ParticipantCheckin from "./pages/ParticipantCheckin";
 import ParticipantTables from "./pages/ParticipantTables";
 import ParticipantAccess from "./pages/ParticipantAccess";
@@ -60,6 +61,7 @@ const App = () => (
           {/* Legacy participant routes */}
           <Route path="/event/:id/select" element={<ParticipantSelect />} />
           <Route path="/event/:id/join" element={<ParticipantJoin />} />
+          <Route path="/event/:id/cancel/:participantId" element={<ParticipantCancellation />} />
           <Route path="/event/:id/checkin" element={<ParticipantCheckin />} />
           <Route path="/event/:id/tables" element={<ParticipantTables />} />
           <Route path="/event/:id/access" element={<ParticipantAccess />} />
