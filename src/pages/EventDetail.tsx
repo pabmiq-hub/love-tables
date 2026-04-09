@@ -4522,7 +4522,7 @@ const EventDetail = () => {
           <TabsContent value="selections">
             <div className="space-y-6">
               <SelectionProgress
-                participants={participants}
+                participants={activeParticipants}
                 selections={selections}
                 onSendReminder={(ids) => handleSendReminder(ids, "selection")}
                 isSendingReminder={isSendingReminder}
@@ -4568,7 +4568,7 @@ const EventDetail = () => {
           {/* Analytics Tab */}
           <TabsContent value="analytics">
             <EventAnalytics
-              participants={participants}
+              participants={activeParticipants}
               tables={tables}
               matches={matches}
               selections={selections}
