@@ -4531,7 +4531,7 @@ const EventDetail = () => {
               {/* Selections Viewer - moved from Matches tab */}
               <SelectionsViewer
                 selections={selections}
-                participants={participants}
+                participants={activeParticipants}
                 matches={matches}
               />
 
