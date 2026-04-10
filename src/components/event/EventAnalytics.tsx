@@ -383,8 +383,10 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       const ageRanges = new Set<string>();
       table.forEach((member: any) => {
         const p = participants.find(pp => pp.id === member.id);
-        if (p?.age_range) {
-          ageRanges.add(normalizeAgeRange(p.age_range));
+        if (p?.birth_date) {
+          ageRanges.add(getAgeBand(calculateAge(p.birth_date)));
+        } else if (p?.age_range) {
+          ageRanges.add(p.age_range);
         }
       });
 
