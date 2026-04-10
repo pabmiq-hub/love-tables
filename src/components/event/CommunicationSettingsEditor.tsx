@@ -22,13 +22,14 @@ import { normalizeCommunicationTemplates } from "./communication/normalizeTempla
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean }[] = [
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento" },
   { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
   { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
+  { key: "no_show", label: "No-show", icon: UserCheck, description: "Email a participantes que no asistieron", isMatchesWithout: true },
 ];
 
 interface CommunicationSettingsEditorProps {
