@@ -25,6 +25,7 @@ export interface CommunicationTemplates {
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
   super_like: StructuredTemplate;
+  no_show: MatchesWithoutTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
@@ -33,7 +34,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
