@@ -132,25 +132,35 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
     const genderData = Object.entries(byGender).map(([name, value]) => ({ name, value }));
 
-    // Age distribution
-    const byAge = participants.reduce((acc, p) => {
-      const range = normalizeAgeRange(p.age_range);
-      acc[range] = (acc[range] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // Age distribution - calculated from birth_date
+    const byAge: Record<string, number> = {};
+    participants.forEach(p => {
+      if (p.birth_date) {
+        const age = calculateAge(p.birth_date);
+        const band = getAgeBand(age);
+        byAge[band] = (byAge[band] || 0) + 1;
+      } else if (p.age_range) {
+        // Fallback to age_range if no birth_date
+        const cleaned = p.age_range.replace(/–/g, "-").replace(/\s+/g, "").replace(/años?|years?/gi, "").trim();
+        byAge[cleaned] = (byAge[cleaned] || 0) + 1;
+      } else {
+        byAge["Sin especificar"] = (byAge["Sin especificar"] || 0) + 1;
+      }
+    });
 
-    const ageData = AGE_RANGE_ORDER
-      .filter(range => byAge[range] || byAge[normalizeAgeRange(range)])
-      .map(range => ({
-        name: range,
-        value: byAge[range] || byAge[normalizeAgeRange(range)] || 0
+    const ageData = AGE_BANDS
+      .map(band => ({
+        name: band.label,
+        value: byAge[band.label] || 0
       }))
       .filter(d => d.value > 0);
 
-    // Add "Sin especificar" if exists
-    if (byAge["Sin especificar"]) {
-      ageData.push({ name: "Sin especificar", value: byAge["Sin especificar"] });
-    }
+    // Add unmatched ranges and "Sin especificar"
+    Object.entries(byAge).forEach(([key, value]) => {
+      if (!AGE_BANDS.some(b => b.label === key) && value > 0) {
+        ageData.push({ name: key, value });
+      }
+    });
 
     return {
       total: originalTotal,
