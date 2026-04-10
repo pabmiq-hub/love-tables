@@ -25,6 +25,7 @@ export interface CommunicationTemplates {
   matches_without: MatchesWithoutTemplate;
   checkin_code: StructuredTemplate;
   super_like: StructuredTemplate;
+  no_show: MatchesWithoutTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
@@ -33,7 +34,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -50,6 +51,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
   super_like: ["{{nombre}}", "{{evento}}"],
+  no_show: ["{{nombre}}", "{{evento}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
@@ -111,6 +113,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     greeting: "¡Hola {{nombre}}! ✨",
     intro: "¡Alguien de tu evento te ha elegido con un Super Like! No pierdas la oportunidad de descubrir si hay match.\n\nEntra en tu panel de participante y envía tus selecciones.",
     closing: "¡Las mejores conexiones empiezan con un simple paso!",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  no_show: {
+    subject: "Te echamos de menos en {{evento}} 😢",
+    greeting: "¡Hola {{nombre}}! 👋",
+    message: "Vimos que te registraste en {{evento}} pero no pudiste asistir. ¡Fue una lástima no verte!\n\nNo te preocupes, estamos preparando nuevos eventos donde podrás conocer gente increíble. ¡Esperamos contar contigo la próxima vez!",
+    closing: "¡Nos encantaría verte en el próximo evento!",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
@@ -185,6 +194,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     greeting: "Hi {{nombre}}! ✨",
     intro: "Someone at your event chose you with a Super Like! Don't miss the chance to find out if it's a match.\n\nGo to your participant panel and submit your selections.",
     closing: "The best connections start with a simple step!",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
+  no_show: {
+    subject: "We missed you at {{evento}} 😢",
+    greeting: "Hi {{nombre}}! 👋",
+    message: "We noticed you registered for {{evento}} but couldn't make it. We're sorry you couldn't join us!\n\nDon't worry, we're preparing new events where you can meet amazing people. We hope to see you next time!",
+    closing: "We'd love to see you at the next event!",
     signature: "With love,\nThe Konektum Team 💕",
   },
   primaryColor: "#e11d48",

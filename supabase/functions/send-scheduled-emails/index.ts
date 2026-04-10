@@ -423,14 +423,16 @@ const handler = async (req: Request): Promise<Response> => {
         const { data } = await supabase
           .from("participants")
           .select("id, name, email, phone, company_name, entity_type, sector")
-          .eq("event_id", event.id);
+          .eq("event_id", event.id)
+          .eq("checked_in", true);
         participants = (data || []) as ProfessionalParticipant[];
         (data || []).forEach((p: any) => allParticipantsMap.set(p.id, p as ProfessionalParticipant));
       } else {
         const { data } = await supabase
           .from("participants")
           .select("id, name, email, phone")
-          .eq("event_id", event.id);
+          .eq("event_id", event.id)
+          .eq("checked_in", true);
         participants = (data || []) as BaseParticipant[];
       }
       

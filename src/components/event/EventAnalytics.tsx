@@ -41,6 +41,7 @@ interface Participant {
   name: string;
   gender?: string | null;
   age_range?: string | null;
+  birth_date?: string | null;
   preference?: string | null;
   dating_preference?: string | null;
   checked_in?: boolean | null;
@@ -85,24 +86,31 @@ const GENDER_COLORS: Record<string, string> = {
 
 const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
 
-const AGE_RANGE_ORDER = [
-  "18-24", "18-25", 
-  "25-32", "26-30", "26-32",
-  "31-35", "33-40", 
-  "36-40", "41+", "41-45", "41-50",
-  "46-50", "50+", "+50", "51-60"
+const AGE_BANDS = [
+  { label: "18-24", min: 18, max: 24 },
+  { label: "25-30", min: 25, max: 30 },
+  { label: "31-35", min: 31, max: 35 },
+  { label: "36-40", min: 36, max: 40 },
+  { label: "41-50", min: 41, max: 50 },
+  { label: "50+", min: 51, max: 999 },
 ];
 
-const normalizeAgeRange = (range: string | null | undefined): string => {
-  if (!range) return "Sin especificar";
-  // Normalizar guiones (– → -) y espacios
-  let cleaned = range.replace(/–/g, "-").replace(/\s+/g, "").replace("años", "").trim();
-  
-  // Mapear rangos a formato estándar - mantener 41+ como está
-  if (cleaned === "+50" || cleaned === "51-60") return "50+";
-  if (cleaned === "41+" || cleaned === "+41") return "41+";
-  
-  return cleaned;
+const calculateAge = (birthDate: string): number => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const getAgeBand = (age: number): string => {
+  for (const band of AGE_BANDS) {
+    if (age >= band.min && age <= band.max) return band.label;
+  }
+  return "Sin especificar";
 };
 
 const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount }: EventAnalyticsProps) => {
@@ -124,25 +132,35 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
     const genderData = Object.entries(byGender).map(([name, value]) => ({ name, value }));
 
-    // Age distribution
-    const byAge = participants.reduce((acc, p) => {
-      const range = normalizeAgeRange(p.age_range);
-      acc[range] = (acc[range] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // Age distribution - calculated from birth_date
+    const byAge: Record<string, number> = {};
+    participants.forEach(p => {
+      if (p.birth_date) {
+        const age = calculateAge(p.birth_date);
+        const band = getAgeBand(age);
+        byAge[band] = (byAge[band] || 0) + 1;
+      } else if (p.age_range) {
+        // Fallback to age_range if no birth_date
+        const cleaned = p.age_range.replace(/–/g, "-").replace(/\s+/g, "").replace(/años?|years?/gi, "").trim();
+        byAge[cleaned] = (byAge[cleaned] || 0) + 1;
+      } else {
+        byAge["Sin especificar"] = (byAge["Sin especificar"] || 0) + 1;
+      }
+    });
 
-    const ageData = AGE_RANGE_ORDER
-      .filter(range => byAge[range] || byAge[normalizeAgeRange(range)])
-      .map(range => ({
-        name: range,
-        value: byAge[range] || byAge[normalizeAgeRange(range)] || 0
+    const ageData = AGE_BANDS
+      .map(band => ({
+        name: band.label,
+        value: byAge[band.label] || 0
       }))
       .filter(d => d.value > 0);
 
-    // Add "Sin especificar" if exists
-    if (byAge["Sin especificar"]) {
-      ageData.push({ name: "Sin especificar", value: byAge["Sin especificar"] });
-    }
+    // Add unmatched ranges and "Sin especificar"
+    Object.entries(byAge).forEach(([key, value]) => {
+      if (!AGE_BANDS.some(b => b.label === key) && value > 0) {
+        ageData.push({ name: key, value });
+      }
+    });
 
     return {
       total: originalTotal,
@@ -328,27 +346,60 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
   // ========== TABLES WITH MOST MATCHES ==========
   const tablesWithMatches = useMemo(() => {
-    if (normalizedTables.length === 0 || matches.length === 0) return [];
+    if (!tables || tables.length === 0 || matches.length === 0) return [];
 
-    const tableMatchCounts = normalizedTables.map((table, idx) => {
-      if (!Array.isArray(table)) return { tableNum: idx + 1, matchCount: 0, members: [] };
-      
-      const memberIds = table.map((m: any) => m.id);
-      const matchesInTable = matches.filter(match => 
-        memberIds.includes(match.participant1.id) && 
-        memberIds.includes(match.participant2.id)
-      );
-      
-      return {
-        tableNum: idx + 1,
-        matchCount: matchesInTable.length,
-        members: table.map((m: any) => m.name || "Sin nombre")
-      };
-    }).filter(t => t.matchCount > 0)
-      .sort((a, b) => b.matchCount - a.matchCount);
+    // Build per-round, per-table match data
+    const firstItem = tables[0];
+    const isRoundFormat = firstItem && typeof firstItem === 'object' && 'tables' in firstItem;
+    
+    const results: { roundNum: number; tableNum: number; matchCount: number; members: string[]; totalPairs: number; matchPct: string }[] = [];
+    
+    if (isRoundFormat) {
+      (tables as TableRound[]).forEach(roundData => {
+        roundData.tables.forEach((table, tableIdx) => {
+          if (!Array.isArray(table) || table.length < 2) return;
+          const memberIds = table.map((m: any) => m.id);
+          const matchesInTable = matches.filter(match =>
+            memberIds.includes(match.participant1.id) &&
+            memberIds.includes(match.participant2.id)
+          );
+          const totalPairs = (table.length * (table.length - 1)) / 2;
+          if (matchesInTable.length > 0) {
+            results.push({
+              roundNum: roundData.round,
+              tableNum: tableIdx + 1,
+              matchCount: matchesInTable.length,
+              members: table.map((m: any) => m.name || "Sin nombre"),
+              totalPairs,
+              matchPct: totalPairs > 0 ? ((matchesInTable.length / totalPairs) * 100).toFixed(0) : "0",
+            });
+          }
+        });
+      });
+    } else {
+      (tables as any[][]).forEach((table, idx) => {
+        if (!Array.isArray(table) || table.length < 2) return;
+        const memberIds = table.map((m: any) => m.id);
+        const matchesInTable = matches.filter(match =>
+          memberIds.includes(match.participant1.id) &&
+          memberIds.includes(match.participant2.id)
+        );
+        const totalPairs = (table.length * (table.length - 1)) / 2;
+        if (matchesInTable.length > 0) {
+          results.push({
+            roundNum: 1,
+            tableNum: idx + 1,
+            matchCount: matchesInTable.length,
+            members: table.map((m: any) => m.name || "Sin nombre"),
+            totalPairs,
+            matchPct: totalPairs > 0 ? ((matchesInTable.length / totalPairs) * 100).toFixed(0) : "0",
+          });
+        }
+      });
+    }
 
-    return tableMatchCounts.slice(0, 5);
-  }, [normalizedTables, matches]);
+    return results.sort((a, b) => b.matchCount - a.matchCount).slice(0, 8);
+  }, [tables, matches]);
 
   // ========== TABLE QUALITY ==========
   const tableQuality = useMemo(() => {
@@ -365,8 +416,10 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       const ageRanges = new Set<string>();
       table.forEach((member: any) => {
         const p = participants.find(pp => pp.id === member.id);
-        if (p?.age_range) {
-          ageRanges.add(normalizeAgeRange(p.age_range));
+        if (p?.birth_date) {
+          ageRanges.add(getAgeBand(calculateAge(p.birth_date)));
+        } else if (p?.age_range) {
+          ageRanges.add(p.age_range);
         }
       });
 
@@ -821,25 +874,33 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
             <CardContent className="pt-4">
               <div className="space-y-3">
                 {tablesWithMatches.map((table, idx) => (
-                  <div key={table.tableNum} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
+                  <div key={`r${table.roundNum}-t${table.tableNum}`} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-medium whitespace-nowrap">
                         {idx === 0 && "🥇 "}
                         {idx === 1 && "🥈 "}
                         {idx === 2 && "🥉 "}
-                        Mesa {table.tableNum}
+                        R{table.roundNum} · Mesa {table.tableNum}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      <span className="text-xs text-muted-foreground truncate max-w-[180px]">
                         {table.members.slice(0, 3).join(", ")}
                         {table.members.length > 3 && ` +${table.members.length - 3}`}
                       </span>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                      {table.matchCount} {table.matchCount === 1 ? 'match' : 'matches'}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">
+                        {table.matchPct}%
+                      </Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                        {table.matchCount}/{table.totalPairs}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Se muestra matches / parejas posibles por mesa y el porcentaje de compatibilidad
+              </p>
             </CardContent>
           </Card>
         )}

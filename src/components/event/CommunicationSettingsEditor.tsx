@@ -22,13 +22,14 @@ import { normalizeCommunicationTemplates } from "./communication/normalizeTempla
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean }[] = [
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento" },
   { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones" },
   { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
   { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
+  { key: "no_show", label: "No-show", icon: UserCheck, description: "Email a participantes que no asistieron", isMatchesWithout: true },
 ];
 
 interface CommunicationSettingsEditorProps {
@@ -108,6 +109,13 @@ const CommunicationSettingsEditor = ({
     setTemplates(prev => ({
       ...prev,
       matches_without: { ...prev.matches_without, [field]: value },
+    }));
+  };
+
+  const updateNoShow = (field: keyof MatchesWithoutTemplate, value: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      no_show: { ...prev.no_show, [field]: value },
     }));
   };
 
@@ -429,21 +437,32 @@ const CommunicationSettingsEditor = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Editor */}
                 <div>
-                  <TemplateEditor
-                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
-                    templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
-                    matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
-                    matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
-                    onChange={(field, value) => {
-                      if (tab.key === "registration_confirmation" && registrationVariant === "with_code") {
-                        updateTemplate("registration_with_code" as TemplateKey, field, value);
-                      } else {
-                        updateTemplate(tab.key, field, value);
-                      }
-                    }}
-                    onChangeWithout={tab.key === "matches" ? updateMatchesWithout : undefined}
-                    onChangeExtraField={tab.key === "matches" ? updateMatchesExtraField : undefined}
-                  />
+                  {tab.key === "no_show" ? (
+                    <TemplateEditor
+                      template={templates.matches as unknown as StructuredTemplate}
+                      templateKey={tab.key}
+                      matchesVariant="without"
+                      matchesWithoutTemplate={templates.no_show}
+                      onChange={() => {}}
+                      onChangeWithout={updateNoShow}
+                    />
+                  ) : (
+                    <TemplateEditor
+                      template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key] as StructuredTemplate}
+                      templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
+                      matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
+                      matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
+                      onChange={(field, value) => {
+                        if (tab.key === "registration_confirmation" && registrationVariant === "with_code") {
+                          updateTemplate("registration_with_code" as TemplateKey, field, value);
+                        } else {
+                          updateTemplate(tab.key, field, value);
+                        }
+                      }}
+                      onChangeWithout={tab.key === "matches" ? updateMatchesWithout : undefined}
+                      onChangeExtraField={tab.key === "matches" ? updateMatchesExtraField : undefined}
+                    />
+                  )}
                 </div>
 
                 {/* Preview */}
@@ -453,7 +472,7 @@ const CommunicationSettingsEditor = ({
                     <span className="font-medium text-sm">Vista Previa</span>
                   </div>
                   <EmailPreview
-                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : templates[tab.key]}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : tab.key === "no_show" ? templates.matches as unknown as StructuredTemplate : templates[tab.key] as StructuredTemplate}
                     templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     primaryColor={templates.primaryColor}
                     logoUrl={templates.logoUrl}
@@ -461,8 +480,8 @@ const CommunicationSettingsEditor = ({
                     brandName={templates.brandName}
                     headerTitle={templates.headerTitle}
                     eventName={eventName}
-                    matchesVariant={tab.key === "matches" ? matchesVariant : undefined}
-                    matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : undefined}
+                    matchesVariant={tab.key === "matches" ? matchesVariant : tab.key === "no_show" ? "without" : undefined}
+                    matchesWithoutTemplate={tab.key === "matches" ? templates.matches_without : tab.key === "no_show" ? templates.no_show : undefined}
                     reminderOptions={tab.key === "reminder" ? templates.reminderOptions : undefined}
                   />
                 </div>
