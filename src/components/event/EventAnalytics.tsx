@@ -86,24 +86,31 @@ const GENDER_COLORS: Record<string, string> = {
 
 const AGE_COLORS = ["#f43f5e", "#ec4899", "#d946ef", "#a855f7", "#8b5cf6", "#6366f1", "#3b82f6", "#0ea5e9"];
 
-const AGE_RANGE_ORDER = [
-  "18-24", "18-25", 
-  "25-32", "26-30", "26-32",
-  "31-35", "33-40", 
-  "36-40", "41+", "41-45", "41-50",
-  "46-50", "50+", "+50", "51-60"
+const AGE_BANDS = [
+  { label: "18-24", min: 18, max: 24 },
+  { label: "25-30", min: 25, max: 30 },
+  { label: "31-35", min: 31, max: 35 },
+  { label: "36-40", min: 36, max: 40 },
+  { label: "41-50", min: 41, max: 50 },
+  { label: "50+", min: 51, max: 999 },
 ];
 
-const normalizeAgeRange = (range: string | null | undefined): string => {
-  if (!range) return "Sin especificar";
-  // Normalizar guiones (– → -) y espacios
-  let cleaned = range.replace(/–/g, "-").replace(/\s+/g, "").replace("años", "").trim();
-  
-  // Mapear rangos a formato estándar - mantener 41+ como está
-  if (cleaned === "+50" || cleaned === "51-60") return "50+";
-  if (cleaned === "41+" || cleaned === "+41") return "41+";
-  
-  return cleaned;
+const calculateAge = (birthDate: string): number => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const getAgeBand = (age: number): string => {
+  for (const band of AGE_BANDS) {
+    if (age >= band.min && age <= band.max) return band.label;
+  }
+  return "Sin especificar";
 };
 
 const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount }: EventAnalyticsProps) => {
