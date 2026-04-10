@@ -51,6 +51,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   matches: ["{{nombre}}", "{{evento}}"],
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
   super_like: ["{{nombre}}", "{{evento}}"],
+  no_show: ["{{nombre}}", "{{evento}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
@@ -112,6 +113,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     greeting: "¡Hola {{nombre}}! ✨",
     intro: "¡Alguien de tu evento te ha elegido con un Super Like! No pierdas la oportunidad de descubrir si hay match.\n\nEntra en tu panel de participante y envía tus selecciones.",
     closing: "¡Las mejores conexiones empiezan con un simple paso!",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  no_show: {
+    subject: "Te echamos de menos en {{evento}} 😢",
+    greeting: "¡Hola {{nombre}}! 👋",
+    message: "Vimos que te registraste en {{evento}} pero no pudiste asistir. ¡Fue una lástima no verte!\n\nNo te preocupes, estamos preparando nuevos eventos donde podrás conocer gente increíble. ¡Esperamos contar contigo la próxima vez!",
+    closing: "¡Nos encantaría verte en el próximo evento!",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
