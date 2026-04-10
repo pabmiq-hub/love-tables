@@ -151,7 +151,7 @@ const CommunicationSettingsEditor = ({
         communication_templates_v2: {
           ...templates,
           logoHeight: sanitizedLogoHeight,
-          headerTitle: templates.headerTitle?.trim() || defaults.headerTitle,
+          headerTitle: templates.headerTitle != null ? templates.headerTitle.trim() : defaults.headerTitle,
         },
       };
 
