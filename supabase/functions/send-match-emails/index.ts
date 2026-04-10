@@ -489,7 +489,8 @@ const handler = async (req: Request): Promise<Response> => {
       let query = supabase
         .from("participants")
         .select("id, name, email, phone, company_name, entity_type, sector")
-        .eq("event_id", event_id);
+        .eq("event_id", event_id)
+        .eq("checked_in", true);
       if (participant_ids && participant_ids.length > 0) {
         query = query.in("id", participant_ids);
       }
@@ -499,7 +500,8 @@ const handler = async (req: Request): Promise<Response> => {
       let query = supabase
         .from("participants")
         .select("id, name, email, phone")
-        .eq("event_id", event_id);
+        .eq("event_id", event_id)
+        .eq("checked_in", true);
       if (participant_ids && participant_ids.length > 0) {
         query = query.in("id", participant_ids);
       }
