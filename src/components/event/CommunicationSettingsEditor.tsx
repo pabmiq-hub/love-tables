@@ -472,7 +472,7 @@ const CommunicationSettingsEditor = ({
                     <span className="font-medium text-sm">Vista Previa</span>
                   </div>
                   <EmailPreview
-                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : tab.key === "no_show" ? templates.matches as unknown as StructuredTemplate : templates[tab.key] as StructuredTemplate}
+                    template={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? templates.registration_with_code : tab.key === "no_show" ? ({ subject: templates.no_show.subject, greeting: templates.no_show.greeting, intro: "", closing: templates.no_show.closing, signature: templates.no_show.signature } as StructuredTemplate) : templates[tab.key] as StructuredTemplate}
                     templateKey={tab.key === "registration_confirmation" && registrationVariant === "with_code" ? "registration_with_code" : tab.key}
                     primaryColor={templates.primaryColor}
                     logoUrl={templates.logoUrl}
