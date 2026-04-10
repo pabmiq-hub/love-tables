@@ -17,7 +17,7 @@ const TemplateEditor = ({ template, templateKey, matchesWithoutTemplate, matches
   const variables = TEMPLATE_VARIABLES[templateKey];
 
   // Render "sin matches" editor
-  if (templateKey === "matches" && matchesVariant === "without" && matchesWithoutTemplate && onChangeWithout) {
+  if (((templateKey === "matches" && matchesVariant === "without") || templateKey === "no_show") && matchesWithoutTemplate && onChangeWithout) {
     return (
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground">
