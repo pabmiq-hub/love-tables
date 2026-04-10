@@ -112,6 +112,13 @@ const CommunicationSettingsEditor = ({
     }));
   };
 
+  const updateNoShow = (field: keyof MatchesWithoutTemplate, value: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      no_show: { ...prev.no_show, [field]: value },
+    }));
+  };
+
   const handleReset = (key: TemplateKey) => {
     if (key === "registration_confirmation" && registrationVariant === "with_code") {
       setTemplates(prev => ({
