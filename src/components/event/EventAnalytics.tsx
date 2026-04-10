@@ -874,25 +874,33 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
             <CardContent className="pt-4">
               <div className="space-y-3">
                 {tablesWithMatches.map((table, idx) => (
-                  <div key={table.tableNum} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
+                  <div key={`r${table.roundNum}-t${table.tableNum}`} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-medium whitespace-nowrap">
                         {idx === 0 && "🥇 "}
                         {idx === 1 && "🥈 "}
                         {idx === 2 && "🥉 "}
-                        Mesa {table.tableNum}
+                        R{table.roundNum} · Mesa {table.tableNum}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                      <span className="text-xs text-muted-foreground truncate max-w-[180px]">
                         {table.members.slice(0, 3).join(", ")}
                         {table.members.length > 3 && ` +${table.members.length - 3}`}
                       </span>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                      {table.matchCount} {table.matchCount === 1 ? 'match' : 'matches'}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">
+                        {table.matchPct}%
+                      </Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                        {table.matchCount}/{table.totalPairs}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Se muestra matches / parejas posibles por mesa y el porcentaje de compatibilidad
+              </p>
             </CardContent>
           </Card>
         )}
