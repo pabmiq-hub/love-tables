@@ -346,27 +346,60 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
 
   // ========== TABLES WITH MOST MATCHES ==========
   const tablesWithMatches = useMemo(() => {
-    if (normalizedTables.length === 0 || matches.length === 0) return [];
+    if (!tables || tables.length === 0 || matches.length === 0) return [];
 
-    const tableMatchCounts = normalizedTables.map((table, idx) => {
-      if (!Array.isArray(table)) return { tableNum: idx + 1, matchCount: 0, members: [] };
-      
-      const memberIds = table.map((m: any) => m.id);
-      const matchesInTable = matches.filter(match => 
-        memberIds.includes(match.participant1.id) && 
-        memberIds.includes(match.participant2.id)
-      );
-      
-      return {
-        tableNum: idx + 1,
-        matchCount: matchesInTable.length,
-        members: table.map((m: any) => m.name || "Sin nombre")
-      };
-    }).filter(t => t.matchCount > 0)
-      .sort((a, b) => b.matchCount - a.matchCount);
+    // Build per-round, per-table match data
+    const firstItem = tables[0];
+    const isRoundFormat = firstItem && typeof firstItem === 'object' && 'tables' in firstItem;
+    
+    const results: { roundNum: number; tableNum: number; matchCount: number; members: string[]; totalPairs: number; matchPct: string }[] = [];
+    
+    if (isRoundFormat) {
+      (tables as TableRound[]).forEach(roundData => {
+        roundData.tables.forEach((table, tableIdx) => {
+          if (!Array.isArray(table) || table.length < 2) return;
+          const memberIds = table.map((m: any) => m.id);
+          const matchesInTable = matches.filter(match =>
+            memberIds.includes(match.participant1.id) &&
+            memberIds.includes(match.participant2.id)
+          );
+          const totalPairs = (table.length * (table.length - 1)) / 2;
+          if (matchesInTable.length > 0) {
+            results.push({
+              roundNum: roundData.round,
+              tableNum: tableIdx + 1,
+              matchCount: matchesInTable.length,
+              members: table.map((m: any) => m.name || "Sin nombre"),
+              totalPairs,
+              matchPct: totalPairs > 0 ? ((matchesInTable.length / totalPairs) * 100).toFixed(0) : "0",
+            });
+          }
+        });
+      });
+    } else {
+      (tables as any[][]).forEach((table, idx) => {
+        if (!Array.isArray(table) || table.length < 2) return;
+        const memberIds = table.map((m: any) => m.id);
+        const matchesInTable = matches.filter(match =>
+          memberIds.includes(match.participant1.id) &&
+          memberIds.includes(match.participant2.id)
+        );
+        const totalPairs = (table.length * (table.length - 1)) / 2;
+        if (matchesInTable.length > 0) {
+          results.push({
+            roundNum: 1,
+            tableNum: idx + 1,
+            matchCount: matchesInTable.length,
+            members: table.map((m: any) => m.name || "Sin nombre"),
+            totalPairs,
+            matchPct: totalPairs > 0 ? ((matchesInTable.length / totalPairs) * 100).toFixed(0) : "0",
+          });
+        }
+      });
+    }
 
-    return tableMatchCounts.slice(0, 5);
-  }, [normalizedTables, matches]);
+    return results.sort((a, b) => b.matchCount - a.matchCount).slice(0, 8);
+  }, [tables, matches]);
 
   // ========== TABLE QUALITY ==========
   const tableQuality = useMemo(() => {
