@@ -196,6 +196,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     closing: "The best connections start with a simple step!",
     signature: "With love,\nThe Konektum Team 💕",
   },
+  no_show: {
+    subject: "We missed you at {{evento}} 😢",
+    greeting: "Hi {{nombre}}! 👋",
+    message: "We noticed you registered for {{evento}} but couldn't make it. We're sorry you couldn't join us!\n\nDon't worry, we're preparing new events where you can meet amazing people. We hope to see you next time!",
+    closing: "We'd love to see you at the next event!",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
   primaryColor: "#e11d48",
   logoUrl: "",
   brandName: "Konektum",
