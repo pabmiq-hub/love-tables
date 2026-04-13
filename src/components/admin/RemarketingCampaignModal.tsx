@@ -99,6 +99,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     
     checkDuplicates();
   }, [step, targetEventId, organizer?.id, recipientsWithEmail]);
+  const previewHtml = body
     .replace(/\{\{nombre\}\}/g, 'María García')
     .replace(/\{\{evento\}\}/g, targetEvent?.name || 'Evento de ejemplo')
     .replace(/\{\{enlace_inscripcion\}\}/g, registrationLink || '#');
