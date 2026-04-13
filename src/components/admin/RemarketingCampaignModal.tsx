@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, Send, Users, Mail, Eye } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, ArrowRight, Send, Users, Mail, Eye, AlertTriangle } from "lucide-react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { supabase } from "@/integrations/supabase/client";
