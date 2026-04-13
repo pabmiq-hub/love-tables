@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, Send, Users, Mail, Eye } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, ArrowRight, Send, Users, Mail, Eye, AlertTriangle } from "lucide-react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +44,8 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const [body, setBody] = useState(DEFAULT_BODY);
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [alreadySentEmails, setAlreadySentEmails] = useState<string[]>([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   const recipients = recipientMode === 'selected' ? selectedUsers : allUsers;
   const recipientsWithEmail = recipients.filter(u => u.email);
@@ -53,6 +56,49 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     ? `https://konektum.com/o/${organizer.slug}/join/${targetEventId}`
     : '';
 
+  // Check for already-sent emails when reaching confirm step
+  useEffect(() => {
+    if (step !== 'confirm' || !targetEventId || !organizer?.id) return;
+    
+    const checkDuplicates = async () => {
+      setCheckingDuplicates(true);
+      try {
+        // Get campaigns already sent for this event by this organizer
+        const { data: campaigns } = await supabase
+          .from("remarketing_campaigns")
+          .select("id")
+          .eq("organizer_id", organizer.id)
+          .eq("target_event_id", targetEventId)
+          .in("status", ["sent", "sending"]);
+
+        if (!campaigns?.length) {
+          setAlreadySentEmails([]);
+          setCheckingDuplicates(false);
+          return;
+        }
+
+        const campaignIds = campaigns.map(c => c.id);
+        const { data: recipients } = await supabase
+          .from("remarketing_recipients")
+          .select("email")
+          .in("campaign_id", campaignIds)
+          .eq("status", "sent");
+
+        const sentEmailSet = new Set((recipients || []).map(r => r.email.toLowerCase()));
+        const duplicates = recipientsWithEmail
+          .filter(u => sentEmailSet.has(u.email!.toLowerCase()))
+          .map(u => u.email!);
+        
+        setAlreadySentEmails(duplicates);
+      } catch (err) {
+        console.error("Error checking duplicates:", err);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    };
+    
+    checkDuplicates();
+  }, [step, targetEventId, organizer?.id, recipientsWithEmail]);
   const previewHtml = body
     .replace(/\{\{nombre\}\}/g, 'María García')
     .replace(/\{\{evento\}\}/g, targetEvent?.name || 'Evento de ejemplo')
@@ -107,6 +153,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     setTargetEventId('');
     setSubject("Te invitamos a nuestro próximo evento");
     setBody(DEFAULT_BODY);
+    setAlreadySentEmails([]);
   };
 
   const stepLabels = ['Destinatarios', 'Evento', 'Correo', 'Confirmar'];
@@ -220,6 +267,28 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
         {step === 'confirm' && (
           <div className="space-y-4">
             <h3 className="font-semibold">Resumen de la campaña</h3>
+
+            {checkingDuplicates && (
+              <p className="text-sm text-muted-foreground">Comprobando envíos anteriores...</p>
+            )}
+
+            {alreadySentEmails.length > 0 && !checkingDuplicates && (
+              <Alert variant="destructive" className="border-yellow-500 bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
+                <AlertTriangle className="h-4 w-4 !text-yellow-600" />
+                <AlertDescription>
+                  <p className="font-medium mb-1">
+                    {alreadySentEmails.length} destinatario{alreadySentEmails.length > 1 ? 's' : ''} ya recibió un correo para este evento:
+                  </p>
+                  <ul className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
+                    {alreadySentEmails.map(email => (
+                      <li key={email}>• {email}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs mt-2">Puedes continuar igualmente, pero estos usuarios recibirán el correo de nuevo.</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Destinatarios:</span>
