@@ -56,7 +56,49 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     ? `https://konektum.com/o/${organizer.slug}/join/${targetEventId}`
     : '';
 
-  const previewHtml = body
+  // Check for already-sent emails when reaching confirm step
+  useEffect(() => {
+    if (step !== 'confirm' || !targetEventId || !organizer?.id) return;
+    
+    const checkDuplicates = async () => {
+      setCheckingDuplicates(true);
+      try {
+        // Get campaigns already sent for this event by this organizer
+        const { data: campaigns } = await supabase
+          .from("remarketing_campaigns")
+          .select("id")
+          .eq("organizer_id", organizer.id)
+          .eq("target_event_id", targetEventId)
+          .in("status", ["sent", "sending"]);
+
+        if (!campaigns?.length) {
+          setAlreadySentEmails([]);
+          setCheckingDuplicates(false);
+          return;
+        }
+
+        const campaignIds = campaigns.map(c => c.id);
+        const { data: recipients } = await supabase
+          .from("remarketing_recipients")
+          .select("email")
+          .in("campaign_id", campaignIds)
+          .eq("status", "sent");
+
+        const sentEmailSet = new Set((recipients || []).map(r => r.email.toLowerCase()));
+        const duplicates = recipientsWithEmail
+          .filter(u => sentEmailSet.has(u.email!.toLowerCase()))
+          .map(u => u.email!);
+        
+        setAlreadySentEmails(duplicates);
+      } catch (err) {
+        console.error("Error checking duplicates:", err);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    };
+    
+    checkDuplicates();
+  }, [step, targetEventId, organizer?.id, recipientsWithEmail]);
     .replace(/\{\{nombre\}\}/g, 'María García')
     .replace(/\{\{evento\}\}/g, targetEvent?.name || 'Evento de ejemplo')
     .replace(/\{\{enlace_inscripcion\}\}/g, registrationLink || '#');
