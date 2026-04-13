@@ -266,6 +266,28 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
         {step === 'confirm' && (
           <div className="space-y-4">
             <h3 className="font-semibold">Resumen de la campaña</h3>
+
+            {checkingDuplicates && (
+              <p className="text-sm text-muted-foreground">Comprobando envíos anteriores...</p>
+            )}
+
+            {alreadySentEmails.length > 0 && !checkingDuplicates && (
+              <Alert variant="destructive" className="border-yellow-500 bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
+                <AlertTriangle className="h-4 w-4 !text-yellow-600" />
+                <AlertDescription>
+                  <p className="font-medium mb-1">
+                    {alreadySentEmails.length} destinatario{alreadySentEmails.length > 1 ? 's' : ''} ya recibió un correo para este evento:
+                  </p>
+                  <ul className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
+                    {alreadySentEmails.map(email => (
+                      <li key={email}>• {email}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs mt-2">Puedes continuar igualmente, pero estos usuarios recibirán el correo de nuevo.</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Destinatarios:</span>
