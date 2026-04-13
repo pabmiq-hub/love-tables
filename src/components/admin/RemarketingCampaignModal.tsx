@@ -153,6 +153,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     setTargetEventId('');
     setSubject("Te invitamos a nuestro próximo evento");
     setBody(DEFAULT_BODY);
+    setAlreadySentEmails([]);
   };
 
   const stepLabels = ['Destinatarios', 'Evento', 'Correo', 'Confirmar'];
