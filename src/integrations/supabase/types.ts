@@ -76,6 +76,7 @@ export type Database = {
           gender: string | null
           id: string
           is_returning_participant: boolean | null
+          marketing_consent: boolean
           name: string
           needs: string[] | null
           phone: string | null
@@ -100,6 +101,7 @@ export type Database = {
           gender?: string | null
           id?: string
           is_returning_participant?: boolean | null
+          marketing_consent?: boolean
           name: string
           needs?: string[] | null
           phone?: string | null
@@ -124,6 +126,7 @@ export type Database = {
           gender?: string | null
           id?: string
           is_returning_participant?: boolean | null
+          marketing_consent?: boolean
           name?: string
           needs?: string[] | null
           phone?: string | null
@@ -907,6 +910,7 @@ export type Database = {
           global_participant_id: string | null
           id: string
           is_returning_participant: boolean | null
+          marketing_consent: boolean
           name: string
           needs: string[] | null
           phone: string | null
@@ -935,6 +939,7 @@ export type Database = {
           global_participant_id?: string | null
           id?: string
           is_returning_participant?: boolean | null
+          marketing_consent?: boolean
           name: string
           needs?: string[] | null
           phone?: string | null
@@ -963,6 +968,7 @@ export type Database = {
           global_participant_id?: string | null
           id?: string
           is_returning_participant?: boolean | null
+          marketing_consent?: boolean
           name?: string
           needs?: string[] | null
           phone?: string | null

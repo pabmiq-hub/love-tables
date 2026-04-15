@@ -1,0 +1,2 @@
+ALTER TABLE public.participants ADD COLUMN IF NOT EXISTS marketing_consent boolean NOT NULL DEFAULT false;
+ALTER TABLE public.event_waitlist ADD COLUMN IF NOT EXISTS marketing_consent boolean NOT NULL DEFAULT false;
