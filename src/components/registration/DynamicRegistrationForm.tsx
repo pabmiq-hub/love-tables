@@ -67,8 +67,8 @@ const DynamicRegistrationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid()) return;
-    onSubmit(values);
+    if (!isValid() || !dataConsent) return;
+    onSubmit({ ...values, marketingConsent });
   };
 
   return (
