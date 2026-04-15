@@ -46,6 +46,7 @@ interface Participant {
   dating_preference?: string | null;
   checked_in?: boolean | null;
   selection_submitted_at?: string | null;
+  is_returning_participant?: boolean | null;
 }
 
 interface Selection {
