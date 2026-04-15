@@ -217,11 +217,19 @@ const DynamicRegistrationForm = ({
             </div>
           ))}
 
+          <GDPRConsent
+            lang={eventLang}
+            dataConsent={dataConsent}
+            marketingConsent={marketingConsent}
+            onDataConsentChange={setDataConsent}
+            onMarketingConsentChange={setMarketingConsent}
+          />
+
           <Button
             type="submit"
             variant="hero"
             className="w-full mt-6"
-            disabled={isSubmitting || !isValid()}
+            disabled={isSubmitting || !isValid() || !dataConsent}
           >
             {isSubmitting ? (
               <>
