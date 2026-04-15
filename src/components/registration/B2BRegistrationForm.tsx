@@ -41,6 +41,7 @@ export interface B2BFormData {
   companySize: string;
   needs: string[];
   solutions: string[];
+  marketingConsent?: boolean;
 }
 
 const COMPANY_SIZES_ES = ["1-10 empleados", "11-50 empleados", "51-200 empleados", "201-500 empleados", "500+ empleados"];
