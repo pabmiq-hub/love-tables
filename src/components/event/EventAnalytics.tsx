@@ -14,7 +14,9 @@ import {
   Percent,
   Trophy,
   Target,
-  HeartHandshake
+  HeartHandshake,
+  Sparkles,
+  RotateCcw
 } from "lucide-react";
 import {
   normalizeGender as normalizeGenderShared,
@@ -508,6 +510,33 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
                   <div className="text-sm text-muted-foreground">Enviaron selecciones</div>
                 </div>
                 <Target className="w-8 h-8 text-blue-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Nuevos vs Repetidores */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="border-emerald-200/50">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-emerald-600">{inscriptionStats.newCount}</div>
+                  <div className="text-sm text-muted-foreground">Nuevos ({inscriptionStats.newPct}%)</div>
+                </div>
+                <Sparkles className="w-8 h-8 text-emerald-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-200/50">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-amber-600">{inscriptionStats.returningCount}</div>
+                  <div className="text-sm text-muted-foreground">Caras conocidas ({inscriptionStats.returningPct}%)</div>
+                </div>
+                <RotateCcw className="w-8 h-8 text-amber-600/50" />
               </div>
             </CardContent>
           </Card>
