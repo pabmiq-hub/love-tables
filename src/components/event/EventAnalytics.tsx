@@ -163,6 +163,12 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       }
     });
 
+    // Returning vs new participants
+    const returningCount = participants.filter(p => p.is_returning_participant === true).length;
+    const newCount = participants.length - returningCount;
+    const returningPct = participants.length > 0 ? ((returningCount / participants.length) * 100).toFixed(1) : "0";
+    const newPct = participants.length > 0 ? ((newCount / participants.length) * 100).toFixed(1) : "0";
+
     return {
       total: originalTotal,
       checkedIn,
@@ -171,7 +177,11 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       checkinRate,
       genderData,
       ageData,
-      byGender
+      byGender,
+      returningCount,
+      newCount,
+      returningPct,
+      newPct,
     };
   }, [participants, originalParticipantsCount]);
 
