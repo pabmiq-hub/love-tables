@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Loader2, Heart, AlertCircle, Mail, Users, Clock } from "lucide-react";
 import { BrandedHeader, BrandedLogo } from "@/components/BrandedHeader";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 import { useEventBranding } from "@/hooks/useEventBranding";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
@@ -74,6 +75,8 @@ const ParticipantJoin = () => {
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
   const [isReturningParticipant, setIsReturningParticipant] = useState<string>("");
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [autoCheckedIn, setAutoCheckedIn] = useState(false);
@@ -405,7 +408,8 @@ const ParticipantJoin = () => {
         preference,
         datingPreference: isDating ? datingPreference : null,
         preferredAgeRange,
-        isReturningParticipant: isReturningParticipant === "yes"
+        isReturningParticipant: isReturningParticipant === "yes",
+        marketingConsent
       }
     });
 
