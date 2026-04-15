@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Loader2, Heart, AlertCircle, Mail, Users, Clock } from "lucide-react";
 import { BrandedHeader, BrandedLogo } from "@/components/BrandedHeader";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 import { useEventBranding } from "@/hooks/useEventBranding";
 import { useToast } from "@/hooks/use-toast";
 import MultiSelectAge from "@/components/ui/multi-select-age";
@@ -74,6 +75,8 @@ const ParticipantJoin = () => {
   const [datingPreference, setDatingPreference] = useState("");
   const [gender, setGender] = useState("");
   const [isReturningParticipant, setIsReturningParticipant] = useState<string>("");
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [autoCheckedIn, setAutoCheckedIn] = useState(false);
@@ -342,6 +345,15 @@ const ParticipantJoin = () => {
       return;
     }
 
+    if (!dataConsent) {
+      toast({
+        title: "Error",
+        description: eventLang === "en" ? "You must accept the privacy policy to register" : "Debes aceptar la política de privacidad para inscribirte",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       toast({
@@ -405,7 +417,8 @@ const ParticipantJoin = () => {
         preference,
         datingPreference: isDating ? datingPreference : null,
         preferredAgeRange,
-        isReturningParticipant: isReturningParticipant === "yes"
+        isReturningParticipant: isReturningParticipant === "yes",
+        marketingConsent
       }
     });
 
@@ -513,6 +526,7 @@ const ParticipantJoin = () => {
         needs: data.needs,
         solutions: data.solutions,
         isProfessional: true,
+        marketingConsent: data.marketingConsent || false,
       }
     });
 
@@ -732,6 +746,7 @@ const ParticipantJoin = () => {
       if (formValues.company_size) body.companySize = formValues.company_size;
       if (formValues.needs) body.needs = formValues.needs;
       if (formValues.solutions) body.solutions = formValues.solutions;
+      body.marketingConsent = formValues.marketingConsent === true;
 
       // Custom fields stored as metadata
       const customFields: Record<string, any> = {};
@@ -1056,12 +1071,20 @@ const ParticipantJoin = () => {
                   </div>
                 </RadioGroup>
               </div>
+
+              <GDPRConsent
+                lang={eventLang}
+                dataConsent={dataConsent}
+                marketingConsent={marketingConsent}
+                onDataConsentChange={setDataConsent}
+                onMarketingConsentChange={setMarketingConsent}
+              />
               
               <Button 
                 type="submit" 
                 variant="hero" 
                 className="w-full mt-6" 
-                disabled={isSubmitting || (slots && !slots.available)}
+                disabled={isSubmitting || !dataConsent || (slots && !slots.available)}
               >
                 {isSubmitting ? (
                   <>

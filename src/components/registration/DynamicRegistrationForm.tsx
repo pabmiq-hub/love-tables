@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 
 interface DynamicRegistrationFormProps {
   fields: FormField[];
@@ -36,6 +37,8 @@ const DynamicRegistrationForm = ({
   onSubmit,
 }: DynamicRegistrationFormProps) => {
   const [values, setValues] = useState<Record<string, any>>({});
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const setValue = (fieldId: string, value: any) => {
     setValues((prev) => ({ ...prev, [fieldId]: value }));
@@ -64,8 +67,8 @@ const DynamicRegistrationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid()) return;
-    onSubmit(values);
+    if (!isValid() || !dataConsent) return;
+    onSubmit({ ...values, marketingConsent });
   };
 
   return (
@@ -214,11 +217,19 @@ const DynamicRegistrationForm = ({
             </div>
           ))}
 
+          <GDPRConsent
+            lang={eventLang}
+            dataConsent={dataConsent}
+            marketingConsent={marketingConsent}
+            onDataConsentChange={setDataConsent}
+            onMarketingConsentChange={setMarketingConsent}
+          />
+
           <Button
             type="submit"
             variant="hero"
             className="w-full mt-6"
-            disabled={isSubmitting || !isValid()}
+            disabled={isSubmitting || !isValid() || !dataConsent}
           >
             {isSubmitting ? (
               <>

@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Building2, Briefcase, ShoppingCart, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Language, translations } from "@/i18n/translations";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 
 interface ProfessionalConfig {
   sectors?: string[];
@@ -40,6 +41,7 @@ export interface B2BFormData {
   companySize: string;
   needs: string[];
   solutions: string[];
+  marketingConsent?: boolean;
 }
 
 const COMPANY_SIZES_ES = ["1-10 empleados", "11-50 empleados", "51-200 empleados", "201-500 empleados", "500+ empleados"];
@@ -76,6 +78,8 @@ const B2BRegistrationForm = ({
   const [companySize, setCompanySize] = useState("");
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [selectedSolutions, setSelectedSolutions] = useState<string[]>([]);
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const companySizes = eventLang === "en" ? COMPANY_SIZES_EN : COMPANY_SIZES_ES;
   const sectors = professionalConfig?.sectors?.length
@@ -104,7 +108,7 @@ const B2BRegistrationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canAdvance(4)) return;
+    if (!canAdvance(4) || !dataConsent) return;
     onSubmit({
       name: name.trim(),
       email: email.trim(),
@@ -115,6 +119,7 @@ const B2BRegistrationForm = ({
       companySize,
       needs: entityType === "client" ? selectedNeeds : [],
       solutions: entityType === "provider" ? selectedSolutions : [],
+      marketingConsent,
     });
   };
 
@@ -299,6 +304,17 @@ const B2BRegistrationForm = ({
             </div>
           )}
 
+          {/* GDPR consent - shown on last step */}
+          {step === totalSteps && (
+            <GDPRConsent
+              lang={eventLang}
+              dataConsent={dataConsent}
+              marketingConsent={marketingConsent}
+              onDataConsentChange={setDataConsent}
+              onMarketingConsentChange={setMarketingConsent}
+            />
+          )}
+
           {/* Navigation buttons */}
           <div className="flex gap-3 pt-4">
             {step > 1 && (
@@ -322,7 +338,7 @@ const B2BRegistrationForm = ({
               <Button
                 type="submit"
                 variant="hero"
-                disabled={isSubmitting || !canAdvance(4)}
+                disabled={isSubmitting || !canAdvance(4) || !dataConsent}
                 className="flex-1"
               >
                 {isSubmitting ? (
