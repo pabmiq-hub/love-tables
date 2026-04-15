@@ -258,6 +258,7 @@ serve(async (req) => {
             needs: needs || [],
             solutions: solutions || [],
             position: nextPosition,
+            marketing_consent: marketingConsent,
           });
 
         if (waitlistError) {
