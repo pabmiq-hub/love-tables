@@ -345,6 +345,15 @@ const ParticipantJoin = () => {
       return;
     }
 
+    if (!dataConsent) {
+      toast({
+        title: "Error",
+        description: eventLang === "en" ? "You must accept the privacy policy to register" : "Debes aceptar la política de privacidad para inscribirte",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       toast({
