@@ -14,7 +14,9 @@ import {
   Percent,
   Trophy,
   Target,
-  HeartHandshake
+  HeartHandshake,
+  Sparkles,
+  RotateCcw
 } from "lucide-react";
 import {
   normalizeGender as normalizeGenderShared,
@@ -46,6 +48,7 @@ interface Participant {
   dating_preference?: string | null;
   checked_in?: boolean | null;
   selection_submitted_at?: string | null;
+  is_returning_participant?: boolean | null;
 }
 
 interface Selection {
@@ -162,6 +165,12 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       }
     });
 
+    // Returning vs new participants
+    const returningCount = participants.filter(p => p.is_returning_participant === true).length;
+    const newCount = participants.length - returningCount;
+    const returningPct = participants.length > 0 ? ((returningCount / participants.length) * 100).toFixed(1) : "0";
+    const newPct = participants.length > 0 ? ((newCount / participants.length) * 100).toFixed(1) : "0";
+
     return {
       total: originalTotal,
       checkedIn,
@@ -170,7 +179,11 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
       checkinRate,
       genderData,
       ageData,
-      byGender
+      byGender,
+      returningCount,
+      newCount,
+      returningPct,
+      newPct,
     };
   }, [participants, originalParticipantsCount]);
 
@@ -497,6 +510,33 @@ const EventAnalytics = ({ participants, selections, matches, tables, originalPar
                   <div className="text-sm text-muted-foreground">Enviaron selecciones</div>
                 </div>
                 <Target className="w-8 h-8 text-blue-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Nuevos vs Repetidores */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="border-emerald-200/50">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-emerald-600">{inscriptionStats.newCount}</div>
+                  <div className="text-sm text-muted-foreground">Nuevos ({inscriptionStats.newPct}%)</div>
+                </div>
+                <Sparkles className="w-8 h-8 text-emerald-600/50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-200/50">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-amber-600">{inscriptionStats.returningCount}</div>
+                  <div className="text-sm text-muted-foreground">Caras conocidas ({inscriptionStats.returningPct}%)</div>
+                </div>
+                <RotateCcw className="w-8 h-8 text-amber-600/50" />
               </div>
             </CardContent>
           </Card>
