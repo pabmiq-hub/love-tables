@@ -493,6 +493,7 @@ serve(async (req) => {
           preferred_age_range: preferredAgeRange || null,
           is_returning_participant: isReturningParticipant || false,
           position: nextPosition,
+          marketing_consent: marketingConsent,
         });
 
       if (waitlistError) {

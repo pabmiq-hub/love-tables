@@ -746,6 +746,7 @@ const ParticipantJoin = () => {
       if (formValues.company_size) body.companySize = formValues.company_size;
       if (formValues.needs) body.needs = formValues.needs;
       if (formValues.solutions) body.solutions = formValues.solutions;
+      body.marketingConsent = formValues.marketingConsent === true;
 
       // Custom fields stored as metadata
       const customFields: Record<string, any> = {};
