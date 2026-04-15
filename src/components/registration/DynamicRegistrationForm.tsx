@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import type { FormField } from "@/components/event/RegistrationFormEditor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 
 interface DynamicRegistrationFormProps {
   fields: FormField[];
@@ -36,6 +37,8 @@ const DynamicRegistrationForm = ({
   onSubmit,
 }: DynamicRegistrationFormProps) => {
   const [values, setValues] = useState<Record<string, any>>({});
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const setValue = (fieldId: string, value: any) => {
     setValues((prev) => ({ ...prev, [fieldId]: value }));

@@ -1069,12 +1069,20 @@ const ParticipantJoin = () => {
                   </div>
                 </RadioGroup>
               </div>
+
+              <GDPRConsent
+                lang={eventLang}
+                dataConsent={dataConsent}
+                marketingConsent={marketingConsent}
+                onDataConsentChange={setDataConsent}
+                onMarketingConsentChange={setMarketingConsent}
+              />
               
               <Button 
                 type="submit" 
                 variant="hero" 
                 className="w-full mt-6" 
-                disabled={isSubmitting || (slots && !slots.available)}
+                disabled={isSubmitting || !dataConsent || (slots && !slots.available)}
               >
                 {isSubmitting ? (
                   <>
