@@ -304,6 +304,17 @@ const B2BRegistrationForm = ({
             </div>
           )}
 
+          {/* GDPR consent - shown on last step */}
+          {step === totalSteps && (
+            <GDPRConsent
+              lang={eventLang}
+              dataConsent={dataConsent}
+              marketingConsent={marketingConsent}
+              onDataConsentChange={setDataConsent}
+              onMarketingConsentChange={setMarketingConsent}
+            />
+          )}
+
           {/* Navigation buttons */}
           <div className="flex gap-3 pt-4">
             {step > 1 && (
@@ -327,7 +338,7 @@ const B2BRegistrationForm = ({
               <Button
                 type="submit"
                 variant="hero"
-                disabled={isSubmitting || !canAdvance(4)}
+                disabled={isSubmitting || !canAdvance(4) || !dataConsent}
                 className="flex-1"
               >
                 {isSubmitting ? (
