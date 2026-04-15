@@ -527,6 +527,7 @@ const ParticipantJoin = () => {
         solutions: data.solutions,
         isProfessional: true,
         marketingConsent: data.marketingConsent || false,
+      }
     });
 
     if (error || result?.error) {
