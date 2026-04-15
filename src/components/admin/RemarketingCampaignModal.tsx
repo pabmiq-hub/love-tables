@@ -45,6 +45,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [alreadySentEmails, setAlreadySentEmails] = useState<string[]>([]);
+  const [alreadyRegisteredEmails, setAlreadyRegisteredEmails] = useState<string[]>([]);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   const recipients = recipientMode === 'selected' ? selectedUsers : allUsers;
@@ -56,14 +57,14 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     ? `https://konektum.com/o/${organizer.slug}/join/${targetEventId}`
     : '';
 
-  // Check for already-sent emails when reaching confirm step
+  // Check for already-sent emails and already-registered participants when reaching confirm step
   useEffect(() => {
     if (step !== 'confirm' || !targetEventId || !organizer?.id) return;
     
     const checkDuplicates = async () => {
       setCheckingDuplicates(true);
       try {
-        // Get campaigns already sent for this event by this organizer
+        // Check already-sent campaigns
         const { data: campaigns } = await supabase
           .from("remarketing_campaigns")
           .select("id")
@@ -71,25 +72,33 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
           .eq("target_event_id", targetEventId)
           .in("status", ["sent", "sending"]);
 
-        if (!campaigns?.length) {
+        if (campaigns?.length) {
+          const campaignIds = campaigns.map(c => c.id);
+          const { data: sentRecipients } = await supabase
+            .from("remarketing_recipients")
+            .select("email")
+            .in("campaign_id", campaignIds)
+            .eq("status", "sent");
+
+          const sentEmailSet = new Set((sentRecipients || []).map(r => r.email.toLowerCase()));
+          setAlreadySentEmails(
+            recipientsWithEmail.filter(u => sentEmailSet.has(u.email!.toLowerCase())).map(u => u.email!)
+          );
+        } else {
           setAlreadySentEmails([]);
-          setCheckingDuplicates(false);
-          return;
         }
 
-        const campaignIds = campaigns.map(c => c.id);
-        const { data: recipients } = await supabase
-          .from("remarketing_recipients")
+        // Check already-registered participants in target event
+        const { data: eventParticipants } = await supabase
+          .from("participants")
           .select("email")
-          .in("campaign_id", campaignIds)
-          .eq("status", "sent");
+          .eq("event_id", targetEventId)
+          .not("email", "is", null);
 
-        const sentEmailSet = new Set((recipients || []).map(r => r.email.toLowerCase()));
-        const duplicates = recipientsWithEmail
-          .filter(u => sentEmailSet.has(u.email!.toLowerCase()))
-          .map(u => u.email!);
-        
-        setAlreadySentEmails(duplicates);
+        const registeredSet = new Set((eventParticipants || []).map(p => p.email!.toLowerCase()));
+        setAlreadyRegisteredEmails(
+          recipientsWithEmail.filter(u => registeredSet.has(u.email!.toLowerCase())).map(u => u.email!)
+        );
       } catch (err) {
         console.error("Error checking duplicates:", err);
       } finally {
@@ -106,6 +115,13 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
 
   const steps: Step[] = ['recipients', 'event', 'compose', 'confirm'];
   const stepIdx = steps.indexOf(step);
+
+  // Eligible recipients = those NOT already registered in target event
+  const eligibleRecipients = useMemo(() => {
+    if (!alreadyRegisteredEmails.length) return recipientsWithEmail;
+    const registeredSet = new Set(alreadyRegisteredEmails.map(e => e.toLowerCase()));
+    return recipientsWithEmail.filter(u => !registeredSet.has(u.email!.toLowerCase()));
+  }, [recipientsWithEmail, alreadyRegisteredEmails]);
 
   const canProceed = () => {
     switch (step) {
@@ -128,7 +144,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
           registration_link: registrationLink,
           subject,
           body,
-          recipients: recipientsWithEmail.map(u => ({
+          recipients: eligibleRecipients.map(u => ({
             global_participant_id: u.id,
             email: u.email!,
             name: u.display_name,
@@ -137,7 +153,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
       });
 
       if (error) throw error;
-      toast({ title: "Campaña enviada", description: `Se enviaron ${recipientsWithEmail.length} correos electrónicos` });
+      toast({ title: "Campaña enviada", description: `Se enviaron ${eligibleRecipients.length} correos electrónicos` });
       onOpenChange(false);
       resetState();
     } catch (error: any) {
@@ -154,6 +170,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     setSubject("Te invitamos a nuestro próximo evento");
     setBody(DEFAULT_BODY);
     setAlreadySentEmails([]);
+    setAlreadyRegisteredEmails([]);
   };
 
   const stepLabels = ['Destinatarios', 'Evento', 'Correo', 'Confirmar'];
@@ -289,10 +306,36 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
               </Alert>
             )}
 
+            {alreadyRegisteredEmails.length > 0 && !checkingDuplicates && (
+              <Alert className="border-destructive bg-destructive/10">
+                <AlertTriangle className="h-4 w-4 !text-destructive" />
+                <AlertDescription>
+                  <p className="font-medium mb-1">
+                    {alreadyRegisteredEmails.length} destinatario{alreadyRegisteredEmails.length > 1 ? 's' : ''} ya está{alreadyRegisteredEmails.length > 1 ? 'n' : ''} inscrito{alreadyRegisteredEmails.length > 1 ? 's' : ''} en este evento y no recibirá{alreadyRegisteredEmails.length > 1 ? 'n' : ''} el correo:
+                  </p>
+                  <ul className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
+                    {alreadyRegisteredEmails.map(email => (
+                      <li key={email}>• {email}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Destinatarios:</span>
-                <Badge>{recipientsWithEmail.length} usuarios</Badge>
+                <span className="text-muted-foreground">Destinatarios seleccionados:</span>
+                <Badge variant="secondary">{recipientsWithEmail.length} usuarios</Badge>
+              </div>
+              {alreadyRegisteredEmails.length > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ya inscritos (excluidos):</span>
+                  <Badge variant="destructive">-{alreadyRegisteredEmails.length}</Badge>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Se enviarán:</span>
+                <Badge>{eligibleRecipients.length} correos</Badge>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Evento objetivo:</span>
@@ -319,9 +362,9 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
             Anterior
           </Button>
           {step === 'confirm' ? (
-            <Button onClick={handleSend} disabled={sending}>
+            <Button onClick={handleSend} disabled={sending || eligibleRecipients.length === 0}>
               <Send className="w-4 h-4 mr-2" />
-              {sending ? 'Enviando...' : `Enviar a ${recipientsWithEmail.length} usuarios`}
+              {sending ? 'Enviando...' : eligibleRecipients.length === 0 ? 'Sin destinatarios' : `Enviar a ${eligibleRecipients.length} usuarios`}
             </Button>
           ) : (
             <Button disabled={!canProceed()} onClick={() => setStep(steps[stepIdx + 1])}>
