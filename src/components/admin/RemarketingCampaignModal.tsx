@@ -181,7 +181,10 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     setBody(DEFAULT_BODY);
     setAlreadySentEmails([]);
     setAlreadyRegisteredEmails([]);
+    setSendMode('skip_both');
   };
+
+  const hasConflicts = alreadyRegisteredEmails.length > 0 || alreadySentEmails.length > 0;
 
   const stepLabels = ['Destinatarios', 'Evento', 'Correo', 'Confirmar'];
 
