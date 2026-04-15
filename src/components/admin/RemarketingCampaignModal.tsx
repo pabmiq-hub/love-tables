@@ -48,6 +48,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const [alreadySentEmails, setAlreadySentEmails] = useState<string[]>([]);
   const [alreadyRegisteredEmails, setAlreadyRegisteredEmails] = useState<string[]>([]);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [sendMode, setSendMode] = useState<'skip_registered' | 'skip_both' | 'send_all'>('skip_both');
 
   const recipients = recipientMode === 'selected' ? selectedUsers : allUsers;
   const recipientsWithEmail = useMemo(() => recipients.filter(u => u.email), [recipients]);
