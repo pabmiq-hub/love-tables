@@ -302,37 +302,77 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
               <p className="text-sm text-muted-foreground">Comprobando envíos anteriores...</p>
             )}
 
-            {alreadySentEmails.length > 0 && !checkingDuplicates && (
-              <Alert variant="destructive" className="border-yellow-500 bg-yellow-50 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200">
-                <AlertTriangle className="h-4 w-4 !text-yellow-600" />
-                <AlertDescription>
-                  <p className="font-medium mb-1">
-                    {alreadySentEmails.length} destinatario{alreadySentEmails.length > 1 ? 's' : ''} ya recibió un correo para este evento:
-                  </p>
-                  <ul className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
-                    {alreadySentEmails.map(email => (
-                      <li key={email}>• {email}</li>
-                    ))}
-                  </ul>
-                  <p className="text-xs mt-2">Puedes continuar igualmente, pero estos usuarios recibirán el correo de nuevo.</p>
-                </AlertDescription>
-              </Alert>
-            )}
+            {!checkingDuplicates && hasConflicts && (
+              <div className="space-y-3">
+                {alreadyRegisteredEmails.length > 0 && (
+                  <Alert className="border-destructive bg-destructive/10">
+                    <AlertTriangle className="h-4 w-4 !text-destructive" />
+                    <AlertDescription>
+                      <p className="font-medium mb-1">
+                        {alreadyRegisteredEmails.length} contacto{alreadyRegisteredEmails.length > 1 ? 's' : ''} ya inscrito{alreadyRegisteredEmails.length > 1 ? 's' : ''} en este evento:
+                      </p>
+                      <ul className="text-xs space-y-0.5 max-h-20 overflow-y-auto">
+                        {alreadyRegisteredEmails.map(email => (
+                          <li key={email}>• {email} <span className="text-destructive font-medium">(ya inscrito/a)</span></li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-            {alreadyRegisteredEmails.length > 0 && !checkingDuplicates && (
-              <Alert className="border-destructive bg-destructive/10">
-                <AlertTriangle className="h-4 w-4 !text-destructive" />
-                <AlertDescription>
-                  <p className="font-medium mb-1">
-                    {alreadyRegisteredEmails.length} destinatario{alreadyRegisteredEmails.length > 1 ? 's' : ''} ya está{alreadyRegisteredEmails.length > 1 ? 'n' : ''} inscrito{alreadyRegisteredEmails.length > 1 ? 's' : ''} en este evento y no recibirá{alreadyRegisteredEmails.length > 1 ? 'n' : ''} el correo:
-                  </p>
-                  <ul className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
-                    {alreadyRegisteredEmails.map(email => (
-                      <li key={email}>• {email}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
+                {alreadySentEmails.length > 0 && (
+                  <Alert className="border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                    <AlertTriangle className="h-4 w-4 !text-amber-600" />
+                    <AlertDescription>
+                      <p className="font-medium mb-1">
+                        {alreadySentEmails.length} contacto{alreadySentEmails.length > 1 ? 's' : ''} ya recibió correo de campaña para este evento:
+                      </p>
+                      <ul className="text-xs space-y-0.5 max-h-20 overflow-y-auto">
+                        {alreadySentEmails.map(email => (
+                          <li key={email}>• {email} <span className="text-amber-700 dark:text-amber-400 font-medium">(correo ya enviado)</span></li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Separator />
+
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">¿Cómo quieres proceder?</Label>
+                  <RadioGroup value={sendMode} onValueChange={(v) => setSendMode(v as typeof sendMode)} className="space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="skip_registered" id="skip_registered" className="mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Omitir solo inscritos</p>
+                        <p className="text-xs text-muted-foreground">
+                          No envía a quienes ya están inscritos. Sí envía a quienes ya recibieron correo de campaña.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="skip_both" id="skip_both" className="mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Omitir inscritos y ya contactados</p>
+                        <p className="text-xs text-muted-foreground">
+                          Solo envía a quienes no están inscritos ni han recibido correo de campaña para este evento.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="send_all" id="send_all" className="mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Enviar a todos</p>
+                        <p className="text-xs text-muted-foreground">
+                          Envía el correo a todos los destinatarios sin excepción, incluidos inscritos y ya contactados.
+                        </p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                </div>
+
+                <Separator />
+              </div>
             )}
 
             <div className="space-y-2 text-sm">
@@ -340,10 +380,10 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
                 <span className="text-muted-foreground">Destinatarios seleccionados:</span>
                 <Badge variant="secondary">{recipientsWithEmail.length} usuarios</Badge>
               </div>
-              {alreadyRegisteredEmails.length > 0 && (
+              {hasConflicts && sendMode !== 'send_all' && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ya inscritos (excluidos):</span>
-                  <Badge variant="destructive">-{alreadyRegisteredEmails.length}</Badge>
+                  <span className="text-muted-foreground">Excluidos:</span>
+                  <Badge variant="destructive">-{recipientsWithEmail.length - eligibleRecipients.length}</Badge>
                 </div>
               )}
               <div className="flex justify-between">
