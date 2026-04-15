@@ -57,14 +57,14 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
     ? `https://konektum.com/o/${organizer.slug}/join/${targetEventId}`
     : '';
 
-  // Check for already-sent emails when reaching confirm step
+  // Check for already-sent emails and already-registered participants when reaching confirm step
   useEffect(() => {
     if (step !== 'confirm' || !targetEventId || !organizer?.id) return;
     
     const checkDuplicates = async () => {
       setCheckingDuplicates(true);
       try {
-        // Get campaigns already sent for this event by this organizer
+        // Check already-sent campaigns
         const { data: campaigns } = await supabase
           .from("remarketing_campaigns")
           .select("id")
@@ -72,25 +72,33 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
           .eq("target_event_id", targetEventId)
           .in("status", ["sent", "sending"]);
 
-        if (!campaigns?.length) {
+        if (campaigns?.length) {
+          const campaignIds = campaigns.map(c => c.id);
+          const { data: sentRecipients } = await supabase
+            .from("remarketing_recipients")
+            .select("email")
+            .in("campaign_id", campaignIds)
+            .eq("status", "sent");
+
+          const sentEmailSet = new Set((sentRecipients || []).map(r => r.email.toLowerCase()));
+          setAlreadySentEmails(
+            recipientsWithEmail.filter(u => sentEmailSet.has(u.email!.toLowerCase())).map(u => u.email!)
+          );
+        } else {
           setAlreadySentEmails([]);
-          setCheckingDuplicates(false);
-          return;
         }
 
-        const campaignIds = campaigns.map(c => c.id);
-        const { data: recipients } = await supabase
-          .from("remarketing_recipients")
+        // Check already-registered participants in target event
+        const { data: eventParticipants } = await supabase
+          .from("participants")
           .select("email")
-          .in("campaign_id", campaignIds)
-          .eq("status", "sent");
+          .eq("event_id", targetEventId)
+          .not("email", "is", null);
 
-        const sentEmailSet = new Set((recipients || []).map(r => r.email.toLowerCase()));
-        const duplicates = recipientsWithEmail
-          .filter(u => sentEmailSet.has(u.email!.toLowerCase()))
-          .map(u => u.email!);
-        
-        setAlreadySentEmails(duplicates);
+        const registeredSet = new Set((eventParticipants || []).map(p => p.email!.toLowerCase()));
+        setAlreadyRegisteredEmails(
+          recipientsWithEmail.filter(u => registeredSet.has(u.email!.toLowerCase())).map(u => u.email!)
+        );
       } catch (err) {
         console.error("Error checking duplicates:", err);
       } finally {
