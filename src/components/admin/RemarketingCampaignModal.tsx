@@ -116,6 +116,13 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const steps: Step[] = ['recipients', 'event', 'compose', 'confirm'];
   const stepIdx = steps.indexOf(step);
 
+  // Eligible recipients = those NOT already registered in target event
+  const eligibleRecipients = useMemo(() => {
+    if (!alreadyRegisteredEmails.length) return recipientsWithEmail;
+    const registeredSet = new Set(alreadyRegisteredEmails.map(e => e.toLowerCase()));
+    return recipientsWithEmail.filter(u => !registeredSet.has(u.email!.toLowerCase()));
+  }, [recipientsWithEmail, alreadyRegisteredEmails]);
+
   const canProceed = () => {
     switch (step) {
       case 'recipients': return recipientsWithEmail.length > 0;
