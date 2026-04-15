@@ -142,6 +142,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const isProfessional = body.isProfessional === true;
+    const marketingConsent = body.marketingConsent === true;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -308,6 +309,7 @@ serve(async (req) => {
           solutions: solutions || [],
           verification_code: verificationCode,
           checked_in: shouldAutoCheckin,
+          marketing_consent: marketingConsent,
         })
         .select()
         .single();
@@ -555,7 +557,8 @@ serve(async (req) => {
         preferred_age_range: preferredAgeRange || null,
         is_returning_participant: isReturningParticipant || isActuallyReturning,
         verification_code: verificationCode,
-        checked_in: shouldAutoCheckin
+        checked_in: shouldAutoCheckin,
+        marketing_consent: marketingConsent,
       })
       .select()
       .single();
