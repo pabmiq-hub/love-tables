@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ export function RemarketingCampaignModal({ open, onOpenChange, selectedUsers, al
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   const recipients = recipientMode === 'selected' ? selectedUsers : allUsers;
-  const recipientsWithEmail = recipients.filter(u => u.email);
+  const recipientsWithEmail = useMemo(() => recipients.filter(u => u.email), [recipients]);
   const targetEvent = events.find(e => e.id === targetEventId);
   const upcomingEvents = events.filter(e => e.status === 'pending' || e.status === 'active');
 
