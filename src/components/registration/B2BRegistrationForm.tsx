@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Building2, Briefcase, ShoppingCart, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Language, translations } from "@/i18n/translations";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
+import GDPRConsent from "@/components/registration/GDPRConsent";
 
 interface ProfessionalConfig {
   sectors?: string[];
@@ -76,6 +77,8 @@ const B2BRegistrationForm = ({
   const [companySize, setCompanySize] = useState("");
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [selectedSolutions, setSelectedSolutions] = useState<string[]>([]);
+  const [dataConsent, setDataConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const companySizes = eventLang === "en" ? COMPANY_SIZES_EN : COMPANY_SIZES_ES;
   const sectors = professionalConfig?.sectors?.length
@@ -104,7 +107,7 @@ const B2BRegistrationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canAdvance(4)) return;
+    if (!canAdvance(4) || !dataConsent) return;
     onSubmit({
       name: name.trim(),
       email: email.trim(),
@@ -115,6 +118,7 @@ const B2BRegistrationForm = ({
       companySize,
       needs: entityType === "client" ? selectedNeeds : [],
       solutions: entityType === "provider" ? selectedSolutions : [],
+      marketingConsent,
     });
   };
 
