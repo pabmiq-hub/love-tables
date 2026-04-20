@@ -3268,8 +3268,8 @@ const EventDetail = () => {
                       <CardTitle>Lista de Participantes</CardTitle>
                       <CardDescription>
                         {filteredParticipants.length === activeParticipants.length 
-                          ? `${activeParticipants.length} personas${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
-                          : `Mostrando ${filteredParticipants.length} de ${activeParticipants.length} participantes${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}`
+                          ? `${activeParticipants.length} personas${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}${cancelledParticipants.length > 0 ? ` · ${cancelledParticipants.length} baja${cancelledParticipants.length === 1 ? '' : 's'}` : ''}`
+                          : `Mostrando ${filteredParticipants.length} de ${activeParticipants.length} participantes${benchParticipants.length > 0 ? ` (${benchParticipants.length} en banco)` : ''}${cancelledParticipants.length > 0 ? ` · ${cancelledParticipants.length} baja${cancelledParticipants.length === 1 ? '' : 's'}` : ''}`
                         }
                       </CardDescription>
                     </div>
