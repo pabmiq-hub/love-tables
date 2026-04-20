@@ -1,0 +1,2 @@
+ALTER TABLE public.participants ADD COLUMN IF NOT EXISTS cancelled_at timestamp with time zone;
+CREATE INDEX IF NOT EXISTS idx_participants_cancelled_at ON public.participants(cancelled_at) WHERE cancelled_at IS NOT NULL;

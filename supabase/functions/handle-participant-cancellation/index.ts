@@ -92,8 +92,11 @@ serve(async (req: Request) => {
           .maybeSingle()
       : { data: null };
 
-    // Mark participant as no-show (keep in DB for recovery)
-    await supabase.from("participants").update({ checked_in: false }).eq("id", participant_id);
+    // Mark participant as cancelled (keep in DB for recovery)
+    await supabase
+      .from("participants")
+      .update({ checked_in: false, cancelled_at: new Date().toISOString() })
+      .eq("id", participant_id);
 
     // Update global participant status if linked
     if (participant.global_participant_id) {
