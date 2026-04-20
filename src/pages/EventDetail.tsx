@@ -132,6 +132,7 @@ interface DbParticipant {
   gender: string | null;
   phone: string | null;
   checked_in: boolean;
+  cancelled_at?: string | null;
   verification_code: string | null;
   selection_submitted_at?: string | null;
   global_participant_id?: string | null;
@@ -2821,14 +2822,18 @@ const EventDetail = () => {
   };
 
 
+  // Cancelled participants (opted out via cancellation link) - shown in their own section
+  const cancelledParticipants = participants.filter(p => p.cancelled_at);
+  const nonCancelledParticipants = participants.filter(p => !p.cancelled_at);
+
   // Separate bench participants (not checked in during active/completed events)
-  const benchParticipants = (eventStatus === "active" || eventStatus === "completed") 
-    ? participants.filter(p => !p.checked_in) 
+  const benchParticipants = (eventStatus === "active" || eventStatus === "completed")
+    ? nonCancelledParticipants.filter(p => !p.checked_in)
     : [];
-  
+
   const activeParticipants = (eventStatus === "active" || eventStatus === "completed")
-    ? participants.filter(p => p.checked_in)
-    : participants;
+    ? nonCancelledParticipants.filter(p => p.checked_in)
+    : nonCancelledParticipants;
 
   const filteredParticipants = activeParticipants
     .filter(p => {
