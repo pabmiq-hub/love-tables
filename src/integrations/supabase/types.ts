@@ -898,6 +898,7 @@ export type Database = {
           age_range: string | null
           birth_date: string | null
           business_interests: string[] | null
+          cancelled_at: string | null
           checked_in: boolean | null
           company_name: string | null
           company_size: string | null
@@ -927,6 +928,7 @@ export type Database = {
           age_range?: string | null
           birth_date?: string | null
           business_interests?: string[] | null
+          cancelled_at?: string | null
           checked_in?: boolean | null
           company_name?: string | null
           company_size?: string | null
@@ -956,6 +958,7 @@ export type Database = {
           age_range?: string | null
           birth_date?: string | null
           business_interests?: string[] | null
+          cancelled_at?: string | null
           checked_in?: boolean | null
           company_name?: string | null
           company_size?: string | null
