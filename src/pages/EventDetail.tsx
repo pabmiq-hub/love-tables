@@ -3787,6 +3787,93 @@ const EventDetail = () => {
               </CardContent>
             </Card>
 
+            {/* Cancellations section - participants who opted out via cancellation link */}
+            {cancelledParticipants.length > 0 && (
+              <Card className="mt-4 border-dashed border-destructive/30 bg-destructive/[0.02]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <UserMinus className="w-4 h-4 text-destructive" />
+                    Bajas del evento
+                  </CardTitle>
+                  <CardDescription>
+                    {cancelledParticipants.length} {cancelledParticipants.length === 1 ? "persona se ha dado de baja" : "personas se han dado de baja"}. No cuentan como no-show. Puedes restaurarlas si necesitas recuperarlas durante el evento.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {cancelledParticipants.map((participant) => (
+                      <div key={participant.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <p className="font-medium text-sm">{participant.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {participant.email || participant.phone || "Sin contacto"}
+                              {participant.cancelled_at && (
+                                <span className="ml-2">· Baja el {new Date(participant.cancelled_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              await supabase
+                                .from("participants")
+                                .update({ cancelled_at: null })
+                                .eq("id", participant.id);
+
+                              if (participant.global_participant_id) {
+                                await supabase
+                                  .from("global_participants")
+                                  .update({ status: "active", updated_at: new Date().toISOString() })
+                                  .eq("id", participant.global_participant_id);
+                              }
+
+                              setParticipants(prev => prev.map(p => p.id === participant.id ? { ...p, cancelled_at: null } : p));
+
+                              toast({
+                                title: "Participante restaurado",
+                                description: `${participant.name} ha vuelto a la lista del evento.`,
+                              });
+                            }}
+                          >
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                            Restaurar
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar definitivamente?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se eliminará a <strong>{participant.name}</strong> del evento. No podrás restaurarlo después.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteParticipant(participant.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar definitivamente
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Bench section - participants who didn't check in */}
             {(eventStatus === "active" || eventStatus === "completed") && (
               <>
