@@ -92,15 +92,51 @@ serve(async (req: Request) => {
           .maybeSingle()
       : { data: null };
 
+    if (participant.cancelled_at) {
+      return new Response(JSON.stringify({ success: true, already_cancelled: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const cancelledAt = new Date().toISOString();
+
     // Mark participant as cancelled (keep in DB for recovery)
-    await supabase
+    const { data: updatedParticipant, error: updateParticipantError } = await supabase
       .from("participants")
-      .update({ checked_in: false, cancelled_at: new Date().toISOString() })
-      .eq("id", participant_id);
+      .update({ checked_in: false, cancelled_at: cancelledAt })
+      .eq("id", participant_id)
+      .eq("event_id", event_id)
+      .select("id, cancelled_at")
+      .single();
+
+    if (updateParticipantError || !updatedParticipant?.cancelled_at) {
+      console.error("[handle-participant-cancellation] Failed to persist cancellation", {
+        participant_id,
+        event_id,
+        error: updateParticipantError,
+      });
+
+      return new Response(JSON.stringify({ error: "Could not save cancellation" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Update global participant status if linked
     if (participant.global_participant_id) {
-      await supabase.from("global_participants").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", participant.global_participant_id);
+      const { error: globalParticipantError } = await supabase
+        .from("global_participants")
+        .update({ status: "cancelled", updated_at: cancelledAt })
+        .eq("id", participant.global_participant_id);
+
+      if (globalParticipantError) {
+        console.error("[handle-participant-cancellation] Failed to update global participant", {
+          participant_id,
+          global_participant_id: participant.global_participant_id,
+          error: globalParticipantError,
+        });
+      }
     }
 
     // Send notification email to organizer
