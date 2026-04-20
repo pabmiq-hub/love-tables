@@ -596,16 +596,18 @@ const EventDetail = () => {
   };
 
   const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
-    // Store original participants count BEFORE filtering
-    const originalCount = participants.length;
-    
+    // Cancellations are excluded from no-show stats and from the original count.
+    const nonCancelled = participants.filter(p => !p.cancelled_at);
+    // Store original participants count BEFORE filtering (excluding cancellations)
+    const originalCount = nonCancelled.length;
+
     // Keep non-checked-in participants as bench (don't delete them)
     // Mark them as no-show in global_participants for CRM tracking
-    const nonCheckedInParticipants = participants.filter(p => !p.checked_in);
+    const nonCheckedInParticipants = nonCancelled.filter(p => !p.checked_in);
     const noShowGlobalIds = nonCheckedInParticipants
       .filter(p => p.global_participant_id)
       .map(p => p.global_participant_id as string);
-    
+
     if (noShowGlobalIds.length > 0) {
       await supabase
         .from("global_participants")
@@ -2350,10 +2352,11 @@ const EventDetail = () => {
   };
 
   const markNoShowParticipants = async () => {
+    // Cancelled participants are NOT no-shows
     const noShowGlobalIds = participants
-      .filter(p => !p.checked_in && p.global_participant_id)
+      .filter(p => !p.cancelled_at && !p.checked_in && p.global_participant_id)
       .map(p => p.global_participant_id as string);
-    
+
     if (noShowGlobalIds.length > 0) {
       await supabase
         .from("global_participants")
