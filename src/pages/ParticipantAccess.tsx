@@ -859,15 +859,22 @@ const ParticipantAccess = () => {
                               return (
                                 <div
                                   key={`${ms.participantId}-${round}`}
-                                  className={`p-3 rounded-lg transition-all ${ms.alreadySelected
-                                    ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
-                                    : (ms.friendship || ms.dating)
-                                      ? 'bg-primary/10 border-2 border-primary shadow-soft'
-                                      : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
+                                  className={`p-3 rounded-lg transition-all ${ms.superLikedByMe
+                                    ? 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border-2 border-amber-400 shadow-md'
+                                    : ms.alreadySelected
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
+                                      : (ms.friendship || ms.dating)
+                                        ? 'bg-primary/10 border-2 border-primary shadow-soft'
+                                        : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
                                   }`}
                                 >
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="font-medium text-sm">{tablemate.name}</span>
+                                  <div className="flex items-center justify-between mb-1 gap-2">
+                                    <span className="font-medium text-sm flex items-center gap-1.5">
+                                      {tablemate.name}
+                                      {ms.superLikedByMe && (
+                                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                                      )}
+                                    </span>
                                     {ms.alreadySelected && (
                                       <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
                                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -879,16 +886,34 @@ const ParticipantAccess = () => {
                                   {ms.alreadySelected ? (
                                     <p className="text-xs text-muted-foreground">{t.access.alreadySelected}</p>
                                   ) : (
-                                    <div className="flex gap-4">
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                        <Checkbox checked={ms.friendship} onCheckedChange={() => toggleSelection(ms.participantId, round, 'friendship')} />
-                                        <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
-                                      </label>
-                                      {ms.canShowDating && (
+                                    <div className="space-y-2">
+                                      <div className="flex gap-4 flex-wrap">
                                         <label className="flex items-center gap-2 cursor-pointer">
-                                          <Checkbox checked={ms.dating} onCheckedChange={() => toggleSelection(ms.participantId, round, 'dating')} />
-                                          <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          <Checkbox checked={ms.friendship} onCheckedChange={() => toggleSelection(ms.participantId, round, 'friendship')} />
+                                          <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
                                         </label>
+                                        {ms.canShowDating && (
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox checked={ms.dating} onCheckedChange={() => toggleSelection(ms.participantId, round, 'dating')} />
+                                            <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          </label>
+                                        )}
+                                      </div>
+                                      {!hasSentSuperLike && !ms.superLikedByMe && (
+                                        <button
+                                          type="button"
+                                          onClick={() => openSuperLikeDialog(ms.participantId, tablemate.name, round)}
+                                          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 text-amber-700 dark:text-amber-300 hover:from-amber-100 hover:to-yellow-100 transition-all"
+                                        >
+                                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                                          {eventLang === 'en' ? 'Give Super Like' : 'Dar Super Like'}
+                                        </button>
+                                      )}
+                                      {ms.superLikedByMe && (
+                                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
+                                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                                          {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
+                                        </div>
                                       )}
                                     </div>
                                   )}
