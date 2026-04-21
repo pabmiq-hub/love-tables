@@ -243,12 +243,16 @@ serve(async (req) => {
       }
     }
 
-    // Fetch preferences for all tablemates + existing selections in parallel
-    const [preferencesResult, selectionsResult] = await Promise.all([
+    // Fetch preferences for all tablemates + existing selections + super like info in parallel
+    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult] = await Promise.all([
       tablemateIds.size > 0
         ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
-      supabase.from('participant_selections').select('selected_id, selection_type').eq('event_id', eventId).eq('selector_id', participant.id)
+      supabase.from('participant_selections').select('selected_id, selection_type, is_super_like').eq('event_id', eventId).eq('selector_id', participant.id),
+      // Has this participant already sent a super like?
+      supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true).limit(1),
+      // Has this participant RECEIVED any super like?
+      supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true).limit(1),
     ]);
 
     const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
@@ -274,7 +278,11 @@ serve(async (req) => {
     const existingSelections = (selectionsResult.data || []).map((s: any) => ({
       selected_id: s.selected_id,
       selection_type: s.selection_type,
+      is_super_like: !!s.is_super_like,
     }));
+
+    const hasSentSuperLike = !!(sentSuperLikeResult.data && sentSuperLikeResult.data.length > 0);
+    const hasReceivedSuperLike = !!(receivedSuperLikeResult.data && receivedSuperLikeResult.data.length > 0);
 
     console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
@@ -289,6 +297,8 @@ serve(async (req) => {
         currentRound,
         totalRounds: event.rounds,
         preliminaryConfirmation,
+        hasSentSuperLike,
+        hasReceivedSuperLike,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,

@@ -12,6 +12,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useEventBranding } from "@/hooks/useEventBranding";
 import { translations, Language } from "@/i18n/translations";
+import confetti from "canvas-confetti";
+import SuperLikeOnboarding from "@/components/ui/super-like-onboarding";
+import SuperLikeBanner from "@/components/ui/super-like-banner";
+import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 
 interface Participant {
   id: string;
@@ -90,6 +94,9 @@ const ParticipantSelect = () => {
   const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
   const [superLikeId, setSuperLikeId] = useState<string | null>(null);
   const [existingSuperLike, setExistingSuperLike] = useState(false);
+  const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [confirmSuperLikeFor, setConfirmSuperLikeFor] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -208,17 +215,32 @@ const ParticipantSelect = () => {
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
 
-      // Check if participant already used their super like
+      // Check if participant already used their super like + received any
       if (superLikeEnabled && verifiedParticipant) {
-        const { data: superLikes } = await supabase
-          .from('participant_selections')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('selector_id', verifiedParticipant.id)
-          .eq('is_super_like', true)
-          .limit(1);
-        if (superLikes && superLikes.length > 0) {
-          setExistingSuperLike(true);
+        const [sentRes, receivedRes] = await Promise.all([
+          supabase
+            .from('participant_selections')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('selector_id', verifiedParticipant.id)
+            .eq('is_super_like', true)
+            .limit(1),
+          supabase
+            .from('participant_selections')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('selected_id', verifiedParticipant.id)
+            .eq('is_super_like', true)
+            .limit(1),
+        ]);
+        if (sentRes.data && sentRes.data.length > 0) setExistingSuperLike(true);
+        if (receivedRes.data && receivedRes.data.length > 0) setHasReceivedSuperLike(true);
+
+        // Show onboarding once per event
+        const onboardingKey = `superlike_onboarded_${eventId}`;
+        if (!localStorage.getItem(onboardingKey)) {
+          setShowOnboarding(true);
+          localStorage.setItem(onboardingKey, "1");
         }
       }
 
@@ -320,20 +342,35 @@ const ParticipantSelect = () => {
     return state.friendship || state.dating || state.alreadySelected;
   };
 
-  const toggleSuperLike = (participantId: string) => {
-    if (existingSuperLike) {
+  const requestSuperLike = (participantId: string, name: string) => {
+    if (existingSuperLike || superLikeId) {
       toast({
-        title: eventLang === "es" ? "Super Like ya usado" : "Super Like already used",
-        description: eventLang === "es" ? "Ya has enviado tu Super Like en este evento" : "You already used your Super Like in this event",
+        title: eventLang === "es" ? "Super Like ya asignado" : "Super Like already assigned",
+        description: eventLang === "es" ? "Solo puedes dar 1 Super Like por evento" : "You can only give 1 Super Like per event",
         variant: "destructive",
       });
       return;
     }
-    if (superLikeId === participantId) {
-      setSuperLikeId(null);
-    } else {
-      setSuperLikeId(participantId);
-    }
+    setConfirmSuperLikeFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmSuperLike = () => {
+    if (!confirmSuperLikeFor) return;
+    setSuperLikeId(confirmSuperLikeFor.id);
+    // Confetti burst
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#fbbf24", "#f59e0b", "#fde68a", "#ffffff"],
+    });
+    toast({
+      title: eventLang === "es" ? "⭐ Super Like asignado" : "⭐ Super Like assigned",
+      description: eventLang === "es"
+        ? "Se enviará al confirmar tus selecciones"
+        : "It will be sent when you confirm your selections",
+    });
+    setConfirmSuperLikeFor(null);
   };
 
   const getPreviousSelectionLabel = (type?: string): string => {
@@ -410,6 +447,14 @@ const ParticipantSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+      <SuperLikeOnboarding open={showOnboarding} onClose={() => setShowOnboarding(false)} language={eventLang} />
+      <SuperLikeConfirmDialog
+        open={!!confirmSuperLikeFor}
+        onClose={() => setConfirmSuperLikeFor(null)}
+        onConfirm={confirmSuperLike}
+        recipientName={confirmSuperLikeFor?.name || ""}
+        language={eventLang}
+      />
       <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
@@ -418,6 +463,12 @@ const ParticipantSelect = () => {
       <div className="mb-8 animate-fade-in">
         <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} />
       </div>
+
+      {step === "select" && hasReceivedSuperLike && (
+        <div className="w-full max-w-md mb-4">
+          <SuperLikeBanner language={eventLang} variant="received" />
+        </div>
+      )}
 
       {step === "completed" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
@@ -570,30 +621,35 @@ const ParticipantSelect = () => {
                       {isAlreadySelected ? (
                         <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
                       ) : (
-                        <div className="flex gap-4 items-center">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
-                            <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
-                          </label>
-                          {selectionState.canShowDating && (
+                        <div className="space-y-3">
+                          <div className="flex gap-4 items-center flex-wrap">
                             <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
-                              <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                              <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
+                              <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
                             </label>
-                          )}
-                          {superLikeEnabled && !existingSuperLike && (
-                            <button
-                              type="button"
-                              onClick={() => toggleSuperLike(person.id)}
-                              className={`ml-auto p-1.5 rounded-full transition-all ${
-                                superLikeId === person.id 
-                                  ? 'bg-amber-400 text-white scale-110 shadow-md' 
-                                  : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-50'
-                              }`}
-                              title={eventLang === "es" ? "Super Like (1 por evento)" : "Super Like (1 per event)"}
-                            >
-                              <Star className={`w-5 h-5 ${superLikeId === person.id ? 'fill-current' : ''}`} />
-                            </button>
+                            {selectionState.canShowDating && (
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
+                                <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                              </label>
+                            )}
+                          </div>
+                          {superLikeEnabled && (
+                            superLikeId === person.id ? (
+                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-950/40 dark:to-yellow-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold">
+                                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                                {eventLang === "es" ? "Super Like asignado" : "Super Like assigned"}
+                              </div>
+                            ) : (!existingSuperLike && !superLikeId) ? (
+                              <button
+                                type="button"
+                                onClick={() => requestSuperLike(person.id, person.name)}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 dark:bg-amber-950/20 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
+                              >
+                                <Star className="w-4 h-4" />
+                                {eventLang === "es" ? "⭐ Dar Super Like" : "⭐ Give Super Like"}
+                              </button>
+                            ) : null
                           )}
                         </div>
                       )}
@@ -603,13 +659,13 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
-            {superLikeEnabled && !existingSuperLike && (
-              <p className="text-xs text-center text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
-                <Star className="w-3.5 h-3.5" />
-                {superLikeId 
-                  ? (eventLang === "es" ? "Super Like asignado — se notificará anónimamente al destinatario" : "Super Like assigned — recipient will be notified anonymously")
-                  : (eventLang === "es" ? "Puedes dar 1 Super Like por evento — el destinatario recibirá una notificación anónima" : "You can give 1 Super Like per event — recipient gets an anonymous notification")}
-              </p>
+            {superLikeEnabled && (
+              <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                {existingSuperLike || superLikeId
+                  ? (eventLang === "es" ? "Super Like usado ✓" : "Super Like used ✓")
+                  : (eventLang === "es" ? "Te queda 1 Super Like ⭐ — anónimo, único por evento" : "1 Super Like remaining ⭐ — anonymous, one per event")}
+              </div>
             )}
             <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (

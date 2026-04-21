@@ -135,8 +135,8 @@ const generateEmailHtml = (
   template: EmailTemplate,
   name: string,
   eventName: string,
-  friendshipMatches: { name: string; phone: string | null; email: string | null }[],
-  datingMatches: { name: string; phone: string | null; email: string | null }[],
+  friendshipMatches: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }[],
+  datingMatches: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }[],
   orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean },
   options?: { primaryColor?: string; logoUrl?: string | null; brandName?: string | null; headerTitle?: string; logoHeight?: number }
 ): string => {
@@ -151,12 +151,20 @@ const generateEmailHtml = (
 
   const logoHtml = `<img src="${escapeHtml(resolvedLogoUrl)}" alt="${escapeHtml(resolvedBrandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:12px;" />`;
 
+  const renderMatchItem = (m: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }) => {
+    const contact = m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '');
+    const superBadge = m.isSuperMatch
+      ? ` <span style="display:inline-block;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle;">⭐ Super Match</span>`
+      : '';
+    return `<li style="margin-bottom:6px;"><strong>${escapeHtml(m.name)}</strong>${superBadge}${contact}</li>`;
+  };
+
   if (hasMatches) {
     const t = template.withMatches;
     const friendshipList = friendshipMatches.length > 0
-      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.friendshipTitle)}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.friendshipTitle)}</h3><ul style="margin:0;padding-left:20px;list-style:none;">${friendshipMatches.map(renderMatchItem).join('')}</ul></div>` : '';
     const datingList = datingMatches.length > 0
-      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.datingTitle)}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.datingTitle)}</h3><ul style="margin:0;padding-left:20px;list-style:none;">${datingMatches.map(renderMatchItem).join('')}</ul></div>` : '';
 
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f5f5f5;"><div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">${logoHtml}<h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1></div><div style="background:white;padding:30px;border-radius:0 0 10px 10px;"><h2>${replaceVariables(t.greeting, variables)}</h2><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${escapeHtml(t.signature)}</p></div></body></html>`;
   }
@@ -523,7 +531,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     // For social events, get selections for mutual match calculation
-    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type").eq("event_id", event_id);
+    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type, is_super_like").eq("event_id", event_id);
     
     // For professional events, get table assignments to find connections
     const { data: tableAssignments } = isProfessional 
@@ -593,8 +601,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Find mutual matches (for social events)
-    const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null; email: string | null }[]; dating: { name: string; phone: string | null; email: string | null }[] }>();
+    // Find mutual matches (for social events). Track super-likes from EITHER side.
+    type MatchedPerson = { name: string; phone: string | null; email: string | null; isSuperMatch: boolean };
+    const matchesByParticipant = new Map<string, { friendship: MatchedPerson[]; dating: MatchedPerson[] }>();
     const processed = new Set<string>();
 
     if (!isProfessional) {
@@ -610,17 +619,18 @@ const handler = async (req: Request): Promise<Response> => {
           if (matchedWith && selector) {
             const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
             const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
-            
+            const isSuperMatch = !!(sel as any).is_super_like || !!(reverse as any).is_super_like;
+
             if (!matchesByParticipant.has(sel.selector_id)) matchesByParticipant.set(sel.selector_id, { friendship: [], dating: [] });
             if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
-            
+
             if (hasFriendship) {
-              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email });
-              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email });
+              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email, isSuperMatch });
+              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email, isSuperMatch });
             }
             if (hasDating) {
-              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email });
-              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email });
+              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email, isSuperMatch });
+              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email, isSuperMatch });
             }
           }
           processed.add(key);
