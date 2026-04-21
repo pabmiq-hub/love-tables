@@ -1,105 +1,71 @@
 
+# Eventos de Prueba (Test Mode) — Plan Empresa
 
-## Ronda Preliminar — Plan completo con confirmación de participación
+Crear una opción para generar eventos de prueba con participantes ficticios, exclusiva del plan **Empresa**. Estos eventos quedan marcados como "test" y se excluyen de toda analítica/dashboard global.
 
-### Resumen
+## Cómo lo verás como administrador
 
-Implementar el sistema de confirmación para la ronda preliminar, gestión de mesas invalidadas por el admin, y mejoras de transición al inicio del evento. Los participantes confirman si realmente estuvieron en la ronda 0 antes de poder enviar selecciones de esa ronda.
+1. **En el listado "Mis Eventos"** y dentro de **Crear Nuevo Evento** aparecerá un botón pequeño junto al título: **"Modo prueba"** (icono FlaskConical).
+   - Solo visible para usuarios con plan **Empresa** (o Super Admin).
+   - Para otros planes mostrará un candado con tooltip "Disponible en el plan Empresa".
 
-### 1. Modelo de datos ampliado
+2. **Al activar el modo prueba**, el flujo de creación funciona igual, pero al final del wizard aparece un nuevo paso: **"Generación de participantes ficticios"**, donde podrás configurar:
+   - **Cantidad** de participantes a generar (por defecto: igual al `tableSize × rounds`).
+   - **Distribución demográfica** (% por género, rango de edad, preferencias) con sliders.
+   - **Idioma de los nombres** (español/inglés) y prefijo opcional (ej. `[TEST] Ana G.`).
+   - **Email de prueba**: opción de redirigir todos los correos a un email tuyo (single inbox) o desactivar envíos por completo.
+   - Para módulo **Profesional**: sectores, tamaños de empresa y necesidades/soluciones aleatorias.
 
-El campo `preliminary_round` en `events` pasa a tener esta estructura:
+3. **Identificación visual del evento de prueba**:
+   - Badge naranja **"PRUEBA"** en cabecera del evento, listado y dashboard.
+   - Banner informativo en el detalle: "Este evento es de prueba. No cuenta para analíticas globales."
+   - Los participantes ficticios llevan un badge **"Ficticio"** en su tarjeta.
 
+4. **Exclusión de analíticas globales**:
+   - El **Dashboard Home** (KPIs, sparklines, distribución por módulo, eventos recientes) ignora eventos de prueba.
+   - La sección **Analíticas** del dashboard del organizador ignora eventos de prueba.
+   - Las analíticas internas del propio evento de prueba **sí funcionan** (para que puedas testear el comportamiento).
+   - El **CRM/Usuarios globales** no incorpora a los participantes ficticios (no se crean `global_participants`).
+   - Las **campañas de remarketing** nunca verán estos contactos.
+
+5. **Acción adicional**: botón "Convertir a evento real" (solo si está en estado `pending`) que limpia los datos de prueba y desmarca el flag (con confirmación).
+
+## Cambios técnicos
+
+### Base de datos (migración)
+- `events`: nueva columna `is_test_event boolean NOT NULL DEFAULT false`.
+- `participants`: nueva columna `is_fake boolean NOT NULL DEFAULT false`.
+- Nueva feature `test_events` en tabla `features` (módulo `core`, categoría `enterprise`).
+- Asignar `test_events` a `plan_features` solo para el plan `enterprise`.
+
+### Frontend
+- **`src/pages/CreateEvent.tsx`**: 
+  - Añadir toggle "Modo prueba" en cabecera del wizard (gated con `hasFeature("test_events")`).
+  - Nuevo paso final "Configuración de prueba" si está activo.
+  - Generador local de participantes ficticios (nombres/emails/teléfonos sintéticos con prefijo `test+<uuid>@konektum.test`).
+  - Al insertar el evento: `is_test_event: true`; al insertar participants: `is_fake: true`, `marketing_consent: false`.
+- **`src/components/admin/DashboardEvents.tsx`**: 
+  - Botón secundario "Modo prueba" junto a "Nuevo Evento" que abre el flujo con `?testMode=1`.
+  - Badge "PRUEBA" en tarjetas de eventos con `is_test_event`.
+- **`src/pages/AdminDashboard.tsx`**: filtrar `events` y `participants` excluyendo `is_test_event` antes de calcular `stats` y pasarlos a `DashboardHome` y `DashboardAnalytics`. Al pasar a `DashboardEvents` enviar la lista completa (para que se vean ahí).
+- **`src/pages/EventDetail.tsx`**: mostrar banner naranja "Evento de prueba" + badge en cabecera + acción "Convertir a real".
+- **`src/components/event/ParticipantCard.tsx`**: badge "Ficticio" cuando `is_fake`.
+- **Edge functions de envío de emails** (`send-registration-confirmation`, `send-match-emails`, `send-checkin-code`, etc.): cortocircuito si `is_test_event === true` y `code_send_mode !== 'manual'` salvo que el organizador haya configurado un email de redirección (guardado en `events.professional_config` o nuevo campo `test_config jsonb`).
+- **Edge functions de CRM** (`register-participant`): no crear `global_participants` ni `participant_encounters` cuando el evento es de prueba.
+
+### Diagrama del flujo
 ```text
-{
-  enabled: true,
-  tables: [[{id, name}, ...], ...],
-  started_at: "2026-03-27T...",
-  closed_at: "2026-03-27T..." | null,
-  confirmations: { "participant-id": true/false },
-  dismissed_tables: [1, 3]  // índices de mesas invalidadas
-}
+Admin → "Mis eventos"
+        ├── [Nuevo Evento]   → wizard normal
+        └── [Modo Prueba 🧪]  → wizard normal + paso "Generar ficticios"
+                              → guarda event.is_test_event=true
+                              → participants.is_fake=true
+                              → emails bloqueados / redirigidos
+                              → excluido de stats globales
+                              → analítica interna del evento OK
 ```
 
-No requiere migración SQL — es el mismo campo `jsonb` existente. Solo se amplía la estructura del JSON.
-
-### 2. Nuevo edge function: `confirm-preliminary`
-
-- **Endpoint**: `supabase/functions/confirm-preliminary/index.ts`
-- **Input**: `{ eventId, verificationCode, confirmed: boolean }`
-- **Lógica**:
-  1. Valida código de verificación (6 dígitos) y eventId (UUID)
-  2. Busca al participante por `verification_code` + `event_id`
-  3. Lee `preliminary_round` del evento
-  4. Encuentra en qué mesa está el participante
-  5. Guarda `confirmations[participantId] = confirmed`
-  6. Si `confirmed === false` y **todos** los participantes de esa mesa también dijeron `false`, añade el índice de la mesa a `dismissed_tables`
-  7. Actualiza el campo `preliminary_round` en la tabla `events`
-
-### 3. Actualizar `get-table-assignments`
-
-- Filtrar mesas cuyo índice esté en `dismissed_tables` → no devolver esas asignaciones de ronda 0
-- Incluir un campo `preliminaryConfirmation` en la respuesta: `true`, `false`, o `null` (no respondido)
-- Si `confirmation === false`, no devolver la ronda 0 para ese participante
-
-### 4. Panel del participante (`ParticipantAccess.tsx`)
-
-**Flujo de confirmación:**
-
-```text
-Participante accede → carga asignaciones
-  ¿Tiene ronda 0?
-    NO → panel normal (solo rondas oficiales)
-    SÍ → ¿Ya confirmó?
-      true  → muestra ronda 0 + oficiales normalmente
-      false → oculta ronda 0
-      null  → Modal: "¿Participaste en la ronda de bienvenida?"
-              [Sí, participé] → llama confirm-preliminary(true), muestra ronda 0
-              [No participé]  → llama confirm-preliminary(false), oculta ronda 0
-```
-
-- El modal aparece al entrar en la pestaña "Selecciones" por primera vez
-- Estado local `preliminaryConfirmed: boolean | null` basado en la respuesta del edge function
-- La ronda 0 se muestra/oculta en ambas pestañas (mesas y selecciones)
-- Las selecciones de ronda 0 **pueden enviarse más tarde** igual que las rondas oficiales (dentro del plazo de selección del evento)
-
-### 5. Panel del administrador (`EventDetail.tsx`)
-
-**Dialog de transición al iniciar evento:**
-- Si `preliminary_round.enabled` y hay mesas creadas, el dialog "Iniciar evento" muestra:
-  > "Hay una ronda preliminar activa con X mesas y Y participantes. Al iniciar, la ronda preliminar se cerrará y se generarán las rondas oficiales."
-- Al confirmar: guarda `closed_at = now()` en el JSON antes de generar las rondas oficiales
-
-**Gestión de mesas invalidadas en pestaña Mesas:**
-- Mesas en `dismissed_tables`: se muestran con estilo gris/tachado + badge "Invalidada"
-- Botón "Recuperar mesa" en cada mesa invalidada → elimina el índice de `dismissed_tables` y resetea las confirmaciones negativas de esa mesa
-- Mesas activas muestran estado de confirmación: "2/4 confirmados", "Pendiente", etc.
-
-**Badge en lista de participantes:**
-- Si un participante tiene mesa preliminar asignada, mostrar badge "En mesa preliminar" junto a su nombre
-
-### 6. Matches (`MatchesDashboard.tsx`)
-
-- Al calcular matches, excluir selecciones donde el `selected_id` pertenece a una mesa en `dismissed_tables` de la ronda 0
-- Las selecciones de ronda 0 confirmadas se tratan exactamente igual que las de rondas oficiales
-
-### 7. Archivos a crear/modificar
-
-| Archivo | Acción |
-|---|---|
-| `supabase/functions/confirm-preliminary/index.ts` | **Crear** — endpoint de confirmación |
-| `supabase/config.toml` | Añadir `[functions.confirm-preliminary]` con `verify_jwt = false` |
-| `supabase/functions/get-table-assignments/index.ts` | Modificar — filtrar dismissed, incluir campo confirmación |
-| `src/pages/ParticipantAccess.tsx` | Modificar — modal de confirmación, lógica de visibilidad ronda 0 |
-| `src/pages/EventDetail.tsx` | Modificar — dialog transición, mesas invalidadas, badge participantes, botón recuperar |
-| `src/components/event/MatchesDashboard.tsx` | Modificar — excluir selecciones de mesas dismissed |
-
-### 8. Internacionalización
-
-Añadir traducciones en `src/i18n/translations.ts`:
-- "¿Participaste en la ronda de bienvenida?" / "Did you participate in the welcome round?"
-- "Sí, participé" / "Yes, I did"
-- "No participé" / "No, I didn't"
-- "Mesa invalidada" / "Table invalidated"
-- "Recuperar mesa" / "Recover table"
-
+## Notas y limitaciones
+- Los eventos de prueba **sí cuentan** contra el límite `max_active_events` del plan (para evitar abuso). Si quieres que no cuente, indícalo y lo ajusto.
+- Los participantes ficticios **no podrán** acceder al portal `/access` real (sin email válido), pero podrás simular check-in manual desde el panel para probar mesas, rondas y matches.
+- La conversión "prueba → real" eliminará todos los participantes ficticios y reseteará selecciones/encuentros del evento.
