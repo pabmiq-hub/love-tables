@@ -410,6 +410,49 @@ const ParticipantAccess = () => {
     );
   };
 
+  const openSuperLikeDialog = (participantId: string, name: string, round: number) => {
+    if (hasSentSuperLike) return;
+    const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
+    if (!ms || ms.alreadySelected) return;
+    setSuperLikeTarget({ id: participantId, name, round });
+  };
+
+  const confirmSuperLike = () => {
+    if (!superLikeTarget) return;
+    setIsSendingSuperLike(true);
+    // Mark as super-liked locally + force friendship as base selection
+    setMatchSelections(prev =>
+      prev.map(ms =>
+        ms.participantId === superLikeTarget.id
+          ? { ...ms, superLikedByMe: true, friendship: true }
+          : ms
+      )
+    );
+    setHasSentSuperLike(true);
+
+    // Confetti burst (golden)
+    try {
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#fbbf24', '#f59e0b', '#fcd34d', '#fde68a'],
+        scalar: 1.1,
+      });
+    } catch {}
+
+    toast({
+      title: eventLang === 'en' ? '⭐ Super Like marked' : '⭐ Super Like marcado',
+      description: eventLang === 'en'
+        ? "It will be sent when you submit your selections."
+        : "Se enviará cuando confirmes tus selecciones.",
+    });
+
+    setSuperLikeTarget(null);
+    setIsSendingSuperLike(false);
+  };
+
+
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
       case 'friendship': return t.access.friendship;
