@@ -593,8 +593,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Find mutual matches (for social events)
-    const matchesByParticipant = new Map<string, { friendship: { name: string; phone: string | null; email: string | null }[]; dating: { name: string; phone: string | null; email: string | null }[] }>();
+    // Find mutual matches (for social events). Track super-likes from EITHER side.
+    type MatchedPerson = { name: string; phone: string | null; email: string | null; isSuperMatch: boolean };
+    const matchesByParticipant = new Map<string, { friendship: MatchedPerson[]; dating: MatchedPerson[] }>();
     const processed = new Set<string>();
 
     if (!isProfessional) {
@@ -610,17 +611,18 @@ const handler = async (req: Request): Promise<Response> => {
           if (matchedWith && selector) {
             const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
             const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
-            
+            const isSuperMatch = !!(sel as any).is_super_like || !!(reverse as any).is_super_like;
+
             if (!matchesByParticipant.has(sel.selector_id)) matchesByParticipant.set(sel.selector_id, { friendship: [], dating: [] });
             if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
-            
+
             if (hasFriendship) {
-              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email });
-              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email });
+              matchesByParticipant.get(sel.selector_id)!.friendship.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email, isSuperMatch });
+              matchesByParticipant.get(sel.selected_id)!.friendship.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email, isSuperMatch });
             }
             if (hasDating) {
-              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email });
-              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email });
+              matchesByParticipant.get(sel.selector_id)!.dating.push({ name: formatAnonymousName(matchedWith.name), phone: matchedWith.phone, email: matchedWith.email, isSuperMatch });
+              matchesByParticipant.get(sel.selected_id)!.dating.push({ name: formatAnonymousName(selector.name), phone: selector.phone, email: selector.email, isSuperMatch });
             }
           }
           processed.add(key);
