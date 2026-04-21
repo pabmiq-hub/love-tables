@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw } from "lucide-react";
+import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical } from "lucide-react";
 import InlineEmailEditor from "./InlineEmailEditor";
 import { normalizePreference } from "@/lib/analyticsNormalization";
 
@@ -32,6 +32,7 @@ interface ParticipantCardProps {
     created_at?: string;
     dating_preference?: string | null;
     is_returning_participant?: boolean | null;
+    is_fake?: boolean | null;
   };
   index: number;
   isProfessional: boolean;
@@ -102,7 +103,18 @@ const ParticipantCard = ({
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <h4 className="font-semibold text-sm truncate">{participant.name}</h4>
-            {participant.is_returning_participant ? (
+            {participant.is_fake && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-300 border-orange-300 dark:border-orange-800/50 shrink-0">
+                    <FlaskConical className="w-2.5 h-2.5 mr-0.5" />
+                    Ficticio
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Participante generado para pruebas</TooltipContent>
+              </Tooltip>
+            )}
+            {!participant.is_fake && participant.is_returning_participant ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/50 shrink-0">
@@ -112,7 +124,7 @@ const ParticipantCard = ({
                 </TooltipTrigger>
                 <TooltipContent>Ha participado en eventos anteriores</TooltipContent>
               </Tooltip>
-            ) : (
+            ) : !participant.is_fake ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shrink-0">
@@ -122,7 +134,7 @@ const ParticipantCard = ({
                 </TooltipTrigger>
                 <TooltipContent>Primera vez que participa</TooltipContent>
               </Tooltip>
-            )}
+            ) : null}
             {participant.checked_in && (
               <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4 bg-primary/90 shrink-0">
                 Check-in
