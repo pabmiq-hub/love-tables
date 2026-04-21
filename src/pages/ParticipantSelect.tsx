@@ -447,6 +447,14 @@ const ParticipantSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+      <SuperLikeOnboarding open={showOnboarding} onClose={() => setShowOnboarding(false)} language={eventLang} />
+      <SuperLikeConfirmDialog
+        open={!!confirmSuperLikeFor}
+        onClose={() => setConfirmSuperLikeFor(null)}
+        onConfirm={confirmSuperLike}
+        recipientName={confirmSuperLikeFor?.name || ""}
+        language={eventLang}
+      />
       <Link to={`/event/${eventId}/access`} className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4" />
         {t.access.back}
@@ -455,6 +463,12 @@ const ParticipantSelect = () => {
       <div className="mb-8 animate-fade-in">
         <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} />
       </div>
+
+      {step === "select" && hasReceivedSuperLike && (
+        <div className="w-full max-w-md mb-4">
+          <SuperLikeBanner language={eventLang} variant="received" />
+        </div>
+      )}
 
       {step === "completed" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">
