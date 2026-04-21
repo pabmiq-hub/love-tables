@@ -252,6 +252,20 @@ const EventDetail = () => {
       if (participantsData) {
         setParticipants(participantsData);
       }
+
+      // Also refresh preliminary_round so admin sees auto-assigned tables in real time
+      const { data: eventRow } = await supabase
+        .from("events")
+        .select("preliminary_round")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (eventRow) {
+        setEventData(prev => prev ? {
+          ...prev,
+          preliminary_round: (eventRow as any).preliminary_round as EventData['preliminary_round'] ?? null,
+        } : prev);
+      }
     };
 
     const interval = setInterval(refreshParticipants, 3000);
