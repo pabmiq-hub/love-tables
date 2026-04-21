@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import konektumLogo from "@/assets/konektum-logo.png";
 import { translations, Language } from "@/i18n/translations";
+import SuperLikeBanner from "@/components/ui/super-like-banner";
+import { Star } from "lucide-react";
 
 interface MatchSelection {
   participantId: string;
@@ -42,6 +44,7 @@ interface TableAssignment {
 interface ExistingSelection {
   selected_id: string;
   selection_type: string;
+  is_super_like?: boolean;
 }
 
 type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "not_started" | "expired";
@@ -94,6 +97,7 @@ const ParticipantAccess = () => {
   const [tableAssignments, setTableAssignments] = useState<TableAssignment[]>([]);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
+  const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
 
   // Timer state
   const [timerData, setTimerData] = useState<{
