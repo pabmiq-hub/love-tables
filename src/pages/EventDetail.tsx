@@ -1871,18 +1871,12 @@ const EventDetail = () => {
       .from("events")
       .update({ participants_count: participants.length + 1 })
       .eq("id", id);
-    
-    // If event is active with tables, open table assignment modal
-    if (eventStatus === "active" && eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
-      setPendingNewParticipant(newParticipant);
-      setShowTableAssignmentModal(true);
-    } else {
-      toast({
-        title: "Participante añadido",
-        description: autoCheckin 
-          ? `${participant.name} ha sido añadido y confirmado automáticamente (evento activo)`
-          : `${participant.name} ha sido añadido al evento`,
-      });
+
+    // Auto-assign to preliminary tables if checked-in and prelim enabled
+    if (autoCheckin && id) {
+      const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+      await assignParticipantsToPreliminaryTables(id, [{ id: newParticipant.id, name: newParticipant.name }]);
+    }
     }
 
     // Auto-send emails if participant has email
