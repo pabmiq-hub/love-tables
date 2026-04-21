@@ -1877,6 +1877,18 @@ const EventDetail = () => {
       const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
       await assignParticipantsToPreliminaryTables(id, [{ id: newParticipant.id, name: newParticipant.name }]);
     }
+
+    // If event is active with tables, open table assignment modal
+    if (eventStatus === "active" && eventData?.tables && Array.isArray(eventData.tables) && eventData.tables.length > 0) {
+      setPendingNewParticipant(newParticipant);
+      setShowTableAssignmentModal(true);
+    } else {
+      toast({
+        title: "Participante añadido",
+        description: autoCheckin 
+          ? `${participant.name} ha sido añadido y confirmado automáticamente (evento activo)`
+          : `${participant.name} ha sido añadido al evento`,
+      });
     }
 
     // Auto-send emails if participant has email
