@@ -1780,6 +1780,15 @@ const EventDetail = () => {
         .update({ participants_count: participants.length + newParticipants.length })
         .eq("id", id);
 
+      // Auto-assign to preliminary tables if checked-in and prelim enabled
+      if (autoCheckin && id) {
+        const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+        await assignParticipantsToPreliminaryTables(
+          id,
+          newParticipants.map((p: any) => ({ id: p.id, name: p.name }))
+        );
+      }
+
       // Auto-send codes to participants with email
       const withEmail = newParticipants.filter((p: any) => p.email);
       if (withEmail.length > 0) {
