@@ -342,20 +342,35 @@ const ParticipantSelect = () => {
     return state.friendship || state.dating || state.alreadySelected;
   };
 
-  const toggleSuperLike = (participantId: string) => {
-    if (existingSuperLike) {
+  const requestSuperLike = (participantId: string, name: string) => {
+    if (existingSuperLike || superLikeId) {
       toast({
-        title: eventLang === "es" ? "Super Like ya usado" : "Super Like already used",
-        description: eventLang === "es" ? "Ya has enviado tu Super Like en este evento" : "You already used your Super Like in this event",
+        title: eventLang === "es" ? "Super Like ya asignado" : "Super Like already assigned",
+        description: eventLang === "es" ? "Solo puedes dar 1 Super Like por evento" : "You can only give 1 Super Like per event",
         variant: "destructive",
       });
       return;
     }
-    if (superLikeId === participantId) {
-      setSuperLikeId(null);
-    } else {
-      setSuperLikeId(participantId);
-    }
+    setConfirmSuperLikeFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmSuperLike = () => {
+    if (!confirmSuperLikeFor) return;
+    setSuperLikeId(confirmSuperLikeFor.id);
+    // Confetti burst
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#fbbf24", "#f59e0b", "#fde68a", "#ffffff"],
+    });
+    toast({
+      title: eventLang === "es" ? "⭐ Super Like asignado" : "⭐ Super Like assigned",
+      description: eventLang === "es"
+        ? "Se enviará al confirmar tus selecciones"
+        : "It will be sent when you confirm your selections",
+    });
+    setConfirmSuperLikeFor(null);
   };
 
   const getPreviousSelectionLabel = (type?: string): string => {
