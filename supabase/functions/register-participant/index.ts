@@ -187,7 +187,7 @@ serve(async (req) => {
       // Get event
       const { data: event, error: eventError } = await supabase
         .from('events')
-        .select('id, name, status, date, event_time, module, organizer_id, registration_open, waitlist_enabled, code_send_mode')
+        .select('id, name, status, date, event_time, module, organizer_id, registration_open, waitlist_enabled, code_send_mode, is_test_event')
         .eq('id', eventId)
         .single();
 
@@ -195,6 +195,13 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Evento no encontrado' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if ((event as any).is_test_event) {
+        return new Response(
+          JSON.stringify({ error: 'Las inscripciones públicas están deshabilitadas para este evento de prueba' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
