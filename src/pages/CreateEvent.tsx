@@ -573,13 +573,49 @@ const CreateEvent = () => {
       {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold mb-2">Crear Nuevo Evento</h1>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h1 className="font-display text-3xl font-bold">
+              {isTestMode ? "Crear Evento de Prueba" : "Crear Nuevo Evento"}
+            </h1>
+            {canUseTestMode ? (
+              <Button
+                variant={isTestMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsTestMode((v) => !v)}
+                className={isTestMode ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500" : "border-orange-500/40 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"}
+              >
+                <FlaskConical className="w-4 h-4 mr-2" />
+                {isTestMode ? "Modo prueba activo" : "Modo prueba"}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="outline" size="sm" disabled className="opacity-60">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Modo prueba
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Disponible en el plan Empresa</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <p className="text-muted-foreground">
-            {eventModule === "social" 
-              ? "Configura los detalles de tu actividad de conexión social"
-              : "Configura los detalles de tu networking B2B"
-            }
+            {isTestMode
+              ? "Este evento se marcará como prueba. Los participantes generados no aparecerán en analíticas globales ni en el CRM."
+              : eventModule === "social"
+                ? "Configura los detalles de tu actividad de conexión social"
+                : "Configura los detalles de tu networking B2B"}
           </p>
+          {isTestMode && (
+            <div className="mt-3 p-3 rounded-lg border border-orange-500/30 bg-orange-50 dark:bg-orange-950/20 flex items-start gap-2">
+              <FlaskConical className="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-orange-800 dark:text-orange-200">
+                <strong>Modo prueba activo:</strong> en el último paso podrás generar participantes ficticios con check-in automático. Los emails están deshabilitados por defecto y las inscripciones del público quedan cerradas.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Progress indicator */}
