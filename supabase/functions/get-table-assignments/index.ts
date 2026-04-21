@@ -278,7 +278,11 @@ serve(async (req) => {
     const existingSelections = (selectionsResult.data || []).map((s: any) => ({
       selected_id: s.selected_id,
       selection_type: s.selection_type,
+      is_super_like: !!s.is_super_like,
     }));
+
+    const hasSentSuperLike = !!(sentSuperLikeResult.data && sentSuperLikeResult.data.length > 0);
+    const hasReceivedSuperLike = !!(receivedSuperLikeResult.data && receivedSuperLikeResult.data.length > 0);
 
     console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
@@ -293,6 +297,8 @@ serve(async (req) => {
         currentRound,
         totalRounds: event.rounds,
         preliminaryConfirmation,
+        hasSentSuperLike,
+        hasReceivedSuperLike,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,
