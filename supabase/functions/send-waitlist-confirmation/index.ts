@@ -60,7 +60,7 @@ serve(async (req) => {
     // Get event details
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id, name, date, language, event_time, event_location, organizer_id, email_template")
+      .select("id, name, date, language, event_time, event_location, organizer_id, email_template, is_test_event, test_config")
       .eq("id", eventId)
       .single();
 
@@ -70,6 +70,19 @@ serve(async (req) => {
         JSON.stringify({ error: "Evento no encontrado" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Test event: short-circuit
+    if ((event as any).is_test_event) {
+      const testConfig = (event as any).test_config || {};
+      const redirect = typeof testConfig.redirectEmail === 'string' ? testConfig.redirectEmail.trim() : '';
+      if (!redirect || testConfig.disableEmails === true) {
+        console.log(`[send-waitlist-confirmation] Skipped: event ${eventId} is in test mode`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "test_event" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const lang = event.language || 'es';
