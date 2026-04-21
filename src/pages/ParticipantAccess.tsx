@@ -817,6 +817,15 @@ const ParticipantAccess = () => {
               </TabsContent>
 
               <TabsContent value="selections" className="space-y-4 mt-4">
+                {hasReceivedSuperLike && (
+                  <SuperLikeBanner language={eventLang} variant="received" />
+                )}
+                {hasSentSuperLike && (
+                  <div className="flex items-center justify-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md py-2 px-3">
+                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                    {eventLang === 'en' ? 'You have used your Super Like ⭐' : 'Has usado tu Super Like ⭐'}
+                  </div>
+                )}
                 {eventStatus === 'completed' && (
                   <div className="bg-green-500/10 rounded-lg p-3 text-center">
                     <p className="text-sm text-green-700 dark:text-green-300 font-medium">{t.access.eventEndedSelect}</p>
