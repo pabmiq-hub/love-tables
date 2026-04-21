@@ -506,8 +506,11 @@ const ParticipantAccess = () => {
       return { selected_id: ms.participantId, selection_type: selectionType };
     });
 
+    const superLikedSelection = matchSelections.find(ms => !ms.alreadySelected && ms.superLikedByMe);
+    const superLikeId = superLikedSelection?.participantId;
+
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections }
+      body: { eventId, verificationCode, selections, superLikeId }
     });
 
     if (error || data?.error) {
