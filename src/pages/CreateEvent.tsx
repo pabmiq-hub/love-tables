@@ -561,6 +561,7 @@ const CreateEvent = () => {
   }
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background">
       {/* Header */}
       <BrandedHeader
