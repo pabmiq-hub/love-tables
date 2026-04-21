@@ -12,6 +12,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { BrandedLogo } from "@/components/BrandedHeader";
 import { useEventBranding } from "@/hooks/useEventBranding";
 import { translations, Language } from "@/i18n/translations";
+import confetti from "canvas-confetti";
+import SuperLikeOnboarding from "@/components/ui/super-like-onboarding";
+import SuperLikeBanner from "@/components/ui/super-like-banner";
+import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 
 interface Participant {
   id: string;
