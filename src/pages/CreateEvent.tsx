@@ -348,6 +348,18 @@ const CreateEvent = () => {
       registration_template_id: registrationTemplateId,
     } : null;
     
+    // Build test_config if test mode is active
+    const testConfigPayload = isTestMode
+      ? ({
+          generated_count: participants.length,
+          name_language: fakeNameLanguage,
+          name_prefix: fakeNamePrefix,
+          redirect_email: fakeRedirectEmail.trim() || null,
+          disable_emails: fakeDisableEmails,
+          generated_at: new Date().toISOString(),
+        } as unknown as Json)
+      : null;
+
     // Create event in database with organizer_id
     const eventInsertData = {
       name: eventName,
@@ -379,6 +391,10 @@ const CreateEvent = () => {
       custom_registration_form: customFormEnabled && customFormFields.length > 0
         ? { fields: customFormFields, formMode: "custom" } as unknown as Json
         : null,
+      is_test_event: isTestMode,
+      test_config: testConfigPayload,
+      // For test events, close registration immediately so no real users can join
+      registration_open: !isTestMode,
     };
 
     const { data: eventData, error: eventError } = await supabase
