@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit } from "lucide-react";
+import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit, FlaskConical } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { generateFakeParticipants, type FakeGenConfig } from "@/lib/fakeParticipantGenerator";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +25,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
 
@@ -33,10 +36,29 @@ type RegistrationFormMode = "auto" | "template" | "custom";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const { hasFeature, isSuperAdmin } = useFeatures();
   const { hasModule, organizer, loading: organizerLoading, branding, canCreateEvent: canCreateNewEvent, limits } = useOrganizer();
+
+  // Test mode (Enterprise plan only) - read from URL param
+  const canUseTestMode = hasFeature("test_events") || isSuperAdmin;
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [fakeCount, setFakeCount] = useState(8);
+  const [fakeMalePct, setFakeMalePct] = useState(50);
+  const [fakeFemalePct, setFakeFemalePct] = useState(50);
+  const [fakeNamePrefix, setFakeNamePrefix] = useState("[TEST] ");
+  const [fakeNameLanguage, setFakeNameLanguage] = useState<"es" | "en">("es");
+  const [fakeRedirectEmail, setFakeRedirectEmail] = useState("");
+  const [fakeDisableEmails, setFakeDisableEmails] = useState(true);
+
+  // Initialize test mode from URL once auth is ready
+  useEffect(() => {
+    if (canUseTestMode && searchParams.get("testMode") === "1") {
+      setIsTestMode(true);
+    }
+  }, [canUseTestMode, searchParams]);
 
   // Detect available modules
   const hasSocialModule = hasModule("social") || isSuperAdmin;
@@ -327,6 +349,18 @@ const CreateEvent = () => {
       registration_template_id: registrationTemplateId,
     } : null;
     
+    // Build test_config if test mode is active
+    const testConfigPayload = isTestMode
+      ? ({
+          generated_count: participants.length,
+          name_language: fakeNameLanguage,
+          name_prefix: fakeNamePrefix,
+          redirect_email: fakeRedirectEmail.trim() || null,
+          disable_emails: fakeDisableEmails,
+          generated_at: new Date().toISOString(),
+        } as unknown as Json)
+      : null;
+
     // Create event in database with organizer_id
     const eventInsertData = {
       name: eventName,
@@ -358,6 +392,10 @@ const CreateEvent = () => {
       custom_registration_form: customFormEnabled && customFormFields.length > 0
         ? { fields: customFormFields, formMode: "custom" } as unknown as Json
         : null,
+      is_test_event: isTestMode,
+      test_config: testConfigPayload,
+      // For test events, close registration immediately so no real users can join
+      registration_open: !isTestMode,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -397,6 +435,11 @@ const CreateEvent = () => {
         needs: p.needs || null,
         solutions: p.solutions || null,
         business_interests: p.businessInterests ? [p.businessInterests] : null,
+        // Test mode fields
+        is_fake: isTestMode,
+        // Auto-checkin fake participants so the organizer can immediately test rounds & matches
+        checked_in: isTestMode ? true : undefined,
+        marketing_consent: isTestMode ? false : undefined,
       }));
       
       const { error: participantsError } = await supabase
@@ -443,8 +486,8 @@ const CreateEvent = () => {
       return;
     }
     
-    // Validate step 4 (participant mode)
-    if (step === 4 && !participantMode) {
+    // Validate step 4 (participant mode) - skipped in test mode
+    if (step === 4 && !isTestMode && !participantMode) {
       toast({
         title: "Error",
         description: "Por favor, selecciona una opción",
@@ -518,6 +561,7 @@ const CreateEvent = () => {
   }
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background">
       {/* Header */}
       <BrandedHeader
@@ -531,13 +575,49 @@ const CreateEvent = () => {
       {/* Main content */}
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold mb-2">Crear Nuevo Evento</h1>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h1 className="font-display text-3xl font-bold">
+              {isTestMode ? "Crear Evento de Prueba" : "Crear Nuevo Evento"}
+            </h1>
+            {canUseTestMode ? (
+              <Button
+                variant={isTestMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsTestMode((v) => !v)}
+                className={isTestMode ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500" : "border-orange-500/40 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30"}
+              >
+                <FlaskConical className="w-4 h-4 mr-2" />
+                {isTestMode ? "Modo prueba activo" : "Modo prueba"}
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="outline" size="sm" disabled className="opacity-60">
+                      <Lock className="w-4 h-4 mr-2" />
+                      Modo prueba
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Disponible en el plan Empresa</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <p className="text-muted-foreground">
-            {eventModule === "social" 
-              ? "Configura los detalles de tu actividad de conexión social"
-              : "Configura los detalles de tu networking B2B"
-            }
+            {isTestMode
+              ? "Este evento se marcará como prueba. Los participantes generados no aparecerán en analíticas globales ni en el CRM."
+              : eventModule === "social"
+                ? "Configura los detalles de tu actividad de conexión social"
+                : "Configura los detalles de tu networking B2B"}
           </p>
+          {isTestMode && (
+            <div className="mt-3 p-3 rounded-lg border border-orange-500/30 bg-orange-50 dark:bg-orange-950/20 flex items-start gap-2">
+              <FlaskConical className="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-orange-800 dark:text-orange-200">
+                <strong>Modo prueba activo:</strong> en el último paso podrás generar participantes ficticios con check-in automático. Los emails están deshabilitados por defecto y las inscripciones del público quedan cerradas.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Progress indicator */}
@@ -1370,14 +1450,112 @@ const CreateEvent = () => {
         {step === 5 && (
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Añadir participantes</CardTitle>
+              <CardTitle>{isTestMode ? "Generar participantes ficticios" : "Añadir participantes"}</CardTitle>
               <CardDescription>
-                {participantMode === "manual" && "Añade los participantes manualmente"}
-                {participantMode === "excel" && "Carga el archivo Excel con los participantes"}
-                {participantMode === "both" && "Carga el Excel y añade más participantes si lo necesitas"}
+                {isTestMode
+                  ? "Configura cuántos participantes ficticios quieres generar para probar el evento."
+                  : participantMode === "manual" ? "Añade los participantes manualmente"
+                  : participantMode === "excel" ? "Carga el archivo Excel con los participantes"
+                  : "Carga el Excel y añade más participantes si lo necesitas"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Test mode generator panel */}
+              {isTestMode && (
+                <div className="space-y-4 p-4 rounded-lg border-2 border-orange-500/30 bg-orange-50/50 dark:bg-orange-950/10">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-orange-500" />
+                    <h4 className="font-semibold">Configuración de prueba</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cantidad de participantes ficticios: {fakeCount}</Label>
+                    <Slider value={[fakeCount]} onValueChange={(v) => setFakeCount(v[0])} min={2} max={60} step={1} />
+                  </div>
+
+                  {eventModule === "social" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Distribución por género</Label>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Hombres: {fakeMalePct}%</p>
+                            <Slider value={[fakeMalePct]} onValueChange={(v) => { const m = v[0]; setFakeMalePct(m); if (m + fakeFemalePct > 100) setFakeFemalePct(100 - m); }} min={0} max={100} step={5} />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Mujeres: {fakeFemalePct}%</p>
+                            <Slider value={[fakeFemalePct]} onValueChange={(v) => { const f = Math.min(v[0], 100 - fakeMalePct); setFakeFemalePct(f); }} min={0} max={100} step={5} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">No binario: {Math.max(0, 100 - fakeMalePct - fakeFemalePct)}%</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Idioma de los nombres</Label>
+                      <Select value={fakeNameLanguage} onValueChange={(v) => setFakeNameLanguage(v as "es" | "en")}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="es">🇪🇸 Español</SelectItem>
+                          <SelectItem value="en">🇬🇧 English</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prefijo (opcional)</Label>
+                      <Input value={fakeNamePrefix} onChange={(e) => setFakeNamePrefix(e.target.value)} placeholder="[TEST] " />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email de redirección (opcional)</Label>
+                    <Input type="email" value={fakeRedirectEmail} onChange={(e) => setFakeRedirectEmail(e.target.value)} placeholder="tu-email@ejemplo.com" />
+                    <p className="text-xs text-muted-foreground">Si lo rellenas, todos los correos del evento se enviarán a esta dirección. Déjalo en blanco y activa "deshabilitar emails" para no enviar nada.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-md bg-background/50 border">
+                    <div>
+                      <Label htmlFor="disable-emails" className="text-sm font-medium cursor-pointer">Deshabilitar todos los emails</Label>
+                      <p className="text-xs text-muted-foreground">No se enviará ningún correo a los participantes ficticios</p>
+                    </div>
+                    <Switch id="disable-emails" checked={fakeDisableEmails} onCheckedChange={setFakeDisableEmails} />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-orange-500/40"
+                    onClick={() => {
+                      const cfg: FakeGenConfig = {
+                        count: fakeCount,
+                        malePct: fakeMalePct,
+                        femalePct: fakeFemalePct,
+                        language: fakeNameLanguage,
+                        prefix: fakeNamePrefix,
+                        redirectEmail: fakeRedirectEmail.trim() || null,
+                        disableEmails: fakeDisableEmails,
+                        ageRanges: eventPreferences.ageRanges,
+                        preferences: eventPreferences.preferences,
+                        datingPreferences: eventPreferences.datingPreferences,
+                        isProfessional: eventModule === "professional",
+                        sectors: professionalPreferences.sectors,
+                        companySizes: professionalPreferences.companySizes,
+                        predefinedNeeds: professionalPreferences.predefinedNeeds,
+                        predefinedSolutions: professionalPreferences.predefinedSolutions,
+                      };
+                      const generated = generateFakeParticipants(cfg);
+                      setParticipants(generated as unknown as Participant[]);
+                      toast({ title: "Participantes generados", description: `${generated.length} participantes ficticios creados` });
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {participants.length > 0 ? "Regenerar" : "Generar"} {fakeCount} participantes ficticios
+                  </Button>
+                </div>
+              )}
+
               {/* Excel upload */}
               {(participantMode === "excel" || participantMode === "both") && (
                 <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
@@ -1548,6 +1726,7 @@ const CreateEvent = () => {
         )}
       </main>
     </div>
+    </TooltipProvider>
   );
 };
 
