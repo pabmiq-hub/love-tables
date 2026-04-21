@@ -215,17 +215,32 @@ const ParticipantSelect = () => {
       setTablesData(tables);
       setExistingSelections(allExistingSelections);
 
-      // Check if participant already used their super like
+      // Check if participant already used their super like + received any
       if (superLikeEnabled && verifiedParticipant) {
-        const { data: superLikes } = await supabase
-          .from('participant_selections')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('selector_id', verifiedParticipant.id)
-          .eq('is_super_like', true)
-          .limit(1);
-        if (superLikes && superLikes.length > 0) {
-          setExistingSuperLike(true);
+        const [sentRes, receivedRes] = await Promise.all([
+          supabase
+            .from('participant_selections')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('selector_id', verifiedParticipant.id)
+            .eq('is_super_like', true)
+            .limit(1),
+          supabase
+            .from('participant_selections')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('selected_id', verifiedParticipant.id)
+            .eq('is_super_like', true)
+            .limit(1),
+        ]);
+        if (sentRes.data && sentRes.data.length > 0) setExistingSuperLike(true);
+        if (receivedRes.data && receivedRes.data.length > 0) setHasReceivedSuperLike(true);
+
+        // Show onboarding once per event
+        const onboardingKey = `superlike_onboarded_${eventId}`;
+        if (!localStorage.getItem(onboardingKey)) {
+          setShowOnboarding(true);
+          localStorage.setItem(onboardingKey, "1");
         }
       }
 
