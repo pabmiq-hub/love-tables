@@ -1628,6 +1628,7 @@ const CreateEvent = () => {
         )}
       </main>
     </div>
+    </TooltipProvider>
   );
 };
 
