@@ -1,71 +1,85 @@
 
-# Eventos de Prueba (Test Mode) — Plan Empresa
 
-Crear una opción para generar eventos de prueba con participantes ficticios, exclusiva del plan **Empresa**. Estos eventos quedan marcados como "test" y se excluyen de toda analítica/dashboard global.
+# Super Like — Estado actual y propuesta para hacerlo más atractivo
 
-## Cómo lo verás como administrador
+## Cómo está implementado HOY (resumen)
 
-1. **En el listado "Mis Eventos"** y dentro de **Crear Nuevo Evento** aparecerá un botón pequeño junto al título: **"Modo prueba"** (icono FlaskConical).
-   - Solo visible para usuarios con plan **Empresa** (o Super Admin).
-   - Para otros planes mostrará un candado con tooltip "Disponible en el plan Empresa".
+El Super Like ya existe en la plataforma, pero está prácticamente "escondido". Te cuento dónde aparece:
 
-2. **Al activar el modo prueba**, el flujo de creación funciona igual, pero al final del wizard aparece un nuevo paso: **"Generación de participantes ficticios"**, donde podrás configurar:
-   - **Cantidad** de participantes a generar (por defecto: igual al `tableSize × rounds`).
-   - **Distribución demográfica** (% por género, rango de edad, preferencias) con sliders.
-   - **Idioma de los nombres** (español/inglés) y prefijo opcional (ej. `[TEST] Ana G.`).
-   - **Email de prueba**: opción de redirigir todos los correos a un email tuyo (single inbox) o desactivar envíos por completo.
-   - Para módulo **Profesional**: sectores, tamaños de empresa y necesidades/soluciones aleatorias.
+**1. Activación (organizador)**
+- Ajustes del evento → toggle `super_like_enabled` (solo módulo Social).
+- Si está activo, los participantes pueden dar **1 super like por evento**.
 
-3. **Identificación visual del evento de prueba**:
-   - Badge naranja **"PRUEBA"** en cabecera del evento, listado y dashboard.
-   - Banner informativo en el detalle: "Este evento es de prueba. No cuenta para analíticas globales."
-   - Los participantes ficticios llevan un badge **"Ficticio"** en su tarjeta.
+**2. Experiencia del participante (`/select`)**
+- En la pestaña **"Selecciones"**, dentro de la tarjeta de cada compañero/a aparece una pequeña **estrella ámbar** a la derecha (icono `Star`, ~20px). Esa es la única pista visual.
+- Si ya lo usaste, la estrella desaparece y se muestra un texto diminuto.
+- Mensaje hint: "Puedes dar 1 Super Like por evento — el destinatario recibirá una notificación anónima".
 
-4. **Exclusión de analíticas globales**:
-   - El **Dashboard Home** (KPIs, sparklines, distribución por módulo, eventos recientes) ignora eventos de prueba.
-   - La sección **Analíticas** del dashboard del organizador ignora eventos de prueba.
-   - Las analíticas internas del propio evento de prueba **sí funcionan** (para que puedas testear el comportamiento).
-   - El **CRM/Usuarios globales** no incorpora a los participantes ficticios (no se crean `global_participants`).
-   - Las **campañas de remarketing** nunca verán estos contactos.
+**3. Notificación al destinatario**
+- Edge function `send-super-like-notification` envía un email anónimo: *"✨ ¡Alguien te ha seleccionado en {evento}!"* con CTA para entrar al panel.
+- El receptor **no sabe quién** ha sido el remitente (gamificación de anticipación).
 
-5. **Acción adicional**: botón "Convertir a evento real" (solo si está en estado `pending`) que limpia los datos de prueba y desmarca el flag (con confirmación).
+**4. Analíticas**
+- Se guarda `is_super_like = true` en `participant_selections`. Visible en analíticas sociales del evento.
 
-## Cambios técnicos
+## Por qué hoy no resulta atractivo
 
-### Base de datos (migración)
-- `events`: nueva columna `is_test_event boolean NOT NULL DEFAULT false`.
-- `participants`: nueva columna `is_fake boolean NOT NULL DEFAULT false`.
-- Nueva feature `test_events` en tabla `features` (módulo `core`, categoría `enterprise`).
-- Asignar `test_events` a `plan_features` solo para el plan `enterprise`.
+Mirando tu pantallazo del panel del participante, el problema salta a la vista:
+- La estrella es pequeña, sin color llamativo, sin animación, sin storytelling.
+- No hay un "momento" especial al usar el super like (sin confirmación visual potente).
+- El receptor recibe un correo, pero **dentro de la app no hay ningún feedback** ("alguien te ha dado un super like" antes de elegir).
+- No se comunica la mecánica al inicio (los usuarios ni se enteran de que existe).
+- No hay límite temporal ni escasez percibida más allá del "1 por evento".
 
-### Frontend
-- **`src/pages/CreateEvent.tsx`**: 
-  - Añadir toggle "Modo prueba" en cabecera del wizard (gated con `hasFeature("test_events")`).
-  - Nuevo paso final "Configuración de prueba" si está activo.
-  - Generador local de participantes ficticios (nombres/emails/teléfonos sintéticos con prefijo `test+<uuid>@konektum.test`).
-  - Al insertar el evento: `is_test_event: true`; al insertar participants: `is_fake: true`, `marketing_consent: false`.
-- **`src/components/admin/DashboardEvents.tsx`**: 
-  - Botón secundario "Modo prueba" junto a "Nuevo Evento" que abre el flujo con `?testMode=1`.
-  - Badge "PRUEBA" en tarjetas de eventos con `is_test_event`.
-- **`src/pages/AdminDashboard.tsx`**: filtrar `events` y `participants` excluyendo `is_test_event` antes de calcular `stats` y pasarlos a `DashboardHome` y `DashboardAnalytics`. Al pasar a `DashboardEvents` enviar la lista completa (para que se vean ahí).
-- **`src/pages/EventDetail.tsx`**: mostrar banner naranja "Evento de prueba" + badge en cabecera + acción "Convertir a real".
-- **`src/components/event/ParticipantCard.tsx`**: badge "Ficticio" cuando `is_fake`.
-- **Edge functions de envío de emails** (`send-registration-confirmation`, `send-match-emails`, `send-checkin-code`, etc.): cortocircuito si `is_test_event === true` y `code_send_mode !== 'manual'` salvo que el organizador haya configurado un email de redirección (guardado en `events.professional_config` o nuevo campo `test_config jsonb`).
-- **Edge functions de CRM** (`register-participant`): no crear `global_participants` ni `participant_encounters` cuando el evento es de prueba.
+## Propuesta: rediseño del Super Like
 
-### Diagrama del flujo
-```text
-Admin → "Mis eventos"
-        ├── [Nuevo Evento]   → wizard normal
-        └── [Modo Prueba 🧪]  → wizard normal + paso "Generar ficticios"
-                              → guarda event.is_test_event=true
-                              → participants.is_fake=true
-                              → emails bloqueados / redirigidos
-                              → excluido de stats globales
-                              → analítica interna del evento OK
-```
+### A. Onboarding del participante (educar la mecánica)
+- Al entrar por primera vez en `/select`, mostrar un **modal de bienvenida** (una sola vez, persistido en localStorage) con 2 mensajes:
+  1. Cómo funciona seleccionar amistad/ligue.
+  2. **"Tienes 1 Super Like ⭐"** — explicación clara: anónimo, notifica al destinatario inmediatamente, aumenta tus posibilidades de match.
 
-## Notas y limitaciones
-- Los eventos de prueba **sí cuentan** contra el límite `max_active_events` del plan (para evitar abuso). Si quieres que no cuente, indícalo y lo ajusto.
-- Los participantes ficticios **no podrán** acceder al portal `/access` real (sin email válido), pero podrás simular check-in manual desde el panel para probar mesas, rondas y matches.
-- La conversión "prueba → real" eliminará todos los participantes ficticios y reseteará selecciones/encuentros del evento.
+### B. Momento Super Like (rediseño visual)
+- Sustituir la pequeña estrella por un **botón outline ámbar/dorado** con texto: `⭐ Super Like` integrado al lado de los checkboxes de Amistad/Ligue.
+- Al pulsarlo:
+  - **Animación de confeti** (libreria `canvas-confetti`) + "swoosh" de la estrella.
+  - **Modal de confirmación** estilo "¿Seguro? Solo tienes 1 ⭐ por evento" con preview del destinatario (anonimizado).
+  - Tras confirmar: badge dorado permanente "⭐ Super Like enviado" en la tarjeta de esa persona.
+- Un contador visible permanente arriba: **"Super Like restante: 1"** o **"Usado ✓"**.
+
+### C. Recibir un Super Like (feedback in-app — actualmente solo email)
+- Cuando un participante recibe un super like, mostrar al entrar al panel:
+  - **Banner dorado pulsante en la cabecera**: *"✨ Alguien especial te ha dado un Super Like — envía tus selecciones para descubrir si hay match"*.
+  - Pequeño emisor de partículas/brillo en el header.
+  - Al final del evento, si hay match recíproco, etiquetar la persona como **"⭐ Super Match"** con un highlight especial.
+
+### D. Comunicación posterior (email mejorado)
+- El email actual ya existe (`send-super-like-notification`). Mejoras visuales:
+  - Hero más impactante (gradiente dorado, estrella animada SVG inline).
+  - CTA más urgente: "Descubre si es match — tienes hasta {fecha_cierre}".
+  - Recordar que pueden dar también su propio super like.
+
+### E. Resultado del evento
+- En el email de matches y en `/access`, marcar los matches que provinieron de super like con badge **"⭐ Super Match"** y mensaje destacado: *"Esta persona te dio Super Like"* (revelando finalmente la identidad solo si hay match recíproco).
+
+### F. Gamificación opcional (futuro)
+- En módulo Pro/Enterprise: opción de configurar **2-3 super likes** por evento como upgrade.
+
+## Cambios técnicos resumidos
+
+| Archivo / componente | Cambio |
+|---|---|
+| `src/pages/ParticipantSelect.tsx` | Rediseño del botón super like (texto + estrella), modal de confirmación, contador visible, banner dorado de "te han dado super like", confeti al usar |
+| `src/components/ui/super-like-onboarding.tsx` (nuevo) | Modal de primera vez explicando la mecánica |
+| `src/components/ui/super-like-banner.tsx` (nuevo) | Banner dorado animado para receptores |
+| `src/pages/ParticipantAccess.tsx` | Mostrar badge "⭐ Super Match" en resultados con match recíproco vía super like |
+| `supabase/functions/send-super-like-notification/index.ts` | Mejorar HTML del email (hero dorado, urgencia, CTA reforzado) |
+| `supabase/functions/send-match-emails/index.ts` | Marcar matches que vinieron de super like en el email final |
+| `package.json` | Añadir `canvas-confetti` |
+| Sin migraciones SQL | La estructura de datos actual (`is_super_like`) es suficiente |
+
+## Notas
+- Sigue siendo **1 super like por evento** (manteniendo escasez = atractivo).
+- La identidad del emisor permanece anónima salvo que haya match recíproco.
+- Feature gateada por `super_like_enabled` en ajustes del evento (sin cambios).
+- Compatible con eventos en modo prueba (los super likes ficticios no envían correos reales).
+
