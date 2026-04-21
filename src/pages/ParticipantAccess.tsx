@@ -328,7 +328,15 @@ const ParticipantAccess = () => {
 
       const existingSelections: ExistingSelection[] = data.existingSelections || [];
       const existingMap = new Map<string, string>();
-      existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
+      const superLikedMap = new Map<string, boolean>();
+      existingSelections.forEach(s => {
+        existingMap.set(s.selected_id, s.selection_type);
+        if (s.is_super_like) superLikedMap.set(s.selected_id, true);
+      });
+
+      // Read super-like flags returned by edge function
+      setHasSentSuperLike(!!data.hasSentSuperLike);
+      setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
 
       // Handle preliminary round confirmation status
       const prelimConfirm = data.preliminaryConfirmation;
