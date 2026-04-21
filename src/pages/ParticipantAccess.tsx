@@ -22,7 +22,9 @@ import {
 import konektumLogo from "@/assets/konektum-logo.png";
 import { translations, Language } from "@/i18n/translations";
 import SuperLikeBanner from "@/components/ui/super-like-banner";
+import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 import { Star } from "lucide-react";
+import confetti from "canvas-confetti";
 
 interface MatchSelection {
   participantId: string;
@@ -31,6 +33,7 @@ interface MatchSelection {
   canShowDating: boolean;
   alreadySelected: boolean;
   previousSelectionType?: string;
+  superLikedByMe?: boolean;
   round: number;
   table: number;
 }
