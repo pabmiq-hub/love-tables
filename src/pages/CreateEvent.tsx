@@ -25,6 +25,7 @@ import { useOrganizer } from "@/hooks/useOrganizer";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
 
