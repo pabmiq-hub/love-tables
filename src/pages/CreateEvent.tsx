@@ -434,6 +434,11 @@ const CreateEvent = () => {
         needs: p.needs || null,
         solutions: p.solutions || null,
         business_interests: p.businessInterests ? [p.businessInterests] : null,
+        // Test mode fields
+        is_fake: isTestMode,
+        // Auto-checkin fake participants so the organizer can immediately test rounds & matches
+        checked_in: isTestMode ? true : undefined,
+        marketing_consent: isTestMode ? false : undefined,
       }));
       
       const { error: participantsError } = await supabase
