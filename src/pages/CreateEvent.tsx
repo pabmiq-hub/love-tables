@@ -447,9 +447,10 @@ const CreateEvent = () => {
         marketing_consent: isTestMode ? false : undefined,
       }));
       
-      const { error: participantsError } = await supabase
+      const { data: insertedParticipants, error: participantsError } = await supabase
         .from("participants")
-        .insert(participantsToInsert);
+        .insert(participantsToInsert)
+        .select("id, name");
       
       if (participantsError) {
         toast({
@@ -457,6 +458,25 @@ const CreateEvent = () => {
           description: "El evento se creó pero hubo un error al añadir algunos participantes",
           variant: "destructive",
         });
+      } else if (
+        isTestMode &&
+        eventModule === "social" &&
+        preliminaryRoundEnabled &&
+        insertedParticipants &&
+        insertedParticipants.length > 0
+      ) {
+        // Test mode: fakes are auto-checked-in directly in DB (bypass edge function),
+        // so we must populate preliminary tables here too.
+        const { fillPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+        const updatedPrelim = fillPreliminaryTables(
+          { enabled: true, tables: [], started_at: null },
+          insertedParticipants.map((p) => ({ id: p.id, name: p.name })),
+          tableSize
+        );
+        await supabase
+          .from("events")
+          .update({ preliminary_round: updatedPrelim as unknown as Json })
+          .eq("id", eventData.id);
       }
     }
     
