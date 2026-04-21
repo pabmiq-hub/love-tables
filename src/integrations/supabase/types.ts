@@ -171,6 +171,7 @@ export type Database = {
           gender_parity: boolean | null
           group_rounds: Json | null
           id: string
+          is_test_event: boolean
           language: string
           module: string | null
           name: string
@@ -199,6 +200,7 @@ export type Database = {
           super_like_enabled: boolean
           table_size: number
           tables: Json | null
+          test_config: Json | null
           updated_at: string
           waitlist_enabled: boolean
         }
@@ -224,6 +226,7 @@ export type Database = {
           gender_parity?: boolean | null
           group_rounds?: Json | null
           id?: string
+          is_test_event?: boolean
           language?: string
           module?: string | null
           name: string
@@ -252,6 +255,7 @@ export type Database = {
           super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
+          test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
         }
@@ -277,6 +281,7 @@ export type Database = {
           gender_parity?: boolean | null
           group_rounds?: Json | null
           id?: string
+          is_test_event?: boolean
           language?: string
           module?: string | null
           name?: string
@@ -305,6 +310,7 @@ export type Database = {
           super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
+          test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
         }
@@ -910,6 +916,7 @@ export type Database = {
           gender: string | null
           global_participant_id: string | null
           id: string
+          is_fake: boolean
           is_returning_participant: boolean | null
           marketing_consent: boolean
           name: string
@@ -940,6 +947,7 @@ export type Database = {
           gender?: string | null
           global_participant_id?: string | null
           id?: string
+          is_fake?: boolean
           is_returning_participant?: boolean | null
           marketing_consent?: boolean
           name: string
@@ -970,6 +978,7 @@ export type Database = {
           gender?: string | null
           global_participant_id?: string | null
           id?: string
+          is_fake?: boolean
           is_returning_participant?: boolean | null
           marketing_consent?: boolean
           name?: string
