@@ -28,6 +28,7 @@ interface Event {
   tables: any;
   rounds: number;
   completed_rounds: number[] | null;
+  is_test_event?: boolean | null;
 }
 
 export interface ParticipantRecord {
@@ -46,6 +47,7 @@ export interface ParticipantRecord {
   sector: string | null;
   needs: string[] | null;
   solutions: string[] | null;
+  is_fake?: boolean | null;
 }
 
 export interface EncounterRecord {
@@ -128,20 +130,20 @@ const AdminDashboard = () => {
     const { count: uniqueCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).eq("organizer_id", user.id);
     const { count: returningCount } = await supabase.from("global_participants").select("*", { count: "exact", head: true }).eq("organizer_id", user.id).gt("events_attended", 1);
     
-    // Get organizer's event IDs first
-    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id);
+    // Get organizer's REAL event IDs (exclude test events from global stats)
+    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id).eq("is_test_event", false);
     const eventIds = orgEvents?.map(e => e.id) || [];
     
     let totalParticipants = 0;
     let submittedCount = 0;
     if (eventIds.length > 0) {
-      const { count: tp } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds);
-      const { count: sc } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds).not("selection_submitted_at", "is", null);
+      const { count: tp } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds).eq("is_fake", false);
+      const { count: sc } = await supabase.from("participants").select("*", { count: "exact", head: true }).in("event_id", eventIds).eq("is_fake", false).not("selection_submitted_at", "is", null);
       totalParticipants = tp || 0;
       submittedCount = sc || 0;
     }
 
-    // Calculate mutual matches from selections (filtered by organizer's events)
+    // Calculate mutual matches from selections (filtered by organizer's REAL events)
     let mutualMatches = 0;
     if (eventIds.length > 0) {
       const { data: allSelections } = await supabase.from("participant_selections").select("selector_id, selected_id, event_id").in("event_id", eventIds);
@@ -169,26 +171,28 @@ const AdminDashboard = () => {
 
   const loadAnalyticsData = async () => {
     if (!user) return;
-    // Get organizer's event IDs
-    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id);
+    // Get organizer's REAL event IDs (exclude test events from global analytics)
+    const { data: orgEvents } = await supabase.from("events").select("id").eq("organizer_id", user.id).eq("is_test_event", false);
     const eventIds = orgEvents?.map(e => e.id) || [];
     if (eventIds.length === 0) return;
 
-    // Load participants filtered by organizer's events
+    // Load participants filtered by organizer's REAL events (exclude fake)
     const { data: pData } = await supabase
       .from("participants")
-      .select("id, event_id, name, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id, preference, dating_preference, entity_type, sector, needs, solutions")
-      .in("event_id", eventIds);
+      .select("id, event_id, name, checked_in, selection_submitted_at, gender, age_range, birth_date, global_participant_id, preference, dating_preference, entity_type, sector, needs, solutions, is_fake")
+      .in("event_id", eventIds)
+      .eq("is_fake", false);
     if (pData) setParticipants(pData as ParticipantRecord[]);
 
-    // Load encounters filtered by organizer
+    // Load encounters filtered by organizer (only from real events)
     const { data: eData } = await supabase
       .from("participant_encounters")
       .select("event_id")
-      .eq("organizer_id", user.id);
+      .eq("organizer_id", user.id)
+      .in("event_id", eventIds);
     if (eData) setEncounters(eData);
 
-    // Load selections filtered by organizer's events
+    // Load selections filtered by organizer's REAL events
     const { data: sData } = await supabase
       .from("participant_selections")
       .select("event_id, selector_id, selected_id, selection_type")
@@ -241,10 +245,13 @@ const AdminDashboard = () => {
 
   
 
+  // For Dashboard Home: exclude test events from KPIs
+  const realEvents = events.filter((e) => !e.is_test_event);
+
   const renderSection = () => {
     switch (activeSection) {
       case "home":
-        return <DashboardHome events={events} stats={stats} isPro={isPro} onNavigate={setActiveSection} participants={participants} companyName={organizer?.company_name ?? null} />;
+        return <DashboardHome events={realEvents} stats={stats} isPro={isPro} onNavigate={setActiveSection} participants={participants} companyName={organizer?.company_name ?? null} />;
       case "events":
         return <DashboardEvents events={events} isPro={isPro} onDeleteEvent={handleDeleteEvent} />;
       case "analytics":

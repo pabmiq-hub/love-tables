@@ -356,6 +356,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select("id, name, email_template, scheduled_email_at, module, language")
       .not("scheduled_email_at", "is", null)
       .is("emails_sent_at", null)
+      .eq("is_test_event", false)
       .lte("scheduled_email_at", now);
 
     if (eventsError) {

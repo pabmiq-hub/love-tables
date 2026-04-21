@@ -94,21 +94,23 @@ export function useCRM() {
   const loadFilterOptions = useCallback(async () => {
     if (!organizerId) return;
     try {
-      // Get all events for this organizer that are social
+      // Get all events for this organizer that are social (exclude test events)
       const { data: events } = await supabase
         .from('events')
         .select('id')
         .eq('organizer_id', organizerId)
-        .eq('module', 'social');
+        .eq('module', 'social')
+        .eq('is_test_event', false);
 
       if (!events || events.length === 0) return;
       const eventIds = events.map(e => e.id);
 
-      // Get distinct values from participants of social events
+      // Get distinct values from participants of social events (exclude fake)
       const { data: participants } = await supabase
         .from('participants')
         .select('gender, preference, dating_preference, age_range')
         .in('event_id', eventIds)
+        .eq('is_fake', false)
         .not('global_participant_id', 'is', null);
 
       if (!participants) return;
@@ -165,6 +167,7 @@ export function useCRM() {
           .from('participants')
           .select('global_participant_id')
           .eq('event_id', filters.eventId)
+          .eq('is_fake', false)
           .not('global_participant_id', 'is', null);
         const gpIds = new Set(eventParticipants?.map(p => p.global_participant_id) || []);
         results = results.filter(u => gpIds.has(u.id));
@@ -173,11 +176,12 @@ export function useCRM() {
       // Apply module type and demographic filters
       const hasAdvancedFilters = filters?.moduleType || filters?.gender || filters?.preference || filters?.datingPreference || filters?.ageRange;
       if (hasAdvancedFilters) {
-        // Get events by module type
+        // Get events by module type (exclude test events)
         let eventQuery = supabase
           .from('events')
           .select('id')
-          .eq('organizer_id', organizerId);
+          .eq('organizer_id', organizerId)
+          .eq('is_test_event', false);
 
         if (filters?.moduleType && filters.moduleType !== 'all') {
           eventQuery = eventQuery.eq('module', filters.moduleType);
@@ -189,11 +193,12 @@ export function useCRM() {
         } else {
           const moduleEventIds = moduleEvents.map(e => e.id);
 
-          // Get participants matching demographic filters in those events
+          // Get participants matching demographic filters in those events (exclude fake)
           let participantQuery = supabase
             .from('participants')
             .select('global_participant_id, gender, preference, dating_preference, age_range')
             .in('event_id', moduleEventIds)
+            .eq('is_fake', false)
             .not('global_participant_id', 'is', null);
 
           const { data: filteredParticipants } = await participantQuery;

@@ -3077,9 +3077,29 @@ const EventDetail = () => {
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-8">
+        {(eventData as any).is_test_event && (
+          <div className="mb-6 rounded-lg border border-orange-300 dark:border-orange-800/50 bg-orange-50 dark:bg-orange-950/20 p-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+              <span className="text-lg">🧪</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-orange-700 dark:text-orange-300 mb-0.5">Evento de prueba</h3>
+              <p className="text-sm text-orange-700/80 dark:text-orange-300/80">
+                Este evento contiene participantes ficticios. No cuenta en analíticas globales, CRM ni lista de remarketing. Los emails automáticos están desactivados o redirigidos.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="font-display text-3xl font-bold mb-2">{eventData.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <h1 className="font-display text-3xl font-bold">{eventData.name}</h1>
+              {(eventData as any).is_test_event && (
+                <Badge variant="outline" className="bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-300 border-orange-300 dark:border-orange-800/50 text-xs font-semibold">
+                  🧪 PRUEBA
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground">
               {participants.length} participantes • {participants.filter(p => p.checked_in).length} check-in ✅
             </p>

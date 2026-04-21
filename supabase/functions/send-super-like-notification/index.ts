@@ -49,7 +49,7 @@ serve(async (req) => {
     // Get event info
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('name, language, email_template, organizer_id, super_like_enabled')
+      .select('name, language, email_template, organizer_id, super_like_enabled, is_test_event, test_config')
       .eq('id', eventId)
       .single();
 
@@ -65,6 +65,19 @@ serve(async (req) => {
         JSON.stringify({ error: 'Super like not enabled for this event' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Test event: short-circuit
+    if ((event as any).is_test_event) {
+      const testConfig = (event as any).test_config || {};
+      const redirect = typeof testConfig.redirectEmail === 'string' ? testConfig.redirectEmail.trim() : '';
+      if (!redirect || testConfig.disableEmails === true) {
+        console.log(`[send-super-like-notification] Skipped: event ${eventId} is in test mode`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: 'test_event' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Get recipient info

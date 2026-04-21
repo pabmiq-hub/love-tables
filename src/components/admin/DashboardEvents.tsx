@@ -1,8 +1,10 @@
-import { Calendar, Plus, BarChart3, Trash2 } from "lucide-react";
+import { Calendar, Plus, BarChart3, Trash2, FlaskConical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { useFeatures } from "@/hooks/useFeatures";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,7 @@ interface Event {
   participants_count: number;
   status: string;
   module: string | null;
+  is_test_event?: boolean | null;
 }
 
 interface DashboardEventsProps {
@@ -31,6 +34,8 @@ interface DashboardEventsProps {
 }
 
 export function DashboardEvents({ events, isPro, onDeleteEvent }: DashboardEventsProps) {
+  const { hasFeature, isSuperAdmin } = useFeatures();
+  const canUseTestMode = hasFeature("test_events") || isSuperAdmin;
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -64,12 +69,29 @@ export function DashboardEvents({ events, isPro, onDeleteEvent }: DashboardEvent
           <h1 className="font-display text-3xl font-bold mb-1">Mis Eventos</h1>
           <p className="text-muted-foreground">{events.length} eventos en total</p>
         </div>
-        <Link to="/admin/events/new">
-          <Button variant="hero">
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Evento
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {canUseTestMode && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/admin/events/new?testMode=1">
+                    <Button variant="outline" size="sm" className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20">
+                      <FlaskConical className="w-4 h-4 mr-2" />
+                      Modo prueba
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>Crear un evento de prueba con participantes ficticios</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <Link to="/admin/events/new">
+            <Button variant="hero">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuevo Evento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {events.length === 0 ? (
@@ -103,8 +125,14 @@ export function DashboardEvents({ events, isPro, onDeleteEvent }: DashboardEvent
                       <Calendar className="w-6 h-6 text-primary-foreground" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-3 mb-1">
+                      <div className="flex items-center gap-3 mb-1 flex-wrap">
                         <h3 className="font-display text-lg font-semibold">{event.name}</h3>
+                        {event.is_test_event && (
+                          <Badge variant="outline" className="bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-300 border-orange-300 dark:border-orange-800/50 text-xs font-semibold">
+                            <FlaskConical className="w-3 h-3 mr-1" />
+                            PRUEBA
+                          </Badge>
+                        )}
                         {getStatusBadge(event.status)}
                         {getModuleBadge(event.module)}
                       </div>
