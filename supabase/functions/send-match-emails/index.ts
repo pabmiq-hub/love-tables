@@ -135,8 +135,8 @@ const generateEmailHtml = (
   template: EmailTemplate,
   name: string,
   eventName: string,
-  friendshipMatches: { name: string; phone: string | null; email: string | null }[],
-  datingMatches: { name: string; phone: string | null; email: string | null }[],
+  friendshipMatches: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }[],
+  datingMatches: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }[],
   orgBranding?: { companyName: string | null; logoUrl: string | null; isProfessionalOnly: boolean },
   options?: { primaryColor?: string; logoUrl?: string | null; brandName?: string | null; headerTitle?: string; logoHeight?: number }
 ): string => {
@@ -151,12 +151,20 @@ const generateEmailHtml = (
 
   const logoHtml = `<img src="${escapeHtml(resolvedLogoUrl)}" alt="${escapeHtml(resolvedBrandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:12px;" />`;
 
+  const renderMatchItem = (m: { name: string; phone: string | null; email: string | null; isSuperMatch?: boolean }) => {
+    const contact = m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '');
+    const superBadge = m.isSuperMatch
+      ? ` <span style="display:inline-block;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle;">⭐ Super Match</span>`
+      : '';
+    return `<li style="margin-bottom:6px;"><strong>${escapeHtml(m.name)}</strong>${superBadge}${contact}</li>`;
+  };
+
   if (hasMatches) {
     const t = template.withMatches;
     const friendshipList = friendshipMatches.length > 0
-      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.friendshipTitle)}</h3><ul style="margin:0;padding-left:20px;">${friendshipMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.friendshipTitle)}</h3><ul style="margin:0;padding-left:20px;list-style:none;">${friendshipMatches.map(renderMatchItem).join('')}</ul></div>` : '';
     const datingList = datingMatches.length > 0
-      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.datingTitle)}</h3><ul style="margin:0;padding-left:20px;">${datingMatches.map(m => `<li>${escapeHtml(m.name)}${m.phone ? ` - 📞 ${escapeHtml(m.phone)}` : (m.email ? ` - 📧 ${escapeHtml(m.email)}` : '')}</li>`).join('')}</ul></div>` : '';
+      ? `<div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;"><h3 style="margin:0 0 12px 0;">${escapeHtml(t.datingTitle)}</h3><ul style="margin:0;padding-left:20px;list-style:none;">${datingMatches.map(renderMatchItem).join('')}</ul></div>` : '';
 
     return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f5f5f5;"><div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">${logoHtml}<h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1></div><div style="background:white;padding:30px;border-radius:0 0 10px 10px;"><h2>${replaceVariables(t.greeting, variables)}</h2><p>${replaceVariables(t.intro, variables)}</p>${friendshipList}${datingList}<p>${replaceVariables(t.closing, variables)}</p><p style="color:#888;white-space:pre-line;">${escapeHtml(t.signature)}</p></div></body></html>`;
   }
