@@ -94,6 +94,9 @@ const ParticipantSelect = () => {
   const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
   const [superLikeId, setSuperLikeId] = useState<string | null>(null);
   const [existingSuperLike, setExistingSuperLike] = useState(false);
+  const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [confirmSuperLikeFor, setConfirmSuperLikeFor] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
