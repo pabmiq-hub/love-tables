@@ -380,6 +380,7 @@ const ParticipantAccess = () => {
             canShowDating: datingCompatible,
             alreadySelected: !!existingType,
             previousSelectionType: existingType,
+            superLikedByMe: superLikedMap.get(tm.id) || false,
             round: assignment.round,
             table: assignment.table,
           });
