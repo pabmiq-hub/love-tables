@@ -969,6 +969,17 @@ const ParticipantAccess = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Super Like Confirmation Dialog */}
+      {superLikeTarget && (
+        <SuperLikeConfirmDialog
+          open={!!superLikeTarget}
+          onClose={() => !isSendingSuperLike && setSuperLikeTarget(null)}
+          onConfirm={confirmSuperLike}
+          recipientName={superLikeTarget.name}
+          language={eventLang}
+        />
+      )}
     </div>
   );
 };
