@@ -168,34 +168,52 @@ serve(async (req) => {
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f5f5;">
-  <div style="background:${primaryColor};padding:30px;border-radius:10px 10px 0 0;text-align:center;">
-    ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:12px;" />` : ''}
-    <h1 style="color:white;margin:0;font-size:24px;">${escapeHtml(headerTitle)}</h1>
+  <!-- Golden hero -->
+  <div style="background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 50%,#d97706 100%);padding:36px 24px;border-radius:12px 12px 0 0;text-align:center;position:relative;overflow:hidden;">
+    ${logoUrl ? `<img src="${logoUrl}" alt="${escapeHtml(brandName)}" style="max-height:${logoHeight}px;max-width:260px;margin-bottom:16px;filter:brightness(0) invert(1);" />` : ''}
+    <div style="font-size:64px;line-height:1;margin:8px 0 12px;text-shadow:0 4px 12px rgba(0,0,0,0.2);">⭐</div>
+    <h1 style="color:#fff;margin:0;font-size:26px;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,0.15);">
+      ${isEn ? "You got a Super Like!" : "¡Te han dado un Super Like!"}
+    </h1>
+    <p style="color:#fffbeb;margin:8px 0 0;font-size:14px;font-weight:500;">
+      ${isEn ? "Someone special chose you" : "Alguien especial te ha elegido"}
+    </p>
   </div>
-  
-  <div style="background:white;padding:30px;border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-    <p style="font-size:18px;margin-bottom:20px;">${nl2br(greeting)}</p>
-    
-    <div style="color:#555;font-size:16px;line-height:1.6;margin-bottom:20px;">
+
+  <div style="background:white;padding:32px 28px;border-radius:0 0 12px 12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+    <p style="font-size:18px;margin-bottom:18px;font-weight:600;">${nl2br(greeting)}</p>
+
+    <div style="color:#52525b;font-size:15px;line-height:1.7;margin-bottom:24px;">
       ${nl2br(intro)}
     </div>
-    
-    <div style="text-align:center;margin:24px 0;">
-      <div style="display:inline-block;background:#f8f9fa;border-radius:12px;padding:20px 32px;">
-        <div style="font-size:48px;margin-bottom:8px;">⭐</div>
-        <p style="font-size:14px;font-weight:600;color:#52525b;margin:0;">${isEn ? 'Someone gave you a Super Like!' : '¡Alguien te ha dado un Super Like!'}</p>
+
+    <!-- Super Like highlight card -->
+    <div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border:2px solid #fbbf24;border-radius:12px;padding:20px;margin:24px 0;text-align:center;">
+      <div style="font-size:14px;color:#92400e;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;">
+        ${isEn ? "Anonymous notification" : "Notificación anónima"}
+      </div>
+      <div style="font-size:16px;color:#78350f;font-weight:600;line-height:1.4;">
+        ${isEn ? "An attendee at " : "Un asistente de "}<strong>${escapeHtml(event.name)}</strong>${isEn ? " has given you their only Super Like of the event." : " te ha dado su único Super Like del evento."}
+      </div>
+      <div style="font-size:13px;color:#92400e;margin-top:10px;font-style:italic;">
+        ${isEn ? "Will it be a match? Submit your selections to find out." : "¿Habrá match? Envía tus selecciones para descubrirlo."}
       </div>
     </div>
-    
-    <div style="text-align:center;margin:24px 0;">
-      <a href="${accessUrl}" style="display:inline-block;background:${primaryColor};color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">
-        ${isEn ? 'Submit my selections' : 'Enviar mis selecciones'}
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:28px 0 16px;">
+      <a href="${accessUrl}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:white;padding:16px 36px;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;box-shadow:0 4px 14px rgba(217,119,6,0.4);">
+        ⭐ ${isEn ? 'Submit my selections' : 'Enviar mis selecciones'}
       </a>
     </div>
-    
-    <p style="color:#888;font-size:14px;text-align:center;">${nl2br(closing)}</p>
+
+    <p style="color:#71717a;font-size:13px;text-align:center;margin-top:20px;">
+      ${isEn ? "💡 Tip: you can also send your own Super Like to someone you connected with." : "💡 Consejo: tú también puedes enviar tu Super Like a alguien que te haya gustado."}
+    </p>
+
+    <p style="color:#888;font-size:14px;text-align:center;margin-top:24px;">${nl2br(closing)}</p>
   </div>
-  
+
   <div style="text-align:center;margin-top:20px;color:#888;font-size:12px;">
     <p>${nl2br(signature)}</p>
   </div>

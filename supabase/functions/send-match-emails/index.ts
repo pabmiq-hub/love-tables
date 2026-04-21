@@ -523,7 +523,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     // For social events, get selections for mutual match calculation
-    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type").eq("event_id", event_id);
+    const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type, is_super_like").eq("event_id", event_id);
     
     // For professional events, get table assignments to find connections
     const { data: tableAssignments } = isProfessional 
