@@ -1450,14 +1450,112 @@ const CreateEvent = () => {
         {step === 5 && (
           <Card className="animate-fade-in">
             <CardHeader>
-              <CardTitle>Añadir participantes</CardTitle>
+              <CardTitle>{isTestMode ? "Generar participantes ficticios" : "Añadir participantes"}</CardTitle>
               <CardDescription>
-                {participantMode === "manual" && "Añade los participantes manualmente"}
-                {participantMode === "excel" && "Carga el archivo Excel con los participantes"}
-                {participantMode === "both" && "Carga el Excel y añade más participantes si lo necesitas"}
+                {isTestMode
+                  ? "Configura cuántos participantes ficticios quieres generar para probar el evento."
+                  : participantMode === "manual" ? "Añade los participantes manualmente"
+                  : participantMode === "excel" ? "Carga el archivo Excel con los participantes"
+                  : "Carga el Excel y añade más participantes si lo necesitas"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Test mode generator panel */}
+              {isTestMode && (
+                <div className="space-y-4 p-4 rounded-lg border-2 border-orange-500/30 bg-orange-50/50 dark:bg-orange-950/10">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-orange-500" />
+                    <h4 className="font-semibold">Configuración de prueba</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cantidad de participantes ficticios: {fakeCount}</Label>
+                    <Slider value={[fakeCount]} onValueChange={(v) => setFakeCount(v[0])} min={2} max={60} step={1} />
+                  </div>
+
+                  {eventModule === "social" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Distribución por género</Label>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Hombres: {fakeMalePct}%</p>
+                            <Slider value={[fakeMalePct]} onValueChange={(v) => { const m = v[0]; setFakeMalePct(m); if (m + fakeFemalePct > 100) setFakeFemalePct(100 - m); }} min={0} max={100} step={5} />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Mujeres: {fakeFemalePct}%</p>
+                            <Slider value={[fakeFemalePct]} onValueChange={(v) => { const f = Math.min(v[0], 100 - fakeMalePct); setFakeFemalePct(f); }} min={0} max={100} step={5} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">No binario: {Math.max(0, 100 - fakeMalePct - fakeFemalePct)}%</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Idioma de los nombres</Label>
+                      <Select value={fakeNameLanguage} onValueChange={(v) => setFakeNameLanguage(v as "es" | "en")}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="es">🇪🇸 Español</SelectItem>
+                          <SelectItem value="en">🇬🇧 English</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prefijo (opcional)</Label>
+                      <Input value={fakeNamePrefix} onChange={(e) => setFakeNamePrefix(e.target.value)} placeholder="[TEST] " />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email de redirección (opcional)</Label>
+                    <Input type="email" value={fakeRedirectEmail} onChange={(e) => setFakeRedirectEmail(e.target.value)} placeholder="tu-email@ejemplo.com" />
+                    <p className="text-xs text-muted-foreground">Si lo rellenas, todos los correos del evento se enviarán a esta dirección. Déjalo en blanco y activa "deshabilitar emails" para no enviar nada.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-md bg-background/50 border">
+                    <div>
+                      <Label htmlFor="disable-emails" className="text-sm font-medium cursor-pointer">Deshabilitar todos los emails</Label>
+                      <p className="text-xs text-muted-foreground">No se enviará ningún correo a los participantes ficticios</p>
+                    </div>
+                    <Switch id="disable-emails" checked={fakeDisableEmails} onCheckedChange={setFakeDisableEmails} />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-orange-500/40"
+                    onClick={() => {
+                      const cfg: FakeGenConfig = {
+                        count: fakeCount,
+                        malePct: fakeMalePct,
+                        femalePct: fakeFemalePct,
+                        language: fakeNameLanguage,
+                        prefix: fakeNamePrefix,
+                        redirectEmail: fakeRedirectEmail.trim() || null,
+                        disableEmails: fakeDisableEmails,
+                        ageRanges: eventPreferences.ageRanges,
+                        preferences: eventPreferences.preferences,
+                        datingPreferences: eventPreferences.datingPreferences,
+                        isProfessional: eventModule === "professional",
+                        sectors: professionalPreferences.sectors,
+                        companySizes: professionalPreferences.companySizes,
+                        predefinedNeeds: professionalPreferences.predefinedNeeds,
+                        predefinedSolutions: professionalPreferences.predefinedSolutions,
+                      };
+                      const generated = generateFakeParticipants(cfg);
+                      setParticipants(generated as unknown as Participant[]);
+                      toast({ title: "Participantes generados", description: `${generated.length} participantes ficticios creados` });
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {participants.length > 0 ? "Regenerar" : "Generar"} {fakeCount} participantes ficticios
+                  </Button>
+                </div>
+              )}
+
               {/* Excel upload */}
               {(participantMode === "excel" || participantMode === "both") && (
                 <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
