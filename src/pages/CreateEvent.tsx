@@ -486,8 +486,8 @@ const CreateEvent = () => {
       return;
     }
     
-    // Validate step 4 (participant mode)
-    if (step === 4 && !participantMode) {
+    // Validate step 4 (participant mode) - skipped in test mode
+    if (step === 4 && !isTestMode && !participantMode) {
       toast({
         title: "Error",
         description: "Por favor, selecciona una opción",
