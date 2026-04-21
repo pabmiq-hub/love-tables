@@ -22,7 +22,9 @@ import {
 import konektumLogo from "@/assets/konektum-logo.png";
 import { translations, Language } from "@/i18n/translations";
 import SuperLikeBanner from "@/components/ui/super-like-banner";
+import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 import { Star } from "lucide-react";
+import confetti from "canvas-confetti";
 
 interface MatchSelection {
   participantId: string;
@@ -31,6 +33,7 @@ interface MatchSelection {
   canShowDating: boolean;
   alreadySelected: boolean;
   previousSelectionType?: string;
+  superLikedByMe?: boolean;
   round: number;
   table: number;
 }
@@ -98,6 +101,9 @@ const ParticipantAccess = () => {
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
+  const [hasSentSuperLike, setHasSentSuperLike] = useState(false);
+  const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
+  const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
 
   // Timer state
   const [timerData, setTimerData] = useState<{
@@ -322,7 +328,15 @@ const ParticipantAccess = () => {
 
       const existingSelections: ExistingSelection[] = data.existingSelections || [];
       const existingMap = new Map<string, string>();
-      existingSelections.forEach(s => existingMap.set(s.selected_id, s.selection_type));
+      const superLikedMap = new Map<string, boolean>();
+      existingSelections.forEach(s => {
+        existingMap.set(s.selected_id, s.selection_type);
+        if (s.is_super_like) superLikedMap.set(s.selected_id, true);
+      });
+
+      // Read super-like flags returned by edge function
+      setHasSentSuperLike(!!data.hasSentSuperLike);
+      setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
 
       // Handle preliminary round confirmation status
       const prelimConfirm = data.preliminaryConfirmation;
@@ -366,6 +380,7 @@ const ParticipantAccess = () => {
             canShowDating: datingCompatible,
             alreadySelected: !!existingType,
             previousSelectionType: existingType,
+            superLikedByMe: superLikedMap.get(tm.id) || false,
             round: assignment.round,
             table: assignment.table,
           });
@@ -394,6 +409,49 @@ const ParticipantAccess = () => {
       )
     );
   };
+
+  const openSuperLikeDialog = (participantId: string, name: string, round: number) => {
+    if (hasSentSuperLike) return;
+    const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
+    if (!ms || ms.alreadySelected) return;
+    setSuperLikeTarget({ id: participantId, name, round });
+  };
+
+  const confirmSuperLike = () => {
+    if (!superLikeTarget) return;
+    setIsSendingSuperLike(true);
+    // Mark as super-liked locally + force friendship as base selection
+    setMatchSelections(prev =>
+      prev.map(ms =>
+        ms.participantId === superLikeTarget.id
+          ? { ...ms, superLikedByMe: true, friendship: true }
+          : ms
+      )
+    );
+    setHasSentSuperLike(true);
+
+    // Confetti burst (golden)
+    try {
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#fbbf24', '#f59e0b', '#fcd34d', '#fde68a'],
+        scalar: 1.1,
+      });
+    } catch {}
+
+    toast({
+      title: eventLang === 'en' ? '⭐ Super Like marked' : '⭐ Super Like marcado',
+      description: eventLang === 'en'
+        ? "It will be sent when you submit your selections."
+        : "Se enviará cuando confirmes tus selecciones.",
+    });
+
+    setSuperLikeTarget(null);
+    setIsSendingSuperLike(false);
+  };
+
 
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
@@ -448,8 +506,11 @@ const ParticipantAccess = () => {
       return { selected_id: ms.participantId, selection_type: selectionType };
     });
 
+    const superLikedSelection = matchSelections.find(ms => !ms.alreadySelected && ms.superLikedByMe);
+    const superLikeId = superLikedSelection?.participantId;
+
     const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections }
+      body: { eventId, verificationCode, selections, superLikeId }
     });
 
     if (error || data?.error) {
@@ -756,6 +817,15 @@ const ParticipantAccess = () => {
               </TabsContent>
 
               <TabsContent value="selections" className="space-y-4 mt-4">
+                {hasReceivedSuperLike && (
+                  <SuperLikeBanner language={eventLang} variant="received" />
+                )}
+                {hasSentSuperLike && (
+                  <div className="flex items-center justify-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-md py-2 px-3">
+                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                    {eventLang === 'en' ? 'You have used your Super Like ⭐' : 'Has usado tu Super Like ⭐'}
+                  </div>
+                )}
                 {eventStatus === 'completed' && (
                   <div className="bg-green-500/10 rounded-lg p-3 text-center">
                     <p className="text-sm text-green-700 dark:text-green-300 font-medium">{t.access.eventEndedSelect}</p>
@@ -789,15 +859,22 @@ const ParticipantAccess = () => {
                               return (
                                 <div
                                   key={`${ms.participantId}-${round}`}
-                                  className={`p-3 rounded-lg transition-all ${ms.alreadySelected
-                                    ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
-                                    : (ms.friendship || ms.dating)
-                                      ? 'bg-primary/10 border-2 border-primary shadow-soft'
-                                      : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
+                                  className={`p-3 rounded-lg transition-all ${ms.superLikedByMe
+                                    ? 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border-2 border-amber-400 shadow-md'
+                                    : ms.alreadySelected
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
+                                      : (ms.friendship || ms.dating)
+                                        ? 'bg-primary/10 border-2 border-primary shadow-soft'
+                                        : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
                                   }`}
                                 >
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="font-medium text-sm">{tablemate.name}</span>
+                                  <div className="flex items-center justify-between mb-1 gap-2">
+                                    <span className="font-medium text-sm flex items-center gap-1.5">
+                                      {tablemate.name}
+                                      {ms.superLikedByMe && (
+                                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                                      )}
+                                    </span>
                                     {ms.alreadySelected && (
                                       <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
                                         <CheckCircle className="w-3 h-3 mr-1" />
@@ -809,16 +886,34 @@ const ParticipantAccess = () => {
                                   {ms.alreadySelected ? (
                                     <p className="text-xs text-muted-foreground">{t.access.alreadySelected}</p>
                                   ) : (
-                                    <div className="flex gap-4">
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                        <Checkbox checked={ms.friendship} onCheckedChange={() => toggleSelection(ms.participantId, round, 'friendship')} />
-                                        <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
-                                      </label>
-                                      {ms.canShowDating && (
+                                    <div className="space-y-2">
+                                      <div className="flex gap-4 flex-wrap">
                                         <label className="flex items-center gap-2 cursor-pointer">
-                                          <Checkbox checked={ms.dating} onCheckedChange={() => toggleSelection(ms.participantId, round, 'dating')} />
-                                          <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          <Checkbox checked={ms.friendship} onCheckedChange={() => toggleSelection(ms.participantId, round, 'friendship')} />
+                                          <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
                                         </label>
+                                        {ms.canShowDating && (
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox checked={ms.dating} onCheckedChange={() => toggleSelection(ms.participantId, round, 'dating')} />
+                                            <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          </label>
+                                        )}
+                                      </div>
+                                      {!hasSentSuperLike && !ms.superLikedByMe && (
+                                        <button
+                                          type="button"
+                                          onClick={() => openSuperLikeDialog(ms.participantId, tablemate.name, round)}
+                                          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 text-amber-700 dark:text-amber-300 hover:from-amber-100 hover:to-yellow-100 transition-all"
+                                        >
+                                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                                          {eventLang === 'en' ? 'Give Super Like' : 'Dar Super Like'}
+                                        </button>
+                                      )}
+                                      {ms.superLikedByMe && (
+                                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
+                                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                                          {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
+                                        </div>
                                       )}
                                     </div>
                                   )}
@@ -873,6 +968,17 @@ const ParticipantAccess = () => {
             <Button variant="outline" className="w-full" onClick={() => { clearSession(); setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>{t.access.backToHome}</Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Super Like Confirmation Dialog */}
+      {superLikeTarget && (
+        <SuperLikeConfirmDialog
+          open={!!superLikeTarget}
+          onClose={() => !isSendingSuperLike && setSuperLikeTarget(null)}
+          onConfirm={confirmSuperLike}
+          recipientName={superLikeTarget.name}
+          language={eventLang}
+        />
       )}
     </div>
   );
