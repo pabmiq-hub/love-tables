@@ -79,6 +79,7 @@ serve(async (req) => {
       .from("events")
       .select("id, name, date, event_time, event_location, language, organizer_id, email_template")
       .eq("code_send_mode", "automatic")
+      .eq("is_test_event", false)
       .in("status", ["pending", "active"])
       .lte("date", in24h.toISOString().split('T')[0]);
 
