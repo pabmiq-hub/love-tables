@@ -1582,6 +1582,15 @@ const EventDetail = () => {
         p.id === participantId ? { ...p, checked_in: true } : p
       ));
 
+      // Auto-assign to preliminary table if enabled
+      if (id) {
+        const p = participants.find(pp => pp.id === participantId);
+        if (p) {
+          const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+          await assignParticipantsToPreliminaryTables(id, [{ id: p.id, name: p.name }]);
+        }
+      }
+
       toast({
         title: "Check-in completado",
         description: `Check-in realizado correctamente`,
@@ -2109,6 +2118,18 @@ const EventDetail = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Auto-assign all newly checked-in participants to preliminary tables
+    if (id) {
+      const newlyCheckedIn = participants.filter(p => !p.checked_in);
+      if (newlyCheckedIn.length > 0) {
+        const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+        await assignParticipantsToPreliminaryTables(
+          id,
+          newlyCheckedIn.map(p => ({ id: p.id, name: p.name }))
+        );
+      }
     }
 
     setParticipants(participants.map(p => ({ ...p, checked_in: true })));
