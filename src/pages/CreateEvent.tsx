@@ -35,10 +35,29 @@ type RegistrationFormMode = "auto" | "template" | "custom";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const { hasFeature, isSuperAdmin } = useFeatures();
   const { hasModule, organizer, loading: organizerLoading, branding, canCreateEvent: canCreateNewEvent, limits } = useOrganizer();
+
+  // Test mode (Enterprise plan only) - read from URL param
+  const canUseTestMode = hasFeature("test_events") || isSuperAdmin;
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [fakeCount, setFakeCount] = useState(8);
+  const [fakeMalePct, setFakeMalePct] = useState(50);
+  const [fakeFemalePct, setFakeFemalePct] = useState(50);
+  const [fakeNamePrefix, setFakeNamePrefix] = useState("[TEST] ");
+  const [fakeNameLanguage, setFakeNameLanguage] = useState<"es" | "en">("es");
+  const [fakeRedirectEmail, setFakeRedirectEmail] = useState("");
+  const [fakeDisableEmails, setFakeDisableEmails] = useState(true);
+
+  // Initialize test mode from URL once auth is ready
+  useEffect(() => {
+    if (canUseTestMode && searchParams.get("testMode") === "1") {
+      setIsTestMode(true);
+    }
+  }, [canUseTestMode, searchParams]);
 
   // Detect available modules
   const hasSocialModule = hasModule("social") || isSuperAdmin;
