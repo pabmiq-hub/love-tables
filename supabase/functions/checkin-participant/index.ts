@@ -290,6 +290,65 @@ serve(async (req) => {
 
     console.log('[checkin-participant] Check-in successful for participant:', participant.id);
 
+    // Auto-assign to a preliminary round table if enabled (Social events only)
+    try {
+      const { data: eventConfig } = await supabase
+        .from('events')
+        .select('preliminary_round, table_size, module')
+        .eq('id', eventId)
+        .maybeSingle();
+
+      const prelim = (eventConfig as any)?.preliminary_round;
+      const isSocial = !(eventConfig as any)?.module || (eventConfig as any).module === 'social';
+
+      if (isSocial && prelim?.enabled) {
+        const tableSize = (eventConfig as any)?.table_size || 4;
+        const tables: any[][] = Array.isArray(prelim.tables) ? prelim.tables.map((t: any[]) => [...t]) : [];
+        const dismissed: number[] = Array.isArray(prelim.dismissed_tables) ? prelim.dismissed_tables : [];
+
+        // Avoid duplicates: check if participant already in any preliminary table
+        const alreadyAssigned = tables.some(t => t.some((p: any) => p.id === participant.id));
+
+        if (!alreadyAssigned) {
+          // Find last non-dismissed table with free seat
+          let placed = false;
+          for (let i = tables.length - 1; i >= 0; i--) {
+            if (dismissed.includes(i)) continue;
+            if (tables[i].length < tableSize) {
+              tables[i].push({ id: participant.id, name: participant.name });
+              placed = true;
+              break;
+            }
+          }
+
+          // Otherwise create a new table
+          if (!placed) {
+            tables.push([{ id: participant.id, name: participant.name }]);
+          }
+
+          const updatedPrelim = {
+            ...prelim,
+            tables,
+            started_at: prelim.started_at || new Date().toISOString(),
+          };
+
+          const { error: prelimError } = await supabase
+            .from('events')
+            .update({ preliminary_round: updatedPrelim } as any)
+            .eq('id', eventId);
+
+          if (prelimError) {
+            console.warn('[checkin-participant] Could not auto-assign preliminary table:', prelimError);
+          } else {
+            console.log(`[checkin-participant] Auto-assigned ${participant.id} to preliminary table`);
+          }
+        }
+      }
+    } catch (prelimErr) {
+      console.error('[checkin-participant] Preliminary auto-assign error:', prelimErr);
+      // Non-blocking: check-in still succeeds
+    }
+
     // Send check-in code email if participant has email and sendEmail is true
     let emailSent = false;
     if (sendEmail && participant.email && baseUrl) {

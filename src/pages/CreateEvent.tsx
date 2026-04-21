@@ -192,6 +192,7 @@ const CreateEvent = () => {
   const [slotQuotas, setSlotQuotas] = useState<SlotQuota[]>([]);
   const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
   const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
+  const [preliminaryRoundEnabled, setPreliminaryRoundEnabled] = useState(false);
   
   // Registration form customization (shared between social and professional)
   const [customFormEnabled, setCustomFormEnabled] = useState(false);
@@ -396,6 +397,10 @@ const CreateEvent = () => {
       test_config: testConfigPayload,
       // For test events, close registration immediately so no real users can join
       registration_open: !isTestMode,
+      // Preliminary round (Social only) - auto-fills tables on check-in
+      preliminary_round: (eventModule === "social" && preliminaryRoundEnabled
+        ? { enabled: true, tables: [], started_at: null }
+        : null) as unknown as Json,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -1086,6 +1091,31 @@ const CreateEvent = () => {
                   totalRounds={rounds}
                   defaultTableSize={tableSize}
                 />
+
+                {/* Preliminary Round Toggle */}
+                <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                        <span className="text-lg">🎯</span>
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor="preliminary-round" className="font-medium cursor-pointer">
+                          Activar ronda preliminar (Ronda 0)
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Asigna mesas automáticamente a medida que los participantes hacen check-in.
+                          Útil para romper el hielo antes del evento oficial. Usa el mismo tamaño de mesa.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="preliminary-round"
+                      checked={preliminaryRoundEnabled}
+                      onCheckedChange={setPreliminaryRoundEnabled}
+                    />
+                  </div>
+                </div>
 
                 {/* Event Preferences Editor */}
                 <div className="pt-2">
