@@ -175,6 +175,8 @@ interface TableGenerationResult {
   tables: any[];
   hasIncomplete: boolean;
   incompleteInfo: string;
+  /** Updated game_mode.played map after generation, JSON-safe */
+  playedAfter?: Record<string, string[]>;
 }
 
 const EventDetail = () => {
