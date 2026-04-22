@@ -131,6 +131,7 @@ serve(async (req: Request) => {
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
 
     const { data: rr } = await supabase
       .from("repeat_requests")
@@ -152,8 +153,39 @@ serve(async (req: Request) => {
       );
     }
 
+    // Load event + requester info upfront — needed for emails in every branch
+    const { data: event } = await supabase
+      .from("events")
+      .select("id, name, status, current_round, rounds, tables, language, email_template")
+      .eq("id", rr.event_id)
+      .maybeSingle();
+
+    const { data: requester } = await supabase
+      .from("participants")
+      .select("name, email")
+      .eq("id", rr.requester_id)
+      .maybeSingle();
+
+    const eventLang = event?.language === "en" ? "en" : "es";
+    const storedTpl = (event?.email_template as any)?.communication_templates_v2;
+
+    const notifyRequester = async (status: "accepted" | "declined" | "expired", scheduledRound?: number) => {
+      if (!requester?.email) return;
+      await sendRequesterEmail({
+        resendApiKey,
+        requesterEmail: requester.email,
+        requesterName: requester.name || "",
+        eventName: event?.name || "",
+        eventLang,
+        status,
+        scheduledRound,
+        storedTpl,
+      });
+    };
+
     if (rr.expires_at && new Date(rr.expires_at) < new Date()) {
       await supabase.from("repeat_requests").update({ status: "expired" }).eq("id", request_id);
+      await notifyRequester("expired");
       return new Response(JSON.stringify({ error: "La solicitud ha caducado" }), {
         status: 410,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -162,21 +194,16 @@ serve(async (req: Request) => {
 
     if (action === "decline") {
       await supabase.from("repeat_requests").update({ status: "declined" }).eq("id", request_id);
+      await notifyRequester("declined");
       return new Response(JSON.stringify({ success: true, status: "declined" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Accept: validate the event still has rounds remaining
-    const { data: event } = await supabase
-      .from("events")
-      .select("id, status, current_round, rounds, tables, tables_generation_mode")
-      .eq("id", rr.event_id)
-      .maybeSingle();
-
     if (!event || event.status === "completed") {
       await supabase.from("repeat_requests").update({ status: "expired" }).eq("id", request_id);
+      await notifyRequester("expired");
       return new Response(JSON.stringify({ error: "El evento ya ha finalizado" }), {
         status: 410,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -187,10 +214,9 @@ serve(async (req: Request) => {
     const totalRounds = event.rounds || 0;
     const cur = event.current_round || 0;
 
-    // Need a future round to materialize. In per_round mode the next round is generated on completion.
-    // In upfront mode the next round must already exist as data in event.tables.
     if (cur >= totalRounds) {
       await supabase.from("repeat_requests").update({ status: "expired" }).eq("id", request_id);
+      await notifyRequester("expired");
       return new Response(JSON.stringify({ error: "Ya no quedan rondas para aplicar la solicitud" }), {
         status: 410,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -198,7 +224,6 @@ serve(async (req: Request) => {
     }
 
     // Create a participant_inclusion so the next generated round seats them together.
-    // For upfront mode, the organizer must regenerate the next round manually (UI alert).
     const a = rr.requester_id < rr.target_id ? rr.requester_id : rr.target_id;
     const b = rr.requester_id < rr.target_id ? rr.target_id : rr.requester_id;
     await supabase.from("participant_inclusions").insert({
@@ -217,6 +242,8 @@ serve(async (req: Request) => {
         scheduled_round: scheduledRound,
       })
       .eq("id", request_id);
+
+    await notifyRequester("accepted", scheduledRound);
 
     return new Response(
       JSON.stringify({ success: true, status: "accepted", scheduled_round: scheduledRound }),
