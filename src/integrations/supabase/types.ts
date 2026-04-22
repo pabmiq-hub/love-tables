@@ -849,6 +849,33 @@ export type Database = {
           },
         ]
       }
+      participant_inclusions: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          participant_1_id: string
+          participant_2_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          participant_1_id: string
+          participant_2_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          participant_1_id?: string
+          participant_2_id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       participant_selections: {
         Row: {
           created_at: string
