@@ -2553,7 +2553,20 @@ const EventDetail = () => {
       }
     }
 
-    // Generate 1 round using the smart algorithm with full encounter history
+    // Generate 1 round using the smart algorithm with full encounter history.
+    // Modo Lúdico: rebuild `played` from preliminary + ALL existing official rounds
+    // so the new round respects everything that has actually been played.
+    const gameModeForGen = eventData.game_mode
+      ? {
+          ...eventData.game_mode,
+          played: rebuildPlayedFromTables(
+            eventData.game_mode,
+            (eventData as any)?.preliminary_round?.tables,
+            currentTables
+          ),
+        }
+      : null;
+
     const result = generateSmartTables(
       checkedInParticipants,
       1, // Only generate 1 round
@@ -2563,7 +2576,7 @@ const EventDetail = () => {
       existingEncounters,
       eventData.avoid_encounters_mode || "preference",
       undefined, // No group round config for dynamically added rounds
-      eventData.game_mode || null
+      gameModeForGen
     );
 
     let newRound: any;
