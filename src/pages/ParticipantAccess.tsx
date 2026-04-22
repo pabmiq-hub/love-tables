@@ -874,13 +874,18 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs defaultValue="tables" className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "tables" | "selections")} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
                 </TabsTrigger>
-                <TabsTrigger value="selections" className="flex items-center gap-1.5">
+                <TabsTrigger
+                  value="selections"
+                  className={`flex items-center gap-1.5 transition-all ${
+                    highlightSelectionsTab ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""
+                  }`}
+                >
                   <Heart className="w-4 h-4" />
                   {t.access.selections}
                 </TabsTrigger>
@@ -1037,6 +1042,43 @@ const ParticipantAccess = () => {
                                           {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
                                         </div>
                                       )}
+                                      {repeatEnabled && (() => {
+                                        const isThisRepeat = repeatRequestUsed?.targetId === ms.participantId;
+                                        const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                                        if (isThisRepeat) {
+                                          return (
+                                            <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-300 text-violet-800 dark:text-violet-200 text-xs font-semibold">
+                                              <Repeat2 className="w-3.5 h-3.5" />
+                                              {eventLang === 'es'
+                                                ? (repeatRequestUsed?.status === 'accepted'
+                                                    ? 'Repetición aceptada ✓'
+                                                    : repeatRequestUsed?.status === 'declined'
+                                                      ? 'Repetición rechazada'
+                                                      : repeatRequestUsed?.status === 'expired'
+                                                        ? 'Repetición caducada'
+                                                        : 'Repetición pendiente')
+                                                : (repeatRequestUsed?.status === 'accepted'
+                                                    ? 'Repeat accepted ✓'
+                                                    : repeatRequestUsed?.status === 'declined'
+                                                      ? 'Repeat declined'
+                                                      : repeatRequestUsed?.status === 'expired'
+                                                        ? 'Repeat expired'
+                                                        : 'Repeat pending')}
+                                            </div>
+                                          );
+                                        }
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={repeatDisabled}
+                                            onClick={() => openRepeatDialog(ms.participantId, tablemate.name, round)}
+                                            className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          >
+                                            <Repeat2 className="w-3.5 h-3.5" />
+                                            {eventLang === 'en' ? '🔁 Repeat with this person' : '🔁 Repetir con esta persona'}
+                                          </button>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                 </div>
