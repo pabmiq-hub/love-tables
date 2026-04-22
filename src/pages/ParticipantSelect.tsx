@@ -787,15 +787,56 @@ const ParticipantSelect = () => {
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">{formatAnonymousName(person.name, person.phone)}</span>
                         {isAlreadySelected && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {getPreviousSelectionLabel(selectionState.previousSelectionType)}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {getPreviousSelectionLabel(selectionState.previousSelectionType)}
+                            </Badge>
+                            {!editingIds.has(person.id) && (
+                              <button
+                                type="button"
+                                onClick={() => startEditing(person.id)}
+                                aria-label={eventLang === "es" ? "Modificar selección" : "Modify selection"}
+                                title={eventLang === "es" ? "Modificar" : "Modify"}
+                                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 
-                      {isAlreadySelected ? (
+                      {isAlreadySelected && !editingIds.has(person.id) ? (
                         <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
+                      ) : isAlreadySelected && editingIds.has(person.id) ? (
+                        <div className="space-y-3">
+                          <div className="flex gap-4 items-center flex-wrap">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={pendingEdits.get(person.id)?.friendship || false}
+                                onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
+                              />
+                              <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
+                            </label>
+                            {selectionState.canShowDating && (
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={pendingEdits.get(person.id)?.dating || false}
+                                  onCheckedChange={() => toggleEditOption(person.id, 'dating')}
+                                />
+                                <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                              </label>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => cancelEditing(person.id)}
+                            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                          >
+                            {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
+                          </button>
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           <div className="flex gap-4 items-center flex-wrap">
