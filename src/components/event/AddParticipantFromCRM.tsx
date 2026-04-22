@@ -157,7 +157,7 @@ const AddParticipantFromCRM = ({
   };
 
   const toCRMPicker = (c: CRMCandidate): CRMPickerParticipant => {
-    const age = computeAge(c.last_birth_date);
+    const age = computeAge(c.last_birth_date) ?? 0;
     return {
       id: Math.random().toString(36).substring(2, 11),
       globalParticipantId: c.id,
@@ -166,11 +166,11 @@ const AddParticipantFromCRM = ({
       phone: c.phone || undefined,
       birthDate: c.last_birth_date || undefined,
       age,
-      ageRange: c.last_age_range || undefined,
-      preferredAgeRange: c.last_preferred_age_range || undefined,
-      preference: c.last_preference || undefined,
+      ageRange: c.last_age_range || "",
+      preferredAgeRange: c.last_preferred_age_range || "",
+      preference: c.last_preference || "",
       datingPreference: c.last_dating_preference || undefined,
-      gender: c.last_gender || undefined,
+      gender: c.last_gender || "",
       isReturningParticipant: true,
     };
   };
