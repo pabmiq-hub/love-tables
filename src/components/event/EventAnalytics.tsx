@@ -55,6 +55,15 @@ interface Selection {
   selector_id: string;
   selected_id: string;
   selection_type?: string | null;
+  is_super_like?: boolean | null;
+}
+
+interface RepeatRequestStats {
+  total: number;
+  pending: number;
+  accepted: number;
+  declined: number;
+  expired: number;
 }
 
 interface Match {
@@ -77,6 +86,7 @@ interface EventAnalyticsProps {
   matches: Match[];
   tables: any[][] | TableRound[];
   originalParticipantsCount?: number | null;
+  repeatStats?: RepeatRequestStats | null;
 }
 
 const GENDER_COLORS: Record<string, string> = {
