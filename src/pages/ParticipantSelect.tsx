@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2 } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +102,9 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
+  const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
+  const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -454,6 +457,63 @@ const ParticipantSelect = () => {
     }
   };
 
+  // Enable inline editing for a previously-submitted selection
+  const startEditing = (participantId: string) => {
+    const ms = matchSelections.find(s => s.participantId === participantId);
+    if (!ms) return;
+    const prevType = ms.previousSelectionType;
+    setEditingIds(prev => new Set(prev).add(participantId));
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.set(participantId, {
+        friendship: prevType === 'friendship' || prevType === 'both',
+        dating: prevType === 'dating' || prevType === 'both',
+        originalType: prevType,
+      });
+      return next;
+    });
+  };
+
+  const cancelEditing = (participantId: string) => {
+    setEditingIds(prev => {
+      const next = new Set(prev);
+      next.delete(participantId);
+      return next;
+    });
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.delete(participantId);
+      return next;
+    });
+  };
+
+  const toggleEditOption = (participantId: string, type: 'friendship' | 'dating') => {
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      const cur = next.get(participantId);
+      if (!cur) return prev;
+      next.set(participantId, { ...cur, [type]: !cur[type] });
+      return next;
+    });
+  };
+
+  const computePendingType = (edit: { friendship: boolean; dating: boolean }): string | null => {
+    if (edit.friendship && edit.dating) return 'both';
+    if (edit.dating) return 'dating';
+    if (edit.friendship) return 'friendship';
+    return null; // means: remove selection entirely
+  };
+
+  // Returns true if there are pending edits that actually differ from original.
+  const hasMeaningfulEdits = (): boolean => {
+    for (const [, edit] of pendingEdits.entries()) {
+      const newType = computePendingType(edit);
+      if (newType !== (edit.originalType || null)) return true;
+    }
+    return false;
+  };
+
+
   const getTablematesForSelection = (): Participant[] => {
     if (!verifiedParticipant) return [];
     return getTablemates(verifiedParticipant.id, tablesData, participants);
@@ -463,13 +523,37 @@ const ParticipantSelect = () => {
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
   const alreadySelectedCount = matchSelections.filter(ms => ms.alreadySelected).length;
 
-  const handleSubmit = async () => {
+  const performSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
     setIsSubmitting(true);
 
+    // 1) Apply pending edits via update-selection (sequentially to keep messages clear)
+    const editEntries = Array.from(pendingEdits.entries()).filter(([, edit]) => {
+      const newType = computePendingType(edit);
+      return newType !== (edit.originalType || null);
+    });
+
+    for (const [participantId, edit] of editEntries) {
+      const newType = computePendingType(edit);
+      const { data, error } = await supabase.functions.invoke('update-selection', {
+        body: { eventId, verificationCode, selectedId: participantId, selectionType: newType },
+      });
+      if (error || data?.error) {
+        console.error('Error updating selection:', error || data?.error);
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo actualizar la selección" : "Could not update the selection"),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 2) New selections (people not previously selected)
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
-    if (activeSelections.length === 0) {
+    if (activeSelections.length === 0 && editEntries.length === 0) {
       toast({
         title: t.select.noTablemates,
         description: t.select.continueWithout,
@@ -479,35 +563,55 @@ const ParticipantSelect = () => {
       return;
     }
 
-    const selections = activeSelections.map(ms => {
-      let selectionType = 'friendship';
-      if (ms.friendship && ms.dating) selectionType = 'both';
-      else if (ms.dating) selectionType = 'dating';
-      return { selected_id: ms.participantId, selection_type: selectionType };
-    });
-
-    const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections, superLikeId }
-    });
-
-    if (error || data?.error) {
-      console.error('Error saving selections:', error || data?.error);
-      toast({
-        title: "Error",
-        description: data?.error || t.select.noTablemates,
-        variant: "destructive",
+    if (activeSelections.length > 0) {
+      const selections = activeSelections.map(ms => {
+        let selectionType = 'friendship';
+        if (ms.friendship && ms.dating) selectionType = 'both';
+        else if (ms.dating) selectionType = 'dating';
+        return { selected_id: ms.participantId, selection_type: selectionType };
       });
-      setIsSubmitting(false);
-      return;
+
+      const { data, error } = await supabase.functions.invoke('submit-selections', {
+        body: { eventId, verificationCode, selections, superLikeId }
+      });
+
+      if (error || data?.error) {
+        console.error('Error saving selections:', error || data?.error);
+        toast({
+          title: "Error",
+          description: data?.error || t.select.noTablemates,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast({
+        title: t.access.selectionsSaved,
+        description: data?.message || `${selections.length} ${t.select.selections}`,
+      });
+    } else {
+      toast({
+        title: eventLang === "es" ? "Selecciones actualizadas" : "Selections updated",
+        description: eventLang === "es"
+          ? `${editEntries.length} cambio${editEntries.length === 1 ? '' : 's'} guardado${editEntries.length === 1 ? '' : 's'}`
+          : `${editEntries.length} change${editEntries.length === 1 ? '' : 's'} saved`,
+      });
     }
 
-    toast({
-      title: t.access.selectionsSaved,
-      description: data?.message || `${selections.length} ${t.select.selections}`,
-    });
     setIsSubmitting(false);
     setStep("done");
   };
+
+  const handleSubmit = async () => {
+    // If user is editing previously-submitted selections, ask for confirmation first
+    if (hasMeaningfulEdits()) {
+      setConfirmEditSubmit(true);
+      return;
+    }
+    await performSubmit();
+  };
+
 
   if (isLoading) {
     return (
@@ -683,15 +787,56 @@ const ParticipantSelect = () => {
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-medium">{formatAnonymousName(person.name, person.phone)}</span>
                         {isAlreadySelected && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {getPreviousSelectionLabel(selectionState.previousSelectionType)}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {getPreviousSelectionLabel(selectionState.previousSelectionType)}
+                            </Badge>
+                            {!editingIds.has(person.id) && (
+                              <button
+                                type="button"
+                                onClick={() => startEditing(person.id)}
+                                aria-label={eventLang === "es" ? "Modificar selección" : "Modify selection"}
+                                title={eventLang === "es" ? "Modificar" : "Modify"}
+                                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 
-                      {isAlreadySelected ? (
+                      {isAlreadySelected && !editingIds.has(person.id) ? (
                         <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
+                      ) : isAlreadySelected && editingIds.has(person.id) ? (
+                        <div className="space-y-3">
+                          <div className="flex gap-4 items-center flex-wrap">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={pendingEdits.get(person.id)?.friendship || false}
+                                onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
+                              />
+                              <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
+                            </label>
+                            {selectionState.canShowDating && (
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={pendingEdits.get(person.id)?.dating || false}
+                                  onCheckedChange={() => toggleEditOption(person.id, 'dating')}
+                                />
+                                <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                              </label>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => cancelEditing(person.id)}
+                            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                          >
+                            {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
+                          </button>
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           <div className="flex gap-4 items-center flex-wrap">
@@ -784,6 +929,8 @@ const ParticipantSelect = () => {
             <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
+              ) : hasMeaningfulEdits() && newSelectionsCount === 0 ? (
+                <><Heart className="w-4 h-4 mr-2" />{eventLang === "es" ? "Guardar cambios" : "Save changes"}</>
               ) : (
                 <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.select.submit} ${newSelectionsCount} ${t.select.selections}` : t.select.continueWithout}</>
               )}
@@ -824,6 +971,31 @@ const ParticipantSelect = () => {
             <AlertDialogCancel disabled={isSendingRepeat}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRepeat} disabled={isSendingRepeat} className="bg-violet-600 hover:bg-violet-700 text-white">
               {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Enviar solicitud" : "Send request")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmEditSubmit} onOpenChange={(open) => !open && !isSubmitting && setConfirmEditSubmit(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              {eventLang === "es" ? "¿Modificar tus selecciones previas?" : "Modify your previous selections?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? "Estás a punto de cambiar selecciones que ya habías enviado. Esto reemplazará lo que enviaste antes y será definitivo. ¿Quieres continuar?"
+                : "You're about to change selections you already submitted. This will replace what you sent before and will be final. Do you want to continue?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => { setConfirmEditSubmit(false); await performSubmit(); }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Sí, guardar cambios" : "Yes, save changes")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

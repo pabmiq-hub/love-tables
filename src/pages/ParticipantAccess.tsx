@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2 } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -135,6 +135,11 @@ const ParticipantAccess = () => {
   const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
   const [repeatTarget, setRepeatTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
+
+  // Edit-existing-selection feature (key = `${participantId}-${round}`)
+  const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
+  const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string; participantId: string }>>(new Map());
+  const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
 
   // Game mode (Modo lúdico) — dynamics per table number
   const [gameMode, setGameMode] = useState<{
@@ -506,6 +511,66 @@ const ParticipantAccess = () => {
     }
   };
 
+  // ---- Edit existing selection helpers ----
+  const editKey = (participantId: string, round: number) => `${participantId}-${round}`;
+
+  const startEditingSelection = (participantId: string, round: number, prevType?: string) => {
+    const k = editKey(participantId, round);
+    setEditingKeys(prev => new Set(prev).add(k));
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.set(k, {
+        friendship: prevType === 'friendship' || prevType === 'both',
+        dating: prevType === 'dating' || prevType === 'both',
+        originalType: prevType,
+        participantId,
+      });
+      return next;
+    });
+  };
+
+  const cancelEditingSelection = (participantId: string, round: number) => {
+    const k = editKey(participantId, round);
+    setEditingKeys(prev => { const n = new Set(prev); n.delete(k); return n; });
+    setPendingEdits(prev => { const n = new Map(prev); n.delete(k); return n; });
+  };
+
+  const toggleEditOption = (participantId: string, round: number, type: 'friendship' | 'dating') => {
+    const k = editKey(participantId, round);
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      const cur = next.get(k);
+      if (!cur) return prev;
+      next.set(k, { ...cur, [type]: !cur[type] });
+      return next;
+    });
+  };
+
+  const computePendingType = (edit: { friendship: boolean; dating: boolean }): string | null => {
+    if (edit.friendship && edit.dating) return 'both';
+    if (edit.dating) return 'dating';
+    if (edit.friendship) return 'friendship';
+    return null;
+  };
+
+  // Distinct participants with meaningful changes (deduplicated across rounds)
+  const getMeaningfulEdits = (): { participantId: string; newType: string | null }[] => {
+    const byParticipant = new Map<string, { newType: string | null; original: string | undefined }>();
+    for (const [, edit] of pendingEdits.entries()) {
+      const newType = computePendingType(edit);
+      if (newType !== (edit.originalType || null)) {
+        // If the same participant appears in multiple rounds, last write wins
+        // (the edit form per-row pre-fills from existingType, so they stay in sync).
+        byParticipant.set(edit.participantId, { newType, original: edit.originalType });
+      }
+    }
+    return Array.from(byParticipant.entries()).map(([participantId, v]) => ({
+      participantId, newType: v.newType,
+    }));
+  };
+
+  const hasMeaningfulEdits = (): boolean => getMeaningfulEdits().length > 0;
+
   const selectionsByRound = tableAssignments.map(assignment => {
     const roundSelections = matchSelections.filter(ms => ms.round === assignment.round);
     return { round: assignment.round, table: assignment.table, selections: roundSelections };
@@ -523,10 +588,28 @@ const ParticipantAccess = () => {
 
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
 
-  const handleSubmit = async () => {
+  const performSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
     setIsSubmitting(true);
 
+    // 1) Apply edits to previously-submitted selections
+    const edits = getMeaningfulEdits();
+    for (const e of edits) {
+      const { data, error } = await supabase.functions.invoke('update-selection', {
+        body: { eventId, verificationCode, selectedId: e.participantId, selectionType: e.newType },
+      });
+      if (error || data?.error) {
+        toast({
+          title: t.access.error,
+          description: data?.error || (eventLang === 'es' ? 'No se pudo actualizar la selección' : 'Could not update the selection'),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 2) New selections
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
     const deduped = new Map<string, MatchSelection>();
@@ -553,22 +636,40 @@ const ParticipantAccess = () => {
     const superLikedSelection = matchSelections.find(ms => !ms.alreadySelected && ms.superLikedByMe);
     const superLikeId = superLikedSelection?.participantId;
 
-    const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections, superLikeId }
-    });
+    if (selections.length > 0) {
+      const { data, error } = await supabase.functions.invoke('submit-selections', {
+        body: { eventId, verificationCode, selections, superLikeId }
+      });
 
-    if (error || data?.error) {
-      toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
-      setIsSubmitting(false);
-      return;
+      if (error || data?.error) {
+        toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
+    } else if (edits.length > 0) {
+      toast({
+        title: eventLang === 'es' ? 'Selecciones actualizadas' : 'Selections updated',
+        description: eventLang === 'es'
+          ? `${edits.length} cambio${edits.length === 1 ? '' : 's'} guardado${edits.length === 1 ? '' : 's'}`
+          : `${edits.length} change${edits.length === 1 ? '' : 's'} saved`,
+      });
     }
 
-    toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
     setIsSubmitting(false);
     clearSession();
     setStep("done");
-    setStep("done");
   };
+
+  const handleSubmit = async () => {
+    if (hasMeaningfulEdits()) {
+      setConfirmEditSubmit(true);
+      return;
+    }
+    await performSubmit();
+  };
+
 
   const handleSubmitEmpty = async () => {
     if (!verifiedParticipant || !eventId) return;
@@ -1001,15 +1102,56 @@ const ParticipantAccess = () => {
                                       )}
                                     </span>
                                     {ms.alreadySelected && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        {getPreviousSelectionLabel(ms.previousSelectionType)}
-                                      </Badge>
+                                      <div className="flex items-center gap-1.5">
+                                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          {getPreviousSelectionLabel(ms.previousSelectionType)}
+                                        </Badge>
+                                        {!editingKeys.has(editKey(ms.participantId, round)) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => startEditingSelection(ms.participantId, round, ms.previousSelectionType)}
+                                            aria-label={eventLang === 'es' ? 'Modificar selección' : 'Modify selection'}
+                                            title={eventLang === 'es' ? 'Modificar' : 'Modify'}
+                                            className="p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                                          >
+                                            <Pencil className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
 
-                                  {ms.alreadySelected ? (
+                                  {ms.alreadySelected && !editingKeys.has(editKey(ms.participantId, round)) ? (
                                     <p className="text-xs text-muted-foreground">{t.access.alreadySelected}</p>
+                                  ) : ms.alreadySelected && editingKeys.has(editKey(ms.participantId, round)) ? (
+                                    <div className="space-y-2">
+                                      <div className="flex gap-4 flex-wrap">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                          <Checkbox
+                                            checked={pendingEdits.get(editKey(ms.participantId, round))?.friendship || false}
+                                            onCheckedChange={() => toggleEditOption(ms.participantId, round, 'friendship')}
+                                          />
+                                          <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
+                                        </label>
+                                        {ms.canShowDating && (
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox
+                                              checked={pendingEdits.get(editKey(ms.participantId, round))?.dating || false}
+                                              onCheckedChange={() => toggleEditOption(ms.participantId, round, 'dating')}
+                                            />
+                                            <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          </label>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => cancelEditingSelection(ms.participantId, round)}
+                                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                                      >
+                                        {eventLang === 'es' ? 'Descartar cambios' : 'Discard changes'}
+                                      </button>
+                                    </div>
                                   ) : (
                                     <div className="space-y-2">
                                       <div className="flex gap-4 flex-wrap">
@@ -1095,12 +1237,14 @@ const ParticipantAccess = () => {
                 <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
                   {isSubmitting ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.access.saving}</>
+                  ) : hasMeaningfulEdits() && newSelectionsCount === 0 ? (
+                    <><Heart className="w-4 h-4 mr-2" />{eventLang === 'es' ? 'Guardar cambios' : 'Save changes'}</>
                   ) : (
                     <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.access.send} ${newSelectionsCount} ${t.access.selectionsCount}` : t.access.continueWithout}</>
                   )}
                 </Button>
 
-                {newSelectionsCount === 0 && (
+                {newSelectionsCount === 0 && !hasMeaningfulEdits() && (
                   <Button 
                     variant="outline" 
                     className="w-full mt-2" 
