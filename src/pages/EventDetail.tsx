@@ -1122,11 +1122,14 @@ const EventDetail = () => {
         }
         
         // Fill remaining if relaxed - but still try to maintain age compatibility and respect exclusions
+        // Game-mode constraint remains HARD even in relaxed mode.
         if ((relaxConstraints || genderParity) && table.length < targetSize) {
           // Sort by age compatibility first, prefer non-repeats
           const remainingParticipants = availableParticipants
             .filter(p => {
               if (usedParticipants.has(p.id)) return false;
+              // Game-mode dynamic constraint is non-negotiable
+              if (tableDynId && hasPlayedDyn(p.id, tableDynId)) return false;
               // Always respect exclusions even in relaxed mode
               for (const member of table) {
                 if (areExcluded(p.id, member.id)) return false;
@@ -1157,6 +1160,7 @@ const EventDetail = () => {
             if (table.length >= targetSize) break;
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
+            if (tableDynId) recordDyn(participant.id, tableDynId);
           }
         }
         
