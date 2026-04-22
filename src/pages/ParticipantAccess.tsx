@@ -126,6 +126,17 @@ const ParticipantAccess = () => {
   const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
+  // Game mode (Modo lúdico) — dynamics per table number
+  const [gameMode, setGameMode] = useState<{
+    enabled: boolean;
+    dynamics: { id: string; name: string; table_numbers: number[] }[];
+  } | null>(null);
+
+  const getDynamicForTable = (tableNumber: number) => {
+    if (!gameMode?.enabled) return null;
+    return gameMode.dynamics.find(d => d.table_numbers.includes(tableNumber)) || null;
+  };
+
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
 
@@ -337,6 +348,9 @@ const ParticipantAccess = () => {
       // Read super-like flags returned by edge function
       setHasSentSuperLike(!!data.hasSentSuperLike);
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
+
+      // Game mode payload (no `played` map sent to clients)
+      setGameMode(data.gameMode || null);
 
       // Handle preliminary round confirmation status
       const prelimConfirm = data.preliminaryConfirmation;
