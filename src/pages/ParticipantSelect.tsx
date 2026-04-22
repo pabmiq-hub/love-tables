@@ -98,6 +98,9 @@ const ParticipantSelect = () => {
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [confirmSuperLikeFor, setConfirmSuperLikeFor] = useState<{ id: string; name: string } | null>(null);
+  const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
+  const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
