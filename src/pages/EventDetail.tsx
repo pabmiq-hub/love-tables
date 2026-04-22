@@ -3240,24 +3240,18 @@ const EventDetail = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {eventStatus === "pending" && (
-                    <>
-                      <DropdownMenuItem onClick={() => setShowJoinQR(true)}>
-                        <QrCode className="w-4 h-4 mr-2" />
-                        QR Registro
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowCheckinQR(true)}>
-                        <UserCheck className="w-4 h-4 mr-2" />
-                        QR Check-in
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {(eventStatus === "active" || eventStatus === "completed") && (
-                    <DropdownMenuItem onClick={() => setShowQR(true)}>
-                      <QrCode className="w-4 h-4 mr-2" />
-                      QR Panel participante
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem onClick={() => setShowJoinQR(true)}>
+                    <QrCode className="w-4 h-4 mr-2" />
+                    QR Registro
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowCheckinQR(true)}>
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    QR Check-in
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowQR(true)}>
+                    <QrCode className="w-4 h-4 mr-2" />
+                    QR Panel participante
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 

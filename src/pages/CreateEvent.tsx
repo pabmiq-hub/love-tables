@@ -1150,8 +1150,9 @@ const CreateEvent = () => {
                   <GameModeEditor
                     value={gameMode}
                     onChange={setGameMode}
-                    estimatedTables={Math.max(1, Math.ceil((participants.length || tableSize * 2) / Math.max(tableSize, 2)))}
+                    estimatedTables={Math.max(1, Math.ceil(Math.max(participants.length || 0, tableSize) / Math.max(tableSize, 1)))}
                     totalRounds={rounds}
+                    participantsCount={participants.length || 0}
                   />
                 )}
                 <div className="pt-2">
