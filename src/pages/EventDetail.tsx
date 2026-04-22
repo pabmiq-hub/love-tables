@@ -5280,6 +5280,7 @@ const EventDetail = () => {
           open={showInclusionsManager}
           onOpenChange={setShowInclusionsManager}
           onInclusionsChange={setInclusions}
+          tableSize={eventData?.table_size}
         />
 
         {/* Copy Event Dialog */}
