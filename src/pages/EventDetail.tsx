@@ -616,6 +616,20 @@ const EventDetail = () => {
     const generationMode = (eventData as any)?.tables_generation_mode || "upfront";
     const totalRoundsToGenerate = generationMode === "per_round" ? 1 : (eventData?.rounds || 5);
 
+    // Modo Lúdico: rebuild `played` from the source of truth (preliminary tables only,
+    // since this is the FIRST official-round generation). Avoids accumulating ghost
+    // dynamics from previous regeneration attempts.
+    const gameModeForGen = eventData?.game_mode
+      ? {
+          ...eventData.game_mode,
+          played: rebuildPlayedFromTables(
+            eventData.game_mode,
+            (eventData as any)?.preliminary_round?.tables,
+            null
+          ),
+        }
+      : null;
+
     const result = generateSmartTables(
       checkedInParticipants, 
       totalRoundsToGenerate, 
@@ -625,7 +639,7 @@ const EventDetail = () => {
       eventData?.avoid_previous_encounters ? encountersMap : undefined,
       eventData?.avoid_encounters_mode || "preference",
       eventData?.group_rounds || undefined,
-      eventData?.game_mode || null
+      gameModeForGen
     );
     
     if (result.hasIncomplete) {
@@ -744,6 +758,18 @@ const EventDetail = () => {
     const checkedInParticipants = participants.filter(p => p.checked_in);
     // Generate tables with relaxed constraints (fill with similar preferences)
     // Pass previous encounters if enabled
+    // Modo Lúdico: rebuild `played` from preliminary only (first official-round generation).
+    const gameModeForGen = eventData?.game_mode
+      ? {
+          ...eventData.game_mode,
+          played: rebuildPlayedFromTables(
+            eventData.game_mode,
+            (eventData as any)?.preliminary_round?.tables,
+            null
+          ),
+        }
+      : null;
+
     const result = generateSmartTables(
       checkedInParticipants, 
       eventData?.rounds || 5, 
@@ -753,7 +779,7 @@ const EventDetail = () => {
       eventData?.avoid_previous_encounters ? previousEncounters : undefined,
       eventData?.avoid_encounters_mode || "preference",
       eventData?.group_rounds || undefined,
-      eventData?.game_mode || null
+      gameModeForGen
     );
     await finalizeTableGeneration(result.tables, checkedInParticipants, result.playedAfter);
   };
