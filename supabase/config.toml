@@ -62,3 +62,9 @@ verify_jwt = false
 
 [functions.handle-participant-cancellation]
 verify_jwt = false
+
+[functions.request-repeat]
+verify_jwt = false
+
+[functions.respond-repeat]
+verify_jwt = false
