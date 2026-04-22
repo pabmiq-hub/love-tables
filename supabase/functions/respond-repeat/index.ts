@@ -6,6 +6,78 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const escapeHtml = (s: string): string =>
+  (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+const sendRequesterEmail = async (params: {
+  resendApiKey: string;
+  requesterEmail: string;
+  requesterName: string;
+  eventName: string;
+  eventLang: "es" | "en";
+  status: "accepted" | "declined" | "expired";
+  scheduledRound?: number;
+  storedTpl?: any;
+}) => {
+  const { resendApiKey, requesterEmail, requesterName, eventName, eventLang: lang, status, scheduledRound, storedTpl } = params;
+  if (!resendApiKey || !requesterEmail) return;
+
+  const tplKey = status === "accepted" ? "repeat_request_accepted" : "repeat_request_declined";
+  const tpl = storedTpl?.[tplKey] || null;
+
+  const renderVar = (s: string) =>
+    (s || "")
+      .replace(/\{\{nombre\}\}/g, escapeHtml(requesterName))
+      .replace(/\{\{evento\}\}/g, escapeHtml(eventName))
+      .replace(/\{\{ronda\}\}/g, String(scheduledRound ?? ""));
+
+  const defaults = status === "accepted"
+    ? {
+        subject: lang === "en" ? `✅ Your repeat request was accepted at {{evento}}!` : `✅ ¡Tu solicitud de repetir ha sido aceptada en {{evento}}!`,
+        greeting: lang === "en" ? `Hi {{nombre}}! 🎉` : `¡Hola {{nombre}}! 🎉`,
+        intro: lang === "en"
+          ? `Great news! The person you asked to meet again has accepted.\n\nWe'll seat you at the same table in round {{ronda}}.`
+          : `¡Buenas noticias! La persona a la que pediste volver a coincidir ha aceptado.\n\nOs sentaremos en la misma mesa en la ronda {{ronda}}.`,
+        closing: lang === "en" ? `Enjoy the reconnection!` : `¡Disfruta del reencuentro!`,
+        signature: lang === "en" ? `With love,<br/>Konektum 💕` : `Con cariño,<br/>Konektum 💕`,
+      }
+    : {
+        subject: lang === "en" ? `About your repeat request at {{evento}}` : `Sobre tu solicitud de repetir en {{evento}}`,
+        greeting: lang === "en" ? `Hi {{nombre}}! 👋` : `¡Hola {{nombre}}! 👋`,
+        intro: lang === "en"
+          ? `We've delivered your repeat request, but it wasn't possible to apply it this time. Don't be discouraged!`
+          : `Hemos comunicado tu solicitud de repetir, pero en esta ocasión no ha sido posible aplicarla. ¡No te desanimes!`,
+        closing: lang === "en" ? `Keep enjoying the experience.` : `Sigue con tu experiencia y revisa tus matches al final del evento.`,
+        signature: lang === "en" ? `With love,<br/>Konektum 💕` : `Con cariño,<br/>Konektum 💕`,
+      };
+
+  const subject = renderVar(tpl?.subject || defaults.subject);
+  const greeting = renderVar(tpl?.greeting || defaults.greeting);
+  const intro = renderVar(tpl?.intro || defaults.intro);
+  const closing = renderVar(tpl?.closing || defaults.closing);
+  const signature = renderVar(tpl?.signature || defaults.signature);
+  const accent = status === "accepted" ? "#10B981" : "#8B5CF6";
+
+  const html = `
+    <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
+      <h2 style="font-family: Outfit, Arial, sans-serif; color: ${accent}; margin-bottom: 8px;">${escapeHtml(greeting)}</h2>
+      <p style="font-size: 15px; line-height: 1.5;">${intro.replace(/\n/g, '<br/>')}</p>
+      <p style="font-size: 14px; color: #555; line-height: 1.5; margin-top: 16px;">${escapeHtml(closing)}</p>
+      <p style="font-size: 13px; color: #888; margin-top: 24px;">${signature}</p>
+    </div>
+  `;
+
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "Konektum <hola@konektum.com>", to: [requesterEmail], subject, html }),
+    });
+  } catch (mailErr) {
+    console.error("[respond-repeat] email send failed", mailErr);
+  }
+};
+
 const textEncoder = new TextEncoder();
 let repeatKeyPromise: Promise<CryptoKey> | null = null;
 
