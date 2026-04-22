@@ -4448,7 +4448,10 @@ const EventDetail = () => {
                     onCompleteRound={async (roundNumber: number) => {
                       const newCompletedRounds = [...completedRounds, roundNumber];
                       const nextRound = roundNumber + 1;
-                      const isLastRound = roundNumber >= tables.length;
+                      // Use total configured rounds (eventData.rounds) so we advance even
+                      // if the next round's tables haven't been generated yet (JIT mode).
+                      const totalConfiguredRounds = Math.max(eventData.rounds || 0, tables.length);
+                      const isLastRound = roundNumber >= totalConfiguredRounds;
                       const generationMode = (eventData as any).tables_generation_mode || "upfront";
                       
                       // JIT mode: generate next round NOW, excluding cancelled/non-checked-in participants
