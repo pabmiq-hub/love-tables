@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2 } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
