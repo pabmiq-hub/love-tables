@@ -390,6 +390,55 @@ const ParticipantSelect = () => {
     setConfirmSuperLikeFor(null);
   };
 
+  const requestRepeat = (participantId: string, name: string) => {
+    if (repeatRequestUsed) {
+      toast({
+        title: eventLang === "es" ? "Ya has usado tu repetición" : "You already used your repeat",
+        description: eventLang === "es"
+          ? "Solo puedes solicitar repetir con una persona por evento"
+          : "You can only request to repeat with one person per event",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmRepeatFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmRepeat = async () => {
+    if (!confirmRepeatFor || !verifiedParticipant || !eventId) return;
+    setIsSendingRepeat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-repeat', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: confirmRepeatFor.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo enviar la solicitud" : "Could not send the request"),
+          variant: "destructive",
+        });
+        return;
+      }
+      setRepeatRequestUsed({ status: "pending", targetId: confirmRepeatFor.id });
+      toast({
+        title: eventLang === "es" ? "🔁 Solicitud enviada" : "🔁 Request sent",
+        description: eventLang === "es"
+          ? "La otra persona recibirá un email para aceptar o rechazar tu solicitud"
+          : "The other person will receive an email to accept or decline your request",
+      });
+      setConfirmRepeatFor(null);
+    } catch (err) {
+      console.error('Error sending repeat request:', err);
+      toast({ title: "Error", description: String(err), variant: "destructive" });
+    } finally {
+      setIsSendingRepeat(false);
+    }
+  };
+
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
       case 'friendship': return t.select.friendship;
