@@ -608,9 +608,13 @@ const EventDetail = () => {
     }
 
     // Generate smart tables based on preferences, passing previous encounters (Social mode)
+    // In per_round mode, only generate Round 1 — subsequent rounds will be generated JIT.
+    const generationMode = (eventData as any)?.tables_generation_mode || "upfront";
+    const totalRoundsToGenerate = generationMode === "per_round" ? 1 : (eventData?.rounds || 5);
+
     const result = generateSmartTables(
       checkedInParticipants, 
-      eventData?.rounds || 5, 
+      totalRoundsToGenerate, 
       eventData?.table_size || 2, 
       false, 
       eventData?.gender_parity || false,
