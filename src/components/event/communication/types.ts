@@ -26,6 +26,9 @@ export interface CommunicationTemplates {
   checkin_code: StructuredTemplate;
   super_like: StructuredTemplate;
   no_show: MatchesWithoutTemplate;
+  repeat_request_received: StructuredTemplate;
+  repeat_request_accepted: StructuredTemplate;
+  repeat_request_declined: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
@@ -34,7 +37,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -52,6 +55,9 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   checkin_code: ["{{nombre}}", "{{evento}}", "{{codigo}}"],
   super_like: ["{{nombre}}", "{{evento}}"],
   no_show: ["{{nombre}}", "{{evento}}"],
+  repeat_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}", "{{enlace_aceptar}}", "{{enlace_rechazar}}"],
+  repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
+  repeat_request_declined: ["{{nombre}}", "{{evento}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
@@ -120,6 +126,27 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     greeting: "¡Hola {{nombre}}! 👋",
     message: "Vimos que te registraste en {{evento}} pero no pudiste asistir. ¡Fue una lástima no verte!\n\nNo te preocupes, estamos preparando nuevos eventos donde podrás conocer gente increíble. ¡Esperamos contar contigo la próxima vez!",
     closing: "¡Nos encantaría verte en el próximo evento!",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  repeat_request_received: {
+    subject: "🔁 {{solicitante}} quiere volver a coincidir contigo en {{evento}}",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "{{solicitante}} ha pedido volver a coincidir contigo en una próxima ronda del evento {{evento}}.\n\nSi aceptas, os asignaremos a la misma mesa en la siguiente ronda disponible. Tu identidad solo se revelará si aceptas.",
+    closing: "Pulsa el botón para responder. Tu decisión es totalmente confidencial.",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  repeat_request_accepted: {
+    subject: "✅ ¡Tu solicitud de repetir ha sido aceptada en {{evento}}!",
+    greeting: "¡Hola {{nombre}}! 🎉",
+    intro: "¡Buenas noticias! La persona a la que pediste volver a coincidir ha aceptado tu solicitud.\n\nOs asignaremos a la misma mesa en la ronda {{ronda}}.",
+    closing: "¡Disfruta del reencuentro! Las mejores conversaciones merecen una segunda oportunidad.",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  repeat_request_declined: {
+    subject: "Sobre tu solicitud de repetir en {{evento}}",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "Hemos comunicado tu solicitud de repetir, pero en esta ocasión no ha sido posible aplicarla. ¡No te desanimes!\n\nEsto es totalmente normal y ocurre con frecuencia. Aún tienes muchas oportunidades de hacer match con quienes mostraron interés en ti.",
+    closing: "Sigue con tu experiencia y revisa tus matches al final del evento.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   primaryColor: "#e11d48",
