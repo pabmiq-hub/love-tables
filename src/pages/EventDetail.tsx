@@ -118,6 +118,7 @@ interface EventData {
   preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null; closed_at?: string | null; confirmations?: Record<string, boolean>; dismissed_tables?: number[] } | null;
   reminder_mode: string;
   reminder_scheduled_at: string | null;
+  game_mode: import("@/lib/gameMode").GameModeConfig | null;
 }
 
 interface DbParticipant {
