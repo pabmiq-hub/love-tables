@@ -433,6 +433,21 @@ const ParticipantAccess = () => {
       setMatchSelections(allSelections);
       setStep("panel");
 
+      // Fetch existing repeat request for this participant (if feature enabled)
+      try {
+        const { data: existingRepeat } = await (supabase as any)
+          .from('repeat_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingRepeat) {
+          setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+      } catch (e) {
+        console.warn('Could not fetch repeat request:', e);
+      }
+
       // Save session to localStorage
       saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
     } catch (err) {
