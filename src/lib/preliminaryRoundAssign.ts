@@ -8,7 +8,12 @@
  * preliminary table that belongs to a dynamic they have already played.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { GameModeConfig, getDynamicIdForTable, normalizeGameMode } from "@/lib/gameMode";
+import {
+  GameModeConfig,
+  getDynamicIdForTable,
+  normalizeGameMode,
+  rebuildPlayedFromTables,
+} from "@/lib/gameMode";
 
 export interface PreliminaryParticipant {
   id: string;
@@ -116,13 +121,23 @@ export async function assignParticipantsToPreliminaryTables(
   if (!isSocial || !prelim?.enabled) return;
 
   const tableSize = event.table_size || 4;
-  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameMode);
+
+  // Modo Lúdico: rebuild `played` from current preliminary tables (source of truth)
+  // before adding new participants — avoids drift from stale persisted data.
+  const gameModeForFill = gameMode
+    ? {
+        ...gameMode,
+        played: rebuildPlayedFromTables(gameMode, prelim?.tables, null),
+      }
+    : null;
+
+  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameModeForFill);
 
   const { __updated_played, ...prelimToSave } = updated as any;
 
   const updates: any = { preliminary_round: prelimToSave };
-  if (gameMode && __updated_played) {
-    updates.game_mode = { ...gameMode, played: __updated_played };
+  if (gameModeForFill && __updated_played) {
+    updates.game_mode = { ...gameModeForFill, played: __updated_played };
   }
 
   await supabase.from("events").update(updates).eq("id", eventId);
