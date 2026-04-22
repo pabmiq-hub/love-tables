@@ -38,7 +38,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import RoundTimer from "@/components/event/RoundTimer";
 import EventQRCode from "@/components/event/EventQRCode";
-import AddParticipantModal from "@/components/event/AddParticipantModal";
 import AddParticipantTabsModal from "@/components/event/AddParticipantTabsModal";
 import type { CRMPickerParticipant } from "@/components/event/AddParticipantFromCRM";
 import AddProfessionalParticipantModal, { type ProfessionalParticipant as ModalProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
