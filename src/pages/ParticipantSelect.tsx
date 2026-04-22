@@ -523,13 +523,37 @@ const ParticipantSelect = () => {
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
   const alreadySelectedCount = matchSelections.filter(ms => ms.alreadySelected).length;
 
-  const handleSubmit = async () => {
+  const performSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
     setIsSubmitting(true);
 
+    // 1) Apply pending edits via update-selection (sequentially to keep messages clear)
+    const editEntries = Array.from(pendingEdits.entries()).filter(([, edit]) => {
+      const newType = computePendingType(edit);
+      return newType !== (edit.originalType || null);
+    });
+
+    for (const [participantId, edit] of editEntries) {
+      const newType = computePendingType(edit);
+      const { data, error } = await supabase.functions.invoke('update-selection', {
+        body: { eventId, verificationCode, selectedId: participantId, selectionType: newType },
+      });
+      if (error || data?.error) {
+        console.error('Error updating selection:', error || data?.error);
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo actualizar la selección" : "Could not update the selection"),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 2) New selections (people not previously selected)
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
-    if (activeSelections.length === 0) {
+    if (activeSelections.length === 0 && editEntries.length === 0) {
       toast({
         title: t.select.noTablemates,
         description: t.select.continueWithout,
@@ -539,35 +563,55 @@ const ParticipantSelect = () => {
       return;
     }
 
-    const selections = activeSelections.map(ms => {
-      let selectionType = 'friendship';
-      if (ms.friendship && ms.dating) selectionType = 'both';
-      else if (ms.dating) selectionType = 'dating';
-      return { selected_id: ms.participantId, selection_type: selectionType };
-    });
-
-    const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections, superLikeId }
-    });
-
-    if (error || data?.error) {
-      console.error('Error saving selections:', error || data?.error);
-      toast({
-        title: "Error",
-        description: data?.error || t.select.noTablemates,
-        variant: "destructive",
+    if (activeSelections.length > 0) {
+      const selections = activeSelections.map(ms => {
+        let selectionType = 'friendship';
+        if (ms.friendship && ms.dating) selectionType = 'both';
+        else if (ms.dating) selectionType = 'dating';
+        return { selected_id: ms.participantId, selection_type: selectionType };
       });
-      setIsSubmitting(false);
-      return;
+
+      const { data, error } = await supabase.functions.invoke('submit-selections', {
+        body: { eventId, verificationCode, selections, superLikeId }
+      });
+
+      if (error || data?.error) {
+        console.error('Error saving selections:', error || data?.error);
+        toast({
+          title: "Error",
+          description: data?.error || t.select.noTablemates,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast({
+        title: t.access.selectionsSaved,
+        description: data?.message || `${selections.length} ${t.select.selections}`,
+      });
+    } else {
+      toast({
+        title: eventLang === "es" ? "Selecciones actualizadas" : "Selections updated",
+        description: eventLang === "es"
+          ? `${editEntries.length} cambio${editEntries.length === 1 ? '' : 's'} guardado${editEntries.length === 1 ? '' : 's'}`
+          : `${editEntries.length} change${editEntries.length === 1 ? '' : 's'} saved`,
+      });
     }
 
-    toast({
-      title: t.access.selectionsSaved,
-      description: data?.message || `${selections.length} ${t.select.selections}`,
-    });
     setIsSubmitting(false);
     setStep("done");
   };
+
+  const handleSubmit = async () => {
+    // If user is editing previously-submitted selections, ask for confirmation first
+    if (hasMeaningfulEdits()) {
+      setConfirmEditSubmit(true);
+      return;
+    }
+    await performSubmit();
+  };
+
 
   if (isLoading) {
     return (
