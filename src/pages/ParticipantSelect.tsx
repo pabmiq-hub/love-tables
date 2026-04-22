@@ -457,6 +457,63 @@ const ParticipantSelect = () => {
     }
   };
 
+  // Enable inline editing for a previously-submitted selection
+  const startEditing = (participantId: string) => {
+    const ms = matchSelections.find(s => s.participantId === participantId);
+    if (!ms) return;
+    const prevType = ms.previousSelectionType;
+    setEditingIds(prev => new Set(prev).add(participantId));
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.set(participantId, {
+        friendship: prevType === 'friendship' || prevType === 'both',
+        dating: prevType === 'dating' || prevType === 'both',
+        originalType: prevType,
+      });
+      return next;
+    });
+  };
+
+  const cancelEditing = (participantId: string) => {
+    setEditingIds(prev => {
+      const next = new Set(prev);
+      next.delete(participantId);
+      return next;
+    });
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.delete(participantId);
+      return next;
+    });
+  };
+
+  const toggleEditOption = (participantId: string, type: 'friendship' | 'dating') => {
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      const cur = next.get(participantId);
+      if (!cur) return prev;
+      next.set(participantId, { ...cur, [type]: !cur[type] });
+      return next;
+    });
+  };
+
+  const computePendingType = (edit: { friendship: boolean; dating: boolean }): string | null => {
+    if (edit.friendship && edit.dating) return 'both';
+    if (edit.dating) return 'dating';
+    if (edit.friendship) return 'friendship';
+    return null; // means: remove selection entirely
+  };
+
+  // Returns true if there are pending edits that actually differ from original.
+  const hasMeaningfulEdits = (): boolean => {
+    for (const [, edit] of pendingEdits.entries()) {
+      const newType = computePendingType(edit);
+      if (newType !== (edit.originalType || null)) return true;
+    }
+    return false;
+  };
+
+
   const getTablematesForSelection = (): Participant[] => {
     if (!verifiedParticipant) return [];
     return getTablemates(verifiedParticipant.id, tablesData, participants);
