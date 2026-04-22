@@ -4957,6 +4957,7 @@ const EventDetail = () => {
                 reminderScheduledAt={eventData.reminder_scheduled_at}
                 gameMode={(eventData as any).game_mode || null}
                 participantsCount={eventData.participants_count || 0}
+                tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}

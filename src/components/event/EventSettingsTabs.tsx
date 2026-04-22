@@ -36,6 +36,7 @@ interface EventSettingsTabsProps {
   reminderScheduledAt?: string | null;
   gameMode?: any;
   participantsCount?: number;
+  tablesGenerationMode?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
 

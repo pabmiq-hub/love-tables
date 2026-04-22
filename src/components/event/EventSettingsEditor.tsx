@@ -432,6 +432,27 @@ const EventSettingsEditor = ({
             </Select>
           </div>
 
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex-1 pr-4">
+                <Label className="text-base">Generación de rondas</Label>
+                <p className="text-sm text-muted-foreground">
+                  <strong>Anticipada:</strong> todas las rondas se generan al iniciar el evento.<br />
+                  <strong>Justo a tiempo:</strong> cada ronda se genera al finalizar la anterior, excluyendo bajas/cancelaciones.
+                </p>
+              </div>
+              <Select value={formTablesGenerationMode} onValueChange={setFormTablesGenerationMode}>
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upfront">Anticipada (al iniciar)</SelectItem>
+                  <SelectItem value="per_round">Justo a tiempo (por ronda)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Check-in timing */}
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
