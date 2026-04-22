@@ -115,6 +115,10 @@ const EventSettingsEditor = ({
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
   const [formReminderMode, setFormReminderMode] = useState(initialReminderMode);
   const [formReminderScheduledAt, setFormReminderScheduledAt] = useState(initialReminderScheduledAt || "");
+  const [formGameMode, setFormGameMode] = useState<GameModeConfig>(
+    normalizeGameMode(initialGameMode) || { ...EMPTY_GAME_MODE }
+  );
+  const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -196,6 +200,20 @@ const EventSettingsEditor = ({
         updates.preliminary_round = { enabled: true, tables: [], started_at: null };
       } else if (!formPreliminaryRoundEnabled) {
         updates.preliminary_round = null;
+      }
+
+      // Handle game mode (Modo lúdico) — Enterprise + Social only
+      if (!isProfessional && canUseGameMode && formGameMode.enabled && formGameMode.dynamics.length > 0) {
+        // Preserve existing 'played' map so live preliminary state is not lost
+        const existingPlayed =
+          (initialGameMode && typeof initialGameMode === "object" && (initialGameMode as any).played) || {};
+        updates.game_mode = {
+          enabled: true,
+          dynamics: formGameMode.dynamics,
+          played: existingPlayed,
+        };
+      } else if (!formGameMode.enabled) {
+        updates.game_mode = null;
       }
 
       if (isProfessional) {
