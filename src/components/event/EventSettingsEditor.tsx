@@ -424,7 +424,7 @@ const EventSettingsEditor = ({
           )}
 
           {!isProfessional && (
-            <FeatureGate feature="repeat_request" mode="hide">
+            <FeatureGate feature="repeat_request" showUpgrade={false}>
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex-1 pr-4">
                   <Label className="text-base">🔁 Función "Repetir"</Label>
