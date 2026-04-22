@@ -43,6 +43,7 @@ import AddProfessionalParticipantModal, { type ProfessionalParticipant as ModalP
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
 import InclusionsManager from "@/components/event/InclusionsManager";
+import { loadInclusions, computeInclusionGroups, buildInclusionGroupIndex } from "@/lib/inclusions";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
@@ -427,6 +428,10 @@ const EventDetail = () => {
     if (exclusionsData) {
       setExclusions(exclusionsData);
     }
+
+    // Load inclusions (mandatory pairs that must sit together)
+    const inclusionsData = await loadInclusions(id);
+    setInclusions(inclusionsData);
 
     // Load waitlist
     const { data: waitlistData } = await supabase
@@ -846,14 +851,17 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroupsArg?: string[][]
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
+    // Resolve inclusion groups: arg overrides, else compute from current state
+    const inclusionGroups = inclusionGroupsArg ?? computeInclusionGroups(inclusions);
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode, inclusionGroups);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode, inclusionGroups);
     }
   };
 
@@ -1015,10 +1023,15 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroups: string[][] = []
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+
+    // Build O(1) lookup: participantId -> inclusionGroup index
+    const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
+    const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
     // Group by age range first, then create tables within groups
     const ageGroups = groupParticipantsByAgeRange(participantsList);
@@ -1128,6 +1141,29 @@ const EventDetail = () => {
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
             if (tableDynId) recordDyn(participant.id, tableDynId);
+
+            // Inclusion pull: if this participant belongs to a mandatory group,
+            // immediately seat all available groupmates at this same table.
+            const grpIdx = inclusionGroupIndex.get(participant.id);
+            if (grpIdx !== undefined && table.length < targetSize) {
+              const groupmates = inclusionGroups[grpIdx]
+                .filter(pid => pid !== participant.id && !usedParticipants.has(pid));
+              for (const mateId of groupmates) {
+                if (table.length >= targetSize) break;
+                const mate = participantsById.get(mateId);
+                if (!mate) continue;
+                // Honor exclusions and game-mode dynamic (still hard)
+                if (tableDynId && hasPlayedDyn(mateId, tableDynId)) continue;
+                let blocked = false;
+                for (const member of table) {
+                  if (areExcluded(mateId, member.id)) { blocked = true; break; }
+                }
+                if (blocked) continue;
+                table.push({ id: mateId, name: mate.name });
+                usedParticipants.add(mateId);
+                if (tableDynId) recordDyn(mateId, tableDynId);
+              }
+            }
           }
         }
         
@@ -1216,10 +1252,15 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroups: string[][] = []
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+
+    // Build O(1) lookup: participantId -> inclusionGroup index
+    const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
+    const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
     // Use optimal distribution to avoid tables with only 2 people
     const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
@@ -1449,6 +1490,29 @@ const EventDetail = () => {
           usedRotators.add(rotator.id);
           if (tableDynId) recordDyn(rotator.id, tableDynId);
           filledSeats++;
+
+          // Inclusion pull: seat groupmates of this rotator at the same table.
+          const grpIdx = inclusionGroupIndex.get(rotator.id);
+          if (grpIdx !== undefined) {
+            const groupmates = inclusionGroups[grpIdx]
+              .filter(pid => pid !== rotator.id && !usedRotators.has(pid) && pid !== host.id);
+            for (const mateId of groupmates) {
+              if (filledSeats >= seatsNeeded) break;
+              const mate = participantsById.get(mateId);
+              if (!mate) continue;
+              if (tableDynId && hasPlayedDyn(mateId, tableDynId)) continue;
+              if (areExcluded(host.id, mateId)) continue;
+              let blocked = false;
+              for (const member of table) {
+                if (areExcluded(mateId, member.id)) { blocked = true; break; }
+              }
+              if (blocked) continue;
+              table.push({ id: mateId, name: mate.name });
+              usedRotators.add(mateId);
+              if (tableDynId) recordDyn(mateId, tableDynId);
+              filledSeats++;
+            }
+          }
         }
         
         // Fill remaining if relaxed - prioritize by age compatibility and avoid repeats
