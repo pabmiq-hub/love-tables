@@ -1002,7 +1002,8 @@ const EventDetail = () => {
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
-    groupRoundsConfig?: Array<{ round: number; table_size: number }>
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>,
+    gameMode?: GameModeConfig | null
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -1180,7 +1181,8 @@ const EventDetail = () => {
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
-    groupRoundsConfig?: Array<{ round: number; table_size: number }>
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>,
+    gameMode?: GameModeConfig | null
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
