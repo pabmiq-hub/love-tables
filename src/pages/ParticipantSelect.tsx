@@ -248,6 +248,19 @@ const ParticipantSelect = () => {
         }
       }
 
+      // Check existing repeat request for this participant
+      if (verifiedParticipant) {
+        const { data: existingRepeat } = await (supabase as any)
+          .from('repeat_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingRepeat) {
+          setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+      }
+
       const userPreference = verifiedParticipant.preference || null;
       setCurrentUserPreference(userPreference);
 
