@@ -1060,9 +1060,15 @@ const EventDetail = () => {
       for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
         const table: { id: string; name: string }[] = [];
         const targetSize = effectiveTableSizes[tableIdx] || Math.min(effectiveTableSize, numParticipants - usedParticipants.size);
+        const tableNumber = tableIdx + 1;
+        const tableDynId = dynForTable(tableNumber);
         
-        // Find best participants for this table
-        const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
+        // Find best participants for this table — exclude any participant who already played this dynamic
+        const availableParticipants = sortedParticipants.filter(p => {
+          if (usedParticipants.has(p.id)) return false;
+          if (tableDynId && hasPlayedDyn(p.id, tableDynId)) return false;
+          return true;
+        });
         
         // Count available genders for parity
         const menAvailable = availableParticipants.filter(p => p.gender === "Hombre").length;
@@ -1111,6 +1117,7 @@ const EventDetail = () => {
           if (canJoin || table.length === 0) {
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
+            if (tableDynId) recordDyn(participant.id, tableDynId);
           }
         }
         
