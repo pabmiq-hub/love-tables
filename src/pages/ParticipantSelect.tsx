@@ -136,25 +136,10 @@ const ParticipantSelect = () => {
         setCurrentRound(event.current_round || 0);
         setSuperLikeEnabled((event as any).super_like_enabled || false);
 
-        // "Repetir" must be enabled both at the plan level (organizer feature)
-        // and explicitly at the event level (repeat_request_enabled).
-        const eventRepeatEnabled = !!(event as any).repeat_request_enabled;
-        if (eventRepeatEnabled && (event as any).organizer_id) {
-          const { data: org } = await supabase
-            .from('organizers')
-            .select('user_id, plan_id')
-            .eq('id', (event as any).organizer_id)
-            .maybeSingle();
-          if (org?.user_id) {
-            const { data: hasRepeat } = await supabase.rpc('has_feature', {
-              _user_id: org.user_id,
-              _feature_code: 'repeat_request',
-            });
-            setRepeatEnabled(!!hasRepeat);
-          }
-        } else {
-          setRepeatEnabled(false);
-        }
+        // "Repetir" — trust event-level toggle as source of truth.
+        // Plan-level enforcement happens at toggle time in the dashboard,
+        // and the request-repeat edge function re-validates server-side.
+        setRepeatEnabled(!!(event as any).repeat_request_enabled);
 
         if (event.status === 'completed') {
           setStep("completed");

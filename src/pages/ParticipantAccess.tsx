@@ -203,24 +203,10 @@ const ParticipantAccess = () => {
         setEventTime(event.event_time || null);
         setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
 
-        // Resolve repeat-request feature: enabled at event-level AND organizer plan-level
-        const eventRepeatEnabled = !!(event as any).repeat_request_enabled;
-        if (eventRepeatEnabled && (event as any).organizer_id) {
-          const { data: org } = await supabase
-            .from('organizers')
-            .select('user_id')
-            .eq('id', (event as any).organizer_id)
-            .maybeSingle();
-          if (org?.user_id) {
-            const { data: hasRepeat } = await supabase.rpc('has_feature', {
-              _user_id: org.user_id,
-              _feature_code: 'repeat_request',
-            });
-            setRepeatEnabled(!!hasRepeat);
-          }
-        } else {
-          setRepeatEnabled(false);
-        }
+        // Resolve repeat-request feature: trust event-level toggle as source of truth.
+        // The organizer can only enable it from the dashboard if their plan supports it,
+        // and the request-repeat edge function re-validates the event flag server-side.
+        setRepeatEnabled(!!(event as any).repeat_request_enabled);
 
         if (event.selection_closed_at) {
           clearSession();
