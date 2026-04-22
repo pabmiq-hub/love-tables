@@ -18,11 +18,13 @@ interface GameModeEditorProps {
   estimatedTables: number;
   /** Total rounds in the event */
   totalRounds: number;
+  /** Real participants count (used for the breakdown text) */
+  participantsCount?: number;
 }
 
 const newId = () => `dyn_${Math.random().toString(36).slice(2, 9)}`;
 
-const GameModeEditor = ({ value, onChange, estimatedTables, totalRounds }: GameModeEditorProps) => {
+const GameModeEditor = ({ value, onChange, estimatedTables, totalRounds, participantsCount }: GameModeEditorProps) => {
   const { errors, warnings } = useMemo(
     () => validateGameMode(value, estimatedTables, totalRounds),
     [value, estimatedTables, totalRounds]
@@ -116,8 +118,11 @@ const GameModeEditor = ({ value, onChange, estimatedTables, totalRounds }: GameM
       {value.enabled && (
         <div className="space-y-3 pt-2">
           <div className="text-xs text-muted-foreground">
-            Estimación: <strong>{estimatedTables}</strong> mesas según {totalRounds} rondas. Si añades más
-            participantes después, podrás revisar las mesas afectadas.
+            Estimación: <strong>{estimatedTables}</strong> mesas
+            {participantsCount && participantsCount > 0
+              ? <> ({participantsCount} inscritos ÷ tamaño de mesa)</>
+              : null}
+            . Si añades más participantes después, podrás revisar las mesas afectadas.
           </div>
 
           {value.dynamics.length === 0 && (

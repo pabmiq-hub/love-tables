@@ -546,8 +546,9 @@ const EventSettingsEditor = ({
             <GameModeEditor
               value={formGameMode}
               onChange={setFormGameMode}
-              estimatedTables={Math.max(1, Math.ceil((participantsCount || formTableSize * 2) / Math.max(formTableSize, 2)))}
+              estimatedTables={Math.max(1, Math.ceil(Math.max(participantsCount || 0, formTableSize) / Math.max(formTableSize, 1)))}
               totalRounds={formRounds}
+              participantsCount={participantsCount || 0}
             />
           )}
 
