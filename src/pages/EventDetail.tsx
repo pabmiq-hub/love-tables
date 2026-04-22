@@ -4652,7 +4652,7 @@ const EventDetail = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={handleAddRound}
+                          onClick={() => handleAddRound()}
                           className="border-dashed"
                         >
                           <Plus className="w-3 h-3 mr-1" />
