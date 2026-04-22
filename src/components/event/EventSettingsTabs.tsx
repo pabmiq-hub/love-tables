@@ -29,6 +29,7 @@ interface EventSettingsTabsProps {
   emailTemplate?: any;
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
+  repeatRequestEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;
