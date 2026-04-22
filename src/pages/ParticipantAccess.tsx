@@ -1237,12 +1237,14 @@ const ParticipantAccess = () => {
                 <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
                   {isSubmitting ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.access.saving}</>
+                  ) : hasMeaningfulEdits() && newSelectionsCount === 0 ? (
+                    <><Heart className="w-4 h-4 mr-2" />{eventLang === 'es' ? 'Guardar cambios' : 'Save changes'}</>
                   ) : (
                     <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.access.send} ${newSelectionsCount} ${t.access.selectionsCount}` : t.access.continueWithout}</>
                   )}
                 </Button>
 
-                {newSelectionsCount === 0 && (
+                {newSelectionsCount === 0 && !hasMeaningfulEdits() && (
                   <Button 
                     variant="outline" 
                     className="w-full mt-2" 
