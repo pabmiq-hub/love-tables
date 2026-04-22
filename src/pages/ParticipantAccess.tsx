@@ -944,6 +944,18 @@ const ParticipantAccess = () => {
               </TabsContent>
 
               <TabsContent value="selections" className="space-y-4 mt-4">
+                {preliminaryConfirmation === true && tableAssignments.some(a => a.round === 0) && (
+                  <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3 text-center animate-fade-in">
+                    <p className="text-sm font-semibold text-primary">
+                      {eventLang === 'es' ? '🎉 ¡Empieza por aquí!' : '🎉 Start here!'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {eventLang === 'es'
+                        ? 'Selecciona con quién has conectado en la mesa de bienvenida y, después, en cada ronda.'
+                        : 'Select who you connected with at the welcome table, then for each round.'}
+                    </p>
+                  </div>
+                )}
                 {hasReceivedSuperLike && (
                   <SuperLikeBanner language={eventLang} variant="received" />
                 )}
@@ -1144,6 +1156,33 @@ const ParticipantAccess = () => {
           language={eventLang}
         />
       )}
+
+      {/* Repeat Request Confirmation Dialog */}
+      <Dialog open={!!repeatTarget} onOpenChange={(open) => { if (!open && !isSendingRepeat) setRepeatTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="w-14 h-14 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mx-auto mb-2">
+              <Repeat2 className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+            </div>
+            <DialogTitle className="text-center">
+              {eventLang === 'es' ? `¿Solicitar repetir con ${repeatTarget?.name || ''}?` : `Request a repeat with ${repeatTarget?.name || ''}?`}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {eventLang === 'es'
+                ? 'Solo puedes solicitar repetir con UNA persona en todo el evento. La otra persona recibirá un email para aceptar o rechazar la solicitud.'
+                : 'You can only request a repeat with ONE person per event. The other person will receive an email to accept or decline the request.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setRepeatTarget(null)} disabled={isSendingRepeat}>
+              {eventLang === 'es' ? 'Cancelar' : 'Cancel'}
+            </Button>
+            <Button variant="hero" className="flex-1" onClick={confirmRepeat} disabled={isSendingRepeat}>
+              {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === 'es' ? 'Enviar' : 'Send')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
