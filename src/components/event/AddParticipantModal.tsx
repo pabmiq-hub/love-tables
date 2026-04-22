@@ -52,16 +52,20 @@ const AddParticipantModal = ({ onClose, onAdd, customPreferences, initialValues,
     });
   };
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [calculatedAgeRange, setCalculatedAgeRange] = useState("");
-  const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>([]);
-  const [preference, setPreference] = useState(preferences[0] || "Amistad y ligue");
-  const [datingPreference, setDatingPreference] = useState("");
-  const [gender, setGender] = useState("");
-  const [isReturningParticipant, setIsReturningParticipant] = useState<string>("");
+  const [name, setName] = useState(initialValues?.name || "");
+  const [phone, setPhone] = useState(initialValues?.phone || "");
+  const [email, setEmail] = useState(initialValues?.email || "");
+  const [birthDate, setBirthDate] = useState(initialValues?.birthDate || "");
+  const [calculatedAgeRange, setCalculatedAgeRange] = useState(initialValues?.ageRange || "");
+  const [selectedAgeRanges, setSelectedAgeRanges] = useState<string[]>(
+    initialValues?.preferredAgeRange ? initialValues.preferredAgeRange.split(",").map(s => s.trim()).filter(Boolean) : []
+  );
+  const [preference, setPreference] = useState(initialValues?.preference || preferences[0] || "Amistad y ligue");
+  const [datingPreference, setDatingPreference] = useState(initialValues?.datingPreference || "");
+  const [gender, setGender] = useState(initialValues?.gender || "");
+  const [isReturningParticipant, setIsReturningParticipant] = useState<string>(
+    initialValues?.isReturningParticipant === true ? "yes" : initialValues?.isReturningParticipant === false ? "no" : ""
+  );
 
   const calculateAgeRange = (dateString: string): string => {
     if (!dateString) return "";
