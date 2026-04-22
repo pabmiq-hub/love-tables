@@ -429,6 +429,10 @@ const EventDetail = () => {
       setExclusions(exclusionsData);
     }
 
+    // Load inclusions (mandatory pairs that must sit together)
+    const inclusionsData = await loadInclusions(id);
+    setInclusions(inclusionsData);
+
     // Load waitlist
     const { data: waitlistData } = await supabase
       .from("event_waitlist" as any)
