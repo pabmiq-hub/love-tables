@@ -1192,6 +1192,7 @@ const EventDetail = () => {
       tables,
       hasIncomplete,
       incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse evitando repeticiones." : "",
+      playedAfter: writePlayedMap(playedDynamics),
     };
   };
 
@@ -1222,6 +1223,15 @@ const EventDetail = () => {
       const prevEncounters = previousEncountersMap?.get(p.id);
       pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
     });
+
+    // Game-mode dynamics tracking (carries over from preliminary round via game_mode.played)
+    const playedDynamics = readPlayedMap(gameMode || null);
+    const dynForTable = (n: number) => getDynamicIdForTable(gameMode || null, n);
+    const hasPlayedDyn = (pid: string, dynId: string) => playedDynamics.get(pid)?.has(dynId) ?? false;
+    const recordDyn = (pid: string, dynId: string) => {
+      if (!playedDynamics.has(pid)) playedDynamics.set(pid, new Set());
+      playedDynamics.get(pid)!.add(dynId);
+    };
     
     // Group by age range first for better host selection
     const ageGroups = groupParticipantsByAgeRange(participantsList);
