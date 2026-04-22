@@ -102,6 +102,9 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
+  const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
+  const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
