@@ -1145,7 +1145,15 @@ const CreateEvent = () => {
                   </div>
                 </div>
 
-                {/* Event Preferences Editor */}
+                {/* Game Mode (Modo lúdico) — Enterprise feature, Social only */}
+                {canUseGameMode && (
+                  <GameModeEditor
+                    value={gameMode}
+                    onChange={setGameMode}
+                    estimatedTables={Math.max(1, Math.ceil((participants.length || tableSize * 2) / Math.max(tableSize, 2)))}
+                    totalRounds={rounds}
+                  />
+                )}
                 <div className="pt-2">
                   <EventPreferencesEditor
                     value={eventPreferences}
