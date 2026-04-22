@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -97,6 +98,9 @@ const ParticipantSelect = () => {
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [confirmSuperLikeFor, setConfirmSuperLikeFor] = useState<{ id: string; name: string } | null>(null);
+  const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
+  const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -244,6 +248,19 @@ const ParticipantSelect = () => {
         }
       }
 
+      // Check existing repeat request for this participant
+      if (verifiedParticipant) {
+        const { data: existingRepeat } = await (supabase as any)
+          .from('repeat_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingRepeat) {
+          setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+      }
+
       const userPreference = verifiedParticipant.preference || null;
       setCurrentUserPreference(userPreference);
 
@@ -371,6 +388,55 @@ const ParticipantSelect = () => {
         : "It will be sent when you confirm your selections",
     });
     setConfirmSuperLikeFor(null);
+  };
+
+  const requestRepeat = (participantId: string, name: string) => {
+    if (repeatRequestUsed) {
+      toast({
+        title: eventLang === "es" ? "Ya has usado tu repetición" : "You already used your repeat",
+        description: eventLang === "es"
+          ? "Solo puedes solicitar repetir con una persona por evento"
+          : "You can only request to repeat with one person per event",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmRepeatFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmRepeat = async () => {
+    if (!confirmRepeatFor || !verifiedParticipant || !eventId) return;
+    setIsSendingRepeat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-repeat', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: confirmRepeatFor.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo enviar la solicitud" : "Could not send the request"),
+          variant: "destructive",
+        });
+        return;
+      }
+      setRepeatRequestUsed({ status: "pending", targetId: confirmRepeatFor.id });
+      toast({
+        title: eventLang === "es" ? "🔁 Solicitud enviada" : "🔁 Request sent",
+        description: eventLang === "es"
+          ? "La otra persona recibirá un email para aceptar o rechazar tu solicitud"
+          : "The other person will receive an email to accept or decline your request",
+      });
+      setConfirmRepeatFor(null);
+    } catch (err) {
+      console.error('Error sending repeat request:', err);
+      toast({ title: "Error", description: String(err), variant: "destructive" });
+    } finally {
+      setIsSendingRepeat(false);
+    }
   };
 
   const getPreviousSelectionLabel = (type?: string): string => {
@@ -651,6 +717,40 @@ const ParticipantSelect = () => {
                               </button>
                             ) : null
                           )}
+                          {(() => {
+                            const isThisRepeat = repeatRequestUsed?.targetId === person.id;
+                            const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                            return isThisRepeat ? (
+                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
+                                <Repeat2 className="w-4 h-4" />
+                                {eventLang === "es"
+                                  ? (repeatRequestUsed?.status === "accepted"
+                                      ? "Repetición aceptada ✓"
+                                      : repeatRequestUsed?.status === "declined"
+                                        ? "Repetición rechazada"
+                                        : repeatRequestUsed?.status === "expired"
+                                          ? "Repetición caducada"
+                                          : "Repetición pendiente")
+                                  : (repeatRequestUsed?.status === "accepted"
+                                      ? "Repeat accepted ✓"
+                                      : repeatRequestUsed?.status === "declined"
+                                        ? "Repeat declined"
+                                        : repeatRequestUsed?.status === "expired"
+                                          ? "Repeat expired"
+                                          : "Repeat pending")}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={repeatDisabled}
+                                onClick={() => requestRepeat(person.id, person.name)}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                              >
+                                <Repeat2 className="w-4 h-4" />
+                                {eventLang === "es" ? "🔁 Repetir con esta persona" : "🔁 Repeat with this person"}
+                              </button>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -692,6 +792,28 @@ const ParticipantSelect = () => {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={!!confirmRepeatFor} onOpenChange={(open) => !open && setConfirmRepeatFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Repeat2 className="w-5 h-5 text-violet-600" />
+              {eventLang === "es" ? "¿Solicitar repetir con esta persona?" : "Request to repeat with this person?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? `Enviaremos un email anónimo a ${confirmRepeatFor?.name} para que decida si quiere volver a coincidir contigo en una próxima ronda. Solo puedes usar esta opción una vez por evento.`
+                : `We'll send an anonymous email to ${confirmRepeatFor?.name} so they can decide whether to meet you again in an upcoming round. You can only use this option once per event.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSendingRepeat}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRepeat} disabled={isSendingRepeat} className="bg-violet-600 hover:bg-violet-700 text-white">
+              {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Enviar solicitud" : "Send request")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
