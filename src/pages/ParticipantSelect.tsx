@@ -101,6 +101,7 @@ const ParticipantSelect = () => {
   const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -117,7 +118,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, language, super_like_enabled')
+          .select('status, current_round, language, super_like_enabled, organizer_id')
           .eq('id', eventId)
           .single();
 
@@ -134,6 +135,22 @@ const ParticipantSelect = () => {
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
         setSuperLikeEnabled((event as any).super_like_enabled || false);
+
+        // Check if organizer has 'repeat_request' feature enabled
+        if ((event as any).organizer_id) {
+          const { data: org } = await supabase
+            .from('organizers')
+            .select('user_id, plan_id')
+            .eq('id', (event as any).organizer_id)
+            .maybeSingle();
+          if (org?.user_id) {
+            const { data: hasRepeat } = await supabase.rpc('has_feature', {
+              _user_id: org.user_id,
+              _feature_code: 'repeat_request',
+            });
+            setRepeatEnabled(!!hasRepeat);
+          }
+        }
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -717,7 +734,7 @@ const ParticipantSelect = () => {
                               </button>
                             ) : null
                           )}
-                          {(() => {
+                          {repeatEnabled && (() => {
                             const isThisRepeat = repeatRequestUsed?.targetId === person.id;
                             const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
                             return isThisRepeat ? (
@@ -759,6 +776,14 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
+            {repeatEnabled && (
+              <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
+                <Repeat2 className="w-3.5 h-3.5" />
+                {repeatRequestUsed
+                  ? (eventLang === "es" ? "Repetición usada 🔁" : "Repeat used 🔁")
+                  : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien" : "1 Repeat remaining 🔁 — request to meet someone again")}
+              </div>
+            )}
             {superLikeEnabled && (
               <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />

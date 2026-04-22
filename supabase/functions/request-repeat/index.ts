@@ -164,30 +164,50 @@ serve(async (req: Request) => {
     // Send email to target if Resend is configured
     if (resendApiKey && target.email) {
       const requesterDisplay = anonymize(requester.name || "Una persona del evento");
-      const subject = `🔁 ${requesterDisplay} quiere volver a coincidir contigo`;
+      const lang = event.language === "en" ? "en" : "es";
+
+      // Load template from event.email_template.communication_templates_v2.repeat_request_received (if any)
+      const { data: ev2 } = await supabase
+        .from("events")
+        .select("email_template")
+        .eq("id", event_id)
+        .maybeSingle();
+      const stored = (ev2?.email_template as any)?.communication_templates_v2;
+      const tpl = stored?.repeat_request_received || null;
+
+      const renderVar = (s: string) =>
+        (s || "")
+          .replace(/\{\{nombre\}\}/g, escapeHtml(target.name || ""))
+          .replace(/\{\{evento\}\}/g, escapeHtml(event.name))
+          .replace(/\{\{solicitante\}\}/g, escapeHtml(requesterDisplay));
+
+      const subject = tpl?.subject
+        ? renderVar(tpl.subject)
+        : (lang === "en"
+          ? `🔁 ${requesterDisplay} wants to meet you again`
+          : `🔁 ${requesterDisplay} quiere volver a coincidir contigo`);
+
+      const greeting = renderVar(tpl?.greeting || (lang === "en" ? "Hi {{nombre}}! 👋" : "¡Hola {{nombre}}! 👋"));
+      const intro = renderVar(tpl?.intro || (lang === "en"
+        ? `{{solicitante}} has asked to meet you again at <strong>{{evento}}</strong>.`
+        : `{{solicitante}} quiere volver a coincidir contigo en <strong>{{evento}}</strong>.`));
+      const closing = renderVar(tpl?.closing || (lang === "en"
+        ? "Tap a button below to respond. Your decision is fully confidential."
+        : "Pulsa un botón para responder. Tu decisión es totalmente confidencial."));
+      const signature = renderVar(tpl?.signature || (lang === "en" ? "With love,<br/>Konektum 💕" : "Con cariño,<br/>Konektum 💕"));
+      const acceptLabel = lang === "en" ? "✅ Accept" : "✅ Aceptar";
+      const declineLabel = lang === "en" ? "Decline" : "Rechazar";
+
       const html = `
         <div style="font-family: 'Plus Jakarta Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a1a;">
-          <h2 style="font-family: Outfit, Arial, sans-serif; color: #8B5CF6; margin-bottom: 8px;">¡Tienes una solicitud de repetir!</h2>
-          <p style="font-size: 15px; line-height: 1.5;">
-            <strong>${escapeHtml(requesterDisplay)}</strong> quiere volver a coincidir contigo en una próxima ronda del evento
-            <strong>${escapeHtml(event.name)}</strong>.
-          </p>
-          <p style="font-size: 14px; line-height: 1.5; color: #555;">
-            Si aceptas, os asignaremos a la misma mesa en la siguiente ronda disponible. Tu identidad solo se revelará si aceptas.
-          </p>
+          <h2 style="font-family: Outfit, Arial, sans-serif; color: #8B5CF6; margin-bottom: 8px;">${escapeHtml(greeting)}</h2>
+          <p style="font-size: 15px; line-height: 1.5;">${intro.replace(/\n/g, '<br/>')}</p>
           <div style="margin: 28px 0; text-align: center;">
-            <a href="${acceptUrl}"
-              style="display: inline-block; background: #8B5CF6; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 8px;">
-              ✅ Aceptar
-            </a>
-            <a href="${declineUrl}"
-              style="display: inline-block; background: #f3f4f6; color: #374151; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-              Rechazar
-            </a>
+            <a href="${acceptUrl}" style="display: inline-block; background: #8B5CF6; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-right: 8px;">${acceptLabel}</a>
+            <a href="${declineUrl}" style="display: inline-block; background: #f3f4f6; color: #374151; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">${declineLabel}</a>
           </div>
-          <p style="font-size: 12px; color: #888; margin-top: 32px; line-height: 1.5;">
-            Este enlace caduca en 7 días o cuando el evento termine. Si no reconoces esta solicitud, simplemente ignora este mensaje.
-          </p>
+          <p style="font-size: 14px; color: #555; line-height: 1.5;">${escapeHtml(closing)}</p>
+          <p style="font-size: 13px; color: #888; margin-top: 24px;">${signature}</p>
         </div>
       `;
 

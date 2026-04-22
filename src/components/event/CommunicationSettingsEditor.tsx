@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock } from "lucide-react";
+import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock, Repeat2 } from "lucide-react";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,9 @@ const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; descrip
   { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
   { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
   { key: "no_show", label: "No-show", icon: UserCheck, description: "Email a participantes que no asistieron", isMatchesWithout: true },
+  { key: "repeat_request_received", label: "Repetir: recibido", icon: Repeat2, description: "Email al destinatario de la solicitud", socialOnly: true },
+  { key: "repeat_request_accepted", label: "Repetir: aceptada", icon: Repeat2, description: "Email al solicitante cuando aceptan", socialOnly: true },
+  { key: "repeat_request_declined", label: "Repetir: rechazada", icon: Repeat2, description: "Email al solicitante cuando rechazan o caduca", socialOnly: true },
 ];
 
 interface CommunicationSettingsEditorProps {
