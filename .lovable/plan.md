@@ -1,85 +1,110 @@
 
 
-# Super Like — Estado actual y propuesta para hacerlo más atractivo
+# Plan: Modo Lúdico (mesas con dinámicas de juego) — Plan Empresa
 
-## Cómo está implementado HOY (resumen)
+## Concepto
+Permitir al organizador marcar **un grupo de mesas** (por número) como "mesas de dinámica/juego". Si dos o más mesas comparten **la misma dinámica**, el algoritmo garantiza que **ningún participante repita en ninguna mesa de ese mismo grupo** a lo largo de las rondas (ni en la ronda preliminar). Si hay varias dinámicas distintas, cada una es un grupo independiente.
 
-El Super Like ya existe en la plataforma, pero está prácticamente "escondido". Te cuento dónde aparece:
+Ejemplo:
+- Dinámica "Trivial" → mesas 1, 2, 3, 4
+- Dinámica "Pictionary" → mesas 5, 6
+- Mesas 7+ → normales
 
-**1. Activación (organizador)**
-- Ajustes del evento → toggle `super_like_enabled` (solo módulo Social).
-- Si está activo, los participantes pueden dar **1 super like por evento**.
+Un participante que pase por mesa 2 en R1, no podrá ir a las mesas 1, 2, 3 ni 4 en R2/R3/preliminar. Sí podrá ir a la mesa 5 (dinámica distinta).
 
-**2. Experiencia del participante (`/select`)**
-- En la pestaña **"Selecciones"**, dentro de la tarjeta de cada compañero/a aparece una pequeña **estrella ámbar** a la derecha (icono `Star`, ~20px). Esa es la única pista visual.
-- Si ya lo usaste, la estrella desaparece y se muestra un texto diminuto.
-- Mensaje hint: "Puedes dar 1 Super Like por evento — el destinatario recibirá una notificación anónima".
+## A) Activación de la feature (Plan Empresa)
 
-**3. Notificación al destinatario**
-- Edge function `send-super-like-notification` envía un email anónimo: *"✨ ¡Alguien te ha seleccionado en {evento}!"* con CTA para entrar al panel.
-- El receptor **no sabe quién** ha sido el remitente (gamificación de anticipación).
+**Nueva feature en BBDD** (vía migración):
+- Insertar en `features`: `code = 'game_mode'`, `name = 'Modo lúdico'`, `module = 'social'`, `category = 'gameplay'`.
+- Insertar en `plan_features` para el plan **Enterprise** (`is_limited = false`).
 
-**4. Analíticas**
-- Se guarda `is_super_like = true` en `participant_selections`. Visible en analíticas sociales del evento.
+El Super Admin podrá activarla/desactivarla por organizador desde `OrganizerFeaturesModal` (sin cambios extra: ya soporta cualquier feature_code).
 
-## Por qué hoy no resulta atractivo
+## B) Configuración en el evento
 
-Mirando tu pantallazo del panel del participante, el problema salta a la vista:
-- La estrella es pequeña, sin color llamativo, sin animación, sin storytelling.
-- No hay un "momento" especial al usar el super like (sin confirmación visual potente).
-- El receptor recibe un correo, pero **dentro de la app no hay ningún feedback** ("alguien te ha dado un super like" antes de elegir).
-- No se comunica la mecánica al inicio (los usuarios ni se enteran de que existe).
-- No hay límite temporal ni escasez percibida más allá del "1 por evento".
+Nueva sección **"Modo lúdico"** dentro de:
+- **Wizard de creación** (`CreateEvent.tsx`) — solo si módulo Social y `hasFeature('game_mode')`.
+- **Editor de ajustes del evento** (`EventSettingsEditor.tsx`) — mismo bloque.
 
-## Propuesta: rediseño del Super Like
+Estructura de configuración (almacenada en un nuevo campo JSONB `events.game_mode`):
+```jsonc
+{
+  "enabled": true,
+  "dynamics": [
+    { "id": "dyn1", "name": "Trivial",    "table_numbers": [1, 2, 3, 4] },
+    { "id": "dyn2", "name": "Pictionary", "table_numbers": [5, 6] }
+  ]
+}
+```
 
-### A. Onboarding del participante (educar la mecánica)
-- Al entrar por primera vez en `/select`, mostrar un **modal de bienvenida** (una sola vez, persistido en localStorage) con 2 mensajes:
-  1. Cómo funciona seleccionar amistad/ligue.
-  2. **"Tienes 1 Super Like ⭐"** — explicación clara: anónimo, notifica al destinatario inmediatamente, aumenta tus posibilidades de match.
+UI (componente nuevo `GameModeEditor.tsx`):
+1. Toggle "Activar modo lúdico".
+2. Botón "+ Añadir dinámica".
+3. Por cada dinámica: input nombre + selector múltiple de números de mesa (1..N siendo N el total de mesas estimado según `participants_count / table_size`).
+4. Validaciones en tiempo real:
+   - Una mesa no puede pertenecer a dos dinámicas.
+   - Avisar si el grupo tiene más mesas que rondas posibles → "Con X rondas no podrás llenar todas las mesas sin repetir".
 
-### B. Momento Super Like (rediseño visual)
-- Sustituir la pequeña estrella por un **botón outline ámbar/dorado** con texto: `⭐ Super Like` integrado al lado de los checkboxes de Amistad/Ligue.
-- Al pulsarlo:
-  - **Animación de confeti** (libreria `canvas-confetti`) + "swoosh" de la estrella.
-  - **Modal de confirmación** estilo "¿Seguro? Solo tienes 1 ⭐ por evento" con preview del destinatario (anonimizado).
-  - Tras confirmar: badge dorado permanente "⭐ Super Like enviado" en la tarjeta de esa persona.
-- Un contador visible permanente arriba: **"Super Like restante: 1"** o **"Usado ✓"**.
+## C) Cambios en el algoritmo (`generateSmartTables` en `EventDetail.tsx`)
 
-### C. Recibir un Super Like (feedback in-app — actualmente solo email)
-- Cuando un participante recibe un super like, mostrar al entrar al panel:
-  - **Banner dorado pulsante en la cabecera**: *"✨ Alguien especial te ha dado un Super Like — envía tus selecciones para descubrir si hay match"*.
-  - Pequeño emisor de partículas/brillo en el header.
-  - Al final del evento, si hay match recíproco, etiquetar la persona como **"⭐ Super Match"** con un highlight especial.
+Añadir parámetro `gameModeConfig` y nueva estructura de tracking:
 
-### D. Comunicación posterior (email mejorado)
-- El email actual ya existe (`send-super-like-notification`). Mejoras visuales:
-  - Hero más impactante (gradiente dorado, estrella animada SVG inline).
-  - CTA más urgente: "Descubre si es match — tienes hasta {fecha_cierre}".
-  - Recordar que pueden dar también su propio super like.
+```ts
+// Mapa: participantId → Set<dynamicId> de dinámicas ya jugadas
+const playedDynamics = new Map<string, Set<string>>();
+```
 
-### E. Resultado del evento
-- En el email de matches y en `/access`, marcar los matches que provinieron de super like con badge **"⭐ Super Match"** y mensaje destacado: *"Esta persona te dio Super Like"* (revelando finalmente la identidad solo si hay match recíproco).
+En cada asignación de participante a una mesa:
+1. Buscar a qué `dynamicId` pertenece la mesa (si pertenece).
+2. Si el participante ya jugó esa dinámica → **prohibido** (constraint dura, no negociable).
+3. Tras asignar, registrar `playedDynamics.get(pId).add(dynamicId)`.
 
-### F. Gamificación opcional (futuro)
-- En módulo Pro/Enterprise: opción de configurar **2-3 super likes** por evento como upgrade.
+Reglas adicionales:
+- Las mesas con dinámica conservan su `table_size` configurado.
+- Si por escasez de participantes no puede completarse el grupo sin violar la regla, marcar la mesa como "Pendiente" y registrar warning visible al admin.
 
-## Cambios técnicos resumidos
+## D) Ronda preliminar (cumplir la misma regla)
 
-| Archivo / componente | Cambio |
+`fillPreliminaryTables` (`src/lib/preliminaryRoundAssign.ts`) y la edge function `checkin-participant`:
+- Recibir también `game_mode` del evento.
+- Antes de colocar al participante en la "última mesa con sitio", saltar las mesas que pertenezcan a una dinámica que el participante **ya tendría programada en otras rondas**.
+- Como la asignación oficial puede aún no estar generada, registrar la dinámica jugada en preliminar también dentro de `playedDynamics` que el algoritmo principal leerá luego.
+
+Persistir el log:
+```jsonc
+events.game_mode.played = {
+  "<participantId>": ["dyn1", "dyn2"]
+}
+```
+Esto permite que tanto preliminar (live) como rondas oficiales (batch) compartan estado.
+
+## E) Visualización (panel admin y participante)
+
+**Admin (`EventDetail.tsx` - vista de Mesas):**
+- Badge dorado en cabecera de cada mesa con dinámica: `🎲 Trivial`.
+- Leyenda lateral con todas las dinámicas y sus mesas.
+
+**Participante (`ParticipantAccess.tsx`):**
+- En la tarjeta de cada ronda mostrar el badge `🎲 Trivial` cuando aplique.
+
+## F) Cambios técnicos resumidos
+
+| Archivo | Cambio |
 |---|---|
-| `src/pages/ParticipantSelect.tsx` | Rediseño del botón super like (texto + estrella), modal de confirmación, contador visible, banner dorado de "te han dado super like", confeti al usar |
-| `src/components/ui/super-like-onboarding.tsx` (nuevo) | Modal de primera vez explicando la mecánica |
-| `src/components/ui/super-like-banner.tsx` (nuevo) | Banner dorado animado para receptores |
-| `src/pages/ParticipantAccess.tsx` | Mostrar badge "⭐ Super Match" en resultados con match recíproco vía super like |
-| `supabase/functions/send-super-like-notification/index.ts` | Mejorar HTML del email (hero dorado, urgencia, CTA reforzado) |
-| `supabase/functions/send-match-emails/index.ts` | Marcar matches que vinieron de super like en el email final |
-| `package.json` | Añadir `canvas-confetti` |
-| Sin migraciones SQL | La estructura de datos actual (`is_super_like`) es suficiente |
+| `supabase/migrations/...` | Añadir feature `game_mode` + `plan_features` (Enterprise) + columna `events.game_mode jsonb` |
+| `src/components/event/GameModeEditor.tsx` (nuevo) | UI de configuración de dinámicas |
+| `src/pages/CreateEvent.tsx` | Integrar editor en paso "Configuración" (solo Social + feature activa) |
+| `src/components/event/EventSettingsEditor.tsx` | Misma integración para editar tras crear |
+| `src/pages/EventDetail.tsx` | `generateSmartTables` recibe `gameModeConfig`, aplica restricción, marca mesas con dinámica |
+| `src/lib/preliminaryRoundAssign.ts` | Saltar mesas de dinámica ya jugada por el participante |
+| `supabase/functions/checkin-participant/index.ts` | Misma lógica replicada server-side |
+| `src/pages/ParticipantAccess.tsx` | Badge de dinámica por mesa |
+| `src/integrations/supabase/types.ts` | Auto-regenerado tras migración |
 
 ## Notas
-- Sigue siendo **1 super like por evento** (manteniendo escasez = atractivo).
-- La identidad del emisor permanece anónima salvo que haya match recíproco.
-- Feature gateada por `super_like_enabled` en ajustes del evento (sin cambios).
-- Compatible con eventos en modo prueba (los super likes ficticios no envían correos reales).
+- Solo módulo Social y plan Empresa (gateado por `hasFeature('game_mode')`).
+- Compatible con `group_rounds` (rondas grupales) y `preliminary_round`.
+- El log `played` se inicializa vacío en cada generación full y se acumula en preliminar.
+- Si el admin reasigna mesas manualmente desde `TableEditorModal`, recalcular `played` desde los `tables` actuales para mantener consistencia.
+- Sin impacto en eventos sin la feature activada (campo `game_mode` queda `null`).
 
