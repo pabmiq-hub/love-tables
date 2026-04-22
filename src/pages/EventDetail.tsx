@@ -1029,6 +1029,16 @@ const EventDetail = () => {
       const prevEncounters = previousEncountersMap?.get(p.id);
       pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
     });
+
+    // Game-mode dynamics: track which dynamics each participant has already played.
+    // Pre-populated from event.game_mode.played (e.g. preliminary round assignments).
+    const playedDynamics = readPlayedMap(gameMode || null);
+    const dynForTable = (n: number) => getDynamicIdForTable(gameMode || null, n);
+    const hasPlayedDyn = (pid: string, dynId: string) => playedDynamics.get(pid)?.has(dynId) ?? false;
+    const recordDyn = (pid: string, dynId: string) => {
+      if (!playedDynamics.has(pid)) playedDynamics.set(pid, new Set());
+      playedDynamics.get(pid)!.add(dynId);
+    };
     
     let hasIncomplete = false;
     
