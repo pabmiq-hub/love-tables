@@ -48,6 +48,7 @@ interface EventSettingsEditorProps {
   reminderScheduledAt?: string | null;
   gameMode?: any;
   participantsCount?: number;
+  tablesGenerationMode?: string;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -81,6 +82,7 @@ const EventSettingsEditor = ({
   reminderScheduledAt: initialReminderScheduledAt = null,
   gameMode: initialGameMode = null,
   participantsCount = 0,
+  tablesGenerationMode: initialTablesGenerationMode = "upfront",
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -117,6 +119,9 @@ const EventSettingsEditor = ({
   const [formReminderScheduledAt, setFormReminderScheduledAt] = useState(initialReminderScheduledAt || "");
   const [formGameMode, setFormGameMode] = useState<GameModeConfig>(
     normalizeGameMode(initialGameMode) || { ...EMPTY_GAME_MODE }
+  );
+  const [formTablesGenerationMode, setFormTablesGenerationMode] = useState<string>(
+    initialTablesGenerationMode || "upfront"
   );
   const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
@@ -193,6 +198,7 @@ const EventSettingsEditor = ({
         code_send_mode: formCodeSendMode,
         reminder_mode: formReminderMode,
         reminder_scheduled_at: formReminderMode === "custom" && formReminderScheduledAt ? formReminderScheduledAt : null,
+        tables_generation_mode: formTablesGenerationMode,
       };
 
       // Handle preliminary round
