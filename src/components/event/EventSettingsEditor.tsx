@@ -13,6 +13,8 @@ import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEdit
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
 import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
+import GameModeEditor from "./GameModeEditor";
+import { GameModeConfig, EMPTY_GAME_MODE, normalizeGameMode } from "@/lib/gameMode";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
 
@@ -44,6 +46,8 @@ interface EventSettingsEditorProps {
   preliminaryRoundEnabled?: boolean;
   reminderMode?: string;
   reminderScheduledAt?: string | null;
+  gameMode?: any;
+  participantsCount?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -75,10 +79,12 @@ const EventSettingsEditor = ({
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
   reminderMode: initialReminderMode = "manual",
   reminderScheduledAt: initialReminderScheduledAt = null,
+  gameMode: initialGameMode = null,
+  participantsCount = 0,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
-  const { hasFeature } = useFeatures();
+  const { hasFeature, isSuperAdmin } = useFeatures();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
@@ -109,6 +115,10 @@ const EventSettingsEditor = ({
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
   const [formReminderMode, setFormReminderMode] = useState(initialReminderMode);
   const [formReminderScheduledAt, setFormReminderScheduledAt] = useState(initialReminderScheduledAt || "");
+  const [formGameMode, setFormGameMode] = useState<GameModeConfig>(
+    normalizeGameMode(initialGameMode) || { ...EMPTY_GAME_MODE }
+  );
+  const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -190,6 +200,20 @@ const EventSettingsEditor = ({
         updates.preliminary_round = { enabled: true, tables: [], started_at: null };
       } else if (!formPreliminaryRoundEnabled) {
         updates.preliminary_round = null;
+      }
+
+      // Handle game mode (Modo lúdico) — Enterprise + Social only
+      if (!isProfessional && canUseGameMode && formGameMode.enabled && formGameMode.dynamics.length > 0) {
+        // Preserve existing 'played' map so live preliminary state is not lost
+        const existingPlayed =
+          (initialGameMode && typeof initialGameMode === "object" && (initialGameMode as any).played) || {};
+        updates.game_mode = {
+          enabled: true,
+          dynamics: formGameMode.dynamics,
+          played: existingPlayed,
+        };
+      } else if (!formGameMode.enabled) {
+        updates.game_mode = null;
       }
 
       if (isProfessional) {
@@ -515,6 +539,16 @@ const EventSettingsEditor = ({
                 />
               </div>
             </FeatureGate>
+          )}
+
+          {/* Game Mode (Modo lúdico) — Enterprise + Social only */}
+          {!isProfessional && canUseGameMode && (
+            <GameModeEditor
+              value={formGameMode}
+              onChange={setFormGameMode}
+              estimatedTables={Math.max(1, Math.ceil((participantsCount || formTableSize * 2) / Math.max(formTableSize, 2)))}
+              totalRounds={formRounds}
+            />
           )}
 
           {/* Registration Form Customization */}

@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
+import GameModeEditor from "@/components/event/GameModeEditor";
+import { GameModeConfig, EMPTY_GAME_MODE } from "@/lib/gameMode";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
@@ -193,6 +195,8 @@ const CreateEvent = () => {
   const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
   const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
   const [preliminaryRoundEnabled, setPreliminaryRoundEnabled] = useState(false);
+  const [gameMode, setGameMode] = useState<GameModeConfig>({ ...EMPTY_GAME_MODE });
+  const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
   
   // Registration form customization (shared between social and professional)
   const [customFormEnabled, setCustomFormEnabled] = useState(false);
@@ -400,6 +404,10 @@ const CreateEvent = () => {
       // Preliminary round (Social only) - auto-fills tables on check-in
       preliminary_round: (eventModule === "social" && preliminaryRoundEnabled
         ? { enabled: true, tables: [], started_at: null }
+        : null) as unknown as Json,
+      // Game Mode (Modo lúdico) — Enterprise + Social only
+      game_mode: (eventModule === "social" && canUseGameMode && gameMode.enabled && gameMode.dynamics.length > 0
+        ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
     };
 
@@ -1137,7 +1145,15 @@ const CreateEvent = () => {
                   </div>
                 </div>
 
-                {/* Event Preferences Editor */}
+                {/* Game Mode (Modo lúdico) — Enterprise feature, Social only */}
+                {canUseGameMode && (
+                  <GameModeEditor
+                    value={gameMode}
+                    onChange={setGameMode}
+                    estimatedTables={Math.max(1, Math.ceil((participants.length || tableSize * 2) / Math.max(tableSize, 2)))}
+                    totalRounds={rounds}
+                  />
+                )}
                 <div className="pt-2">
                   <EventPreferencesEditor
                     value={eventPreferences}
