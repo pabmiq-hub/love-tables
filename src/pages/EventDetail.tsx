@@ -608,7 +608,8 @@ const EventDetail = () => {
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? encountersMap : undefined,
       eventData?.avoid_encounters_mode || "preference",
-      eventData?.group_rounds || undefined
+      eventData?.group_rounds || undefined,
+      eventData?.game_mode || null
     );
     
     if (result.hasIncomplete) {
@@ -617,11 +618,11 @@ const EventDetail = () => {
       setShowTableConfirmDialog(true);
     } else {
       // No issues, proceed directly
-      await finalizeTableGeneration(result.tables, checkedInParticipants);
+      await finalizeTableGeneration(result.tables, checkedInParticipants, result.playedAfter);
     }
   };
 
-  const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[]) => {
+  const finalizeTableGeneration = async (generatedTables: any[], checkedInParticipants: DbParticipant[], playedAfter?: Record<string, string[]>) => {
     // Cancellations are excluded from no-show stats and from the original count.
     const nonCancelled = participants.filter(p => !p.cancelled_at);
     // Store original participants count BEFORE filtering (excluding cancellations)
@@ -657,6 +658,11 @@ const EventDetail = () => {
         ...eventData.preliminary_round,
         closed_at: new Date().toISOString(),
       };
+    }
+
+    // Persist updated game_mode.played map (Modo Lúdico)
+    if (eventData?.game_mode?.enabled && playedAfter) {
+      updatePayload.game_mode = { ...eventData.game_mode, played: playedAfter };
     }
     
     await supabase
@@ -730,16 +736,17 @@ const EventDetail = () => {
       eventData?.gender_parity || false,
       eventData?.avoid_previous_encounters ? previousEncounters : undefined,
       eventData?.avoid_encounters_mode || "preference",
-      eventData?.group_rounds || undefined
+      eventData?.group_rounds || undefined,
+      eventData?.game_mode || null
     );
-    await finalizeTableGeneration(result.tables, checkedInParticipants);
+    await finalizeTableGeneration(result.tables, checkedInParticipants, result.playedAfter);
   };
 
   const handleConfirmWithIncomplete = async () => {
     if (!pendingTableGeneration) return;
     
     const checkedInParticipants = participants.filter(p => p.checked_in);
-    await finalizeTableGeneration(pendingTableGeneration.tables, checkedInParticipants);
+    await finalizeTableGeneration(pendingTableGeneration.tables, checkedInParticipants, pendingTableGeneration.playedAfter);
   };
 
   // Age range order for adjacency calculation - normalized format
@@ -2372,7 +2379,8 @@ const EventDetail = () => {
       eventData.gender_parity || false,
       existingEncounters,
       eventData.avoid_encounters_mode || "preference",
-      undefined // No group round config for dynamically added rounds
+      undefined, // No group round config for dynamically added rounds
+      eventData.game_mode || null
     );
 
     let newRound: any;
