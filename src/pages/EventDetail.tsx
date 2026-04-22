@@ -1141,6 +1141,29 @@ const EventDetail = () => {
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
             if (tableDynId) recordDyn(participant.id, tableDynId);
+
+            // Inclusion pull: if this participant belongs to a mandatory group,
+            // immediately seat all available groupmates at this same table.
+            const grpIdx = inclusionGroupIndex.get(participant.id);
+            if (grpIdx !== undefined && table.length < targetSize) {
+              const groupmates = inclusionGroups[grpIdx]
+                .filter(pid => pid !== participant.id && !usedParticipants.has(pid));
+              for (const mateId of groupmates) {
+                if (table.length >= targetSize) break;
+                const mate = participantsById.get(mateId);
+                if (!mate) continue;
+                // Honor exclusions and game-mode dynamic (still hard)
+                if (tableDynId && hasPlayedDyn(mateId, tableDynId)) continue;
+                let blocked = false;
+                for (const member of table) {
+                  if (areExcluded(mateId, member.id)) { blocked = true; break; }
+                }
+                if (blocked) continue;
+                table.push({ id: mateId, name: mate.name });
+                usedParticipants.add(mateId);
+                if (tableDynId) recordDyn(mateId, tableDynId);
+              }
+            }
           }
         }
         
