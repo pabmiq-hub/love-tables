@@ -4356,6 +4356,24 @@ const EventDetail = () => {
                       const newCompletedRounds = [...completedRounds, roundNumber];
                       const nextRound = roundNumber + 1;
                       const isLastRound = roundNumber >= tables.length;
+                      const generationMode = (eventData as any).tables_generation_mode || "upfront";
+                      
+                      // JIT mode: generate next round NOW, excluding cancelled/non-checked-in participants
+                      let updatedTables = eventData.tables as any[];
+                      if (generationMode === "per_round" && !isLastRound) {
+                        try {
+                          await handleAddRound();
+                          // handleAddRound updated state and DB; reload latest tables
+                          const { data: refreshed } = await supabase
+                            .from("events")
+                            .select("tables")
+                            .eq("id", id)
+                            .maybeSingle();
+                          if (refreshed?.tables) updatedTables = refreshed.tables as any[];
+                        } catch (err) {
+                          console.error("JIT round generation failed:", err);
+                        }
+                      }
                       
                       // Reset timer state for next round
                       await supabase
@@ -4382,7 +4400,9 @@ const EventDetail = () => {
                         setViewingRound(nextRound);
                         toast({
                           title: `Ronda ${roundNumber} completada`,
-                          description: `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
+                          description: generationMode === "per_round" 
+                            ? `Ronda ${nextRound} generada con los participantes activos.`
+                            : `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
                         });
                       } else {
                         toast({
