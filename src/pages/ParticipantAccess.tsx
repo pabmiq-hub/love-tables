@@ -1102,15 +1102,56 @@ const ParticipantAccess = () => {
                                       )}
                                     </span>
                                     {ms.alreadySelected && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        {getPreviousSelectionLabel(ms.previousSelectionType)}
-                                      </Badge>
+                                      <div className="flex items-center gap-1.5">
+                                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          {getPreviousSelectionLabel(ms.previousSelectionType)}
+                                        </Badge>
+                                        {!editingKeys.has(editKey(ms.participantId, round)) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => startEditingSelection(ms.participantId, round, ms.previousSelectionType)}
+                                            aria-label={eventLang === 'es' ? 'Modificar selección' : 'Modify selection'}
+                                            title={eventLang === 'es' ? 'Modificar' : 'Modify'}
+                                            className="p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                                          >
+                                            <Pencil className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
 
-                                  {ms.alreadySelected ? (
+                                  {ms.alreadySelected && !editingKeys.has(editKey(ms.participantId, round)) ? (
                                     <p className="text-xs text-muted-foreground">{t.access.alreadySelected}</p>
+                                  ) : ms.alreadySelected && editingKeys.has(editKey(ms.participantId, round)) ? (
+                                    <div className="space-y-2">
+                                      <div className="flex gap-4 flex-wrap">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                          <Checkbox
+                                            checked={pendingEdits.get(editKey(ms.participantId, round))?.friendship || false}
+                                            onCheckedChange={() => toggleEditOption(ms.participantId, round, 'friendship')}
+                                          />
+                                          <span className="text-sm flex items-center gap-1"><Smile className="w-3.5 h-3.5" /> {t.access.friendship}</span>
+                                        </label>
+                                        {ms.canShowDating && (
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox
+                                              checked={pendingEdits.get(editKey(ms.participantId, round))?.dating || false}
+                                              onCheckedChange={() => toggleEditOption(ms.participantId, round, 'dating')}
+                                            />
+                                            <span className="text-sm flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {t.access.dating}</span>
+                                          </label>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => cancelEditingSelection(ms.participantId, round)}
+                                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                                      >
+                                        {eventLang === 'es' ? 'Descartar cambios' : 'Discard changes'}
+                                      </button>
+                                    </div>
                                   ) : (
                                     <div className="space-y-2">
                                       <div className="flex gap-4 flex-wrap">
