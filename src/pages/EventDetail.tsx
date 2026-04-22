@@ -42,6 +42,7 @@ import AddParticipantModal from "@/components/event/AddParticipantModal";
 import AddProfessionalParticipantModal, { type ProfessionalParticipant as ModalProfessionalParticipant } from "@/components/event/AddProfessionalParticipantModal";
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
+import InclusionsManager from "@/components/event/InclusionsManager";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
@@ -217,6 +218,8 @@ const EventDetail = () => {
   const [completedRounds, setCompletedRounds] = useState<number[]>([]);
   const [showExclusionsManager, setShowExclusionsManager] = useState(false);
   const [exclusions, setExclusions] = useState<ParticipantExclusion[]>([]);
+  const [showInclusionsManager, setShowInclusionsManager] = useState(false);
+  const [inclusions, setInclusions] = useState<{ id: string; participant_1_id: string; participant_2_id: string; reason: string | null }[]>([]);
   const [previousEncounters, setPreviousEncounters] = useState<Map<string, Set<string>>>(new Map());
   const [showCopyEventDialog, setShowCopyEventDialog] = useState(false);
   const [isCopyingEvent, setIsCopyingEvent] = useState(false);
@@ -3287,6 +3290,38 @@ const EventDetail = () => {
                 )
               )}
 
+              {/* Inclusions - pairs that must sit together */}
+              {eventStatus === "pending" && participants.length >= 2 && (
+                (hasFeature("avoid_encounters") || isSuperAdmin) ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={() => setShowInclusionsManager(true)}>
+                        <Users className="w-4 h-4 sm:mr-2 text-emerald-600" />
+                        <span className="hidden sm:inline">Inclusiones</span>
+                        {inclusions.length > 0 && <span className="ml-1">({inclusions.length})</span>}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="sm:hidden">Inclusiones</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" disabled className="opacity-50">
+                        <Users className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Inclusiones</span>
+                        <Lock className="w-3 h-3 ml-1" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <span>Disponible en planes superiores</span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              )}
+
               {/* Copy event */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -5049,6 +5084,15 @@ const EventDetail = () => {
           open={showExclusionsManager}
           onOpenChange={setShowExclusionsManager}
           onExclusionsChange={setExclusions}
+        />
+
+        {/* Inclusions Manager Modal */}
+        <InclusionsManager
+          eventId={id || ""}
+          participants={participants}
+          open={showInclusionsManager}
+          onOpenChange={setShowInclusionsManager}
+          onInclusionsChange={setInclusions}
         />
 
         {/* Copy Event Dialog */}
