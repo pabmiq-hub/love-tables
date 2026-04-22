@@ -541,6 +541,16 @@ const EventSettingsEditor = ({
             </FeatureGate>
           )}
 
+          {/* Game Mode (Modo lúdico) — Enterprise + Social only */}
+          {!isProfessional && canUseGameMode && (
+            <GameModeEditor
+              value={formGameMode}
+              onChange={setFormGameMode}
+              estimatedTables={Math.max(1, Math.ceil((participantsCount || formTableSize * 2) / Math.max(formTableSize, 2)))}
+              totalRounds={formRounds}
+            />
+          )}
+
           {/* Registration Form Customization */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center justify-between">

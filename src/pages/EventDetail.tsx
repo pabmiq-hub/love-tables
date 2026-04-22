@@ -4772,6 +4772,8 @@ const EventDetail = () => {
                 preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
                 reminderMode={eventData.reminder_mode}
                 reminderScheduledAt={eventData.reminder_scheduled_at}
+                gameMode={(eventData as any).game_mode || null}
+                participantsCount={eventData.participants_count || 0}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
