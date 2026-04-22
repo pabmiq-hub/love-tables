@@ -187,6 +187,7 @@ export type Database = {
           registration_subtitle: string | null
           reminder_mode: string
           reminder_scheduled_at: string | null
+          repeat_request_enabled: boolean
           rotation_mode: string
           round_duration: number
           round_elapsed_seconds: number | null
@@ -244,6 +245,7 @@ export type Database = {
           registration_subtitle?: string | null
           reminder_mode?: string
           reminder_scheduled_at?: string | null
+          repeat_request_enabled?: boolean
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
@@ -301,6 +303,7 @@ export type Database = {
           registration_subtitle?: string | null
           reminder_mode?: string
           reminder_scheduled_at?: string | null
+          repeat_request_enabled?: boolean
           rotation_mode?: string
           round_duration?: number
           round_elapsed_seconds?: number | null
