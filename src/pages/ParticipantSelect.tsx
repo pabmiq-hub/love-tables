@@ -136,8 +136,10 @@ const ParticipantSelect = () => {
         setCurrentRound(event.current_round || 0);
         setSuperLikeEnabled((event as any).super_like_enabled || false);
 
-        // Check if organizer has 'repeat_request' feature enabled
-        if ((event as any).organizer_id) {
+        // "Repetir" must be enabled both at the plan level (organizer feature)
+        // and explicitly at the event level (repeat_request_enabled).
+        const eventRepeatEnabled = !!(event as any).repeat_request_enabled;
+        if (eventRepeatEnabled && (event as any).organizer_id) {
           const { data: org } = await supabase
             .from('organizers')
             .select('user_id, plan_id')
@@ -150,6 +152,8 @@ const ParticipantSelect = () => {
             });
             setRepeatEnabled(!!hasRepeat);
           }
+        } else {
+          setRepeatEnabled(false);
         }
 
         if (event.status === 'completed') {
