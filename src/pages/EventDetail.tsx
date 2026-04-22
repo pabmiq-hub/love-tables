@@ -1023,10 +1023,15 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroups: string[][] = []
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+
+    // Build O(1) lookup: participantId -> inclusionGroup index
+    const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
+    const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
     // Group by age range first, then create tables within groups
     const ageGroups = groupParticipantsByAgeRange(participantsList);
@@ -1224,10 +1229,15 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroups: string[][] = []
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
+
+    // Build O(1) lookup: participantId -> inclusionGroup index
+    const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
+    const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
     // Use optimal distribution to avoid tables with only 2 people
     const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
