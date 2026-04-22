@@ -13,6 +13,8 @@ import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEdit
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
 import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
+import GameModeEditor from "./GameModeEditor";
+import { GameModeConfig, EMPTY_GAME_MODE, normalizeGameMode } from "@/lib/gameMode";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
 
@@ -44,6 +46,8 @@ interface EventSettingsEditorProps {
   preliminaryRoundEnabled?: boolean;
   reminderMode?: string;
   reminderScheduledAt?: string | null;
+  gameMode?: any;
+  participantsCount?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -75,10 +79,12 @@ const EventSettingsEditor = ({
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
   reminderMode: initialReminderMode = "manual",
   reminderScheduledAt: initialReminderScheduledAt = null,
+  gameMode: initialGameMode = null,
+  participantsCount = 0,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
-  const { hasFeature } = useFeatures();
+  const { hasFeature, isSuperAdmin } = useFeatures();
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
