@@ -4422,10 +4422,18 @@ const EventDetail = () => {
                             <Card key={tableIndex} className={`border-l-4 ${isDismissed ? 'border-l-muted opacity-60' : 'border-l-amber-400'}`}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <Table2 className={`w-4 h-4 ${isDismissed ? 'text-muted-foreground' : 'text-amber-500'}`} />
                                     <span className={`font-medium ${isDismissed ? 'line-through text-muted-foreground' : ''}`}>Mesa {tableIndex + 1}</span>
                                     <span className="text-xs text-muted-foreground">({table.length})</span>
+                                    {(() => {
+                                      const dyn = getDynamicForTable(eventData.game_mode || null, tableIndex + 1);
+                                      return dyn ? (
+                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-xs">
+                                          🎲 {dyn.name}
+                                        </Badge>
+                                      ) : null;
+                                    })()}
                                   </div>
                                   {isDismissed ? (
                                     <Badge variant="destructive" className="text-xs">Invalidada</Badge>
@@ -4670,12 +4678,20 @@ const EventDetail = () => {
                               }}>
                                 <CardContent className="p-4">
                                   <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <Table2 className="w-4 h-4 text-primary" />
                                       <span className="font-medium">Mesa {tableIndex + 1}</span>
                                       <span className="text-xs text-muted-foreground">
                                         ({table.length})
                                       </span>
+                                      {(() => {
+                                        const dyn = getDynamicForTable(eventData.game_mode || null, tableIndex + 1);
+                                        return dyn ? (
+                                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-xs">
+                                            🎲 {dyn.name}
+                                          </Badge>
+                                        ) : null;
+                                      })()}
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <Badge className={getAgeRangeColor(ageInfo.dominant)}>
