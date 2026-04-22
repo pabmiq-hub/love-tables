@@ -620,17 +620,73 @@ const ParticipantAccess = () => {
 
       setPreliminaryConfirmation(confirmed);
       setShowPreliminaryModal(false);
-      
+
       if (!confirmed) {
         // Remove round 0 assignments from state
         setTableAssignments(prev => prev.filter(a => a.round !== 0));
         setMatchSelections(prev => prev.filter(ms => ms.round !== 0));
+      } else {
+        // User confirmed they were at the prelim → guide them to the Selecciones tab
+        // so they can rate their tablemates from the welcome round.
+        setActiveTab("selections");
+        setHighlightSelectionsTab(true);
+        toast({
+          title: eventLang === 'es' ? '¡Genial! 🎉' : 'Awesome! 🎉',
+          description: eventLang === 'es'
+            ? 'Ya puedes seleccionar a tus compañeros de la mesa de bienvenida.'
+            : 'You can now rate your tablemates from the welcome round.',
+        });
+        // Stop the highlight after a few seconds
+        setTimeout(() => setHighlightSelectionsTab(false), 6000);
       }
     } catch (err) {
       console.error('Error confirming preliminary:', err);
       toast({ title: t.access.error, description: t.access.errorSaving, variant: "destructive" });
     } finally {
       setIsConfirmingPreliminary(false);
+    }
+  };
+
+  // ===== Repeat request handlers (1 per event) =====
+  const openRepeatDialog = (participantId: string, name: string, round: number) => {
+    if (repeatRequestUsed) return;
+    const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
+    if (!ms || ms.alreadySelected) return;
+    setRepeatTarget({ id: participantId, name, round });
+  };
+
+  const confirmRepeat = async () => {
+    if (!repeatTarget || !verifiedParticipant || !eventId) return;
+    setIsSendingRepeat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-repeat', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: repeatTarget.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: t.access.error,
+          description: data?.error || (eventLang === 'es' ? 'No se pudo enviar la solicitud' : 'Could not send the request'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      setRepeatRequestUsed({ status: 'pending', targetId: repeatTarget.id });
+      toast({
+        title: eventLang === 'es' ? '🔁 Solicitud enviada' : '🔁 Request sent',
+        description: eventLang === 'es'
+          ? 'La otra persona recibirá un email para aceptar o rechazar tu solicitud.'
+          : 'The other person will receive an email to accept or decline your request.',
+      });
+      setRepeatTarget(null);
+    } catch (err) {
+      console.error('Error sending repeat request:', err);
+      toast({ title: t.access.error, description: String(err), variant: 'destructive' });
+    } finally {
+      setIsSendingRepeat(false);
     }
   };
 
