@@ -1321,7 +1321,17 @@ const EventDetail = () => {
       for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
-        
+        const tableNumber = tableIdx + 1;
+        const tableDynId = dynForTable(tableNumber);
+
+        // Game mode: if the host has already played this dynamic, mark table incomplete and skip filling.
+        // (Hosts are pre-selected by age groups; we keep them but warn.)
+        if (tableDynId && hasPlayedDyn(host.id, tableDynId)) {
+          hasIncomplete = true;
+        } else if (tableDynId) {
+          recordDyn(host.id, tableDynId);
+        }
+
         const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
         const seatsNeeded = targetSize - 1;
         
@@ -1331,8 +1341,10 @@ const EventDetail = () => {
         const menAvailable = availableRotators.filter(r => r.gender === "Hombre").length;
         const womenAvailable = availableRotators.filter(r => r.gender === "Mujer").length;
 
-        // Filter out excluded rotators first
+        // Filter out excluded rotators first AND those who already played this dynamic
         const validRotators = availableRotators.filter(rotator => {
+          // Game-mode dynamic constraint (hard)
+          if (tableDynId && hasPlayedDyn(rotator.id, tableDynId)) return false;
           // Check exclusion with host
           if (areExcluded(host.id, rotator.id)) return false;
           // Check exclusion with other table members
@@ -1425,6 +1437,7 @@ const EventDetail = () => {
           
           table.push({ id: rotator.id, name: rotator.name });
           usedRotators.add(rotator.id);
+          if (tableDynId) recordDyn(rotator.id, tableDynId);
           filledSeats++;
         }
         
@@ -1451,6 +1464,7 @@ const EventDetail = () => {
             
             table.push({ id: rotator.id, name: rotator.name });
             usedRotators.add(rotator.id);
+            if (tableDynId) recordDyn(rotator.id, tableDynId);
             filledSeats++;
           }
         }
@@ -1481,6 +1495,7 @@ const EventDetail = () => {
       tables,
       hasIncomplete,
       incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse con las preferencias óptimas." : "",
+      playedAfter: writePlayedMap(playedDynamics),
     };
   };
 
