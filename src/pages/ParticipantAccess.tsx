@@ -511,6 +511,66 @@ const ParticipantAccess = () => {
     }
   };
 
+  // ---- Edit existing selection helpers ----
+  const editKey = (participantId: string, round: number) => `${participantId}-${round}`;
+
+  const startEditingSelection = (participantId: string, round: number, prevType?: string) => {
+    const k = editKey(participantId, round);
+    setEditingKeys(prev => new Set(prev).add(k));
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      next.set(k, {
+        friendship: prevType === 'friendship' || prevType === 'both',
+        dating: prevType === 'dating' || prevType === 'both',
+        originalType: prevType,
+        participantId,
+      });
+      return next;
+    });
+  };
+
+  const cancelEditingSelection = (participantId: string, round: number) => {
+    const k = editKey(participantId, round);
+    setEditingKeys(prev => { const n = new Set(prev); n.delete(k); return n; });
+    setPendingEdits(prev => { const n = new Map(prev); n.delete(k); return n; });
+  };
+
+  const toggleEditOption = (participantId: string, round: number, type: 'friendship' | 'dating') => {
+    const k = editKey(participantId, round);
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      const cur = next.get(k);
+      if (!cur) return prev;
+      next.set(k, { ...cur, [type]: !cur[type] });
+      return next;
+    });
+  };
+
+  const computePendingType = (edit: { friendship: boolean; dating: boolean }): string | null => {
+    if (edit.friendship && edit.dating) return 'both';
+    if (edit.dating) return 'dating';
+    if (edit.friendship) return 'friendship';
+    return null;
+  };
+
+  // Distinct participants with meaningful changes (deduplicated across rounds)
+  const getMeaningfulEdits = (): { participantId: string; newType: string | null }[] => {
+    const byParticipant = new Map<string, { newType: string | null; original: string | undefined }>();
+    for (const [, edit] of pendingEdits.entries()) {
+      const newType = computePendingType(edit);
+      if (newType !== (edit.originalType || null)) {
+        // If the same participant appears in multiple rounds, last write wins
+        // (the edit form per-row pre-fills from existingType, so they stay in sync).
+        byParticipant.set(edit.participantId, { newType, original: edit.originalType });
+      }
+    }
+    return Array.from(byParticipant.entries()).map(([participantId, v]) => ({
+      participantId, newType: v.newType,
+    }));
+  };
+
+  const hasMeaningfulEdits = (): boolean => getMeaningfulEdits().length > 0;
+
   const selectionsByRound = tableAssignments.map(assignment => {
     const roundSelections = matchSelections.filter(ms => ms.round === assignment.round);
     return { round: assignment.round, table: assignment.table, selections: roundSelections };
