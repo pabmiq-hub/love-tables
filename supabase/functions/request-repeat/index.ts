@@ -73,9 +73,15 @@ serve(async (req: Request) => {
     // Validate event
     const { data: event } = await supabase
       .from("events")
-      .select("id, name, status, current_round, rounds, organizer_id, language")
+      .select("id, name, status, current_round, rounds, organizer_id, language, repeat_request_enabled")
       .eq("id", event_id)
       .maybeSingle();
+    if (event && !(event as any).repeat_request_enabled) {
+      return new Response(
+        JSON.stringify({ error: "La función Repetir no está activada para este evento" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     if (!event) {
       return new Response(JSON.stringify({ error: "Evento no encontrado" }), {
         status: 404,
