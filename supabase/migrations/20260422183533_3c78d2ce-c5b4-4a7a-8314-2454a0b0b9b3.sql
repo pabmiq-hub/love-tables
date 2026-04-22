@@ -1,0 +1,1 @@
+UPDATE public.events SET current_round = 2 WHERE id = '3459b895-0b27-4de0-9b6a-2185ed3a0ecf' AND current_round = 1 AND 1 = ANY(completed_rounds) AND rounds >= 2;
