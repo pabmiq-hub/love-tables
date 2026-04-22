@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2 } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +126,16 @@ const ParticipantAccess = () => {
   const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
+  // Active tab control (for guiding user after prelim confirmation)
+  const [activeTab, setActiveTab] = useState<"tables" | "selections">("tables");
+  const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
+
+  // Repeat request feature
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [repeatTarget, setRepeatTarget] = useState<{ id: string; name: string; round: number } | null>(null);
+  const [isSendingRepeat, setIsSendingRepeat] = useState(false);
+
   // Game mode (Modo lúdico) — dynamics per table number
   const [gameMode, setGameMode] = useState<{
     enabled: boolean;
@@ -172,7 +182,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, organizer_id')
           .eq('id', eventId)
           .single();
 
@@ -192,6 +202,25 @@ const ParticipantAccess = () => {
         setEventName(event.name);
         setEventTime(event.event_time || null);
         setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
+
+        // Resolve repeat-request feature: enabled at event-level AND organizer plan-level
+        const eventRepeatEnabled = !!(event as any).repeat_request_enabled;
+        if (eventRepeatEnabled && (event as any).organizer_id) {
+          const { data: org } = await supabase
+            .from('organizers')
+            .select('user_id')
+            .eq('id', (event as any).organizer_id)
+            .maybeSingle();
+          if (org?.user_id) {
+            const { data: hasRepeat } = await supabase.rpc('has_feature', {
+              _user_id: org.user_id,
+              _feature_code: 'repeat_request',
+            });
+            setRepeatEnabled(!!hasRepeat);
+          }
+        } else {
+          setRepeatEnabled(false);
+        }
 
         if (event.selection_closed_at) {
           clearSession();
@@ -404,6 +433,21 @@ const ParticipantAccess = () => {
       setMatchSelections(allSelections);
       setStep("panel");
 
+      // Fetch existing repeat request for this participant (if feature enabled)
+      try {
+        const { data: existingRepeat } = await (supabase as any)
+          .from('repeat_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingRepeat) {
+          setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+      } catch (e) {
+        console.warn('Could not fetch repeat request:', e);
+      }
+
       // Save session to localStorage
       saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
     } catch (err) {
@@ -576,17 +620,73 @@ const ParticipantAccess = () => {
 
       setPreliminaryConfirmation(confirmed);
       setShowPreliminaryModal(false);
-      
+
       if (!confirmed) {
         // Remove round 0 assignments from state
         setTableAssignments(prev => prev.filter(a => a.round !== 0));
         setMatchSelections(prev => prev.filter(ms => ms.round !== 0));
+      } else {
+        // User confirmed they were at the prelim → guide them to the Selecciones tab
+        // so they can rate their tablemates from the welcome round.
+        setActiveTab("selections");
+        setHighlightSelectionsTab(true);
+        toast({
+          title: eventLang === 'es' ? '¡Genial! 🎉' : 'Awesome! 🎉',
+          description: eventLang === 'es'
+            ? 'Ya puedes seleccionar a tus compañeros de la mesa de bienvenida.'
+            : 'You can now rate your tablemates from the welcome round.',
+        });
+        // Stop the highlight after a few seconds
+        setTimeout(() => setHighlightSelectionsTab(false), 6000);
       }
     } catch (err) {
       console.error('Error confirming preliminary:', err);
       toast({ title: t.access.error, description: t.access.errorSaving, variant: "destructive" });
     } finally {
       setIsConfirmingPreliminary(false);
+    }
+  };
+
+  // ===== Repeat request handlers (1 per event) =====
+  const openRepeatDialog = (participantId: string, name: string, round: number) => {
+    if (repeatRequestUsed) return;
+    const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
+    if (!ms || ms.alreadySelected) return;
+    setRepeatTarget({ id: participantId, name, round });
+  };
+
+  const confirmRepeat = async () => {
+    if (!repeatTarget || !verifiedParticipant || !eventId) return;
+    setIsSendingRepeat(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-repeat', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: repeatTarget.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: t.access.error,
+          description: data?.error || (eventLang === 'es' ? 'No se pudo enviar la solicitud' : 'Could not send the request'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      setRepeatRequestUsed({ status: 'pending', targetId: repeatTarget.id });
+      toast({
+        title: eventLang === 'es' ? '🔁 Solicitud enviada' : '🔁 Request sent',
+        description: eventLang === 'es'
+          ? 'La otra persona recibirá un email para aceptar o rechazar tu solicitud.'
+          : 'The other person will receive an email to accept or decline your request.',
+      });
+      setRepeatTarget(null);
+    } catch (err) {
+      console.error('Error sending repeat request:', err);
+      toast({ title: t.access.error, description: String(err), variant: 'destructive' });
+    } finally {
+      setIsSendingRepeat(false);
     }
   };
 
@@ -774,13 +874,18 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs defaultValue="tables" className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "tables" | "selections")} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
                 </TabsTrigger>
-                <TabsTrigger value="selections" className="flex items-center gap-1.5">
+                <TabsTrigger
+                  value="selections"
+                  className={`flex items-center gap-1.5 transition-all ${
+                    highlightSelectionsTab ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""
+                  }`}
+                >
                   <Heart className="w-4 h-4" />
                   {t.access.selections}
                 </TabsTrigger>
@@ -839,6 +944,18 @@ const ParticipantAccess = () => {
               </TabsContent>
 
               <TabsContent value="selections" className="space-y-4 mt-4">
+                {preliminaryConfirmation === true && tableAssignments.some(a => a.round === 0) && (
+                  <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3 text-center animate-fade-in">
+                    <p className="text-sm font-semibold text-primary">
+                      {eventLang === 'es' ? '🎉 ¡Empieza por aquí!' : '🎉 Start here!'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {eventLang === 'es'
+                        ? 'Selecciona con quién has conectado en la mesa de bienvenida y, después, en cada ronda.'
+                        : 'Select who you connected with at the welcome table, then for each round.'}
+                    </p>
+                  </div>
+                )}
                 {hasReceivedSuperLike && (
                   <SuperLikeBanner language={eventLang} variant="received" />
                 )}
@@ -937,6 +1054,43 @@ const ParticipantAccess = () => {
                                           {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
                                         </div>
                                       )}
+                                      {repeatEnabled && (() => {
+                                        const isThisRepeat = repeatRequestUsed?.targetId === ms.participantId;
+                                        const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                                        if (isThisRepeat) {
+                                          return (
+                                            <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-300 text-violet-800 dark:text-violet-200 text-xs font-semibold">
+                                              <Repeat2 className="w-3.5 h-3.5" />
+                                              {eventLang === 'es'
+                                                ? (repeatRequestUsed?.status === 'accepted'
+                                                    ? 'Repetición aceptada ✓'
+                                                    : repeatRequestUsed?.status === 'declined'
+                                                      ? 'Repetición rechazada'
+                                                      : repeatRequestUsed?.status === 'expired'
+                                                        ? 'Repetición caducada'
+                                                        : 'Repetición pendiente')
+                                                : (repeatRequestUsed?.status === 'accepted'
+                                                    ? 'Repeat accepted ✓'
+                                                    : repeatRequestUsed?.status === 'declined'
+                                                      ? 'Repeat declined'
+                                                      : repeatRequestUsed?.status === 'expired'
+                                                        ? 'Repeat expired'
+                                                        : 'Repeat pending')}
+                                            </div>
+                                          );
+                                        }
+                                        return (
+                                          <button
+                                            type="button"
+                                            disabled={repeatDisabled}
+                                            onClick={() => openRepeatDialog(ms.participantId, tablemate.name, round)}
+                                            className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                          >
+                                            <Repeat2 className="w-3.5 h-3.5" />
+                                            {eventLang === 'en' ? '🔁 Repeat with this person' : '🔁 Repetir con esta persona'}
+                                          </button>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                 </div>
@@ -1002,6 +1156,33 @@ const ParticipantAccess = () => {
           language={eventLang}
         />
       )}
+
+      {/* Repeat Request Confirmation Dialog */}
+      <Dialog open={!!repeatTarget} onOpenChange={(open) => { if (!open && !isSendingRepeat) setRepeatTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="w-14 h-14 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mx-auto mb-2">
+              <Repeat2 className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+            </div>
+            <DialogTitle className="text-center">
+              {eventLang === 'es' ? `¿Solicitar repetir con ${repeatTarget?.name || ''}?` : `Request a repeat with ${repeatTarget?.name || ''}?`}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {eventLang === 'es'
+                ? 'Solo puedes solicitar repetir con UNA persona en todo el evento. La otra persona recibirá un email para aceptar o rechazar la solicitud.'
+                : 'You can only request a repeat with ONE person per event. The other person will receive an email to accept or decline the request.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setRepeatTarget(null)} disabled={isSendingRepeat}>
+              {eventLang === 'es' ? 'Cancelar' : 'Cancel'}
+            </Button>
+            <Button variant="hero" className="flex-1" onClick={confirmRepeat} disabled={isSendingRepeat}>
+              {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === 'es' ? 'Enviar' : 'Send')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -55,6 +55,15 @@ interface Selection {
   selector_id: string;
   selected_id: string;
   selection_type?: string | null;
+  is_super_like?: boolean | null;
+}
+
+interface RepeatRequestStats {
+  total: number;
+  pending: number;
+  accepted: number;
+  declined: number;
+  expired: number;
 }
 
 interface Match {
@@ -77,6 +86,7 @@ interface EventAnalyticsProps {
   matches: Match[];
   tables: any[][] | TableRound[];
   originalParticipantsCount?: number | null;
+  repeatStats?: RepeatRequestStats | null;
 }
 
 const GENDER_COLORS: Record<string, string> = {
@@ -116,7 +126,19 @@ const getAgeBand = (age: number): string => {
   return "Sin especificar";
 };
 
-const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount }: EventAnalyticsProps) => {
+const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount, repeatStats }: EventAnalyticsProps) => {
+  // ========== ENGAGEMENT (super likes + repeat) ==========
+  const engagementStats = useMemo(() => {
+    const superLikes = selections.filter(s => s.is_super_like).length;
+    const senders = new Set(selections.filter(s => s.is_super_like).map(s => s.selector_id));
+    const receivers = new Set(selections.filter(s => s.is_super_like).map(s => s.selected_id));
+    return {
+      superLikesTotal: superLikes,
+      uniqueSenders: senders.size,
+      uniqueReceivers: receivers.size,
+    };
+  }, [selections]);
+
   // ========== INSCRIPTIONS STATS ==========
   const inscriptionStats = useMemo(() => {
     // Use original count if available (for accurate no-show tracking after event started)
