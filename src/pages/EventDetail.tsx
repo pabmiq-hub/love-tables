@@ -50,6 +50,14 @@ import { useGlobalParticipants } from "@/hooks/useGlobalParticipants";
 import { useFeatures } from "@/hooks/useFeatures";
 import { FeatureGate } from "@/components/FeatureGate";
 import { generateB2BTables, b2bToStandardTableFormat, validateB2BParticipants, type ProfessionalParticipant as B2BParticipant } from "@/lib/b2bTableGenerator";
+import {
+  GameModeConfig,
+  normalizeGameMode,
+  getDynamicIdForTable,
+  getDynamicForTable,
+  readPlayedMap,
+  writePlayedMap,
+} from "@/lib/gameMode";
 
 interface ParticipantExclusion {
   id: string;
@@ -317,6 +325,7 @@ const EventDetail = () => {
       preliminary_round: (event as any).preliminary_round as EventData['preliminary_round'] ?? null,
       reminder_mode: (event as any).reminder_mode ?? 'manual',
       reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
+      game_mode: normalizeGameMode((event as any).game_mode),
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
