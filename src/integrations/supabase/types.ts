@@ -201,6 +201,7 @@ export type Database = {
           super_like_enabled: boolean
           table_size: number
           tables: Json | null
+          tables_generation_mode: string
           test_config: Json | null
           updated_at: string
           waitlist_enabled: boolean
@@ -257,6 +258,7 @@ export type Database = {
           super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
+          tables_generation_mode?: string
           test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
@@ -313,6 +315,7 @@ export type Database = {
           super_like_enabled?: boolean
           table_size?: number
           tables?: Json | null
+          tables_generation_mode?: string
           test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
@@ -1168,6 +1171,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      repeat_requests: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          event_id: string
+          expires_at: string | null
+          id: string
+          requester_id: string
+          scheduled_round: number | null
+          status: string
+          target_id: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          event_id: string
+          expires_at?: string | null
+          id?: string
+          requester_id: string
+          scheduled_round?: number | null
+          status?: string
+          target_id: string
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          event_id?: string
+          expires_at?: string | null
+          id?: string
+          requester_id?: string
+          scheduled_round?: number | null
+          status?: string
+          target_id?: string
+          token?: string
+        }
+        Relationships: []
       }
       subscription_plans: {
         Row: {
