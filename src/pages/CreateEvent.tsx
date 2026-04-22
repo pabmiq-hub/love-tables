@@ -28,6 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import GroupRoundsEditor, { GroupRound } from "@/components/event/GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, RegistrationFormConfig, getDefaultFields } from "@/components/event/RegistrationFormEditor";
+import GameModeEditor from "@/components/event/GameModeEditor";
+import { GameModeConfig, EMPTY_GAME_MODE } from "@/lib/gameMode";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
@@ -193,6 +195,8 @@ const CreateEvent = () => {
   const [groupRoundsEnabled, setGroupRoundsEnabled] = useState(false);
   const [groupRounds, setGroupRounds] = useState<GroupRound[]>([]);
   const [preliminaryRoundEnabled, setPreliminaryRoundEnabled] = useState(false);
+  const [gameMode, setGameMode] = useState<GameModeConfig>({ ...EMPTY_GAME_MODE });
+  const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
   
   // Registration form customization (shared between social and professional)
   const [customFormEnabled, setCustomFormEnabled] = useState(false);
