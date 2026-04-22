@@ -975,6 +975,31 @@ const ParticipantSelect = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmEditSubmit} onOpenChange={(open) => !open && !isSubmitting && setConfirmEditSubmit(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              {eventLang === "es" ? "¿Modificar tus selecciones previas?" : "Modify your previous selections?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? "Estás a punto de cambiar selecciones que ya habías enviado. Esto reemplazará lo que enviaste antes y será definitivo. ¿Quieres continuar?"
+                : "You're about to change selections you already submitted. This will replace what you sent before and will be final. Do you want to continue?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => { setConfirmEditSubmit(false); await performSubmit(); }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Sí, guardar cambios" : "Yes, save changes")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
