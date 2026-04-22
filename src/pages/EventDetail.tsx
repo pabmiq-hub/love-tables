@@ -5126,9 +5126,17 @@ const EventDetail = () => {
               professionalConfig={eventData?.professional_config || undefined}
             />
           ) : (
-            <AddParticipantModal
+            <AddParticipantTabsModal
+              open={showAddModal}
               onClose={() => setShowAddModal(false)}
+              eventId={id || ""}
+              excludeGlobalIds={new Set(
+                participants
+                  .map((p) => (p as any).global_participant_id)
+                  .filter((x): x is string => Boolean(x))
+              )}
               onAdd={handleAddParticipant}
+              onAddBulk={handleAddParticipantsFromCRM}
               customPreferences={eventData ? {
                 ageRanges: eventData.custom_age_ranges || undefined,
                 genders: eventData.custom_genders || undefined,
