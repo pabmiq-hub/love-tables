@@ -41,6 +41,7 @@ interface EventSettingsEditorProps {
   groupRounds?: GroupRound[] | null;
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
+  repeatRequestEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;
@@ -75,6 +76,7 @@ const EventSettingsEditor = ({
   groupRounds: initialGroupRounds,
   checkinOpensMinutesBefore = 60,
   superLikeEnabled: initialSuperLikeEnabled = false,
+  repeatRequestEnabled: initialRepeatRequestEnabled = false,
   codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
@@ -112,6 +114,7 @@ const EventSettingsEditor = ({
     (initialGroupRounds as GroupRound[]) || []
   );
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
+  const [formRepeatRequestEnabled, setFormRepeatRequestEnabled] = useState(initialRepeatRequestEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
@@ -148,6 +151,11 @@ const EventSettingsEditor = ({
   useEffect(() => {
     setFormSuperLikeEnabled(initialSuperLikeEnabled);
   }, [initialSuperLikeEnabled]);
+
+  // Sync repeat request prop
+  useEffect(() => {
+    setFormRepeatRequestEnabled(initialRepeatRequestEnabled);
+  }, [initialRepeatRequestEnabled]);
 
   // Load custom registration form from DB
   useEffect(() => {
@@ -194,6 +202,7 @@ const EventSettingsEditor = ({
           ? { fields: customFormFields, formMode: "custom" }
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
+        repeat_request_enabled: !isProfessional ? formRepeatRequestEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
         reminder_mode: formReminderMode,
@@ -412,6 +421,23 @@ const EventSettingsEditor = ({
                 onCheckedChange={setFormSuperLikeEnabled}
               />
             </div>
+          )}
+
+          {!isProfessional && (
+            <FeatureGate feature="repeat_request" showUpgrade={false}>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base">🔁 Función "Repetir"</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permite a cada participante solicitar una vez por evento volver a coincidir con un compañero de mesa anterior. Si el destinatario acepta, se crea una inclusión automática para la siguiente ronda generada.
+                  </p>
+                </div>
+                <Switch
+                  checked={formRepeatRequestEnabled}
+                  onCheckedChange={setFormRepeatRequestEnabled}
+                />
+              </div>
+            </FeatureGate>
           )}
 
           <div className="flex items-center justify-between p-4 border rounded-lg">
