@@ -50,6 +50,14 @@ import { useGlobalParticipants } from "@/hooks/useGlobalParticipants";
 import { useFeatures } from "@/hooks/useFeatures";
 import { FeatureGate } from "@/components/FeatureGate";
 import { generateB2BTables, b2bToStandardTableFormat, validateB2BParticipants, type ProfessionalParticipant as B2BParticipant } from "@/lib/b2bTableGenerator";
+import {
+  GameModeConfig,
+  normalizeGameMode,
+  getDynamicIdForTable,
+  getDynamicForTable,
+  readPlayedMap,
+  writePlayedMap,
+} from "@/lib/gameMode";
 
 interface ParticipantExclusion {
   id: string;
@@ -118,6 +126,7 @@ interface EventData {
   preliminary_round: { enabled: boolean; tables: any[][]; started_at: string | null; closed_at?: string | null; confirmations?: Record<string, boolean>; dismissed_tables?: number[] } | null;
   reminder_mode: string;
   reminder_scheduled_at: string | null;
+  game_mode: import("@/lib/gameMode").GameModeConfig | null;
 }
 
 interface DbParticipant {
@@ -166,6 +175,8 @@ interface TableGenerationResult {
   tables: any[];
   hasIncomplete: boolean;
   incompleteInfo: string;
+  /** Updated game_mode.played map after generation, JSON-safe */
+  playedAfter?: Record<string, string[]>;
 }
 
 const EventDetail = () => {
@@ -316,6 +327,7 @@ const EventDetail = () => {
       preliminary_round: (event as any).preliminary_round as EventData['preliminary_round'] ?? null,
       reminder_mode: (event as any).reminder_mode ?? 'manual',
       reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
+      game_mode: normalizeGameMode((event as any).game_mode),
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -823,14 +835,15 @@ const EventDetail = () => {
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
-    groupRoundsConfig?: Array<{ round: number; table_size: number }>
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>,
+    gameMode?: GameModeConfig | null
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
     }
   };
 
@@ -991,7 +1004,8 @@ const EventDetail = () => {
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
-    groupRoundsConfig?: Array<{ round: number; table_size: number }>
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>,
+    gameMode?: GameModeConfig | null
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -1015,6 +1029,16 @@ const EventDetail = () => {
       const prevEncounters = previousEncountersMap?.get(p.id);
       pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
     });
+
+    // Game-mode dynamics: track which dynamics each participant has already played.
+    // Pre-populated from event.game_mode.played (e.g. preliminary round assignments).
+    const playedDynamics = readPlayedMap(gameMode || null);
+    const dynForTable = (n: number) => getDynamicIdForTable(gameMode || null, n);
+    const hasPlayedDyn = (pid: string, dynId: string) => playedDynamics.get(pid)?.has(dynId) ?? false;
+    const recordDyn = (pid: string, dynId: string) => {
+      if (!playedDynamics.has(pid)) playedDynamics.set(pid, new Set());
+      playedDynamics.get(pid)!.add(dynId);
+    };
     
     let hasIncomplete = false;
     
@@ -1036,9 +1060,15 @@ const EventDetail = () => {
       for (let tableIdx = 0; tableIdx < effectiveNumTables; tableIdx++) {
         const table: { id: string; name: string }[] = [];
         const targetSize = effectiveTableSizes[tableIdx] || Math.min(effectiveTableSize, numParticipants - usedParticipants.size);
+        const tableNumber = tableIdx + 1;
+        const tableDynId = dynForTable(tableNumber);
         
-        // Find best participants for this table
-        const availableParticipants = sortedParticipants.filter(p => !usedParticipants.has(p.id));
+        // Find best participants for this table — exclude any participant who already played this dynamic
+        const availableParticipants = sortedParticipants.filter(p => {
+          if (usedParticipants.has(p.id)) return false;
+          if (tableDynId && hasPlayedDyn(p.id, tableDynId)) return false;
+          return true;
+        });
         
         // Count available genders for parity
         const menAvailable = availableParticipants.filter(p => p.gender === "Hombre").length;
@@ -1087,15 +1117,19 @@ const EventDetail = () => {
           if (canJoin || table.length === 0) {
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
+            if (tableDynId) recordDyn(participant.id, tableDynId);
           }
         }
         
         // Fill remaining if relaxed - but still try to maintain age compatibility and respect exclusions
+        // Game-mode constraint remains HARD even in relaxed mode.
         if ((relaxConstraints || genderParity) && table.length < targetSize) {
           // Sort by age compatibility first, prefer non-repeats
           const remainingParticipants = availableParticipants
             .filter(p => {
               if (usedParticipants.has(p.id)) return false;
+              // Game-mode dynamic constraint is non-negotiable
+              if (tableDynId && hasPlayedDyn(p.id, tableDynId)) return false;
               // Always respect exclusions even in relaxed mode
               for (const member of table) {
                 if (areExcluded(p.id, member.id)) return false;
@@ -1126,6 +1160,7 @@ const EventDetail = () => {
             if (table.length >= targetSize) break;
             table.push({ id: participant.id, name: participant.name });
             usedParticipants.add(participant.id);
+            if (tableDynId) recordDyn(participant.id, tableDynId);
           }
         }
         
@@ -1157,6 +1192,7 @@ const EventDetail = () => {
       tables,
       hasIncomplete,
       incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse evitando repeticiones." : "",
+      playedAfter: writePlayedMap(playedDynamics),
     };
   };
 
@@ -1169,7 +1205,8 @@ const EventDetail = () => {
     genderParity: boolean = false,
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
-    groupRoundsConfig?: Array<{ round: number; table_size: number }>
+    groupRoundsConfig?: Array<{ round: number; table_size: number }>,
+    gameMode?: GameModeConfig | null
   ): TableGenerationResult => {
     const tables = [];
     const numParticipants = participantsList.length;
@@ -1186,6 +1223,15 @@ const EventDetail = () => {
       const prevEncounters = previousEncountersMap?.get(p.id);
       pairedHistory.set(p.id, prevEncounters ? new Set(prevEncounters) : new Set());
     });
+
+    // Game-mode dynamics tracking (carries over from preliminary round via game_mode.played)
+    const playedDynamics = readPlayedMap(gameMode || null);
+    const dynForTable = (n: number) => getDynamicIdForTable(gameMode || null, n);
+    const hasPlayedDyn = (pid: string, dynId: string) => playedDynamics.get(pid)?.has(dynId) ?? false;
+    const recordDyn = (pid: string, dynId: string) => {
+      if (!playedDynamics.has(pid)) playedDynamics.set(pid, new Set());
+      playedDynamics.get(pid)!.add(dynId);
+    };
     
     // Group by age range first for better host selection
     const ageGroups = groupParticipantsByAgeRange(participantsList);
@@ -1275,7 +1321,17 @@ const EventDetail = () => {
       for (let tableIdx = 0; tableIdx < hosts.length; tableIdx++) {
         const host = hosts[tableIdx];
         const table: { id: string; name: string }[] = [{ id: host.id, name: host.name }];
-        
+        const tableNumber = tableIdx + 1;
+        const tableDynId = dynForTable(tableNumber);
+
+        // Game mode: if the host has already played this dynamic, mark table incomplete and skip filling.
+        // (Hosts are pre-selected by age groups; we keep them but warn.)
+        if (tableDynId && hasPlayedDyn(host.id, tableDynId)) {
+          hasIncomplete = true;
+        } else if (tableDynId) {
+          recordDyn(host.id, tableDynId);
+        }
+
         const targetSize = effectiveTableSizes[tableIdx] || effectiveTableSize;
         const seatsNeeded = targetSize - 1;
         
@@ -1285,8 +1341,10 @@ const EventDetail = () => {
         const menAvailable = availableRotators.filter(r => r.gender === "Hombre").length;
         const womenAvailable = availableRotators.filter(r => r.gender === "Mujer").length;
 
-        // Filter out excluded rotators first
+        // Filter out excluded rotators first AND those who already played this dynamic
         const validRotators = availableRotators.filter(rotator => {
+          // Game-mode dynamic constraint (hard)
+          if (tableDynId && hasPlayedDyn(rotator.id, tableDynId)) return false;
           // Check exclusion with host
           if (areExcluded(host.id, rotator.id)) return false;
           // Check exclusion with other table members
@@ -1379,6 +1437,7 @@ const EventDetail = () => {
           
           table.push({ id: rotator.id, name: rotator.name });
           usedRotators.add(rotator.id);
+          if (tableDynId) recordDyn(rotator.id, tableDynId);
           filledSeats++;
         }
         
@@ -1405,6 +1464,7 @@ const EventDetail = () => {
             
             table.push({ id: rotator.id, name: rotator.name });
             usedRotators.add(rotator.id);
+            if (tableDynId) recordDyn(rotator.id, tableDynId);
             filledSeats++;
           }
         }
@@ -1435,6 +1495,7 @@ const EventDetail = () => {
       tables,
       hasIncomplete,
       incompleteInfo: hasIncomplete ? "Algunas mesas no pudieron completarse con las preferencias óptimas." : "",
+      playedAfter: writePlayedMap(playedDynamics),
     };
   };
 
