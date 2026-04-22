@@ -2143,6 +2143,7 @@ const EventDetail = () => {
     }
   };
 
+  const handleAddProfessionalParticipant = async (participant: ModalProfessionalParticipant) => {
     if (!id) return;
 
     // Auto check-in if event is already active
