@@ -608,9 +608,13 @@ const EventDetail = () => {
     }
 
     // Generate smart tables based on preferences, passing previous encounters (Social mode)
+    // In per_round mode, only generate Round 1 — subsequent rounds will be generated JIT.
+    const generationMode = (eventData as any)?.tables_generation_mode || "upfront";
+    const totalRoundsToGenerate = generationMode === "per_round" ? 1 : (eventData?.rounds || 5);
+
     const result = generateSmartTables(
       checkedInParticipants, 
-      eventData?.rounds || 5, 
+      totalRoundsToGenerate, 
       eventData?.table_size || 2, 
       false, 
       eventData?.gender_parity || false,
@@ -2397,7 +2401,7 @@ const EventDetail = () => {
     });
   };
 
-  const handleAddRound = async () => {
+  const handleAddRound = async (options: { incrementTotal?: boolean } = { incrementTotal: true }) => {
     if (!eventData?.tables || !Array.isArray(eventData.tables) || !id) return;
     const currentTables = eventData.tables as any[];
     const newRoundNumber = currentTables.length + 1;
@@ -2463,9 +2467,11 @@ const EventDetail = () => {
     }
 
     const updatedTables = [...currentTables, newRound];
-    const newRoundsCount = eventData.rounds + 1;
+    const incrementTotal = options.incrementTotal !== false;
+    const newRoundsCount = incrementTotal ? eventData.rounds + 1 : eventData.rounds;
 
-    const dynUpdate: any = { tables: updatedTables, rounds: newRoundsCount };
+    const dynUpdate: any = { tables: updatedTables };
+    if (incrementTotal) dynUpdate.rounds = newRoundsCount;
     if (eventData.game_mode?.enabled && result.playedAfter) {
       dynUpdate.game_mode = { ...eventData.game_mode, played: result.playedAfter };
     }
@@ -2482,10 +2488,12 @@ const EventDetail = () => {
 
     setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
     setViewingRound(newRoundNumber);
-    toast({ 
-      title: "Ronda añadida", 
-      description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
-    });
+    if (incrementTotal) {
+      toast({ 
+        title: "Ronda añadida", 
+        description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
+      });
+    }
   };
 
   const handleDeleteRound = async (roundNumber: number) => {
@@ -4356,6 +4364,24 @@ const EventDetail = () => {
                       const newCompletedRounds = [...completedRounds, roundNumber];
                       const nextRound = roundNumber + 1;
                       const isLastRound = roundNumber >= tables.length;
+                      const generationMode = (eventData as any).tables_generation_mode || "upfront";
+                      
+                      // JIT mode: generate next round NOW, excluding cancelled/non-checked-in participants
+                      let updatedTables = eventData.tables as any[];
+                      if (generationMode === "per_round" && !isLastRound) {
+                        try {
+                          await handleAddRound({ incrementTotal: false });
+                          // handleAddRound updated state and DB; reload latest tables
+                          const { data: refreshed } = await supabase
+                            .from("events")
+                            .select("tables")
+                            .eq("id", id)
+                            .maybeSingle();
+                          if (refreshed?.tables) updatedTables = refreshed.tables as any[];
+                        } catch (err) {
+                          console.error("JIT round generation failed:", err);
+                        }
+                      }
                       
                       // Reset timer state for next round
                       await supabase
@@ -4382,7 +4408,9 @@ const EventDetail = () => {
                         setViewingRound(nextRound);
                         toast({
                           title: `Ronda ${roundNumber} completada`,
-                          description: `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
+                          description: generationMode === "per_round" 
+                            ? `Ronda ${nextRound} generada con los participantes activos.`
+                            : `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
                         });
                       } else {
                         toast({
@@ -4624,7 +4652,7 @@ const EventDetail = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={handleAddRound}
+                          onClick={() => handleAddRound()}
                           className="border-dashed"
                         >
                           <Plus className="w-3 h-3 mr-1" />
@@ -4957,6 +4985,7 @@ const EventDetail = () => {
                 reminderScheduledAt={eventData.reminder_scheduled_at}
                 gameMode={(eventData as any).game_mode || null}
                 participantsCount={eventData.participants_count || 0}
+                tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
