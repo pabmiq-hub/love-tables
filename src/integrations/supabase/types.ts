@@ -810,6 +810,7 @@ export type Database = {
         Row: {
           created_at: string
           event_id: string
+          group_id: string | null
           id: string
           participant_1_id: string
           participant_2_id: string
@@ -818,6 +819,7 @@ export type Database = {
         Insert: {
           created_at?: string
           event_id: string
+          group_id?: string | null
           id?: string
           participant_1_id: string
           participant_2_id: string
@@ -826,6 +828,7 @@ export type Database = {
         Update: {
           created_at?: string
           event_id?: string
+          group_id?: string | null
           id?: string
           participant_1_id?: string
           participant_2_id?: string
@@ -859,6 +862,7 @@ export type Database = {
         Row: {
           created_at: string
           event_id: string
+          group_id: string | null
           id: string
           participant_1_id: string
           participant_2_id: string
@@ -867,6 +871,7 @@ export type Database = {
         Insert: {
           created_at?: string
           event_id: string
+          group_id?: string | null
           id?: string
           participant_1_id: string
           participant_2_id: string
@@ -875,6 +880,7 @@ export type Database = {
         Update: {
           created_at?: string
           event_id?: string
+          group_id?: string | null
           id?: string
           participant_1_id?: string
           participant_2_id?: string
