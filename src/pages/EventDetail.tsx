@@ -4370,7 +4370,7 @@ const EventDetail = () => {
                       let updatedTables = eventData.tables as any[];
                       if (generationMode === "per_round" && !isLastRound) {
                         try {
-                          await handleAddRound();
+                          await handleAddRound({ incrementTotal: false });
                           // handleAddRound updated state and DB; reload latest tables
                           const { data: refreshed } = await supabase
                             .from("events")
