@@ -1490,6 +1490,29 @@ const EventDetail = () => {
           usedRotators.add(rotator.id);
           if (tableDynId) recordDyn(rotator.id, tableDynId);
           filledSeats++;
+
+          // Inclusion pull: seat groupmates of this rotator at the same table.
+          const grpIdx = inclusionGroupIndex.get(rotator.id);
+          if (grpIdx !== undefined) {
+            const groupmates = inclusionGroups[grpIdx]
+              .filter(pid => pid !== rotator.id && !usedRotators.has(pid) && pid !== host.id);
+            for (const mateId of groupmates) {
+              if (filledSeats >= seatsNeeded) break;
+              const mate = participantsById.get(mateId);
+              if (!mate) continue;
+              if (tableDynId && hasPlayedDyn(mateId, tableDynId)) continue;
+              if (areExcluded(host.id, mateId)) continue;
+              let blocked = false;
+              for (const member of table) {
+                if (areExcluded(mateId, member.id)) { blocked = true; break; }
+              }
+              if (blocked) continue;
+              table.push({ id: mateId, name: mate.name });
+              usedRotators.add(mateId);
+              if (tableDynId) recordDyn(mateId, tableDynId);
+              filledSeats++;
+            }
+          }
         }
         
         // Fill remaining if relaxed - prioritize by age compatibility and avoid repeats
