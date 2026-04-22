@@ -182,7 +182,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, organizer_id')
           .eq('id', eventId)
           .single();
 
@@ -202,6 +202,25 @@ const ParticipantAccess = () => {
         setEventName(event.name);
         setEventTime(event.event_time || null);
         setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
+
+        // Resolve repeat-request feature: enabled at event-level AND organizer plan-level
+        const eventRepeatEnabled = !!(event as any).repeat_request_enabled;
+        if (eventRepeatEnabled && (event as any).organizer_id) {
+          const { data: org } = await supabase
+            .from('organizers')
+            .select('user_id')
+            .eq('id', (event as any).organizer_id)
+            .maybeSingle();
+          if (org?.user_id) {
+            const { data: hasRepeat } = await supabase.rpc('has_feature', {
+              _user_id: org.user_id,
+              _feature_code: 'repeat_request',
+            });
+            setRepeatEnabled(!!hasRepeat);
+          }
+        } else {
+          setRepeatEnabled(false);
+        }
 
         if (event.selection_closed_at) {
           clearSession();
