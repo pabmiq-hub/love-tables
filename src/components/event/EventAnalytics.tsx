@@ -126,7 +126,19 @@ const getAgeBand = (age: number): string => {
   return "Sin especificar";
 };
 
-const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount }: EventAnalyticsProps) => {
+const EventAnalytics = ({ participants, selections, matches, tables, originalParticipantsCount, repeatStats }: EventAnalyticsProps) => {
+  // ========== ENGAGEMENT (super likes + repeat) ==========
+  const engagementStats = useMemo(() => {
+    const superLikes = selections.filter(s => s.is_super_like).length;
+    const senders = new Set(selections.filter(s => s.is_super_like).map(s => s.selector_id));
+    const receivers = new Set(selections.filter(s => s.is_super_like).map(s => s.selected_id));
+    return {
+      superLikesTotal: superLikes,
+      uniqueSenders: senders.size,
+      uniqueReceivers: receivers.size,
+    };
+  }, [selections]);
+
   // ========== INSCRIPTIONS STATS ==========
   const inscriptionStats = useMemo(() => {
     // Use original count if available (for accurate no-show tracking after event started)
