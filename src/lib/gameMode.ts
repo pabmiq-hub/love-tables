@@ -90,6 +90,59 @@ export function writePlayedMap(map: Map<string, Set<string>>): Record<string, st
   return out;
 }
 
+/**
+ * Rebuilds the `played` map from the SOURCE OF TRUTH (preliminary tables +
+ * official rounds tables) instead of trusting the persisted `played` field.
+ *
+ * Why this matters: every time the organizer regenerates rounds (or edits
+ * tables), the previously persisted `played` map can drift and accumulate
+ * dynamics that the participant didn't actually play. Reconstructing it from
+ * the actual seating each time guarantees correctness.
+ *
+ * `prelimTables` is `preliminary_round.tables` (array of arrays of {id,...}).
+ * `roundTables` is `events.tables` ([{round, tables: [[{id,...}]]}]).
+ */
+export function rebuildPlayedFromTables(
+  config: GameModeConfig | null,
+  prelimTables: Array<Array<{ id: string }>> | null | undefined,
+  roundTables: Array<{ round?: number; tables?: Array<Array<{ id: string }>> }> | null | undefined,
+  options: { includeRounds?: number[] } = {}
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!config?.enabled) return out;
+
+  const addSeat = (tableNumber: number, participantId: string) => {
+    const dynId = getDynamicIdForTable(config, tableNumber);
+    if (!dynId) return;
+    const list = out[participantId] || (out[participantId] = []);
+    if (!list.includes(dynId)) list.push(dynId);
+  };
+
+  // Preliminary round
+  if (Array.isArray(prelimTables)) {
+    prelimTables.forEach((seats, idx) => {
+      if (!Array.isArray(seats)) return;
+      const tableNumber = idx + 1;
+      seats.forEach((p) => p?.id && addSeat(tableNumber, p.id));
+    });
+  }
+
+  // Official rounds — optionally filter to a subset of round numbers
+  if (Array.isArray(roundTables)) {
+    for (const round of roundTables) {
+      if (!round?.tables || !Array.isArray(round.tables)) continue;
+      if (options.includeRounds && round.round && !options.includeRounds.includes(round.round)) continue;
+      round.tables.forEach((seats, idx) => {
+        if (!Array.isArray(seats)) return;
+        const tableNumber = idx + 1;
+        seats.forEach((p) => p?.id && addSeat(tableNumber, p.id));
+      });
+    }
+  }
+
+  return out;
+}
+
 /** Validation: returns errors and warnings for the given config. */
 export function validateGameMode(
   config: GameModeConfig,
