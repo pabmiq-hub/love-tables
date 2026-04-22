@@ -168,6 +168,7 @@ export type Database = {
           emails_sent_at: string | null
           event_location: string | null
           event_time: string | null
+          game_mode: Json | null
           gender_parity: boolean | null
           group_rounds: Json | null
           id: string
@@ -223,6 +224,7 @@ export type Database = {
           emails_sent_at?: string | null
           event_location?: string | null
           event_time?: string | null
+          game_mode?: Json | null
           gender_parity?: boolean | null
           group_rounds?: Json | null
           id?: string
@@ -278,6 +280,7 @@ export type Database = {
           emails_sent_at?: string | null
           event_location?: string | null
           event_time?: string | null
+          game_mode?: Json | null
           gender_parity?: boolean | null
           group_rounds?: Json | null
           id?: string
