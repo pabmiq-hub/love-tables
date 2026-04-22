@@ -405,6 +405,10 @@ const CreateEvent = () => {
       preliminary_round: (eventModule === "social" && preliminaryRoundEnabled
         ? { enabled: true, tables: [], started_at: null }
         : null) as unknown as Json,
+      // Game Mode (Modo lúdico) — Enterprise + Social only
+      game_mode: (eventModule === "social" && canUseGameMode && gameMode.enabled && gameMode.dynamics.length > 0
+        ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
+        : null) as unknown as Json,
     };
 
     const { data: eventData, error: eventError } = await supabase
