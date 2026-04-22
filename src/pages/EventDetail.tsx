@@ -2398,9 +2398,14 @@ const EventDetail = () => {
     const updatedTables = [...currentTables, newRound];
     const newRoundsCount = eventData.rounds + 1;
 
+    const dynUpdate: any = { tables: updatedTables, rounds: newRoundsCount };
+    if (eventData.game_mode?.enabled && result.playedAfter) {
+      dynUpdate.game_mode = { ...eventData.game_mode, played: result.playedAfter };
+    }
+
     const { error } = await supabase
       .from("events")
-      .update({ tables: updatedTables, rounds: newRoundsCount })
+      .update(dynUpdate)
       .eq("id", id);
 
     if (error) {
