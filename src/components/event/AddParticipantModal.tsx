@@ -24,11 +24,15 @@ export interface EventCustomPreferences {
 
 interface AddParticipantModalProps {
   onClose: () => void;
-  onAdd: (participant: Participant) => void;
+  onAdd: (participant: Participant) => void | Promise<void>;
   customPreferences?: EventCustomPreferences;
+  /** Pre-fill the form with values (e.g. coming from the CRM picker review). */
+  initialValues?: Partial<Participant>;
+  /** Render without the fixed-overlay chrome so it can live inside another dialog. */
+  embedded?: boolean;
 }
 
-const AddParticipantModal = ({ onClose, onAdd, customPreferences }: AddParticipantModalProps) => {
+const AddParticipantModal = ({ onClose, onAdd, customPreferences, initialValues, embedded }: AddParticipantModalProps) => {
   const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
   const genders = customPreferences?.genders || [...GENDERS];
   const preferences = customPreferences?.preferences || [...PREFERENCES];
