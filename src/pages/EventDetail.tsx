@@ -60,6 +60,7 @@ import {
   getDynamicForTable,
   readPlayedMap,
   writePlayedMap,
+  rebuildPlayedFromTables,
 } from "@/lib/gameMode";
 
 interface ParticipantExclusion {
