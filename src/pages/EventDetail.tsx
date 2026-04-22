@@ -2061,7 +2061,88 @@ const EventDetail = () => {
     }
   };
 
-  const handleAddProfessionalParticipant = async (participant: ModalProfessionalParticipant) => {
+  const handleAddParticipantsFromCRM = async (people: CRMPickerParticipant[]) => {
+    if (!id || people.length === 0) return;
+
+    const autoCheckin = eventStatus === "active";
+
+    const rows = people.map((p) => ({
+      event_id: id,
+      name: p.name,
+      email: p.email || null,
+      age: p.age || null,
+      age_range: p.ageRange || null,
+      preferred_age_range: p.preferredAgeRange || null,
+      preference: p.preference || null,
+      dating_preference: p.datingPreference || null,
+      gender: p.gender || null,
+      phone: p.phone || null,
+      checked_in: autoCheckin,
+      birth_date: p.birthDate || null,
+      is_returning_participant: true,
+      global_participant_id: p.globalParticipantId,
+    }));
+
+    const { data: inserted, error } = await supabase
+      .from("participants")
+      .insert(rows)
+      .select();
+
+    if (error || !inserted) {
+      toast({
+        title: "Error",
+        description: "No se pudieron añadir los participantes desde la base de datos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setParticipants((prev) => [...prev, ...inserted]);
+
+    await supabase
+      .from("events")
+      .update({ participants_count: participants.length + inserted.length })
+      .eq("id", id);
+
+    // Auto-assign to preliminary tables if active
+    if (autoCheckin) {
+      try {
+        const { assignParticipantsToPreliminaryTables } = await import("@/lib/preliminaryRoundAssign");
+        await assignParticipantsToPreliminaryTables(
+          id,
+          inserted.map((p) => ({ id: p.id, name: p.name }))
+        );
+      } catch (e) {
+        console.error("Error assigning to preliminary tables:", e);
+      }
+    }
+
+    toast({
+      title: "Participantes añadidos",
+      description: `Se han añadido ${inserted.length} participante${inserted.length === 1 ? "" : "s"} desde tu base de datos${autoCheckin ? " (con check-in automático)" : ""}.`,
+    });
+
+    // Send emails (best effort, sequential to respect rate limit)
+    for (const p of inserted) {
+      if (!p.email) continue;
+      try {
+        await supabase.functions.invoke("send-registration-confirmation", {
+          body: { eventId: id, participantId: p.id },
+        });
+        const { data } = await supabase.functions.invoke("generate-and-send-code", {
+          body: { eventId: id, participantId: p.id },
+        });
+        if (data?.verificationCode) {
+          setParticipants((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, verification_code: data.verificationCode } : x))
+          );
+        }
+      } catch (e) {
+        console.error("Error sending emails for", p.id, e);
+      }
+    }
+  };
+
     if (!id) return;
 
     // Auto check-in if event is already active
