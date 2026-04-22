@@ -294,7 +294,7 @@ serve(async (req) => {
     try {
       const { data: eventConfig } = await supabase
         .from('events')
-        .select('preliminary_round, table_size, module')
+        .select('preliminary_round, table_size, module, game_mode')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -306,24 +306,50 @@ serve(async (req) => {
         const tables: any[][] = Array.isArray(prelim.tables) ? prelim.tables.map((t: any[]) => [...t]) : [];
         const dismissed: number[] = Array.isArray(prelim.dismissed_tables) ? prelim.dismissed_tables : [];
 
+        // ----- Modo Lúdico (Game Mode) -----
+        const rawGM = (eventConfig as any)?.game_mode;
+        const gmEnabled = !!(rawGM && rawGM.enabled);
+        const dynamics: Array<{ id: string; table_numbers: number[] }> =
+          gmEnabled && Array.isArray(rawGM.dynamics) ? rawGM.dynamics : [];
+        const played: Record<string, string[]> =
+          gmEnabled && rawGM.played && typeof rawGM.played === 'object' ? { ...rawGM.played } : {};
+        const dynForTable = (n: number): string | null => {
+          if (!gmEnabled) return null;
+          for (const d of dynamics) {
+            if (Array.isArray(d.table_numbers) && d.table_numbers.includes(n)) return d.id;
+          }
+          return null;
+        };
+        const hasPlayed = (pid: string, dynId: string) =>
+          Array.isArray(played[pid]) && played[pid].includes(dynId);
+
         // Avoid duplicates: check if participant already in any preliminary table
         const alreadyAssigned = tables.some(t => t.some((p: any) => p.id === participant.id));
 
         if (!alreadyAssigned) {
-          // Find last non-dismissed table with free seat
+          // Find last non-dismissed table with free seat AND no dynamic conflict
           let placed = false;
           for (let i = tables.length - 1; i >= 0; i--) {
             if (dismissed.includes(i)) continue;
-            if (tables[i].length < tableSize) {
-              tables[i].push({ id: participant.id, name: participant.name });
-              placed = true;
-              break;
+            if (tables[i].length >= tableSize) continue;
+            const dynId = dynForTable(i + 1);
+            if (dynId && hasPlayed(participant.id, dynId)) continue;
+            tables[i].push({ id: participant.id, name: participant.name });
+            if (dynId) {
+              played[participant.id] = [...(played[participant.id] || []), dynId];
             }
+            placed = true;
+            break;
           }
 
-          // Otherwise create a new table
+          // Otherwise create a new table (new tables don't have a dynamic by default)
           if (!placed) {
             tables.push([{ id: participant.id, name: participant.name }]);
+            const newTableNumber = tables.length;
+            const dynId = dynForTable(newTableNumber);
+            if (dynId) {
+              played[participant.id] = [...(played[participant.id] || []), dynId];
+            }
           }
 
           const updatedPrelim = {
@@ -332,9 +358,14 @@ serve(async (req) => {
             started_at: prelim.started_at || new Date().toISOString(),
           };
 
+          const updates: any = { preliminary_round: updatedPrelim };
+          if (gmEnabled) {
+            updates.game_mode = { ...rawGM, played };
+          }
+
           const { error: prelimError } = await supabase
             .from('events')
-            .update({ preliminary_round: updatedPrelim } as any)
+            .update(updates as any)
             .eq('id', eventId);
 
           if (prelimError) {

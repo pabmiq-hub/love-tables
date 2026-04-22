@@ -126,6 +126,17 @@ const ParticipantAccess = () => {
   const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
+  // Game mode (Modo lúdico) — dynamics per table number
+  const [gameMode, setGameMode] = useState<{
+    enabled: boolean;
+    dynamics: { id: string; name: string; table_numbers: number[] }[];
+  } | null>(null);
+
+  const getDynamicForTable = (tableNumber: number) => {
+    if (!gameMode?.enabled) return null;
+    return gameMode.dynamics.find(d => d.table_numbers.includes(tableNumber)) || null;
+  };
+
   const [eventLang, setEventLang] = useState<Language>("es");
   const t = translations[eventLang];
 
@@ -337,6 +348,9 @@ const ParticipantAccess = () => {
       // Read super-like flags returned by edge function
       setHasSentSuperLike(!!data.hasSentSuperLike);
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
+
+      // Game mode payload (no `played` map sent to clients)
+      setGameMode(data.gameMode || null);
 
       // Handle preliminary round confirmation status
       const prelimConfirm = data.preliminaryConfirmation;
@@ -787,13 +801,21 @@ const ParticipantAccess = () => {
                         <div className={`flex items-center justify-between p-4 ${
                           currentRound === assignment.round ? 'bg-primary/10' : 'bg-muted/50'
                         }`}>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <span className={`text-sm font-medium ${currentRound === assignment.round ? 'text-primary' : 'text-muted-foreground'}`}>
                               {assignment.round === 0 ? (eventLang === 'es' ? 'Ronda de bienvenida' : 'Welcome round') : `${t.access.round} ${assignment.round}`}
                             </span>
                             {currentRound === assignment.round && (
                               <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">{t.access.now}</span>
                             )}
+                            {(() => {
+                              const dyn = getDynamicForTable(assignment.table);
+                              return dyn ? (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-xs">
+                                  🎲 {dyn.name}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
                           <div className={`text-2xl font-bold ${currentRound === assignment.round ? 'text-primary' : 'text-foreground'}`}>
                             {t.access.table} {assignment.table}

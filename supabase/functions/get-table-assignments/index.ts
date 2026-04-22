@@ -93,7 +93,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round, game_mode')
       .eq('id', eventId)
       .single();
 
@@ -286,6 +286,23 @@ serve(async (req) => {
 
     console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
+    // Build a lightweight game_mode payload for the participant UI (no `played` map sent to clients)
+    const gmRaw = (event as any).game_mode;
+    const gameModePayload = gmRaw && gmRaw.enabled && Array.isArray(gmRaw.dynamics)
+      ? {
+          enabled: true,
+          dynamics: gmRaw.dynamics
+            .filter((d: any) => d && typeof d.id === 'string' && Array.isArray(d.table_numbers))
+            .map((d: any) => ({
+              id: String(d.id),
+              name: String(d.name || ''),
+              table_numbers: d.table_numbers
+                .map((n: any) => Number(n))
+                .filter((n: number) => Number.isFinite(n) && n > 0),
+            })),
+        }
+      : null;
+
     return new Response(
       JSON.stringify({ 
         participantName: anonymizeName(participant.name),
@@ -299,6 +316,7 @@ serve(async (req) => {
         preliminaryConfirmation,
         hasSentSuperLike,
         hasReceivedSuperLike,
+        gameMode: gameModePayload,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
           roundStartedAt: event.round_started_at,
