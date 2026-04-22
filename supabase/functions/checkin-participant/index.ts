@@ -311,8 +311,6 @@ serve(async (req) => {
         const gmEnabled = !!(rawGM && rawGM.enabled);
         const dynamics: Array<{ id: string; table_numbers: number[] }> =
           gmEnabled && Array.isArray(rawGM.dynamics) ? rawGM.dynamics : [];
-        const played: Record<string, string[]> =
-          gmEnabled && rawGM.played && typeof rawGM.played === 'object' ? { ...rawGM.played } : {};
         const dynForTable = (n: number): string | null => {
           if (!gmEnabled) return null;
           for (const d of dynamics) {
@@ -320,6 +318,22 @@ serve(async (req) => {
           }
           return null;
         };
+        // CRITICAL: rebuild `played` from the CURRENT preliminary tables (source of truth)
+        // instead of trusting the persisted `played` field, which can drift after
+        // re-generations or manual edits and falsely block participants from being seated.
+        const played: Record<string, string[]> = {};
+        if (gmEnabled) {
+          tables.forEach((seats, idx) => {
+            if (!Array.isArray(seats)) return;
+            const dynId = dynForTable(idx + 1);
+            if (!dynId) return;
+            for (const p of seats) {
+              if (!p?.id) continue;
+              const list = played[p.id] || (played[p.id] = []);
+              if (!list.includes(dynId)) list.push(dynId);
+            }
+          });
+        }
         const hasPlayed = (pid: string, dynId: string) =>
           Array.isArray(played[pid]) && played[pid].includes(dynId);
 
