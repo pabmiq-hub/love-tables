@@ -2401,7 +2401,7 @@ const EventDetail = () => {
     });
   };
 
-  const handleAddRound = async () => {
+  const handleAddRound = async (options: { incrementTotal?: boolean } = { incrementTotal: true }) => {
     if (!eventData?.tables || !Array.isArray(eventData.tables) || !id) return;
     const currentTables = eventData.tables as any[];
     const newRoundNumber = currentTables.length + 1;
@@ -2467,9 +2467,11 @@ const EventDetail = () => {
     }
 
     const updatedTables = [...currentTables, newRound];
-    const newRoundsCount = eventData.rounds + 1;
+    const incrementTotal = options.incrementTotal !== false;
+    const newRoundsCount = incrementTotal ? eventData.rounds + 1 : eventData.rounds;
 
-    const dynUpdate: any = { tables: updatedTables, rounds: newRoundsCount };
+    const dynUpdate: any = { tables: updatedTables };
+    if (incrementTotal) dynUpdate.rounds = newRoundsCount;
     if (eventData.game_mode?.enabled && result.playedAfter) {
       dynUpdate.game_mode = { ...eventData.game_mode, played: result.playedAfter };
     }
@@ -2486,10 +2488,12 @@ const EventDetail = () => {
 
     setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
     setViewingRound(newRoundNumber);
-    toast({ 
-      title: "Ronda añadida", 
-      description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
-    });
+    if (incrementTotal) {
+      toast({ 
+        title: "Ronda añadida", 
+        description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
+      });
+    }
   };
 
   const handleDeleteRound = async (roundNumber: number) => {
