@@ -43,6 +43,7 @@ import AddProfessionalParticipantModal, { type ProfessionalParticipant as ModalP
 import ExcelPreviewModal from "@/components/event/ExcelPreviewModal";
 import ExclusionsManager from "@/components/event/ExclusionsManager";
 import InclusionsManager from "@/components/event/InclusionsManager";
+import { loadInclusions, computeInclusionGroups, buildInclusionGroupIndex } from "@/lib/inclusions";
 import { parseExcelFile, Participant } from "@/lib/excelParser";
 import { exportMatchesToCSV, exportMatchesToExcel } from "@/lib/exportMatches";
 import { exportTableAssignmentsToExcel } from "@/lib/exportTableAssignments";
