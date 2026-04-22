@@ -136,6 +136,11 @@ const ParticipantAccess = () => {
   const [repeatTarget, setRepeatTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
 
+  // Edit-existing-selection feature (key = `${participantId}-${round}`)
+  const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
+  const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string; participantId: string }>>(new Map());
+  const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
+
   // Game mode (Modo lúdico) — dynamics per table number
   const [gameMode, setGameMode] = useState<{
     enabled: boolean;
