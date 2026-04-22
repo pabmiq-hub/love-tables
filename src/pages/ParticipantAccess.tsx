@@ -126,6 +126,16 @@ const ParticipantAccess = () => {
   const [showPreliminaryModal, setShowPreliminaryModal] = useState(false);
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
+  // Active tab control (for guiding user after prelim confirmation)
+  const [activeTab, setActiveTab] = useState<"tables" | "selections">("tables");
+  const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
+
+  // Repeat request feature
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatRequestUsed, setRepeatRequestUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [repeatTarget, setRepeatTarget] = useState<{ id: string; name: string; round: number } | null>(null);
+  const [isSendingRepeat, setIsSendingRepeat] = useState(false);
+
   // Game mode (Modo lúdico) — dynamics per table number
   const [gameMode, setGameMode] = useState<{
     enabled: boolean;
