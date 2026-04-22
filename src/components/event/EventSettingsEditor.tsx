@@ -423,6 +423,23 @@ const EventSettingsEditor = ({
             </div>
           )}
 
+          {!isProfessional && (
+            <FeatureGate feature="repeat_request" mode="hide">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base">🔁 Función "Repetir"</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permite a cada participante solicitar una vez por evento volver a coincidir con un compañero de mesa anterior. Si el destinatario acepta, se crea una inclusión automática para la siguiente ronda generada.
+                  </p>
+                </div>
+                <Switch
+                  checked={formRepeatRequestEnabled}
+                  onCheckedChange={setFormRepeatRequestEnabled}
+                />
+              </div>
+            </FeatureGate>
+          )}
+
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <Label className="text-base">Idioma del evento</Label>
