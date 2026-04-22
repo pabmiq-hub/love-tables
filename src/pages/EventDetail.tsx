@@ -851,14 +851,17 @@ const EventDetail = () => {
     previousEncountersMap?: Map<string, Set<string>>,
     avoidEncountersMode: "preference" | "strict" = "preference",
     groupRoundsConfig?: Array<{ round: number; table_size: number }>,
-    gameMode?: GameModeConfig | null
+    gameMode?: GameModeConfig | null,
+    inclusionGroupsArg?: string[][]
   ): TableGenerationResult => {
     const rotationMode = eventData?.rotation_mode || "fixed_host";
+    // Resolve inclusion groups: arg overrides, else compute from current state
+    const inclusionGroups = inclusionGroupsArg ?? computeInclusionGroups(inclusions);
     
     if (rotationMode === "all_rotate") {
-      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
+      return generateAllRotateTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode, inclusionGroups);
     } else {
-      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode);
+      return generateFixedHostTables(participantsList, numRounds, tableSize, relaxConstraints, genderParity, previousEncountersMap, avoidEncountersMode, groupRoundsConfig, gameMode, inclusionGroups);
     }
   };
 
