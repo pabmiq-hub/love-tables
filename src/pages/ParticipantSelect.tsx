@@ -792,6 +792,28 @@ const ParticipantSelect = () => {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={!!confirmRepeatFor} onOpenChange={(open) => !open && setConfirmRepeatFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Repeat2 className="w-5 h-5 text-violet-600" />
+              {eventLang === "es" ? "¿Solicitar repetir con esta persona?" : "Request to repeat with this person?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? `Enviaremos un email anónimo a ${confirmRepeatFor?.name} para que decida si quiere volver a coincidir contigo en una próxima ronda. Solo puedes usar esta opción una vez por evento.`
+                : `We'll send an anonymous email to ${confirmRepeatFor?.name} so they can decide whether to meet you again in an upcoming round. You can only use this option once per event.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSendingRepeat}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRepeat} disabled={isSendingRepeat} className="bg-violet-600 hover:bg-violet-700 text-white">
+              {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Enviar solicitud" : "Send request")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
