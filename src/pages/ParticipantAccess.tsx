@@ -588,10 +588,28 @@ const ParticipantAccess = () => {
 
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
 
-  const handleSubmit = async () => {
+  const performSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
     setIsSubmitting(true);
 
+    // 1) Apply edits to previously-submitted selections
+    const edits = getMeaningfulEdits();
+    for (const e of edits) {
+      const { data, error } = await supabase.functions.invoke('update-selection', {
+        body: { eventId, verificationCode, selectedId: e.participantId, selectionType: e.newType },
+      });
+      if (error || data?.error) {
+        toast({
+          title: t.access.error,
+          description: data?.error || (eventLang === 'es' ? 'No se pudo actualizar la selección' : 'Could not update the selection'),
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 2) New selections
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
     const deduped = new Map<string, MatchSelection>();
@@ -618,22 +636,40 @@ const ParticipantAccess = () => {
     const superLikedSelection = matchSelections.find(ms => !ms.alreadySelected && ms.superLikedByMe);
     const superLikeId = superLikedSelection?.participantId;
 
-    const { data, error } = await supabase.functions.invoke('submit-selections', {
-      body: { eventId, verificationCode, selections, superLikeId }
-    });
+    if (selections.length > 0) {
+      const { data, error } = await supabase.functions.invoke('submit-selections', {
+        body: { eventId, verificationCode, selections, superLikeId }
+      });
 
-    if (error || data?.error) {
-      toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
-      setIsSubmitting(false);
-      return;
+      if (error || data?.error) {
+        toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
+    } else if (edits.length > 0) {
+      toast({
+        title: eventLang === 'es' ? 'Selecciones actualizadas' : 'Selections updated',
+        description: eventLang === 'es'
+          ? `${edits.length} cambio${edits.length === 1 ? '' : 's'} guardado${edits.length === 1 ? '' : 's'}`
+          : `${edits.length} change${edits.length === 1 ? '' : 's'} saved`,
+      });
     }
 
-    toast({ title: t.access.selectionsSaved, description: data?.message || `${selections.length} ${t.access.selectionsCount}` });
     setIsSubmitting(false);
     clearSession();
     setStep("done");
-    setStep("done");
   };
+
+  const handleSubmit = async () => {
+    if (hasMeaningfulEdits()) {
+      setConfirmEditSubmit(true);
+      return;
+    }
+    await performSubmit();
+  };
+
 
   const handleSubmitEmpty = async () => {
     if (!verifiedParticipant || !eventId) return;
