@@ -34,6 +34,8 @@ interface EventSettingsTabsProps {
   preliminaryRoundEnabled?: boolean;
   reminderMode?: string;
   reminderScheduledAt?: string | null;
+  gameMode?: any;
+  participantsCount?: number;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
