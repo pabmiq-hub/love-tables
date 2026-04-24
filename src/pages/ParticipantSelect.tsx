@@ -154,6 +154,7 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setTotalRounds((event as any).rounds || 0);
         setSuperLikeEnabled((event as any).super_like_enabled || false);
 
         // "Repetir" — trust event-level toggle as source of truth.
