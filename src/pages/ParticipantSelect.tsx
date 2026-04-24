@@ -52,7 +52,8 @@ type Step = "verify_code" | "confirm_identity" | "select" | "done" | "error" | "
 
 const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
   const openPrefs = ["Estoy abierto a todo", "Estoy abierta a todo", "Estoy abierto/a a todo", "No binario", "I'm open to all", "I am open to all", "Non-binary"];
-  if (openPrefs.some(o => pref1.includes(o)) || openPrefs.some(o => pref2.includes(o))) return true;
+  const p1IsOpen = openPrefs.some(o => pref1.includes(o));
+  const p2IsOpen = openPrefs.some(o => pref2.includes(o));
 
   const p1LookingForWoman = pref1.includes("busco una mujer") || pref1.includes("looking for a woman");
   const p1LookingForMan = pref1.includes("busco un hombre") || pref1.includes("looking for a man");
@@ -63,6 +64,21 @@ const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, p
   const p1IsMan = gender1 === "Hombre" || gender1 === "Man" || pref1.includes("Soy un hombre") || pref1.includes("I'm a man") || pref1.includes("I am a man");
   const p2IsWoman = gender2 === "Mujer" || gender2 === "Woman" || pref2.includes("Soy una mujer") || pref2.includes("I'm a woman") || pref2.includes("I am a woman");
   const p2IsMan = gender2 === "Hombre" || gender2 === "Man" || pref2.includes("Soy un hombre") || pref2.includes("I'm a man") || pref2.includes("I am a man");
+
+  // Both open → compatible
+  if (p1IsOpen && p2IsOpen) return true;
+  // p1 open: p2 must accept p1's gender
+  if (p1IsOpen) {
+    if (p1IsMan && p2LookingForMan) return true;
+    if (p1IsWoman && p2LookingForWoman) return true;
+    return false;
+  }
+  // p2 open: p1 must accept p2's gender
+  if (p2IsOpen) {
+    if (p2IsMan && p1LookingForMan) return true;
+    if (p2IsWoman && p1LookingForWoman) return true;
+    return false;
+  }
 
   // Hetero: man→woman & woman→man
   if (p1IsMan && p1LookingForWoman && p2IsWoman && p2LookingForMan) return true;

@@ -13,7 +13,8 @@ function areDatingCompatible(pref1: string, gender1: string | null, pref2: strin
   const openPrefs = ["abierto a todo", "abierta a todo", "abierto/a a todo", "open to all"];
   const p1Lower = pref1.toLowerCase();
   const p2Lower = pref2.toLowerCase();
-  if (openPrefs.some(o => p1Lower.includes(o)) || openPrefs.some(o => p2Lower.includes(o))) return true;
+  const p1IsOpen = openPrefs.some(o => p1Lower.includes(o));
+  const p2IsOpen = openPrefs.some(o => p2Lower.includes(o));
 
   const p1LookingForWoman = p1Lower.includes("busco una mujer") || p1Lower.includes("looking for a woman");
   const p1LookingForMan = p1Lower.includes("busco un hombre") || p1Lower.includes("looking for a man");
@@ -26,6 +27,21 @@ function areDatingCompatible(pref1: string, gender1: string | null, pref2: strin
   const p1IsWoman = g1 === 'mujer' || g1 === 'woman' || p1Lower.includes("soy una mujer");
   const p2IsMan = g2 === 'hombre' || g2 === 'man' || p2Lower.includes("soy un hombre");
   const p2IsWoman = g2 === 'mujer' || g2 === 'woman' || p2Lower.includes("soy una mujer");
+
+  // Both open → compatible
+  if (p1IsOpen && p2IsOpen) return true;
+  // p1 open: p2 must accept p1's gender
+  if (p1IsOpen) {
+    if (p1IsMan && p2LookingForMan) return true;
+    if (p1IsWoman && p2LookingForWoman) return true;
+    return false;
+  }
+  // p2 open: p1 must accept p2's gender
+  if (p2IsOpen) {
+    if (p2IsMan && p1LookingForMan) return true;
+    if (p2IsWoman && p1LookingForWoman) return true;
+    return false;
+  }
 
   if (p1IsMan && p1LookingForWoman && p2IsWoman && p2LookingForMan) return true;
   if (p1IsWoman && p1LookingForMan && p2IsMan && p2LookingForWoman) return true;
