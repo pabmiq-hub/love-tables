@@ -118,6 +118,7 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [totalRounds, setTotalRounds] = useState<number>(0);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
   const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
@@ -137,7 +138,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, language, super_like_enabled, organizer_id')
+          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled')
           .eq('id', eventId)
           .single();
 
