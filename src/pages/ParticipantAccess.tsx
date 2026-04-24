@@ -763,6 +763,7 @@ const ParticipantAccess = () => {
   // ===== Repeat request handlers (1 per event) =====
   const openRepeatDialog = (participantId: string, name: string, round: number) => {
     if (repeatRequestUsed) return;
+    if (eventStatus === 'completed' || currentRound >= totalRounds) return;
     const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
     if (!ms || ms.alreadySelected) return;
     setRepeatTarget({ id: participantId, name, round });
