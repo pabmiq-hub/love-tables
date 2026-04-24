@@ -52,7 +52,8 @@ type Step = "verify_code" | "confirm_identity" | "select" | "done" | "error" | "
 
 const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
   const openPrefs = ["Estoy abierto a todo", "Estoy abierta a todo", "Estoy abierto/a a todo", "No binario", "I'm open to all", "I am open to all", "Non-binary"];
-  if (openPrefs.some(o => pref1.includes(o)) || openPrefs.some(o => pref2.includes(o))) return true;
+  const p1IsOpen = openPrefs.some(o => pref1.includes(o));
+  const p2IsOpen = openPrefs.some(o => pref2.includes(o));
 
   const p1LookingForWoman = pref1.includes("busco una mujer") || pref1.includes("looking for a woman");
   const p1LookingForMan = pref1.includes("busco un hombre") || pref1.includes("looking for a man");
@@ -63,6 +64,21 @@ const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, p
   const p1IsMan = gender1 === "Hombre" || gender1 === "Man" || pref1.includes("Soy un hombre") || pref1.includes("I'm a man") || pref1.includes("I am a man");
   const p2IsWoman = gender2 === "Mujer" || gender2 === "Woman" || pref2.includes("Soy una mujer") || pref2.includes("I'm a woman") || pref2.includes("I am a woman");
   const p2IsMan = gender2 === "Hombre" || gender2 === "Man" || pref2.includes("Soy un hombre") || pref2.includes("I'm a man") || pref2.includes("I am a man");
+
+  // Both open → compatible
+  if (p1IsOpen && p2IsOpen) return true;
+  // p1 open: p2 must accept p1's gender
+  if (p1IsOpen) {
+    if (p1IsMan && p2LookingForMan) return true;
+    if (p1IsWoman && p2LookingForWoman) return true;
+    return false;
+  }
+  // p2 open: p1 must accept p2's gender
+  if (p2IsOpen) {
+    if (p2IsMan && p1LookingForMan) return true;
+    if (p2IsWoman && p1LookingForWoman) return true;
+    return false;
+  }
 
   // Hetero: man→woman & woman→man
   if (p1IsMan && p1LookingForWoman && p2IsWoman && p2LookingForMan) return true;
@@ -102,6 +118,7 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [totalRounds, setTotalRounds] = useState<number>(0);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
   const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
@@ -121,7 +138,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, language, super_like_enabled, organizer_id')
+          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled')
           .eq('id', eventId)
           .single();
 
@@ -137,6 +154,7 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
+        setTotalRounds((event as any).rounds || 0);
         setSuperLikeEnabled((event as any).super_like_enabled || false);
 
         // "Repetir" — trust event-level toggle as source of truth.
@@ -871,6 +889,9 @@ const ParticipantSelect = () => {
                           {repeatEnabled && (() => {
                             const isThisRepeat = repeatRequestUsed?.targetId === person.id;
                             const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                            const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                            // Show "accepted/pending/etc" status even after event ends, but hide the action button.
+                            if (!isThisRepeat && !hasRemainingRounds) return null;
                             return isThisRepeat ? (
                               <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
                                 <Repeat2 className="w-4 h-4" />
@@ -895,6 +916,7 @@ const ParticipantSelect = () => {
                                 type="button"
                                 disabled={repeatDisabled}
                                 onClick={() => requestRepeat(person.id, person.name)}
+                                title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar." : "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline."}
                                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
                               >
                                 <Repeat2 className="w-4 h-4" />
@@ -910,14 +932,18 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
-            {repeatEnabled && (
-              <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
-                <Repeat2 className="w-3.5 h-3.5" />
-                {repeatRequestUsed
-                  ? (eventLang === "es" ? "Repetición usada 🔁" : "Repeat used 🔁")
-                  : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien" : "1 Repeat remaining 🔁 — request to meet someone again")}
-              </div>
-            )}
+            {repeatEnabled && (() => {
+              const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+              if (!hasRemainingRounds && !repeatRequestUsed) return null;
+              return (
+                <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Repeat2 className="w-3.5 h-3.5" />
+                  {repeatRequestUsed
+                    ? (eventLang === "es" ? "Repetición usada 🔁 — Si la otra persona acepta, os volveréis a sentar juntos en una próxima ronda." : "Repeat used 🔁 — If the other person accepts, you'll be seated together again in an upcoming round.")
+                    : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien en una próxima ronda" : "1 Repeat remaining 🔁 — request to meet someone again in an upcoming round")}
+                </div>
+              );
+            })()}
             {superLikeEnabled && (
               <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />

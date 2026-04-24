@@ -70,7 +70,8 @@ const SESSION_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour after event
  */
 const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, pref2: string, gender2: string | null): boolean => {
   const openPrefs = ["Estoy abierto a todo", "Estoy abierta a todo", "Estoy abierto/a a todo", "No binario", "I'm open to all", "I am open to all", "Non-binary"];
-  if (openPrefs.some(o => pref1.includes(o)) || openPrefs.some(o => pref2.includes(o))) return true;
+  const p1IsOpen = openPrefs.some(o => pref1.includes(o));
+  const p2IsOpen = openPrefs.some(o => pref2.includes(o));
 
   const p1LookingForWoman = pref1.includes("busco una mujer") || pref1.includes("looking for a woman");
   const p1LookingForMan = pref1.includes("busco un hombre") || pref1.includes("looking for a man");
@@ -82,12 +83,27 @@ const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, p
   const p2IsWoman = gender2 === "Mujer" || gender2 === "Woman" || pref2.includes("Soy una mujer") || pref2.includes("I'm a woman") || pref2.includes("I am a woman");
   const p2IsMan = gender2 === "Hombre" || gender2 === "Man" || pref2.includes("Soy un hombre") || pref2.includes("I'm a man") || pref2.includes("I am a man");
 
-  // Hetero: man→woman & woman→man
+  // Both open → compatible
+  if (p1IsOpen && p2IsOpen) return true;
+  // p1 open: p2 must accept p1's gender
+  if (p1IsOpen) {
+    if (p1IsMan && p2LookingForMan) return true;
+    if (p1IsWoman && p2LookingForWoman) return true;
+    return false;
+  }
+  // p2 open: p1 must accept p2's gender
+  if (p2IsOpen) {
+    if (p2IsMan && p1LookingForMan) return true;
+    if (p2IsWoman && p1LookingForWoman) return true;
+    return false;
+  }
+
+  // Hetero
   if (p1IsMan && p1LookingForWoman && p2IsWoman && p2LookingForMan) return true;
   if (p1IsWoman && p1LookingForMan && p2IsMan && p2LookingForWoman) return true;
-  // Gay: man→man & man→man
+  // Gay
   if (p1IsMan && p1LookingForMan && p2IsMan && p2LookingForMan) return true;
-  // Lesbian: woman→woman & woman→woman
+  // Lesbian
   if (p1IsWoman && p1LookingForWoman && p2IsWoman && p2LookingForWoman) return true;
 
   return false;
@@ -747,6 +763,7 @@ const ParticipantAccess = () => {
   // ===== Repeat request handlers (1 per event) =====
   const openRepeatDialog = (participantId: string, name: string, round: number) => {
     if (repeatRequestUsed) return;
+    if (eventStatus === 'completed' || currentRound >= totalRounds) return;
     const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
     if (!ms || ms.alreadySelected) return;
     setRepeatTarget({ id: participantId, name, round });
@@ -1195,6 +1212,9 @@ const ParticipantAccess = () => {
                                       {repeatEnabled && (() => {
                                         const isThisRepeat = repeatRequestUsed?.targetId === ms.participantId;
                                         const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                                        const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                                        // Hide the action button if the event has no upcoming rounds, but still show "accepted/pending" status badge.
+                                        if (!isThisRepeat && !hasRemainingRounds) return null;
                                         if (isThisRepeat) {
                                           return (
                                             <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-300 text-violet-800 dark:text-violet-200 text-xs font-semibold">
@@ -1222,6 +1242,7 @@ const ParticipantAccess = () => {
                                             type="button"
                                             disabled={repeatDisabled}
                                             onClick={() => openRepeatDialog(ms.participantId, tablemate.name, round)}
+                                            title={eventLang === 'en' ? "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline." : 'Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar.'}
                                             className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                           >
                                             <Repeat2 className="w-3.5 h-3.5" />
