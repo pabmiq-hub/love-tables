@@ -889,6 +889,9 @@ const ParticipantSelect = () => {
                           {repeatEnabled && (() => {
                             const isThisRepeat = repeatRequestUsed?.targetId === person.id;
                             const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                            const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                            // Show "accepted/pending/etc" status even after event ends, but hide the action button.
+                            if (!isThisRepeat && !hasRemainingRounds) return null;
                             return isThisRepeat ? (
                               <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
                                 <Repeat2 className="w-4 h-4" />
@@ -913,6 +916,7 @@ const ParticipantSelect = () => {
                                 type="button"
                                 disabled={repeatDisabled}
                                 onClick={() => requestRepeat(person.id, person.name)}
+                                title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar." : "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline."}
                                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
                               >
                                 <Repeat2 className="w-4 h-4" />
@@ -928,14 +932,18 @@ const ParticipantSelect = () => {
               </div>
             )}
             <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
-            {repeatEnabled && (
-              <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
-                <Repeat2 className="w-3.5 h-3.5" />
-                {repeatRequestUsed
-                  ? (eventLang === "es" ? "Repetición usada 🔁" : "Repeat used 🔁")
-                  : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien" : "1 Repeat remaining 🔁 — request to meet someone again")}
-              </div>
-            )}
+            {repeatEnabled && (() => {
+              const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+              if (!hasRemainingRounds && !repeatRequestUsed) return null;
+              return (
+                <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Repeat2 className="w-3.5 h-3.5" />
+                  {repeatRequestUsed
+                    ? (eventLang === "es" ? "Repetición usada 🔁 — Si la otra persona acepta, os volveréis a sentar juntos en una próxima ronda." : "Repeat used 🔁 — If the other person accepts, you'll be seated together again in an upcoming round.")
+                    : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien en una próxima ronda" : "1 Repeat remaining 🔁 — request to meet someone again in an upcoming round")}
+                </div>
+              );
+            })()}
             {superLikeEnabled && (
               <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
