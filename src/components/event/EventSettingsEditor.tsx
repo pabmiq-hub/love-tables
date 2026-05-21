@@ -10,6 +10,7 @@ import { Loader2, Save, Eye, ClipboardList, Lock, KeyRound, Bell } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
+import EventQuotasEditor, { SlotQuota } from "./EventQuotasEditor";
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
 import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
