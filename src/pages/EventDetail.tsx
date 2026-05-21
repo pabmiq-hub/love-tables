@@ -5115,6 +5115,8 @@ const EventDetail = () => {
                 gameMode={(eventData as any).game_mode || null}
                 participantsCount={eventData.participants_count || 0}
                 tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
+                registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
+                slotQuotas={(eventData as any).slot_quotas || null}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
