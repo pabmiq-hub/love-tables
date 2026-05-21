@@ -51,6 +51,8 @@ interface EventSettingsEditorProps {
   gameMode?: any;
   participantsCount?: number;
   tablesGenerationMode?: string;
+  registrationRequirementsEnabled?: boolean;
+  slotQuotas?: SlotQuota[] | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
