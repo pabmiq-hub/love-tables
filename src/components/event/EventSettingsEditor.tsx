@@ -217,6 +217,8 @@ const EventSettingsEditor = ({
         reminder_mode: formReminderMode,
         reminder_scheduled_at: formReminderMode === "custom" && formReminderScheduledAt ? formReminderScheduledAt : null,
         tables_generation_mode: formTablesGenerationMode,
+        registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
+        slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
       };
 
       // Handle preliminary round
