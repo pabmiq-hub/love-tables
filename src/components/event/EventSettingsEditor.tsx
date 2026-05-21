@@ -10,6 +10,7 @@ import { Loader2, Save, Eye, ClipboardList, Lock, KeyRound, Bell } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import EventPreferencesEditor, { EventPreferences } from "./EventPreferencesEditor";
+import EventQuotasEditor, { SlotQuota } from "./EventQuotasEditor";
 import GroupRoundsEditor, { GroupRound } from "./GroupRoundsEditor";
 import RegistrationFormEditor, { FormField, getDefaultFields } from "./RegistrationFormEditor";
 import RegistrationFormPreviewModal from "./RegistrationFormPreviewModal";
@@ -50,6 +51,8 @@ interface EventSettingsEditorProps {
   gameMode?: any;
   participantsCount?: number;
   tablesGenerationMode?: string;
+  registrationRequirementsEnabled?: boolean;
+  slotQuotas?: SlotQuota[] | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -85,6 +88,8 @@ const EventSettingsEditor = ({
   gameMode: initialGameMode = null,
   participantsCount = 0,
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
+  registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
+  slotQuotas: initialSlotQuotas = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -127,6 +132,10 @@ const EventSettingsEditor = ({
     initialTablesGenerationMode || "upfront"
   );
   const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
+  const [formRegRequirementsEnabled, setFormRegRequirementsEnabled] = useState(initialRegRequirementsEnabled);
+  const [formSlotQuotas, setFormSlotQuotas] = useState<SlotQuota[]>(
+    Array.isArray(initialSlotQuotas) ? (initialSlotQuotas as SlotQuota[]) : []
+  );
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -208,6 +217,8 @@ const EventSettingsEditor = ({
         reminder_mode: formReminderMode,
         reminder_scheduled_at: formReminderMode === "custom" && formReminderScheduledAt ? formReminderScheduledAt : null,
         tables_generation_mode: formTablesGenerationMode,
+        registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
+        slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
       };
 
       // Handle preliminary round
@@ -680,6 +691,17 @@ const EventSettingsEditor = ({
             <EventPreferencesEditor
               value={formPreferences}
               onChange={setFormPreferences}
+            />
+          )}
+
+          {!isProfessional && (
+            <EventQuotasEditor
+              enabled={formRegRequirementsEnabled}
+              onEnabledChange={setFormRegRequirementsEnabled}
+              quotas={formSlotQuotas}
+              onQuotasChange={setFormSlotQuotas}
+              availableGenders={formPreferences.genders}
+              availableAgeRanges={formPreferences.ageRanges}
             />
           )}
 
