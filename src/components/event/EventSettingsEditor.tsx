@@ -694,6 +694,17 @@ const EventSettingsEditor = ({
             />
           )}
 
+          {!isProfessional && (
+            <EventQuotasEditor
+              enabled={formRegRequirementsEnabled}
+              onEnabledChange={setFormRegRequirementsEnabled}
+              quotas={formSlotQuotas}
+              onQuotasChange={setFormSlotQuotas}
+              availableGenders={formPreferences.genders}
+              availableAgeRanges={formPreferences.ageRanges}
+            />
+          )}
+
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
