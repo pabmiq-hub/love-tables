@@ -38,6 +38,8 @@ interface EventSettingsTabsProps {
   gameMode?: any;
   participantsCount?: number;
   tablesGenerationMode?: string;
+  registrationRequirementsEnabled?: boolean;
+  slotQuotas?: any;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
