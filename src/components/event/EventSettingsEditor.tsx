@@ -88,6 +88,8 @@ const EventSettingsEditor = ({
   gameMode: initialGameMode = null,
   participantsCount = 0,
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
+  registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
+  slotQuotas: initialSlotQuotas = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
