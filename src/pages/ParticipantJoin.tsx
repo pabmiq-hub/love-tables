@@ -345,9 +345,97 @@ const ParticipantJoin = () => {
 
   const preferredAgeRanges = [...eventAgeRanges, eventLang === "en" ? "Any age range" : "Cualquier rango de edad"];
 
+  // Step 1 → Step 2 transition (when quotas enabled)
+  const handleWizardContinue = async () => {
+    if (!gender || !birthDate) {
+      toast({
+        title: "Error",
+        description: eventLang === 'en' ? 'Please fill in gender and date of birth' : 'Completa género y fecha de nacimiento',
+        variant: "destructive",
+      });
+      return;
+    }
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+    if (age < 18) {
+      toast({ title: "Error", description: t.join.errorMinAge, variant: "destructive" });
+      return;
+    }
+    // Refresh quotas before checking
+    if (eventId) await loadAllQuotaCounts(eventId, slotQuotas);
+    const slots = getAvailableSlots();
+    if (slots && !slots.available) {
+      setWizardForceWaitlist(true);
+    } else {
+      setWizardForceWaitlist(false);
+      setWizardStep(2);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Waitlist-only submission (quota full)
+    if (wizardForceWaitlist) {
+      if (!name.trim() || !email.trim() || !phone.trim() || !birthDate || !gender) {
+        toast({ title: "Error", description: t.join.errorMissingFields, variant: "destructive" });
+        return;
+      }
+      if (!dataConsent) {
+        toast({
+          title: "Error",
+          description: eventLang === "en" ? "You must accept the privacy policy to register" : "Debes aceptar la política de privacidad para inscribirte",
+          variant: "destructive",
+        });
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        toast({ title: "Error", description: t.join.errorInvalidEmail, variant: "destructive" });
+        return;
+      }
+
+      setIsSubmitting(true);
+      const { data, error } = await supabase.functions.invoke('register-participant', {
+        body: {
+          eventId,
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          gender,
+          birthDate,
+          preference: preference || 'Solo amistad',
+          datingPreference: null,
+          preferredAgeRange: null,
+          isReturningParticipant: isReturningParticipant === 'yes',
+          marketingConsent,
+          forceWaitlist: true,
+        },
+      });
+
+      if (error || data?.error) {
+        let errorMessage = data?.error || t.join.errorRegister;
+        toast({ title: "Error", description: errorMessage, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        await supabase.functions.invoke('send-waitlist-confirmation', {
+          body: { eventId, name: data.name || name.trim(), email: data.email || email.trim(), position: data.position },
+        });
+      } catch (err) {
+        console.error('Error sending waitlist confirmation email:', err);
+      }
+      setIsWaitlistSubmission(true);
+      setIsSubmitted(true);
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!name.trim() || !email.trim() || !phone.trim() || !birthDate || !gender || selectedAgeRanges.length === 0 || !preference || !isReturningParticipant) {
       toast({
         title: "Error",
@@ -391,7 +479,7 @@ const ParticipantJoin = () => {
       });
       return;
     }
-    
+
     const isDatingPref = preference === "Amistad y ligue" || preference === "Friendship & dating";
     if (isDatingPref && !datingPreference) {
       toast({
@@ -402,21 +490,23 @@ const ParticipantJoin = () => {
       return;
     }
 
-    const slots = getAvailableSlots();
-    if (slots && !slots.available) {
-      toast({
-        title: t.join.errorNoSlots,
-        description: t.join.errorNoSlots,
-        variant: "destructive",
-      });
-      return;
+    // Refresh quotas and re-check just before submitting
+    if (quotasEnabled && eventId) {
+      await loadAllQuotaCounts(eventId, slotQuotas);
+      const slots = getAvailableSlots();
+      if (slots && !slots.available) {
+        setWizardForceWaitlist(true);
+        toast({
+          title: t.join.errorNoSlots,
+          description: eventLang === 'en'
+            ? 'Spot just filled up. You can join the waitlist instead.'
+            : 'La plaza se acaba de llenar. Puedes apuntarte a la lista de espera.',
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    setIsSubmitting(true);
-
-    const preferredAgeRange = selectedAgeRanges.join(', ');
-    
-    const isDating = preference === "Amistad y ligue" || preference === "Friendship & dating";
     
     const { data, error } = await supabase.functions.invoke('register-participant', {
       body: {
