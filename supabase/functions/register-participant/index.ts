@@ -440,30 +440,49 @@ serve(async (req) => {
 
     const ageRange = calculateAgeRange(birthDate, event.custom_age_ranges as any[] | null);
 
+    // Tolerant quota matching: normalize dashes, case, whitespace
+    const normalizeKey = (v: any) => String(v ?? '')
+      .toLowerCase()
+      .trim()
+      .replace(/–/g, '-')
+      .replace(/\s+/g, '');
+
+    const socialForceWaitlist = body.forceWaitlist === true;
+    let quotaFullDetected = false;
+
     if (event.registration_requirements_enabled && event.slot_quotas) {
       const quotas = event.slot_quotas as any[];
       const matchingQuota = quotas.find(
-        (q: any) => q.gender === gender && q.ageRange === ageRange
+        (q: any) =>
+          normalizeKey(q.gender) === normalizeKey(gender) &&
+          normalizeKey(q.ageRange) === normalizeKey(ageRange)
       );
 
       if (matchingQuota) {
-        const { count: currentCount } = await supabase
+        const { data: allParts } = await supabase
           .from('participants')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', eventId)
-          .eq('gender', gender)
-          .eq('age_range', ageRange);
+          .select('id, gender, age_range')
+          .eq('event_id', eventId);
 
-        if (currentCount !== null && currentCount >= matchingQuota.maxSlots) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'No hay plazas disponibles para tu perfil',
-              quotaFull: true,
-              gender,
-              ageRange
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        const currentCount = (allParts || []).filter(
+          (p: any) =>
+            normalizeKey(p.gender) === normalizeKey(matchingQuota.gender) &&
+            normalizeKey(p.age_range) === normalizeKey(matchingQuota.ageRange)
+        ).length;
+
+        if (currentCount >= matchingQuota.maxSlots) {
+          quotaFullDetected = true;
+          if (!socialForceWaitlist) {
+            return new Response(
+              JSON.stringify({
+                error: 'No hay plazas disponibles para tu perfil',
+                quotaFull: true,
+                gender,
+                ageRange
+              }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
     }
