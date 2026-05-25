@@ -938,7 +938,6 @@ const ParticipantJoin = () => {
     );
   }
 
-  const slots = getAvailableSlots();
 
   return (
     <div className="min-h-screen bg-background">
