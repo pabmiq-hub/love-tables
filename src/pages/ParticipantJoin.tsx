@@ -506,8 +506,10 @@ const ParticipantJoin = () => {
         return;
       }
     }
+    setIsSubmitting(true);
+    const preferredAgeRange = selectedAgeRanges.join(', ');
+    const isDating = preference === "Amistad y ligue" || preference === "Friendship & dating";
 
-    
     const { data, error } = await supabase.functions.invoke('register-participant', {
       body: {
         eventId,
