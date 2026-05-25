@@ -3586,6 +3586,12 @@ const EventDetail = () => {
                   <span className="ml-1">({waitlistEntries.filter(w => w.status === 'waiting').length})</span>
                 </TabsTrigger>
               )}
+              {(eventData as any)?.registration_requirements_enabled && Array.isArray((eventData as any)?.slot_quotas) && (eventData as any).slot_quotas.length > 0 && (
+                <TabsTrigger value="quotas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <BarChart3 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Plazas disponibles</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                 <Table2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mesas</span>
