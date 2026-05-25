@@ -267,28 +267,28 @@ const ParticipantJoin = () => {
     checkEvent();
   }, [eventId]);
 
-  // Load ALL quota counts upfront to display before form
+  // Load ALL quota counts upfront with tolerant matching
   const loadAllQuotaCounts = async (eventId: string, quotas: SlotQuota[]) => {
-    const statuses: QuotaStatus[] = [];
-    
-    for (const quota of quotas) {
-      const { count } = await supabase
-        .from('participants')
-        .select('id', { count: 'exact', head: true })
-        .eq('event_id', eventId)
-        .eq('gender', quota.gender)
-        .eq('age_range', quota.ageRange);
-      
-      const current = count || 0;
-      statuses.push({
+    const { data: allParts } = await supabase
+      .from('participants')
+      .select('id, gender, age_range')
+      .eq('event_id', eventId);
+
+    const statuses: QuotaStatus[] = quotas.map((quota) => {
+      const current = (allParts || []).filter(
+        (p: any) =>
+          normalizeKey(p.gender) === normalizeKey(quota.gender) &&
+          normalizeKey(p.age_range) === normalizeKey(quota.ageRange)
+      ).length;
+      return {
         gender: quota.gender,
         ageRange: quota.ageRange,
         current,
         max: quota.maxSlots,
-        available: quota.maxSlots - current
-      });
-    }
-    
+        available: Math.max(0, quota.maxSlots - current),
+      };
+    });
+
     setQuotaStatuses(statuses);
   };
 
