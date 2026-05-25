@@ -332,10 +332,14 @@ const ParticipantJoin = () => {
 
   const getAvailableSlots = (): { available: boolean; remaining: number; total: number } | null => {
     if (!quotasEnabled || !gender || !calculatedAgeRange) return null;
-    
-    const status = quotaStatuses.find(q => q.gender === gender && q.ageRange === calculatedAgeRange);
+
+    const status = quotaStatuses.find(
+      (q) =>
+        normalizeKey(q.gender) === normalizeKey(gender) &&
+        normalizeKey(q.ageRange) === normalizeKey(calculatedAgeRange)
+    );
     if (!status) return null;
-    
+
     return { available: status.available > 0, remaining: status.available, total: status.max };
   };
 
