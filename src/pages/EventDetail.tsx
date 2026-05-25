@@ -3586,6 +3586,12 @@ const EventDetail = () => {
                   <span className="ml-1">({waitlistEntries.filter(w => w.status === 'waiting').length})</span>
                 </TabsTrigger>
               )}
+              {(eventData as any)?.registration_requirements_enabled && Array.isArray((eventData as any)?.slot_quotas) && (eventData as any).slot_quotas.length > 0 && (
+                <TabsTrigger value="quotas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <BarChart3 className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Plazas disponibles</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="tables" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                 <Table2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mesas</span>
@@ -4424,6 +4430,83 @@ const EventDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {(eventData as any)?.registration_requirements_enabled && Array.isArray((eventData as any)?.slot_quotas) && (eventData as any).slot_quotas.length > 0 && (
+            <TabsContent value="quotas">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Plazas disponibles
+                  </CardTitle>
+                  <CardDescription>
+                    Seguimiento de cupos por género y rango de edad. Esta información es solo visible para ti.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const normalizeKey = (v: any) => String(v ?? '').toLowerCase().trim().replace(/–/g, '-').replace(/\s+/g, '');
+                    const quotas = ((eventData as any).slot_quotas as Array<{ gender: string; ageRange: string; maxSlots: number }>) || [];
+                    const activeParticipants = participants.filter((p: any) => !p.is_fake && !p.cancelled_at);
+                    const rows = quotas.map((q) => {
+                      const current = activeParticipants.filter((p: any) =>
+                        normalizeKey(p.gender) === normalizeKey(q.gender) &&
+                        normalizeKey(p.age_range) === normalizeKey(q.ageRange)
+                      ).length;
+                      const available = Math.max(0, q.maxSlots - current);
+                      const pct = q.maxSlots > 0 ? Math.min(100, Math.round((current / q.maxSlots) * 100)) : 0;
+                      const waitingCount = waitlistEntries.filter((w: any) =>
+                        w.status === 'waiting' &&
+                        normalizeKey(w.gender) === normalizeKey(q.gender) &&
+                        normalizeKey(w.age_range) === normalizeKey(q.ageRange)
+                      ).length;
+                      return { ...q, current, available, pct, waitingCount };
+                    });
+                    const totalMax = rows.reduce((s, r) => s + r.maxSlots, 0);
+                    const totalCurrent = rows.reduce((s, r) => s + r.current, 0);
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-3 text-sm">
+                          <Badge variant="outline">Total cupo: {totalMax}</Badge>
+                          <Badge variant="outline">Inscritos: {totalCurrent}</Badge>
+                          <Badge variant="outline">Libres: {Math.max(0, totalMax - totalCurrent)}</Badge>
+                        </div>
+                        <div className="grid gap-3">
+                          {rows.map((r, idx) => (
+                            <div key={idx} className="border rounded-lg p-4 space-y-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="font-medium">{r.gender} · {r.ageRange}</div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={r.available > 0 ? "secondary" : "destructive"}>
+                                    {r.current} / {r.maxSlots}
+                                  </Badge>
+                                  {r.available === 0 && <Badge variant="destructive">Completo</Badge>}
+                                  {r.waitingCount > 0 && (
+                                    <Badge variant="outline">{r.waitingCount} en espera</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all ${r.available === 0 ? 'bg-destructive' : 'bg-primary'}`}
+                                  style={{ width: `${r.pct}%` }}
+                                />
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {r.available > 0 ? `${r.available} plazas libres` : 'Sin plazas — los nuevos registros van a lista de espera'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+
 
 
           <TabsContent value="tables">

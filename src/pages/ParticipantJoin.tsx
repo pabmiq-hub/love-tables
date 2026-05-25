@@ -944,40 +944,7 @@ const ParticipantJoin = () => {
       <BrandedHeader logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} centered />
 
       <main className="container mx-auto px-4 py-8 max-w-md">
-        {quotasEnabled && quotaStatuses.length > 0 && (
-          <Card className="mb-6 animate-fade-in">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                {t.join.availableSlots}
-              </CardTitle>
-              <CardDescription>{t.join.checkSlotsSubtitle}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-2">
-                {quotaStatuses.map((status, idx) => (
-                  <div 
-                    key={idx} 
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      status.available > 0 
-                        ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
-                        : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
-                    }`}
-                  >
-                    <span className="text-sm font-medium">
-                      {status.gender} ({status.ageRange})
-                    </span>
-                    <span className={`text-sm font-bold ${
-                      status.available > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
-                    }`}>
-                      {status.available > 0 ? `${status.available} ${t.join.slotsOf} ${status.max}` : t.join.slotsFull}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Quota availability display removed from participant form — tracked in admin dashboard */}
 
         <Card className="animate-fade-in">
           <CardHeader className="text-center">
