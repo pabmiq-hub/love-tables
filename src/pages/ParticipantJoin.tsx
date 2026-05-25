@@ -1022,184 +1022,260 @@ const ParticipantJoin = () => {
                 </div>
               </div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">{t.join.nameLabel}</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t.join.namePlaceholder}
-                  required
-                />
-              </div>
+            {(() => {
+              const isWizard = quotasEnabled;
+              const showStep1Only = isWizard && wizardStep === 1 && !wizardForceWaitlist;
+              const showWaitlistMode = isWizard && wizardForceWaitlist;
+              const showStep2 = !isWizard || wizardStep === 2;
 
-              <div className="space-y-2">
-                <Label htmlFor="email">{t.join.emailLabel}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t.join.emailPlaceholder}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">{t.join.emailHint}</p>
-              </div>
+              return (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {isWizard && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                      <span className={`px-2 py-1 rounded-full font-medium ${showStep1Only || showWaitlistMode ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        {eventLang === 'en' ? '1. Profile' : '1. Perfil'}
+                      </span>
+                      <span>→</span>
+                      <span className={`px-2 py-1 rounded-full font-medium ${showStep2 ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        {showWaitlistMode
+                          ? (eventLang === 'en' ? '2. Waitlist' : '2. Lista de espera')
+                          : (eventLang === 'en' ? '2. Details' : '2. Datos')}
+                      </span>
+                    </div>
+                  )}
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">{t.join.phoneLabel} *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder={t.join.phonePlaceholder}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="birthDate">{t.join.birthDateLabel}</Label>
-                <Input
-                  id="birthDate"
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                  required
-                />
-                {calculatedAgeRange && (
-                  <p className="text-xs text-muted-foreground">
-                    {t.join.ageRangeHint} <span className="font-medium text-foreground">{calculatedAgeRange}</span>
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-              <Label>{t.join.genderLabel}</Label>
-                <Select value={gender} onValueChange={(val) => {
-                  setGender(val);
-                  if (datingPreference) {
-                    const newFiltered = getFilteredDatingPreferences(val, eventDatingPreferences);
-                    if (!newFiltered.includes(datingPreference)) {
-                      setDatingPreference("");
-                    }
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t.join.genderPlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eventGenders.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  {showWaitlistMode && (
+                    <div className="p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900">
+                      <div className="flex items-start gap-2">
+                        <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium text-amber-800 dark:text-amber-300 text-sm">
+                            {eventLang === 'en'
+                              ? `No spots available for ${gender} (${calculatedAgeRange})`
+                              : `No hay plazas disponibles para ${gender} (${calculatedAgeRange})`}
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                            {eventLang === 'en'
+                              ? 'You can join the waitlist. If a spot opens up, we will notify you by email.'
+                              : 'Puedes apuntarte a la lista de espera. Si se produce una baja, te avisaremos por email.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-              {quotasEnabled && gender && calculatedAgeRange && slots && (
-                <div className={`rounded-lg p-3 flex items-start gap-2 ${
-                  slots.available 
-                    ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900'
-                    : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900'
-                }`}>
-                  {slots.available ? (
+                  {/* Step 1 fields: gender + birthDate (always visible when wizard active in step 1 or waitlist; in step 2 also visible at top but disabled) */}
+                  {isWizard && (
                     <>
-                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-                      <p className="text-sm text-green-700 dark:text-green-400">
-                        {t.join.slotsRemaining} <strong>{slots.remaining}</strong> {t.join.slotsOf} {slots.total} {t.join.slotsFor} {gender} ({calculatedAgeRange})
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                      <p className="text-sm text-red-700 dark:text-red-400">
-                        {t.join.noSlotsAvailable} {gender} ({calculatedAgeRange})
-                      </p>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthDate">{t.join.birthDateLabel}</Label>
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                          required
+                          disabled={showStep2 || showWaitlistMode}
+                        />
+                        {calculatedAgeRange && (
+                          <p className="text-xs text-muted-foreground">
+                            {t.join.ageRangeHint} <span className="font-medium text-foreground">{calculatedAgeRange}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>{t.join.genderLabel}</Label>
+                        <Select value={gender} onValueChange={(val) => {
+                          setGender(val);
+                          if (datingPreference) {
+                            const newFiltered = getFilteredDatingPreferences(val, eventDatingPreferences);
+                            if (!newFiltered.includes(datingPreference)) setDatingPreference("");
+                          }
+                        }} disabled={showStep2 || showWaitlistMode}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t.join.genderPlaceholder} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {eventGenders.map((g) => (
+                              <SelectItem key={g} value={g}>{g}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {(showStep2 || showWaitlistMode) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setWizardStep(1); setWizardForceWaitlist(false); }}
+                        >
+                          ← {eventLang === 'en' ? 'Edit profile' : 'Editar perfil'}
+                        </Button>
+                      )}
                     </>
                   )}
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label>{t.join.preferredAgeLabel}</Label>
-                <MultiSelectAge
-                  options={preferredAgeRanges}
-                  selected={selectedAgeRanges}
-                  onChange={setSelectedAgeRanges}
-                  placeholder={t.join.preferredAgePlaceholder}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>{t.join.preferenceLabel}</Label>
-                <Select value={preference} onValueChange={setPreference}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t.join.preferencePlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eventPreferences.map((pref) => (
-                      <SelectItem key={pref} value={pref}>{pref}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {(preference === "Amistad y ligue" || preference === "Friendship & dating") && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label>{t.join.datingPrefLabel}</Label>
-                  <Select value={datingPreference} onValueChange={setDatingPreference}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t.join.datingPrefPlaceholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredDatingPreferences.map((pref) => (
-                        <SelectItem key={pref} value={pref}>{pref}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
-              <div className="space-y-3">
-                <Label>{t.join.returningLabel}</Label>
-                <RadioGroup value={isReturningParticipant} onValueChange={setIsReturningParticipant}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="yes" id="returning-yes" />
-                    <Label htmlFor="returning-yes" className="font-normal cursor-pointer">{t.join.returningYes}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="no" id="returning-no" />
-                    <Label htmlFor="returning-no" className="font-normal cursor-pointer">{t.join.returningNo}</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                  {/* Common contact fields (visible in step 2 OR waitlist OR when wizard is off) */}
+                  {(showStep2 || showWaitlistMode) && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="name">{t.join.nameLabel}</Label>
+                        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t.join.namePlaceholder} required />
+                      </div>
 
-              <GDPRConsent
-                lang={eventLang}
-                dataConsent={dataConsent}
-                marketingConsent={marketingConsent}
-                onDataConsentChange={setDataConsent}
-                onMarketingConsentChange={setMarketingConsent}
-              />
-              
-              <Button 
-                type="submit" 
-                variant="hero" 
-                className="w-full mt-6" 
-                disabled={isSubmitting || !dataConsent || (slots && !slots.available)}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {t.join.submitting}
-                  </>
-                ) : (
-                  t.join.submitButton
-                )}
-              </Button>
-            </form>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">{t.join.emailLabel}</Label>
+                        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.join.emailPlaceholder} required />
+                        <p className="text-xs text-muted-foreground">{t.join.emailHint}</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">{t.join.phoneLabel} *</Label>
+                        <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.join.phonePlaceholder} required />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Non-wizard mode: original birthDate + gender placement */}
+                  {!isWizard && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthDate">{t.join.birthDateLabel}</Label>
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                          required
+                        />
+                        {calculatedAgeRange && (
+                          <p className="text-xs text-muted-foreground">
+                            {t.join.ageRangeHint} <span className="font-medium text-foreground">{calculatedAgeRange}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>{t.join.genderLabel}</Label>
+                        <Select value={gender} onValueChange={(val) => {
+                          setGender(val);
+                          if (datingPreference) {
+                            const newFiltered = getFilteredDatingPreferences(val, eventDatingPreferences);
+                            if (!newFiltered.includes(datingPreference)) setDatingPreference("");
+                          }
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t.join.genderPlaceholder} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {eventGenders.map((g) => (
+                              <SelectItem key={g} value={g}>{g}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Preference / dating / preferredAge / returning — only in full registration step 2 (not waitlist) */}
+                  {showStep2 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>{t.join.preferredAgeLabel}</Label>
+                        <MultiSelectAge
+                          options={preferredAgeRanges}
+                          selected={selectedAgeRanges}
+                          onChange={setSelectedAgeRanges}
+                          placeholder={t.join.preferredAgePlaceholder}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>{t.join.preferenceLabel}</Label>
+                        <Select value={preference} onValueChange={setPreference}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t.join.preferencePlaceholder} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {eventPreferences.map((pref) => (
+                              <SelectItem key={pref} value={pref}>{pref}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {(preference === "Amistad y ligue" || preference === "Friendship & dating") && (
+                        <div className="space-y-2 animate-fade-in">
+                          <Label>{t.join.datingPrefLabel}</Label>
+                          <Select value={datingPreference} onValueChange={setDatingPreference}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={t.join.datingPrefPlaceholder} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredDatingPreferences.map((pref) => (
+                                <SelectItem key={pref} value={pref}>{pref}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <Label>{t.join.returningLabel}</Label>
+                        <RadioGroup value={isReturningParticipant} onValueChange={setIsReturningParticipant}>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="yes" id="returning-yes" />
+                            <Label htmlFor="returning-yes" className="font-normal cursor-pointer">{t.join.returningYes}</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="no" id="returning-no" />
+                            <Label htmlFor="returning-no" className="font-normal cursor-pointer">{t.join.returningNo}</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </>
+                  )}
+
+                  {(showStep2 || showWaitlistMode) && (
+                    <GDPRConsent
+                      lang={eventLang}
+                      dataConsent={dataConsent}
+                      marketingConsent={marketingConsent}
+                      onDataConsentChange={setDataConsent}
+                      onMarketingConsentChange={setMarketingConsent}
+                    />
+                  )}
+
+                  {showStep1Only ? (
+                    <Button type="button" variant="hero" className="w-full mt-6" onClick={handleWizardContinue}>
+                      {eventLang === 'en' ? 'Continue' : 'Continuar'}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      variant="hero"
+                      className="w-full mt-6"
+                      disabled={isSubmitting || !dataConsent}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {t.join.submitting}
+                        </>
+                      ) : showWaitlistMode ? (
+                        eventLang === 'en' ? 'Join waitlist' : 'Apuntarme a la lista de espera'
+                      ) : (
+                        t.join.submitButton
+                      )}
+                    </Button>
+                  )}
+                </form>
+              );
+            })()}
           </CardContent>
         </Card>
       </main>
