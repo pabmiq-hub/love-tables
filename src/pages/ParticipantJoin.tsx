@@ -140,6 +140,14 @@ const ParticipantJoin = () => {
   const [quotaStatuses, setQuotaStatuses] = useState<QuotaStatus[]>([]);
   const [calculatedAgeRange, setCalculatedAgeRange] = useState<string>("");
 
+  // 2-step wizard when quotas are enabled
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const [wizardForceWaitlist, setWizardForceWaitlist] = useState(false);
+
+  // Normalize for tolerant comparisons (dashes, case, whitespace)
+  const normalizeKey = (v: any) =>
+    String(v ?? '').toLowerCase().trim().replace(/–/g, '-').replace(/\s+/g, '');
+
   useEffect(() => {
     const checkEvent = async () => {
       if (!eventId) {
