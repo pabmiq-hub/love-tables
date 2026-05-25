@@ -501,8 +501,8 @@ serve(async (req) => {
       );
     }
 
-    // If registration is closed and waitlist is enabled, add to waitlist
-    if (!socialRegistrationOpen && socialWaitlistEnabled && !socialIsFromWaitlist) {
+    // If registration is closed OR quota is full → add to waitlist
+    if (((!socialRegistrationOpen && socialWaitlistEnabled) || quotaFullDetected || socialForceWaitlist) && !socialIsFromWaitlist) {
       const { data: maxPos } = await supabase
         .from('event_waitlist')
         .select('position')
