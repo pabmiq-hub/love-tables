@@ -1733,6 +1733,32 @@ const EventDetail = () => {
   const [isSendingBulkCodes, setIsSendingBulkCodes] = useState(false);
   const [bulkCodeProgress, setBulkCodeProgress] = useState<{ current: number; total: number } | null>(null);
 
+  const handleTogglePayment = async (participantId: string, currentPaid: boolean) => {
+    const newPaid = !currentPaid;
+    const { error } = await supabase
+      .from("participants")
+      .update({
+        payment_status: newPaid ? "paid" : "unpaid",
+        paid_at: newPaid ? new Date().toISOString() : null,
+      })
+      .eq("id", participantId);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el pago", variant: "destructive" });
+      return;
+    }
+
+    setParticipants(participants.map(p =>
+      p.id === participantId
+        ? { ...p, payment_status: newPaid ? "paid" : "unpaid", paid_at: newPaid ? new Date().toISOString() : null }
+        : p
+    ));
+
+    toast({
+      title: newPaid ? "Marcado como pagado" : "Marcado como no pagado",
+    });
+  };
+
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
     if (!currentStatus) {
       // Check-in: just mark checked_in = true in DB (no email)
