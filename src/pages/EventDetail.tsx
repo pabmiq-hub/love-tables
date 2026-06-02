@@ -5200,6 +5200,7 @@ const EventDetail = () => {
                 tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
                 registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
                 slotQuotas={(eventData as any).slot_quotas || null}
+                paymentTrackingEnabled={(eventData as any).payment_tracking_enabled || false}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
