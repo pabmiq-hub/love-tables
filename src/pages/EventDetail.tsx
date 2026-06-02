@@ -159,6 +159,8 @@ interface DbParticipant {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  payment_status?: string | null;
+  paid_at?: string | null;
 }
 
 interface Match {
