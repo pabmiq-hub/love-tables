@@ -53,6 +53,7 @@ interface EventSettingsEditorProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: SlotQuota[] | null;
+  paymentTrackingEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -90,6 +91,7 @@ const EventSettingsEditor = ({
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
   registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
   slotQuotas: initialSlotQuotas = null,
+  paymentTrackingEnabled: initialPaymentTrackingEnabled = false,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -136,6 +138,7 @@ const EventSettingsEditor = ({
   const [formSlotQuotas, setFormSlotQuotas] = useState<SlotQuota[]>(
     Array.isArray(initialSlotQuotas) ? (initialSlotQuotas as SlotQuota[]) : []
   );
+  const [formPaymentTrackingEnabled, setFormPaymentTrackingEnabled] = useState(initialPaymentTrackingEnabled);
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -219,6 +222,7 @@ const EventSettingsEditor = ({
         tables_generation_mode: formTablesGenerationMode,
         registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
         slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
+        payment_tracking_enabled: formPaymentTrackingEnabled,
       };
 
       // Handle preliminary round
@@ -704,6 +708,27 @@ const EventSettingsEditor = ({
               availableAgeRanges={formPreferences.ageRanges}
             />
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Seguimiento de pagos</CardTitle>
+              <CardDescription>
+                Activa esta opción si cobras la entrada del evento desde otra plataforma. Podrás marcar manualmente qué participantes han pagado desde la lista de participantes. No envía correos automáticos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="payment-tracking-toggle" className="cursor-pointer">
+                  Habilitar seguimiento de pagos
+                </Label>
+                <Switch
+                  id="payment-tracking-toggle"
+                  checked={formPaymentTrackingEnabled}
+                  onCheckedChange={setFormPaymentTrackingEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving}>

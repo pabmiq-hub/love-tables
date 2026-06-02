@@ -179,6 +179,7 @@ export type Database = {
           organizer_id: string | null
           original_participants_count: number | null
           participants_count: number
+          payment_tracking_enabled: boolean
           preliminary_round: Json | null
           professional_config: Json | null
           registration_description: string | null
@@ -237,6 +238,7 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
           registration_description?: string | null
@@ -295,6 +297,7 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
           registration_description?: string | null
@@ -963,6 +966,8 @@ export type Database = {
           marketing_consent: boolean
           name: string
           needs: string[] | null
+          paid_at: string | null
+          payment_status: string
           phone: string | null
           preference: string | null
           preferred_age_range: string | null
@@ -994,6 +999,8 @@ export type Database = {
           marketing_consent?: boolean
           name: string
           needs?: string[] | null
+          paid_at?: string | null
+          payment_status?: string
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null
@@ -1025,6 +1032,8 @@ export type Database = {
           marketing_consent?: boolean
           name?: string
           needs?: string[] | null
+          paid_at?: string | null
+          payment_status?: string
           phone?: string | null
           preference?: string | null
           preferred_age_range?: string | null

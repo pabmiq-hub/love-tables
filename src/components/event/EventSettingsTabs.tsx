@@ -40,6 +40,7 @@ interface EventSettingsTabsProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: any;
+  paymentTrackingEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 

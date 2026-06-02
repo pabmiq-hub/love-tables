@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical } from "lucide-react";
+import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical, CreditCard, CheckCircle2 } from "lucide-react";
 import InlineEmailEditor from "./InlineEmailEditor";
 import { normalizePreference } from "@/lib/analyticsNormalization";
 
@@ -33,6 +33,7 @@ interface ParticipantCardProps {
     dating_preference?: string | null;
     is_returning_participant?: boolean | null;
     is_fake?: boolean | null;
+    payment_status?: string | null;
   };
   index: number;
   isProfessional: boolean;
@@ -45,6 +46,8 @@ interface ParticipantCardProps {
   onEmailUpdated: (id: string, email: string) => void;
   onSendReminder?: (id: string) => void;
   isSendingReminder?: boolean;
+  paymentTrackingEnabled?: boolean;
+  onTogglePayment?: (id: string, currentPaid: boolean) => void;
 }
 
 const getGenderBadge = (gender: string | null) => {
@@ -85,7 +88,10 @@ const ParticipantCard = ({
   onEmailUpdated,
   onSendReminder,
   isSendingReminder,
+  paymentTrackingEnabled,
+  onTogglePayment,
 }: ParticipantCardProps) => {
+  const isPaid = participant.payment_status === "paid";
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
@@ -140,6 +146,12 @@ const ParticipantCard = ({
                 Check-in
               </Badge>
             )}
+            {paymentTrackingEnabled && isPaid && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shrink-0">
+                <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />
+                Pagado
+              </Badge>
+            )}
             {!isProfessional && genderConfig && (
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-medium ${genderConfig.className}`}>
                 {genderConfig.label}
@@ -190,6 +202,23 @@ const ParticipantCard = ({
                 <TooltipContent>{participant.checked_in ? "Deshacer check-in" : "Hacer check-in"}</TooltipContent>
               </Tooltip>
             )}
+
+            {paymentTrackingEnabled && onTogglePayment && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isPaid ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => onTogglePayment(participant.id, isPaid)}
+                    className={`h-7 w-7 ${isPaid ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : "text-muted-foreground hover:text-emerald-600"}`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isPaid ? "Marcar como no pagado" : "Marcar como pagado"}</TooltipContent>
+              </Tooltip>
+            )}
+
 
             {participant.email && (
               <>

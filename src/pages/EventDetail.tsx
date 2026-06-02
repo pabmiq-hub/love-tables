@@ -159,6 +159,8 @@ interface DbParticipant {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  payment_status?: string | null;
+  paid_at?: string | null;
 }
 
 interface Match {
@@ -240,6 +242,7 @@ const EventDetail = () => {
   const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
   const [filterPreference, setFilterPreference] = useState<string>("all");
   const [filterCheckin, setFilterCheckin] = useState<"all" | "confirmed" | "pending">("all");
+  const [filterPayment, setFilterPayment] = useState<"all" | "paid" | "unpaid">("all");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [sortByDate, setSortByDate] = useState<"none" | "newest" | "oldest">("none");
   const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
@@ -1730,6 +1733,32 @@ const EventDetail = () => {
   const [isSendingBulkCodes, setIsSendingBulkCodes] = useState(false);
   const [bulkCodeProgress, setBulkCodeProgress] = useState<{ current: number; total: number } | null>(null);
 
+  const handleTogglePayment = async (participantId: string, currentPaid: boolean) => {
+    const newPaid = !currentPaid;
+    const { error } = await supabase
+      .from("participants")
+      .update({
+        payment_status: newPaid ? "paid" : "unpaid",
+        paid_at: newPaid ? new Date().toISOString() : null,
+      })
+      .eq("id", participantId);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el pago", variant: "destructive" });
+      return;
+    }
+
+    setParticipants(participants.map(p =>
+      p.id === participantId
+        ? { ...p, payment_status: newPaid ? "paid" : "unpaid", paid_at: newPaid ? new Date().toISOString() : null }
+        : p
+    ));
+
+    toast({
+      title: newPaid ? "Marcado como pagado" : "Marcado como no pagado",
+    });
+  };
+
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
     if (!currentStatus) {
       // Check-in: just mark checked_in = true in DB (no email)
@@ -3174,6 +3203,8 @@ const EventDetail = () => {
       // Filter by check-in status
       if (filterCheckin === "confirmed" && !p.checked_in) return false;
       if (filterCheckin === "pending" && p.checked_in) return false;
+      if (filterPayment === "paid" && p.payment_status !== "paid") return false;
+      if (filterPayment === "unpaid" && p.payment_status === "paid") return false;
       
       // Social filters
       if (!isProfessionalEvent) {
@@ -3955,6 +3986,20 @@ const EventDetail = () => {
                             <option value="confirmed">Confirmados</option>
                             <option value="pending">Pendientes</option>
                           </select>
+
+                          {(eventData as any)?.payment_tracking_enabled && (
+                            <select
+                              value={filterPayment}
+                              onChange={(e) => setFilterPayment(e.target.value as "all" | "paid" | "unpaid")}
+                              className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                            >
+                              <option value="all">Pago</option>
+                              <option value="paid">Pagado</option>
+                              <option value="unpaid">No pagado</option>
+                            </select>
+                          )}
+                          
+
                           
                           {/* Social filters */}
                           {!isProfessionalEvent && (
@@ -4159,7 +4204,10 @@ const EventDetail = () => {
                         onEmailUpdated={handleUpdateParticipantEmail}
                         onSendReminder={participant.email ? (pId) => handleSendReminder([pId], "event") : undefined}
                         isSendingReminder={isSendingReminder}
+                        paymentTrackingEnabled={!!(eventData as any)?.payment_tracking_enabled}
+                        onTogglePayment={handleTogglePayment}
                       />
+
                     ))}
                   </div>
                 )}
@@ -5200,6 +5248,7 @@ const EventDetail = () => {
                 tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
                 registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
                 slotQuotas={(eventData as any).slot_quotas || null}
+                paymentTrackingEnabled={(eventData as any).payment_tracking_enabled || false}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
