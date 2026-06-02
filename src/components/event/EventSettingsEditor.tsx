@@ -709,6 +709,27 @@ const EventSettingsEditor = ({
             />
           )}
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Seguimiento de pagos</CardTitle>
+              <CardDescription>
+                Activa esta opción si cobras la entrada del evento desde otra plataforma. Podrás marcar manualmente qué participantes han pagado desde la lista de participantes. No envía correos automáticos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="payment-tracking-toggle" className="cursor-pointer">
+                  Habilitar seguimiento de pagos
+                </Label>
+                <Switch
+                  id="payment-tracking-toggle"
+                  checked={formPaymentTrackingEnabled}
+                  onCheckedChange={setFormPaymentTrackingEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
