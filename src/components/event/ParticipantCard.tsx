@@ -146,6 +146,12 @@ const ParticipantCard = ({
                 Check-in
               </Badge>
             )}
+            {paymentTrackingEnabled && isPaid && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shrink-0">
+                <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />
+                Pagado
+              </Badge>
+            )}
             {!isProfessional && genderConfig && (
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 font-medium ${genderConfig.className}`}>
                 {genderConfig.label}
