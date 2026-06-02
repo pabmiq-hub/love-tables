@@ -222,6 +222,7 @@ const EventSettingsEditor = ({
         tables_generation_mode: formTablesGenerationMode,
         registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
         slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
+        payment_tracking_enabled: formPaymentTrackingEnabled,
       };
 
       // Handle preliminary round
