@@ -3960,6 +3960,20 @@ const EventDetail = () => {
                             <option value="confirmed">Confirmados</option>
                             <option value="pending">Pendientes</option>
                           </select>
+
+                          {(eventData as any)?.payment_tracking_enabled && (
+                            <select
+                              value={filterPayment}
+                              onChange={(e) => setFilterPayment(e.target.value as "all" | "paid" | "unpaid")}
+                              className="h-8 px-2 text-xs sm:text-sm border rounded-md bg-background"
+                            >
+                              <option value="all">Pago</option>
+                              <option value="paid">Pagado</option>
+                              <option value="unpaid">No pagado</option>
+                            </select>
+                          )}
+                          
+
                           
                           {/* Social filters */}
                           {!isProfessionalEvent && (
