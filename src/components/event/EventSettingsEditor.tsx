@@ -91,6 +91,7 @@ const EventSettingsEditor = ({
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
   registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
   slotQuotas: initialSlotQuotas = null,
+  paymentTrackingEnabled: initialPaymentTrackingEnabled = false,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
