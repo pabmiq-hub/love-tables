@@ -3175,6 +3175,8 @@ const EventDetail = () => {
       // Filter by check-in status
       if (filterCheckin === "confirmed" && !p.checked_in) return false;
       if (filterCheckin === "pending" && p.checked_in) return false;
+      if (filterPayment === "paid" && p.payment_status !== "paid") return false;
+      if (filterPayment === "unpaid" && p.payment_status === "paid") return false;
       
       // Social filters
       if (!isProfessionalEvent) {
