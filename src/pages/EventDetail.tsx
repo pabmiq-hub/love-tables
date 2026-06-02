@@ -240,6 +240,7 @@ const EventDetail = () => {
   const [filterPreferredAgeRange, setFilterPreferredAgeRange] = useState<string>("all");
   const [filterPreference, setFilterPreference] = useState<string>("all");
   const [filterCheckin, setFilterCheckin] = useState<"all" | "confirmed" | "pending">("all");
+  const [filterPayment, setFilterPayment] = useState<"all" | "paid" | "unpaid">("all");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [sortByDate, setSortByDate] = useState<"none" | "newest" | "oldest">("none");
   const [sortByCheckin, setSortByCheckin] = useState<"none" | "confirmed-first" | "pending-first">("none");
