@@ -203,6 +203,23 @@ const ParticipantCard = ({
               </Tooltip>
             )}
 
+            {paymentTrackingEnabled && onTogglePayment && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isPaid ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => onTogglePayment(participant.id, isPaid)}
+                    className={`h-7 w-7 ${isPaid ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : "text-muted-foreground hover:text-emerald-600"}`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isPaid ? "Marcar como no pagado" : "Marcar como pagado"}</TooltipContent>
+              </Tooltip>
+            )}
+
+
             {participant.email && (
               <>
                 {onSendReminder && (
