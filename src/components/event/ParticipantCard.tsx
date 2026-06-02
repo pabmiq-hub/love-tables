@@ -88,7 +88,10 @@ const ParticipantCard = ({
   onEmailUpdated,
   onSendReminder,
   isSendingReminder,
+  paymentTrackingEnabled,
+  onTogglePayment,
 }: ParticipantCardProps) => {
+  const isPaid = participant.payment_status === "paid";
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
