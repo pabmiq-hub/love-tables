@@ -53,6 +53,7 @@ interface EventSettingsEditorProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: SlotQuota[] | null;
+  paymentTrackingEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
