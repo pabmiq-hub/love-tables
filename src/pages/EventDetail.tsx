@@ -4204,7 +4204,10 @@ const EventDetail = () => {
                         onEmailUpdated={handleUpdateParticipantEmail}
                         onSendReminder={participant.email ? (pId) => handleSendReminder([pId], "event") : undefined}
                         isSendingReminder={isSendingReminder}
+                        paymentTrackingEnabled={!!(eventData as any)?.payment_tracking_enabled}
+                        onTogglePayment={handleTogglePayment}
                       />
+
                     ))}
                   </div>
                 )}
