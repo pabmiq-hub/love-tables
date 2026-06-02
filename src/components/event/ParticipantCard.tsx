@@ -33,6 +33,7 @@ interface ParticipantCardProps {
     dating_preference?: string | null;
     is_returning_participant?: boolean | null;
     is_fake?: boolean | null;
+    payment_status?: string | null;
   };
   index: number;
   isProfessional: boolean;
@@ -45,6 +46,8 @@ interface ParticipantCardProps {
   onEmailUpdated: (id: string, email: string) => void;
   onSendReminder?: (id: string) => void;
   isSendingReminder?: boolean;
+  paymentTrackingEnabled?: boolean;
+  onTogglePayment?: (id: string, currentPaid: boolean) => void;
 }
 
 const getGenderBadge = (gender: string | null) => {
