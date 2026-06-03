@@ -5182,12 +5182,31 @@ const EventDetail = () => {
                 isSendingReminder={isSendingReminder}
               />
 
-              {/* Selections Viewer - moved from Matches tab */}
-              <SelectionsViewer
-                selections={selections}
-                participants={activeParticipants}
-                matches={matches}
-              />
+              {/* Selecciones / Eventos sub-tabs */}
+              <Tabs defaultValue="selecciones" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="selecciones">Selecciones</TabsTrigger>
+                  <TabsTrigger value="eventos">
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Eventos
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="selecciones" className="mt-4">
+                  <SelectionsViewer
+                    selections={selections}
+                    participants={activeParticipants}
+                    matches={matches}
+                  />
+                </TabsContent>
+                <TabsContent value="eventos" className="mt-4">
+                  <EventsViewer
+                    selections={selections}
+                    participants={activeParticipants}
+                    matches={matches}
+                    repeatRequests={repeatRequests}
+                  />
+                </TabsContent>
+              </Tabs>
 
               {/* Export Matches Button */}
               {matches.length > 0 && (
