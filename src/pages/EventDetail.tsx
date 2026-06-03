@@ -372,8 +372,15 @@ const EventDetail = () => {
     // Load matches (mutual selections) with selection types
     const { data: selectionsData } = await supabase
       .from("participant_selections")
-      .select("selector_id, selected_id, selection_type")
+      .select("selector_id, selected_id, selection_type, is_super_like")
       .eq("event_id", id);
+
+    // Load repeat requests for this event
+    const { data: repeatData } = await supabase
+      .from("repeat_requests")
+      .select("id, requester_id, target_id, status, created_at, accepted_at, scheduled_round")
+      .eq("event_id", id);
+    setRepeatRequests((repeatData as RepeatRequestRow[]) || []);
 
     if (selectionsData && participantsData) {
       // Build set of participant IDs in dismissed preliminary tables
