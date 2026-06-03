@@ -27,6 +27,7 @@ import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemp
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
 import SelectionsViewer from "@/components/event/SelectionsViewer";
+import EventsViewer from "@/components/event/EventsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import ParticipantCard from "@/components/event/ParticipantCard";
@@ -176,6 +177,17 @@ interface Selection {
   selector_id: string;
   selected_id: string;
   selection_type: string | null;
+  is_super_like?: boolean;
+}
+
+interface RepeatRequestRow {
+  id: string;
+  requester_id: string;
+  target_id: string;
+  status: string;
+  created_at: string;
+  accepted_at: string | null;
+  scheduled_round: number | null;
 }
 
 interface TableGenerationResult {
@@ -199,6 +211,7 @@ const EventDetail = () => {
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
+  const [repeatRequests, setRepeatRequests] = useState<RepeatRequestRow[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showCheckinQR, setShowCheckinQR] = useState(false);
@@ -360,8 +373,15 @@ const EventDetail = () => {
     // Load matches (mutual selections) with selection types
     const { data: selectionsData } = await supabase
       .from("participant_selections")
-      .select("selector_id, selected_id, selection_type")
+      .select("selector_id, selected_id, selection_type, is_super_like")
       .eq("event_id", id);
+
+    // Load repeat requests for this event
+    const { data: repeatData } = await supabase
+      .from("repeat_requests")
+      .select("id, requester_id, target_id, status, created_at, accepted_at, scheduled_round")
+      .eq("event_id", id);
+    setRepeatRequests((repeatData as RepeatRequestRow[]) || []);
 
     if (selectionsData && participantsData) {
       // Build set of participant IDs in dismissed preliminary tables
@@ -5163,12 +5183,31 @@ const EventDetail = () => {
                 isSendingReminder={isSendingReminder}
               />
 
-              {/* Selections Viewer - moved from Matches tab */}
-              <SelectionsViewer
-                selections={selections}
-                participants={activeParticipants}
-                matches={matches}
-              />
+              {/* Selecciones / Eventos sub-tabs */}
+              <Tabs defaultValue="selecciones" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="selecciones">Selecciones</TabsTrigger>
+                  <TabsTrigger value="eventos">
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Eventos
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="selecciones" className="mt-4">
+                  <SelectionsViewer
+                    selections={selections}
+                    participants={activeParticipants}
+                    matches={matches}
+                  />
+                </TabsContent>
+                <TabsContent value="eventos" className="mt-4">
+                  <EventsViewer
+                    selections={selections}
+                    participants={activeParticipants}
+                    matches={matches}
+                    repeatRequests={repeatRequests}
+                  />
+                </TabsContent>
+              </Tabs>
 
               {/* Export Matches Button */}
               {matches.length > 0 && (
