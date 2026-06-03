@@ -27,6 +27,7 @@ import EmailTemplateEditor, { EmailTemplate } from "@/components/event/EmailTemp
 import MatchesDashboard from "@/components/event/MatchesDashboard";
 import SelectionProgress from "@/components/event/SelectionProgress";
 import SelectionsViewer from "@/components/event/SelectionsViewer";
+import EventsViewer from "@/components/event/EventsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import ParticipantCard from "@/components/event/ParticipantCard";
