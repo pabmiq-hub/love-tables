@@ -176,6 +176,17 @@ interface Selection {
   selector_id: string;
   selected_id: string;
   selection_type: string | null;
+  is_super_like?: boolean;
+}
+
+interface RepeatRequestRow {
+  id: string;
+  requester_id: string;
+  target_id: string;
+  status: string;
+  created_at: string;
+  accepted_at: string | null;
+  scheduled_round: number | null;
 }
 
 interface TableGenerationResult {
