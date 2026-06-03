@@ -210,6 +210,7 @@ const EventDetail = () => {
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
+  const [repeatRequests, setRepeatRequests] = useState<RepeatRequestRow[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showCheckinQR, setShowCheckinQR] = useState(false);
