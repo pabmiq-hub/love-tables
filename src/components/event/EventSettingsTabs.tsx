@@ -68,6 +68,7 @@ const EventSettingsTabs = (props: EventSettingsTabsProps) => {
           eventName={props.name}
           language={props.language as "es" | "en"}
           module={props.module}
+          paymentTrackingEnabled={props.paymentTrackingEnabled}
           onUpdate={props.onUpdate}
         />
       </TabsContent>
