@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock, Repeat2 } from "lucide-react";
+import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock, Repeat2, CreditCard } from "lucide-react";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +22,7 @@ import { normalizeCommunicationTemplates } from "./communication/normalizeTempla
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean }[] = [
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean; paymentOnly?: boolean }[] = [
   { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
   { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento" },
   { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones" },
@@ -33,6 +33,7 @@ const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; descrip
   { key: "repeat_request_received", label: "Repetir: recibido", icon: Repeat2, description: "Email al destinatario de la solicitud", socialOnly: true },
   { key: "repeat_request_accepted", label: "Repetir: aceptada", icon: Repeat2, description: "Email al solicitante cuando aceptan", socialOnly: true },
   { key: "repeat_request_declined", label: "Repetir: rechazada", icon: Repeat2, description: "Email al solicitante cuando rechazan o caduca", socialOnly: true },
+  { key: "payment_reminder", label: "Recordatorio pago", icon: CreditCard, description: "Email recordando completar el pago", paymentOnly: true },
 ];
 
 interface CommunicationSettingsEditorProps {
@@ -40,6 +41,7 @@ interface CommunicationSettingsEditorProps {
   eventName: string;
   language: "es" | "en";
   module?: string | null;
+  paymentTrackingEnabled?: boolean;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -48,6 +50,7 @@ const CommunicationSettingsEditor = ({
   eventName,
   language,
   module,
+  paymentTrackingEnabled = false,
   onUpdate,
 }: CommunicationSettingsEditorProps) => {
   const { toast } = useToast();
@@ -332,7 +335,7 @@ const CommunicationSettingsEditor = ({
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {TABS_CONFIG.filter(tab => !tab.socialOnly || module === 'social').map(tab => (
+            {TABS_CONFIG.filter(tab => (!tab.socialOnly || module === 'social') && (!tab.paymentOnly || paymentTrackingEnabled)).map(tab => (
               <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
                 <tab.icon className="w-4 h-4 mr-1.5" />
                 <span className="hidden sm:inline">{tab.label}</span>

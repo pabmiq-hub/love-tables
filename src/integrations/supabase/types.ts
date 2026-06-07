@@ -179,6 +179,9 @@ export type Database = {
           organizer_id: string | null
           original_participants_count: number | null
           participants_count: number
+          payment_reminder_first_hours: number
+          payment_reminder_second_hours: number | null
+          payment_reminders_enabled: boolean
           payment_tracking_enabled: boolean
           preliminary_round: Json | null
           professional_config: Json | null
@@ -238,6 +241,9 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          payment_reminder_first_hours?: number
+          payment_reminder_second_hours?: number | null
+          payment_reminders_enabled?: boolean
           payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
@@ -297,6 +303,9 @@ export type Database = {
           organizer_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
+          payment_reminder_first_hours?: number
+          payment_reminder_second_hours?: number | null
+          payment_reminders_enabled?: boolean
           payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
@@ -967,6 +976,8 @@ export type Database = {
           name: string
           needs: string[] | null
           paid_at: string | null
+          payment_last_reminder_at: string | null
+          payment_reminder_count: number
           payment_status: string
           phone: string | null
           preference: string | null
@@ -1000,6 +1011,8 @@ export type Database = {
           name: string
           needs?: string[] | null
           paid_at?: string | null
+          payment_last_reminder_at?: string | null
+          payment_reminder_count?: number
           payment_status?: string
           phone?: string | null
           preference?: string | null
@@ -1033,6 +1046,8 @@ export type Database = {
           name?: string
           needs?: string[] | null
           paid_at?: string | null
+          payment_last_reminder_at?: string | null
+          payment_reminder_count?: number
           payment_status?: string
           phone?: string | null
           preference?: string | null

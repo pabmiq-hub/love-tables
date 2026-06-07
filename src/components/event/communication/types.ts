@@ -29,6 +29,7 @@ export interface CommunicationTemplates {
   repeat_request_received: StructuredTemplate;
   repeat_request_accepted: StructuredTemplate;
   repeat_request_declined: StructuredTemplate;
+  payment_reminder: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
@@ -37,7 +38,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined" | "payment_reminder";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -58,6 +59,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   repeat_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}", "{{enlace_aceptar}}", "{{enlace_rechazar}}"],
   repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
   repeat_request_declined: ["{{nombre}}", "{{evento}}"],
+  payment_reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
@@ -148,6 +150,13 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     intro: "Hemos comunicado tu solicitud de repetir, pero en esta ocasión no ha sido posible aplicarla. ¡No te desanimes!\n\nEsto es totalmente normal y ocurre con frecuencia. Aún tienes muchas oportunidades de hacer match con quienes mostraron interés en ti.",
     closing: "Sigue con tu experiencia y revisa tus matches al final del evento.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  payment_reminder: {
+    subject: "💳 Recordatorio: completa tu pago para {{evento}}",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "Te recordamos que tu inscripción a {{evento}} aún figura como pendiente de pago.\n\n📅 Fecha: {{fecha}}\n📍 Lugar: {{ubicacion}}\n🕐 Hora: {{hora}}\n\nPor favor, completa el pago para confirmar tu plaza.",
+    closing: "Si ya has realizado el pago, ignora este mensaje. ¡Gracias!",
+    signature: "Un saludo,\nEquipo Konektum",
   },
   primaryColor: "#e11d48",
   logoUrl: "",
@@ -250,6 +259,13 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     intro: "We've delivered your repeat request, but it wasn't possible to apply it this time. Don't be discouraged!\n\nThis is completely normal and happens often. You still have plenty of opportunities to match with people who showed interest in you.",
     closing: "Keep enjoying the experience and check your matches at the end of the event.",
     signature: "With love,\nThe Konektum Team 💕",
+  },
+  payment_reminder: {
+    subject: "💳 Reminder: complete your payment for {{evento}}",
+    greeting: "Hi {{nombre}}! 👋",
+    intro: "Just a reminder that your registration for {{evento}} is still marked as unpaid.\n\n📅 Date: {{fecha}}\n📍 Location: {{ubicacion}}\n🕐 Time: {{hora}}\n\nPlease complete the payment to secure your spot.",
+    closing: "If you already paid, please ignore this message. Thank you!",
+    signature: "Best regards,\nKonektum Team",
   },
   primaryColor: "#e11d48",
   logoUrl: "",

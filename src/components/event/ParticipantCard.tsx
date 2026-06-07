@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical, CreditCard, CheckCircle2 } from "lucide-react";
+import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical, CreditCard, CheckCircle2, BellRing } from "lucide-react";
 import InlineEmailEditor from "./InlineEmailEditor";
 import { normalizePreference } from "@/lib/analyticsNormalization";
 
@@ -48,6 +48,8 @@ interface ParticipantCardProps {
   isSendingReminder?: boolean;
   paymentTrackingEnabled?: boolean;
   onTogglePayment?: (id: string, currentPaid: boolean) => void;
+  onSendPaymentReminder?: (id: string) => void;
+  isSendingPaymentReminder?: boolean;
 }
 
 const getGenderBadge = (gender: string | null) => {
@@ -90,6 +92,8 @@ const ParticipantCard = ({
   isSendingReminder,
   paymentTrackingEnabled,
   onTogglePayment,
+  onSendPaymentReminder,
+  isSendingPaymentReminder,
 }: ParticipantCardProps) => {
   const isPaid = participant.payment_status === "paid";
   const genderConfig = getGenderBadge(participant.gender);
@@ -218,6 +222,29 @@ const ParticipantCard = ({
                 <TooltipContent>{isPaid ? "Marcar como no pagado" : "Marcar como pagado"}</TooltipContent>
               </Tooltip>
             )}
+
+            {paymentTrackingEnabled && !isPaid && participant.email && onSendPaymentReminder && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-emerald-600"
+                    disabled={isSendingPaymentReminder}
+                    onClick={() => onSendPaymentReminder(participant.id)}
+                  >
+                    {isSendingPaymentReminder ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <BellRing className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Enviar recordatorio de pago</TooltipContent>
+              </Tooltip>
+            )}
+
+
 
 
             {participant.email && (

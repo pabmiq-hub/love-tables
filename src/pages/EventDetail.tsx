@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown, DoorOpen, DoorClosed, ListOrdered, Bell } from "lucide-react";
+import { ArrowLeft, Users, QrCode, Table2, Download, Play, CheckCircle2, Plus, Upload, Trash2, FileSpreadsheet, Loader2, UserCheck, Mail, Send, Settings2, ClipboardList, UserX, Eye, Clock, X, Check, Lock, Handshake, BarChart3, Filter, Heart, ArrowUpAZ, ArrowDownZA, RotateCcw, Ban, Search, UserMinus, History, Sparkles, Copy, MoreVertical, ChevronDown, DoorOpen, DoorClosed, ListOrdered, Bell, CreditCard, BellRing } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1753,6 +1753,9 @@ const EventDetail = () => {
   const [isSendingBulkCodes, setIsSendingBulkCodes] = useState(false);
   const [bulkCodeProgress, setBulkCodeProgress] = useState<{ current: number; total: number } | null>(null);
 
+  const [sendingPaymentReminderFor, setSendingPaymentReminderFor] = useState<string | null>(null);
+  const [isSendingBulkPaymentReminders, setIsSendingBulkPaymentReminders] = useState(false);
+
   const handleTogglePayment = async (participantId: string, currentPaid: boolean) => {
     const newPaid = !currentPaid;
     const { error } = await supabase
@@ -1778,6 +1781,33 @@ const EventDetail = () => {
       title: newPaid ? "Marcado como pagado" : "Marcado como no pagado",
     });
   };
+
+  const handleSendPaymentReminder = async (participantIds: string[]) => {
+    if (!eventData || participantIds.length === 0) return;
+    const isBulk = participantIds.length > 1;
+    if (isBulk) setIsSendingBulkPaymentReminders(true);
+    else setSendingPaymentReminderFor(participantIds[0]);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("send-payment-reminder", {
+        body: { event_id: eventData.id, participant_ids: participantIds, mode: "manual" },
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
+      if (error) throw error;
+      const stats = (data as any)?.stats || { sent: 0, failed: 0 };
+      toast({
+        title: "Recordatorios de pago enviados",
+        description: `Enviados: ${stats.sent}. Fallidos: ${stats.failed}.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "No se pudieron enviar los recordatorios", variant: "destructive" });
+    } finally {
+      setIsSendingBulkPaymentReminders(false);
+      setSendingPaymentReminderFor(null);
+    }
+  };
+
 
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
     if (!currentStatus) {
@@ -4184,6 +4214,37 @@ const EventDetail = () => {
                           <ArrowUpAZ className="w-3 h-3 ml-0.5" />
                         </Button>
                       </div>
+
+                      {(eventData as any)?.payment_tracking_enabled && (() => {
+                        const unpaidWithEmail = participants.filter(
+                          (p: any) => p.payment_status !== "paid" && p.email && !p.is_fake
+                        );
+                        if (unpaidWithEmail.length === 0) return null;
+                        return (
+                          <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/10">
+                            <div className="flex items-center gap-2 text-sm">
+                              <CreditCard className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                              <span>
+                                <strong>{unpaidWithEmail.length}</strong> {unpaidWithEmail.length === 1 ? "participante pendiente" : "participantes pendientes"} de pago con email.
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={isSendingBulkPaymentReminders}
+                              onClick={() => handleSendPaymentReminder(unpaidWithEmail.map((p: any) => p.id))}
+                            >
+                              {isSendingBulkPaymentReminders ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <BellRing className="w-4 h-4 mr-2" />
+                              )}
+                              Enviar recordatorio de pago a todos
+                            </Button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -4226,6 +4287,8 @@ const EventDetail = () => {
                         isSendingReminder={isSendingReminder}
                         paymentTrackingEnabled={!!(eventData as any)?.payment_tracking_enabled}
                         onTogglePayment={handleTogglePayment}
+                        onSendPaymentReminder={(pId) => handleSendPaymentReminder([pId])}
+                        isSendingPaymentReminder={sendingPaymentReminderFor === participant.id}
                       />
 
                     ))}
@@ -5288,6 +5351,9 @@ const EventDetail = () => {
                 registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
                 slotQuotas={(eventData as any).slot_quotas || null}
                 paymentTrackingEnabled={(eventData as any).payment_tracking_enabled || false}
+                paymentRemindersEnabled={(eventData as any).payment_reminders_enabled || false}
+                paymentReminderFirstHours={(eventData as any).payment_reminder_first_hours ?? 24}
+                paymentReminderSecondHours={(eventData as any).payment_reminder_second_hours ?? null}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
