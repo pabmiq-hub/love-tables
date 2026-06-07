@@ -54,6 +54,9 @@ interface EventSettingsEditorProps {
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: SlotQuota[] | null;
   paymentTrackingEnabled?: boolean;
+  paymentRemindersEnabled?: boolean;
+  paymentReminderFirstHours?: number;
+  paymentReminderSecondHours?: number | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -92,6 +95,9 @@ const EventSettingsEditor = ({
   registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
   slotQuotas: initialSlotQuotas = null,
   paymentTrackingEnabled: initialPaymentTrackingEnabled = false,
+  paymentRemindersEnabled: initialPaymentRemindersEnabled = false,
+  paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
+  paymentReminderSecondHours: initialPaymentReminderSecondHours = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -139,6 +145,14 @@ const EventSettingsEditor = ({
     Array.isArray(initialSlotQuotas) ? (initialSlotQuotas as SlotQuota[]) : []
   );
   const [formPaymentTrackingEnabled, setFormPaymentTrackingEnabled] = useState(initialPaymentTrackingEnabled);
+  const [formPaymentRemindersEnabled, setFormPaymentRemindersEnabled] = useState(initialPaymentRemindersEnabled);
+  const [formPaymentReminderFirstHours, setFormPaymentReminderFirstHours] = useState<number>(initialPaymentReminderFirstHours || 24);
+  const [formPaymentReminderSecondEnabled, setFormPaymentReminderSecondEnabled] = useState<boolean>(
+    initialPaymentReminderSecondHours != null
+  );
+  const [formPaymentReminderSecondHours, setFormPaymentReminderSecondHours] = useState<number>(
+    initialPaymentReminderSecondHours ?? 48
+  );
   const [formPreferences, setFormPreferences] = useState<EventPreferences>({
     ageRanges: customAgeRanges || ["18-24", "25-32", "33-40", "41-50", "50+"],
     genders: customGenders || ["Hombre", "Mujer", "No binario"],
@@ -223,6 +237,14 @@ const EventSettingsEditor = ({
         registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
         slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
         payment_tracking_enabled: formPaymentTrackingEnabled,
+        payment_reminders_enabled: formPaymentTrackingEnabled && formPaymentRemindersEnabled,
+        payment_reminder_first_hours: Math.max(1, Number(formPaymentReminderFirstHours) || 24),
+        payment_reminder_second_hours: formPaymentReminderSecondEnabled
+          ? Math.max(
+              Math.max(1, Number(formPaymentReminderFirstHours) || 24) + 1,
+              Number(formPaymentReminderSecondHours) || 48
+            )
+          : null,
       };
 
       // Handle preliminary round
