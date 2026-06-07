@@ -29,6 +29,7 @@ export interface CommunicationTemplates {
   repeat_request_received: StructuredTemplate;
   repeat_request_accepted: StructuredTemplate;
   repeat_request_declined: StructuredTemplate;
+  payment_reminder: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
   brandName: string;
@@ -37,7 +38,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined" | "payment_reminder";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -58,6 +59,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   repeat_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}", "{{enlace_aceptar}}", "{{enlace_rechazar}}"],
   repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
   repeat_request_declined: ["{{nombre}}", "{{evento}}"],
+  payment_reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
 };
 
 export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
