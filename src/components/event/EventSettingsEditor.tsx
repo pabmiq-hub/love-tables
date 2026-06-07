@@ -735,10 +735,10 @@ const EventSettingsEditor = ({
             <CardHeader>
               <CardTitle className="text-base">Seguimiento de pagos</CardTitle>
               <CardDescription>
-                Activa esta opción si cobras la entrada del evento desde otra plataforma. Podrás marcar manualmente qué participantes han pagado desde la lista de participantes. No envía correos automáticos.
+                Activa esta opción si cobras la entrada del evento desde otra plataforma. Podrás marcar manualmente qué participantes han pagado desde la lista de participantes.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label htmlFor="payment-tracking-toggle" className="cursor-pointer">
                   Habilitar seguimiento de pagos
@@ -749,6 +749,70 @@ const EventSettingsEditor = ({
                   onCheckedChange={setFormPaymentTrackingEnabled}
                 />
               </div>
+
+              {formPaymentTrackingEnabled && (
+                <div className="space-y-3 pt-3 border-t">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="payment-reminders-toggle" className="cursor-pointer">
+                        Recordatorios automáticos de pago
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Envía un email a los participantes con la inscripción aún pendiente de pago. Personaliza la plantilla en "Ajustes de comunicación → Recordatorio pago".
+                      </p>
+                    </div>
+                    <Switch
+                      id="payment-reminders-toggle"
+                      checked={formPaymentRemindersEnabled}
+                      onCheckedChange={setFormPaymentRemindersEnabled}
+                    />
+                  </div>
+
+                  {formPaymentRemindersEnabled && (
+                    <div className="space-y-3 ml-1">
+                      <div className="flex items-center gap-3">
+                        <Label className="text-sm w-44 shrink-0">1.º recordatorio (horas)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={720}
+                          value={formPaymentReminderFirstHours}
+                          onChange={(e) => setFormPaymentReminderFirstHours(Number(e.target.value) || 24)}
+                          className="w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">tras la inscripción</span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 w-44 shrink-0">
+                          <Switch
+                            id="second-reminder-toggle"
+                            checked={formPaymentReminderSecondEnabled}
+                            onCheckedChange={setFormPaymentReminderSecondEnabled}
+                          />
+                          <Label htmlFor="second-reminder-toggle" className="text-sm cursor-pointer">
+                            2.º recordatorio
+                          </Label>
+                        </div>
+                        <Input
+                          type="number"
+                          min={formPaymentReminderFirstHours + 1}
+                          max={720}
+                          value={formPaymentReminderSecondHours}
+                          onChange={(e) => setFormPaymentReminderSecondHours(Number(e.target.value) || 48)}
+                          disabled={!formPaymentReminderSecondEnabled}
+                          className="w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">horas tras la inscripción</span>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        Los recordatorios se detienen automáticamente al marcar al participante como pagado.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
