@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.respond-repeat]
 verify_jwt = false
+
+[functions.send-payment-reminder]
+verify_jwt = false
