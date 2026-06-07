@@ -4214,6 +4214,37 @@ const EventDetail = () => {
                           <ArrowUpAZ className="w-3 h-3 ml-0.5" />
                         </Button>
                       </div>
+
+                      {(eventData as any)?.payment_tracking_enabled && (() => {
+                        const unpaidWithEmail = participants.filter(
+                          (p: any) => p.payment_status !== "paid" && p.email && !p.is_fake
+                        );
+                        if (unpaidWithEmail.length === 0) return null;
+                        return (
+                          <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/10">
+                            <div className="flex items-center gap-2 text-sm">
+                              <CreditCard className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                              <span>
+                                <strong>{unpaidWithEmail.length}</strong> {unpaidWithEmail.length === 1 ? "participante pendiente" : "participantes pendientes"} de pago con email.
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={isSendingBulkPaymentReminders}
+                              onClick={() => handleSendPaymentReminder(unpaidWithEmail.map((p: any) => p.id))}
+                            >
+                              {isSendingBulkPaymentReminders ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <BellRing className="w-4 h-4 mr-2" />
+                              )}
+                              Enviar recordatorio de pago a todos
+                            </Button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
