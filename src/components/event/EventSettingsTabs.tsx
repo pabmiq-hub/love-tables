@@ -41,6 +41,9 @@ interface EventSettingsTabsProps {
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: any;
   paymentTrackingEnabled?: boolean;
+  paymentRemindersEnabled?: boolean;
+  paymentReminderFirstHours?: number;
+  paymentReminderSecondHours?: number | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 

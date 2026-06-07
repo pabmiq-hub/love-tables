@@ -5288,6 +5288,9 @@ const EventDetail = () => {
                 registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
                 slotQuotas={(eventData as any).slot_quotas || null}
                 paymentTrackingEnabled={(eventData as any).payment_tracking_enabled || false}
+                paymentRemindersEnabled={(eventData as any).payment_reminders_enabled || false}
+                paymentReminderFirstHours={(eventData as any).payment_reminder_first_hours ?? 24}
+                paymentReminderSecondHours={(eventData as any).payment_reminder_second_hours ?? null}
                 onUpdate={(updates) => {
                   setEventData(prev => prev ? { ...prev, ...updates } : prev);
                 }}
