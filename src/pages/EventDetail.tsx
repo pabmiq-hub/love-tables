@@ -1753,6 +1753,9 @@ const EventDetail = () => {
   const [isSendingBulkCodes, setIsSendingBulkCodes] = useState(false);
   const [bulkCodeProgress, setBulkCodeProgress] = useState<{ current: number; total: number } | null>(null);
 
+  const [sendingPaymentReminderFor, setSendingPaymentReminderFor] = useState<string | null>(null);
+  const [isSendingBulkPaymentReminders, setIsSendingBulkPaymentReminders] = useState(false);
+
   const handleTogglePayment = async (participantId: string, currentPaid: boolean) => {
     const newPaid = !currentPaid;
     const { error } = await supabase
@@ -1778,6 +1781,33 @@ const EventDetail = () => {
       title: newPaid ? "Marcado como pagado" : "Marcado como no pagado",
     });
   };
+
+  const handleSendPaymentReminder = async (participantIds: string[]) => {
+    if (!eventData || participantIds.length === 0) return;
+    const isBulk = participantIds.length > 1;
+    if (isBulk) setIsSendingBulkPaymentReminders(true);
+    else setSendingPaymentReminderFor(participantIds[0]);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("send-payment-reminder", {
+        body: { event_id: eventData.id, participant_ids: participantIds, mode: "manual" },
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
+      if (error) throw error;
+      const stats = (data as any)?.stats || { sent: 0, failed: 0 };
+      toast({
+        title: "Recordatorios de pago enviados",
+        description: `Enviados: ${stats.sent}. Fallidos: ${stats.failed}.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "No se pudieron enviar los recordatorios", variant: "destructive" });
+    } finally {
+      setIsSendingBulkPaymentReminders(false);
+      setSendingPaymentReminderFor(null);
+    }
+  };
+
 
   const handleToggleCheckin = async (participantId: string, currentStatus: boolean) => {
     if (!currentStatus) {
@@ -4226,6 +4256,8 @@ const EventDetail = () => {
                         isSendingReminder={isSendingReminder}
                         paymentTrackingEnabled={!!(eventData as any)?.payment_tracking_enabled}
                         onTogglePayment={handleTogglePayment}
+                        onSendPaymentReminder={(pId) => handleSendPaymentReminder([pId])}
+                        isSendingPaymentReminder={sendingPaymentReminderFor === participant.id}
                       />
 
                     ))}
