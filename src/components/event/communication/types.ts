@@ -29,6 +29,9 @@ export interface CommunicationTemplates {
   repeat_request_received: StructuredTemplate;
   repeat_request_accepted: StructuredTemplate;
   repeat_request_declined: StructuredTemplate;
+  crush_request_received: StructuredTemplate;
+  crush_mutual: StructuredTemplate;
+  crush_declined: StructuredTemplate;
   payment_reminder: StructuredTemplate;
   primaryColor: string;
   logoUrl: string;
@@ -38,7 +41,7 @@ export interface CommunicationTemplates {
   reminderOptions?: ReminderOptions;
 }
 
-export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined" | "payment_reminder";
+export type TemplateKey = "registration_confirmation" | "registration_with_code" | "reminder" | "selection_reminder" | "matches" | "checkin_code" | "super_like" | "no_show" | "repeat_request_received" | "repeat_request_accepted" | "repeat_request_declined" | "crush_request_received" | "crush_mutual" | "crush_declined" | "payment_reminder";
 
 export interface ReminderOptions {
   showCalendarLinks: boolean;
@@ -59,6 +62,9 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   repeat_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}", "{{enlace_aceptar}}", "{{enlace_rechazar}}"],
   repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
   repeat_request_declined: ["{{nombre}}", "{{evento}}"],
+  crush_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}"],
+  crush_mutual: ["{{nombre}}", "{{evento}}", "{{otraPersona}}", "{{contactoEmail}}", "{{ronda}}"],
+  crush_declined: ["{{nombre}}", "{{evento}}"],
   payment_reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
 };
 
@@ -149,6 +155,27 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
     greeting: "¡Hola {{nombre}}! 👋",
     intro: "Hemos comunicado tu solicitud de repetir, pero en esta ocasión no ha sido posible aplicarla. ¡No te desanimes!\n\nEsto es totalmente normal y ocurre con frecuencia. Aún tienes muchas oportunidades de hacer match con quienes mostraron interés en ti.",
     closing: "Sigue con tu experiencia y revisa tus matches al final del evento.",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  crush_request_received: {
+    subject: "💘 Has recibido un Flechazo en {{evento}}",
+    greeting: "¡Hola {{nombre}}! 💘",
+    intro: "Alguien a quien conociste en {{evento}} te ha enviado un Flechazo — le encantaría conectar contigo.\n\nSi aceptas, ambos recibiréis los datos de contacto del otro por email y os sentaremos en la misma mesa en la próxima ronda (si quedan rondas pendientes).",
+    closing: "Pulsa un botón para responder. Solo se intercambian datos si aceptas.",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  crush_mutual: {
+    subject: "💘 ¡Flechazo mutuo con {{otraPersona}} en {{evento}}!",
+    greeting: "¡Hola {{nombre}}! 🎉",
+    intro: "¡Buenas noticias! Tú y {{otraPersona}} tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su email de contacto para que puedas escribirle: {{contactoEmail}}\n\nSi aún quedan rondas, os asignaremos a la misma mesa en la ronda {{ronda}}.",
+    closing: "¡Disfruta de la conexión! Las mejores historias empiezan con un primer paso.",
+    signature: "Con cariño,\nEl equipo de Konektum 💕",
+  },
+  crush_declined: {
+    subject: "Sobre tu Flechazo en {{evento}}",
+    greeting: "¡Hola {{nombre}}! 👋",
+    intro: "Hemos entregado tu Flechazo, pero la otra persona ha decidido no aceptarlo en esta ocasión. ¡No te desanimes! Cada evento trae nuevas oportunidades.",
+    closing: "Sigue disfrutando de la experiencia.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
   payment_reminder: {
@@ -258,6 +285,27 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
     greeting: "Hi {{nombre}}! 👋",
     intro: "We've delivered your repeat request, but it wasn't possible to apply it this time. Don't be discouraged!\n\nThis is completely normal and happens often. You still have plenty of opportunities to match with people who showed interest in you.",
     closing: "Keep enjoying the experience and check your matches at the end of the event.",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
+  crush_request_received: {
+    subject: "💘 You received a Flechazo at {{evento}}",
+    greeting: "Hi {{nombre}}! 💘",
+    intro: "Someone you met at {{evento}} has sent you a Flechazo — they'd love to connect with you.\n\nIf you accept, you'll both receive each other's contact details by email and we'll seat you together at the same table in the next round (if any rounds remain).",
+    closing: "Tap a button to respond. Contact details are only shared if you accept.",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
+  crush_mutual: {
+    subject: "💘 Mutual Flechazo with {{otraPersona}} at {{evento}}!",
+    greeting: "Hi {{nombre}}! 🎉",
+    intro: "Great news! You and {{otraPersona}} have a mutual Flechazo at {{evento}}.\n\nHere's their contact email so you can reach out: {{contactoEmail}}\n\nIf any rounds remain, we'll seat you together at the same table in round {{ronda}}.",
+    closing: "Enjoy the connection! The best stories start with a first step.",
+    signature: "With love,\nThe Konektum Team 💕",
+  },
+  crush_declined: {
+    subject: "About your Flechazo at {{evento}}",
+    greeting: "Hi {{nombre}}! 👋",
+    intro: "We've delivered your Flechazo, but the other person decided not to accept this time. Don't be discouraged — every event brings new opportunities!",
+    closing: "Keep enjoying the experience.",
     signature: "With love,\nThe Konektum Team 💕",
   },
   payment_reminder: {
