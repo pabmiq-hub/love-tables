@@ -349,14 +349,38 @@ const CommunicationSettingsEditor = ({
          </div>
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
-          <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {TABS_CONFIG.filter(tab => (!tab.socialOnly || module === 'social') && (!tab.paymentOnly || paymentTrackingEnabled)).map(tab => (
-              <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
-                <tab.icon className="w-4 h-4 mr-1.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {(() => {
+            const visibleTabs = TABS_CONFIG.filter(tab => (!tab.socialOnly || module === 'social') && (!tab.paymentOnly || paymentTrackingEnabled));
+            const groupOrder: TabGroup[] = ["registration", "during", "post", "repeat", "crush", "payment"];
+            const groupedTabs = groupOrder
+              .map(g => ({ group: g, tabs: visibleTabs.filter(t => t.group === g) }))
+              .filter(g => g.tabs.length > 0);
+            return (
+              <Accordion type="multiple" defaultValue={groupedTabs.map(g => g.group)} className="w-full mb-4">
+                {groupedTabs.map(g => (
+                  <AccordionItem key={g.group} value={g.group}>
+                    <AccordionTrigger className="text-sm font-semibold py-3">
+                      <span className="flex items-center gap-2">
+                        <span>{GROUP_META[g.group].emoji}</span>
+                        <span>{GROUP_META[g.group].label}</span>
+                        <span className="text-xs text-muted-foreground font-normal">({g.tabs.length})</span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <TabsList className="w-full flex-wrap h-auto gap-1 p-1 bg-muted/30">
+                        {g.tabs.map(tab => (
+                          <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
+                            <tab.icon className="w-4 h-4 mr-1.5" />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            );
+          })()}
 
           {TABS_CONFIG.map(tab => (
             <TabsContent key={tab.key} value={tab.key} className="mt-6">
