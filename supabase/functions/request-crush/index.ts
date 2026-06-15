@@ -146,7 +146,7 @@ serve(async (req: Request) => {
     const declineUrl = `${baseUrl}/crush-response?id=${inserted.id}&token=${token}&action=decline`;
 
     if (resendApiKey && target.email) {
-      const requesterDisplay = anonymize(requester.name || "Una persona del evento");
+      const requesterDisplay = requester.name || "Una persona del evento";
       const lang = (event as any).language === "en" ? "en" : "es";
       const stored = ((event as any).email_template as any)?.communication_templates_v2;
       const tpl = stored?.crush_request_received || null;
