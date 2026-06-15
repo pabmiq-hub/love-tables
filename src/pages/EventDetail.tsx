@@ -5286,6 +5286,7 @@ const EventDetail = () => {
                     participants={activeParticipants}
                     matches={matches}
                     repeatRequests={repeatRequests}
+                    crushRequests={crushRequests}
                   />
                 </TabsContent>
               </Tabs>
