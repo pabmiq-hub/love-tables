@@ -1041,6 +1041,14 @@ const ParticipantSelect = () => {
                 </div>
               );
             })()}
+            {crushEnabled && (
+              <div className="text-xs text-center text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1.5 font-medium">
+                <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                {crushUsed
+                  ? (eventLang === "es" ? "Flechazo enviado 💘 — Si acepta, recibiréis los datos de contacto e iréis juntos a la próxima ronda." : "Flechazo sent 💘 — If they accept, you'll get contact details and be seated together next round.")
+                  : (eventLang === "es" ? "Te queda 1 Flechazo 💘 — solicitud directa con intercambio de contactos si aceptan" : "1 Flechazo remaining 💘 — direct request with contact exchange if accepted")}
+              </div>
+            )}
             {superLikeEnabled && (
               <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
