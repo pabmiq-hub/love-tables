@@ -5340,6 +5340,7 @@ const EventDetail = () => {
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 superLikeEnabled={eventData.super_like_enabled}
                 repeatRequestEnabled={eventData.repeat_request_enabled}
+                crushEnabled={(eventData as any).crush_enabled}
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
