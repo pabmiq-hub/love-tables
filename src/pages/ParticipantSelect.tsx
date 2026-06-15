@@ -482,6 +482,55 @@ const ParticipantSelect = () => {
     }
   };
 
+  const requestCrush = (participantId: string, name: string) => {
+    if (crushUsed) {
+      toast({
+        title: eventLang === "es" ? "Ya has enviado tu flechazo" : "You already sent your Flechazo",
+        description: eventLang === "es"
+          ? "Solo puedes enviar un Flechazo por evento"
+          : "You can only send one Flechazo per event",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmCrushFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmCrush = async () => {
+    if (!confirmCrushFor || !verifiedParticipant || !eventId) return;
+    setIsSendingCrush(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-crush', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: confirmCrushFor.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo enviar el flechazo" : "Could not send the Flechazo"),
+          variant: "destructive",
+        });
+        return;
+      }
+      setCrushUsed({ status: "pending", targetId: confirmCrushFor.id });
+      toast({
+        title: eventLang === "es" ? "💘 Flechazo enviado" : "💘 Flechazo sent",
+        description: eventLang === "es"
+          ? "La otra persona recibirá un email para aceptar o rechazar tu flechazo"
+          : "The other person will receive an email to accept or decline your Flechazo",
+      });
+      setConfirmCrushFor(null);
+    } catch (err) {
+      console.error('Error sending crush:', err);
+      toast({ title: "Error", description: String(err), variant: "destructive" });
+    } finally {
+      setIsSendingCrush(false);
+    }
+  };
+
   const getPreviousSelectionLabel = (type?: string): string => {
     switch (type) {
       case 'friendship': return t.select.friendship;
