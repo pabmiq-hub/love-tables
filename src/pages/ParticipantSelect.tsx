@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +118,10 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [crushEnabled, setCrushEnabled] = useState(false);
+  const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [confirmCrushFor, setConfirmCrushFor] = useState<{ id: string; name: string } | null>(null);
+  const [isSendingCrush, setIsSendingCrush] = useState(false);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
@@ -138,7 +142,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled')
+          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled, crush_enabled')
           .eq('id', eventId)
           .single();
 
@@ -161,6 +165,7 @@ const ParticipantSelect = () => {
         // Plan-level enforcement happens at toggle time in the dashboard,
         // and the request-repeat edge function re-validates server-side.
         setRepeatEnabled(!!(event as any).repeat_request_enabled);
+        setCrushEnabled(!!(event as any).crush_enabled);
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -285,6 +290,17 @@ const ParticipantSelect = () => {
           .maybeSingle();
         if (existingRepeat) {
           setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+
+        // Check existing crush (Flechazo) for this participant
+        const { data: existingCrush } = await (supabase as any)
+          .from('crush_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingCrush) {
+          setCrushUsed({ status: existingCrush.status, targetId: existingCrush.target_id });
         }
       }
 
