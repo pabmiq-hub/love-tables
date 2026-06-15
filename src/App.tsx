@@ -20,6 +20,7 @@ import ParticipantCheckin from "./pages/ParticipantCheckin";
 import ParticipantTables from "./pages/ParticipantTables";
 import ParticipantAccess from "./pages/ParticipantAccess";
 import RepeatResponse from "./pages/RepeatResponse";
+import CrushResponse from "./pages/CrushResponse";
 import OrganizerPortal from "./pages/OrganizerPortal";
 import NotFound from "./pages/NotFound";
 import AvisoLegal from "./pages/AvisoLegal";
@@ -67,6 +68,7 @@ const App = () => (
           <Route path="/event/:id/tables" element={<ParticipantTables />} />
           <Route path="/event/:id/access" element={<ParticipantAccess />} />
           <Route path="/repeat-response" element={<RepeatResponse />} />
+          <Route path="/crush-response" element={<CrushResponse />} />
           <Route path="/:slug/:id/join" element={<LegacyJoinRedirect />} />
           {/* Slug-based organizer portal routes */}
           <Route path="/o/:slug" element={<OrganizerPortal />}>
