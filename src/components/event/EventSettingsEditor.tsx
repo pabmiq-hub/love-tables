@@ -43,6 +43,7 @@ interface EventSettingsEditorProps {
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
   repeatRequestEnabled?: boolean;
+  crushEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;
@@ -84,6 +85,7 @@ const EventSettingsEditor = ({
   checkinOpensMinutesBefore = 60,
   superLikeEnabled: initialSuperLikeEnabled = false,
   repeatRequestEnabled: initialRepeatRequestEnabled = false,
+  crushEnabled: initialCrushEnabled = false,
   codeSendMode: initialCodeSendMode = "on_registration",
   eventStatus = "pending",
   preliminaryRoundEnabled: initialPreliminaryRoundEnabled = false,
@@ -128,6 +130,7 @@ const EventSettingsEditor = ({
   );
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formRepeatRequestEnabled, setFormRepeatRequestEnabled] = useState(initialRepeatRequestEnabled);
+  const [formCrushEnabled, setFormCrushEnabled] = useState(initialCrushEnabled);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
@@ -183,6 +186,11 @@ const EventSettingsEditor = ({
     setFormRepeatRequestEnabled(initialRepeatRequestEnabled);
   }, [initialRepeatRequestEnabled]);
 
+  // Sync crush prop
+  useEffect(() => {
+    setFormCrushEnabled(initialCrushEnabled);
+  }, [initialCrushEnabled]);
+
   // Load custom registration form from DB
   useEffect(() => {
     const loadCustomForm = async () => {
@@ -229,6 +237,7 @@ const EventSettingsEditor = ({
           : null,
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         repeat_request_enabled: !isProfessional ? formRepeatRequestEnabled : false,
+        crush_enabled: !isProfessional ? formCrushEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
         reminder_mode: formReminderMode,
@@ -475,6 +484,21 @@ const EventSettingsEditor = ({
                 />
               </div>
             </FeatureGate>
+          )}
+
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex-1 pr-4">
+                <Label className="text-base">💘 Función "Flechazo"</Label>
+                <p className="text-sm text-muted-foreground">
+                  Permite a cada participante enviar 1 Flechazo directo por evento. El destinatario recibe un email para aceptar o rechazar. Si acepta, ambos reciben los datos de contacto del otro y, si aún quedan rondas, se sentarán en la misma mesa.
+                </p>
+              </div>
+              <Switch
+                checked={formCrushEnabled}
+                onCheckedChange={setFormCrushEnabled}
+              />
+            </div>
           )}
 
           <div className="flex items-center justify-between p-4 border rounded-lg">

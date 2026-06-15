@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil, Send } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +118,10 @@ const ParticipantSelect = () => {
   const [confirmRepeatFor, setConfirmRepeatFor] = useState<{ id: string; name: string } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [crushEnabled, setCrushEnabled] = useState(false);
+  const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [confirmCrushFor, setConfirmCrushFor] = useState<{ id: string; name: string } | null>(null);
+  const [isSendingCrush, setIsSendingCrush] = useState(false);
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
@@ -138,7 +142,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled')
+          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled, crush_enabled')
           .eq('id', eventId)
           .single();
 
@@ -161,6 +165,7 @@ const ParticipantSelect = () => {
         // Plan-level enforcement happens at toggle time in the dashboard,
         // and the request-repeat edge function re-validates server-side.
         setRepeatEnabled(!!(event as any).repeat_request_enabled);
+        setCrushEnabled(!!(event as any).crush_enabled);
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -285,6 +290,17 @@ const ParticipantSelect = () => {
           .maybeSingle();
         if (existingRepeat) {
           setRepeatRequestUsed({ status: existingRepeat.status, targetId: existingRepeat.target_id });
+        }
+
+        // Check existing crush (Flechazo) for this participant
+        const { data: existingCrush } = await (supabase as any)
+          .from('crush_requests')
+          .select('status, target_id')
+          .eq('event_id', eventId)
+          .eq('requester_id', verifiedParticipant.id)
+          .maybeSingle();
+        if (existingCrush) {
+          setCrushUsed({ status: existingCrush.status, targetId: existingCrush.target_id });
         }
       }
 
@@ -463,6 +479,55 @@ const ParticipantSelect = () => {
       toast({ title: "Error", description: String(err), variant: "destructive" });
     } finally {
       setIsSendingRepeat(false);
+    }
+  };
+
+  const requestCrush = (participantId: string, name: string) => {
+    if (crushUsed) {
+      toast({
+        title: eventLang === "es" ? "Ya has enviado tu flechazo" : "You already sent your Flechazo",
+        description: eventLang === "es"
+          ? "Solo puedes enviar un Flechazo por evento"
+          : "You can only send one Flechazo per event",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmCrushFor({ id: participantId, name: formatAnonymousName(name) });
+  };
+
+  const confirmCrush = async () => {
+    if (!confirmCrushFor || !verifiedParticipant || !eventId) return;
+    setIsSendingCrush(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-crush', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: confirmCrushFor.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo enviar el flechazo" : "Could not send the Flechazo"),
+          variant: "destructive",
+        });
+        return;
+      }
+      setCrushUsed({ status: "pending", targetId: confirmCrushFor.id });
+      toast({
+        title: eventLang === "es" ? "💘 Flechazo enviado" : "💘 Flechazo sent",
+        description: eventLang === "es"
+          ? "La otra persona recibirá un email para aceptar o rechazar tu flechazo"
+          : "The other person will receive an email to accept or decline your Flechazo",
+      });
+      setConfirmCrushFor(null);
+    } catch (err) {
+      console.error('Error sending crush:', err);
+      toast({ title: "Error", description: String(err), variant: "destructive" });
+    } finally {
+      setIsSendingCrush(false);
     }
   };
 
@@ -924,6 +989,38 @@ const ParticipantSelect = () => {
                               </button>
                             );
                           })()}
+                          {crushEnabled && (() => {
+                            const isThisCrush = crushUsed?.targetId === person.id;
+                            const crushDisabled = !!crushUsed && !isThisCrush;
+                            if (!isThisCrush && crushUsed) return null;
+                            return isThisCrush ? (
+                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
+                                <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                                {eventLang === "es"
+                                  ? (crushUsed?.status === "accepted"
+                                      ? "Flechazo aceptado 💘"
+                                      : crushUsed?.status === "declined"
+                                        ? "Flechazo rechazado"
+                                        : "Flechazo pendiente")
+                                  : (crushUsed?.status === "accepted"
+                                      ? "Flechazo accepted 💘"
+                                      : crushUsed?.status === "declined"
+                                        ? "Flechazo declined"
+                                        : "Flechazo pending")}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={crushDisabled}
+                                onClick={() => requestCrush(person.id, person.name)}
+                                title={eventLang === "es" ? "Envía un Flechazo directo: si la persona acepta, intercambiaréis datos de contacto y os sentaremos juntos en la próxima ronda." : "Send a direct Flechazo: if they accept, you'll exchange contact details and be seated together in the next round."}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                              >
+                                <Send className="w-4 h-4" />
+                                {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
+                              </button>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -944,6 +1041,14 @@ const ParticipantSelect = () => {
                 </div>
               );
             })()}
+            {crushEnabled && (
+              <div className="text-xs text-center text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1.5 font-medium">
+                <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                {crushUsed
+                  ? (eventLang === "es" ? "Flechazo enviado 💘 — Si acepta, recibiréis los datos de contacto e iréis juntos a la próxima ronda." : "Flechazo sent 💘 — If they accept, you'll get contact details and be seated together next round.")
+                  : (eventLang === "es" ? "Te queda 1 Flechazo 💘 — solicitud directa con intercambio de contactos si aceptan" : "1 Flechazo remaining 💘 — direct request with contact exchange if accepted")}
+              </div>
+            )}
             {superLikeEnabled && (
               <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
@@ -1001,6 +1106,29 @@ const ParticipantSelect = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!confirmCrushFor} onOpenChange={(open) => !open && setConfirmCrushFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-600 fill-rose-500" />
+              {eventLang === "es" ? "¿Enviar un Flechazo a esta persona?" : "Send a Flechazo to this person?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? `Enviaremos un email a ${confirmCrushFor?.name} para que decida si acepta tu Flechazo. Si acepta, ambos recibiréis los datos de contacto del otro y, si quedan rondas, os sentaremos en la misma mesa. Solo puedes enviar un Flechazo por evento.`
+                : `We'll send an email to ${confirmCrushFor?.name} so they can decide whether to accept your Flechazo. If accepted, you'll both receive each other's contact details and, if any rounds remain, you'll be seated together. You can only send one Flechazo per event.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSendingCrush}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCrush} disabled={isSendingCrush} className="bg-rose-600 hover:bg-rose-700 text-white">
+              {isSendingCrush ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Enviar Flechazo" : "Send Flechazo")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <AlertDialog open={confirmEditSubmit} onOpenChange={(open) => !open && !isSubmitting && setConfirmEditSubmit(false)}>
         <AlertDialogContent>

@@ -30,6 +30,7 @@ interface EventSettingsTabsProps {
   checkinOpensMinutesBefore?: number;
   superLikeEnabled?: boolean;
   repeatRequestEnabled?: boolean;
+  crushEnabled?: boolean;
   codeSendMode?: string;
   eventStatus?: string;
   preliminaryRoundEnabled?: boolean;

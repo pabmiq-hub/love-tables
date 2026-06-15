@@ -4,9 +4,10 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock, Repeat2, CreditCard } from "lucide-react";
+import { Loader2, Save, Mail, UserCheck, Bell, Heart, RotateCcw, Eye, Upload, X, Star, Clock, Repeat2, CreditCard, Send } from "lucide-react";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -22,19 +23,33 @@ import { normalizeCommunicationTemplates } from "./communication/normalizeTempla
 import TemplateEditor from "./communication/TemplateEditor";
 import EmailPreview from "./communication/EmailPreview";
 
-const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean; paymentOnly?: boolean }[] = [
-  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true },
-  { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento" },
-  { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones" },
-  { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches" },
-  { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal" },
-  { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true },
-  { key: "no_show", label: "No-show", icon: UserCheck, description: "Email a participantes que no asistieron", isMatchesWithout: true },
-  { key: "repeat_request_received", label: "Repetir: recibido", icon: Repeat2, description: "Email al destinatario de la solicitud", socialOnly: true },
-  { key: "repeat_request_accepted", label: "Repetir: aceptada", icon: Repeat2, description: "Email al solicitante cuando aceptan", socialOnly: true },
-  { key: "repeat_request_declined", label: "Repetir: rechazada", icon: Repeat2, description: "Email al solicitante cuando rechazan o caduca", socialOnly: true },
-  { key: "payment_reminder", label: "Recordatorio pago", icon: CreditCard, description: "Email recordando completar el pago", paymentOnly: true },
+type TabGroup = "registration" | "during" | "post" | "repeat" | "crush" | "payment";
+
+const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; description: string; socialOnly?: boolean; hasVariant?: boolean; isMatchesWithout?: boolean; paymentOnly?: boolean; group: TabGroup }[] = [
+  { key: "registration_confirmation", label: "Confirmación", icon: Mail, description: "Email al inscribirse", hasVariant: true, group: "registration" },
+  { key: "reminder", label: "Recordatorio", icon: Bell, description: "Recordatorio pre-evento", group: "registration" },
+  { key: "checkin_code", label: "Código de acceso", icon: UserCheck, description: "Email con el código personal", group: "registration" },
+  { key: "selection_reminder", label: "Rec. selecciones", icon: Clock, description: "Recordatorio para enviar selecciones", group: "during" },
+  { key: "super_like", label: "Super Like", icon: Star, description: "Notificación de Super Like", socialOnly: true, group: "during" },
+  { key: "matches", label: "Resultados", icon: Heart, description: "Email de matches", group: "post" },
+  { key: "no_show", label: "No-show", icon: UserCheck, description: "Email a participantes que no asistieron", isMatchesWithout: true, group: "post" },
+  { key: "repeat_request_received", label: "Repetir: recibido", icon: Repeat2, description: "Email al destinatario de la solicitud", socialOnly: true, group: "repeat" },
+  { key: "repeat_request_accepted", label: "Repetir: aceptada", icon: Repeat2, description: "Email al solicitante cuando aceptan", socialOnly: true, group: "repeat" },
+  { key: "repeat_request_declined", label: "Repetir: rechazada", icon: Repeat2, description: "Email al solicitante cuando rechazan o caduca", socialOnly: true, group: "repeat" },
+  { key: "crush_request_received", label: "Flechazo: solicitud", icon: Send, description: "Email al destinatario del Flechazo", socialOnly: true, group: "crush" },
+  { key: "crush_mutual", label: "Flechazo: mutuo", icon: Heart, description: "Email recíproco con datos de contacto al aceptar", socialOnly: true, group: "crush" },
+  { key: "crush_declined", label: "Flechazo: rechazado", icon: Heart, description: "Email al solicitante cuando rechazan el Flechazo", socialOnly: true, group: "crush" },
+  { key: "payment_reminder", label: "Recordatorio pago", icon: CreditCard, description: "Email recordando completar el pago", paymentOnly: true, group: "payment" },
 ];
+
+const GROUP_META: Record<TabGroup, { label: string; emoji: string }> = {
+  registration: { label: "Inscripción y acceso", emoji: "📩" },
+  during: { label: "Durante el evento", emoji: "🎉" },
+  post: { label: "Post-evento", emoji: "✅" },
+  repeat: { label: "Repetir 🔁", emoji: "🔁" },
+  crush: { label: "Flechazo 💘", emoji: "💘" },
+  payment: { label: "Pagos", emoji: "💳" },
+};
 
 interface CommunicationSettingsEditorProps {
   eventId: string;
@@ -334,14 +349,38 @@ const CommunicationSettingsEditor = ({
          </div>
 
         <Tabs defaultValue="registration_confirmation" className="w-full">
-          <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {TABS_CONFIG.filter(tab => (!tab.socialOnly || module === 'social') && (!tab.paymentOnly || paymentTrackingEnabled)).map(tab => (
-              <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
-                <tab.icon className="w-4 h-4 mr-1.5" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          {(() => {
+            const visibleTabs = TABS_CONFIG.filter(tab => (!tab.socialOnly || module === 'social') && (!tab.paymentOnly || paymentTrackingEnabled));
+            const groupOrder: TabGroup[] = ["registration", "during", "post", "repeat", "crush", "payment"];
+            const groupedTabs = groupOrder
+              .map(g => ({ group: g, tabs: visibleTabs.filter(t => t.group === g) }))
+              .filter(g => g.tabs.length > 0);
+            return (
+              <Accordion type="multiple" defaultValue={groupedTabs.map(g => g.group)} className="w-full mb-4">
+                {groupedTabs.map(g => (
+                  <AccordionItem key={g.group} value={g.group}>
+                    <AccordionTrigger className="text-sm font-semibold py-3">
+                      <span className="flex items-center gap-2">
+                        <span>{GROUP_META[g.group].emoji}</span>
+                        <span>{GROUP_META[g.group].label}</span>
+                        <span className="text-xs text-muted-foreground font-normal">({g.tabs.length})</span>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <TabsList className="w-full flex-wrap h-auto gap-1 p-1 bg-muted/30">
+                        {g.tabs.map(tab => (
+                          <TabsTrigger key={tab.key} value={tab.key} className="flex-1 min-w-[120px]">
+                            <tab.icon className="w-4 h-4 mr-1.5" />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            );
+          })()}
 
           {TABS_CONFIG.map(tab => (
             <TabsContent key={tab.key} value={tab.key} className="mt-6">

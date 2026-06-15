@@ -190,6 +190,16 @@ interface RepeatRequestRow {
   scheduled_round: number | null;
 }
 
+interface CrushRequestRow {
+  id: string;
+  requester_id: string;
+  target_id: string;
+  status: string;
+  created_at: string;
+  responded_at: string | null;
+  scheduled_round: number | null;
+}
+
 interface TableGenerationResult {
   tables: any[];
   hasIncomplete: boolean;
@@ -212,6 +222,7 @@ const EventDetail = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [repeatRequests, setRepeatRequests] = useState<RepeatRequestRow[]>([]);
+  const [crushRequests, setCrushRequests] = useState<CrushRequestRow[]>([]);
   const [showQR, setShowQR] = useState(false);
   const [showJoinQR, setShowJoinQR] = useState(false);
   const [showCheckinQR, setShowCheckinQR] = useState(false);
@@ -382,6 +393,13 @@ const EventDetail = () => {
       .select("id, requester_id, target_id, status, created_at, accepted_at, scheduled_round")
       .eq("event_id", id);
     setRepeatRequests((repeatData as RepeatRequestRow[]) || []);
+
+    // Load crush (Flechazo) requests for this event
+    const { data: crushData } = await (supabase as any)
+      .from("crush_requests")
+      .select("id, requester_id, target_id, status, created_at, responded_at, scheduled_round")
+      .eq("event_id", id);
+    setCrushRequests((crushData as CrushRequestRow[]) || []);
 
     if (selectionsData && participantsData) {
       // Build set of participant IDs in dismissed preliminary tables
@@ -5268,6 +5286,7 @@ const EventDetail = () => {
                     participants={activeParticipants}
                     matches={matches}
                     repeatRequests={repeatRequests}
+                    crushRequests={crushRequests}
                   />
                 </TabsContent>
               </Tabs>
@@ -5340,6 +5359,7 @@ const EventDetail = () => {
                 checkinOpensMinutesBefore={eventData.checkin_opens_minutes_before}
                 superLikeEnabled={eventData.super_like_enabled}
                 repeatRequestEnabled={eventData.repeat_request_enabled}
+                crushEnabled={(eventData as any).crush_enabled}
                 codeSendMode={eventData.code_send_mode}
                 eventStatus={eventStatus}
                 preliminaryRoundEnabled={!!eventData.preliminary_round?.enabled}
