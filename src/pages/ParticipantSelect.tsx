@@ -1107,6 +1107,29 @@ const ParticipantSelect = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!confirmCrushFor} onOpenChange={(open) => !open && setConfirmCrushFor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-600 fill-rose-500" />
+              {eventLang === "es" ? "¿Enviar un Flechazo a esta persona?" : "Send a Flechazo to this person?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventLang === "es"
+                ? `Enviaremos un email a ${confirmCrushFor?.name} para que decida si acepta tu Flechazo. Si acepta, ambos recibiréis los datos de contacto del otro y, si quedan rondas, os sentaremos en la misma mesa. Solo puedes enviar un Flechazo por evento.`
+                : `We'll send an email to ${confirmCrushFor?.name} so they can decide whether to accept your Flechazo. If accepted, you'll both receive each other's contact details and, if any rounds remain, you'll be seated together. You can only send one Flechazo per event.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSendingCrush}>{eventLang === "es" ? "Cancelar" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCrush} disabled={isSendingCrush} className="bg-rose-600 hover:bg-rose-700 text-white">
+              {isSendingCrush ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === "es" ? "Enviar Flechazo" : "Send Flechazo")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       <AlertDialog open={confirmEditSubmit} onOpenChange={(open) => !open && !isSubmitting && setConfirmEditSubmit(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
