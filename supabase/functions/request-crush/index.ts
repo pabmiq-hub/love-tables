@@ -165,8 +165,8 @@ serve(async (req: Request) => {
 
       const greeting = renderVar(tpl?.greeting || (lang === "en" ? "Hi {{nombre}}! 💘" : "¡Hola {{nombre}}! 💘"));
       const intro = renderVar(tpl?.intro || (lang === "en"
-        ? `Someone you met at <strong>{{evento}}</strong> has sent you a <strong>Flechazo</strong> — they'd really like to connect with you.<br/><br/>If you accept, you'll both receive each other's contact details by email, and we'll seat you together at the same table in the next round (if any rounds remain).`
-        : `Alguien a quien conociste en <strong>{{evento}}</strong> te ha enviado un <strong>Flechazo</strong> — le encantaría conectar contigo.<br/><br/>Si aceptas, ambos recibiréis los datos de contacto del otro por email y os sentaremos en la misma mesa en la próxima ronda (si quedan rondas pendientes).`));
+        ? `<strong>{{solicitante}}</strong> has sent you a <strong>Flechazo</strong> after meeting you at <strong>{{evento}}</strong> — they'd really like to connect with you.<br/><br/>If you accept, you'll both receive each other's contact details by email, and we'll seat you together at the same table in the next round (if any rounds remain).`
+        : `<strong>{{solicitante}}</strong> te ha enviado un <strong>Flechazo</strong> tras conocerle en <strong>{{evento}}</strong> — le encantaría conectar contigo.<br/><br/>Si aceptas, ambos recibiréis los datos de contacto del otro por email y os sentaremos en la misma mesa en la próxima ronda (si quedan rondas pendientes).`));
       const closing = renderVar(tpl?.closing || (lang === "en"
         ? "Tap a button below to respond."
         : "Pulsa un botón para responder."));

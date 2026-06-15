@@ -160,7 +160,7 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
   crush_request_received: {
     subject: "💘 Has recibido un Flechazo en {{evento}}",
     greeting: "¡Hola {{nombre}}! 💘",
-    intro: "Alguien a quien conociste en {{evento}} te ha enviado un Flechazo — le encantaría conectar contigo.\n\nSi aceptas, ambos recibiréis los datos de contacto del otro por email y os sentaremos en la misma mesa en la próxima ronda (si quedan rondas pendientes).",
+    intro: "{{solicitante}} te ha enviado un Flechazo tras conocerle en {{evento}} — le encantaría conectar contigo.\n\nSi aceptas, ambos recibiréis los datos de contacto del otro por email y os sentaremos en la misma mesa en la próxima ronda (si quedan rondas pendientes).",
     closing: "Pulsa un botón para responder. Solo se intercambian datos si aceptas.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
@@ -290,7 +290,7 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
   crush_request_received: {
     subject: "💘 You received a Flechazo at {{evento}}",
     greeting: "Hi {{nombre}}! 💘",
-    intro: "Someone you met at {{evento}} has sent you a Flechazo — they'd love to connect with you.\n\nIf you accept, you'll both receive each other's contact details by email and we'll seat you together at the same table in the next round (if any rounds remain).",
+    intro: "{{solicitante}} has sent you a Flechazo after meeting you at {{evento}} — they'd love to connect with you.\n\nIf you accept, you'll both receive each other's contact details by email and we'll seat you together at the same table in the next round (if any rounds remain).",
     closing: "Tap a button to respond. Contact details are only shared if you accept.",
     signature: "With love,\nThe Konektum Team 💕",
   },
