@@ -1,118 +1,96 @@
+## Resumen
 
+Añadir "Flechazo" como nueva acción dirigida (1 por participante por evento) que coexiste con Super Like. Aceptación bilateral, intercambio de datos de contacto por email y, si quedan rondas, materialización como inclusión obligatoria para la siguiente ronda generada. Además, reorganizar el panel de comunicaciones en bloques desplegables.
 
-# Plan: 5 ajustes para Modo Lúdico, QR, Inclusiones, Rondas dinámicas y nueva función "Repetir"
+## 1. Base de datos
 
-## 1. Modo lúdico — estimación correcta de mesas
+Nueva tabla `crush_requests` (migration):
 
-**Problema:** En Slow Friending [Abril2026] hay 55 inscritos y mesas de 5 → deberían estimarse 11 mesas, pero el editor calcula sobre `totalRounds` o usa fórmulas raras.
+- `requester_id`, `target_id` → `participants(id)`
+- `event_id` → `events(id)`
+- `status`: `pending | accepted | declined`
+- `created_at`, `responded_at`
+- Unicidad: `(event_id, requester_id)` para forzar 1 flechazo por participante por evento.
+- RLS: solo el organizador puede leer/escribir (las acciones de participantes pasarán por edge functions con service role, como el resto del flujo público).
+- GRANT a `authenticated` y `service_role`.
 
-**Cambio:**
-- En `EventSettingsEditor.tsx` y `CreateEvent.tsx`, recalcular `estimatedTables = Math.max(1, Math.ceil(participantsCount / tableSize))` ignorando `totalRounds` para el conteo de mesas.
-- Mostrar en el editor: "Estimación: **X** mesas (Y inscritos ÷ Z por mesa)".
-- En `EventSettingsEditor`, leer `participantsCount` real desde `eventData.participants_count` (ya disponible en props).
+En `events` añadir flag JSON dentro de `settings` (o columna boolean nueva `crush_enabled`) para habilitar/deshabilitar.
 
-## 2. Nuevo QR: Panel del participante (`/access`)
+## 2. Edge Functions
 
-**Cambio en `EventDetail.tsx`:**
-- En el dropdown "Códigos QR", añadir una tercera opción **siempre visible** (estados `pending`, `active`, `completed`):
-  - `QR Registro` → `/event/:id/join`
-  - `QR Check-in` → `/event/:id/checkin`
-  - **`QR Panel del participante`** → `/event/:id/access` *(nuevo, ya existe `EventQRCode type="access"`)*
-- Reutilizar `EventQRCode` con `type="access"` (ya implementado).
+- `request-crush`: valida código OTP del solicitante, crea registro `pending`, envía email al destinatario con enlace de respuesta (HMAC token).
+- `respond-crush`: token firmado → marca `accepted` o `declined`. Si `accepted`:
+  1. Envía email recíproco a ambos con **nombre completo + email**.
+  2. Inserta una entrada en `participant_inclusions` (mismo patrón que "Repetir") para que el próximo `generate-tables` los coloque en la misma mesa.
+  3. Si los participantes ya tienen un match recíproco, también se registra como `mutuo`.
+- Usar el mismo sistema de rate limit (350ms Resend) y `email_logs`.
 
-## 3. Inclusiones (opuesto de Exclusiones)
+## 3. Plantillas de email (personalizables)
 
-**Nueva tabla:** `participant_inclusions`
-```sql
-CREATE TABLE participant_inclusions (
-  id uuid PK,
-  event_id uuid FK events,
-  participant_1_id uuid FK participants,
-  participant_2_id uuid FK participants,
-  reason text,
-  created_at timestamptz default now()
-);
-```
-+ índice único `(event_id, LEAST(p1,p2), GREATEST(p1,p2))` y RLS por `is_event_organizer`.
+Tres plantillas nuevas en `CommunicationSettingsEditor` / `templates`:
 
-**Nuevo componente:** `InclusionsManager.tsx` (clon adaptado de `ExclusionsManager.tsx`, color verde, icono `UserPlus`).
+- `crush_request` → al destinatario ("Alguien te ha enviado un flechazo")
+- `crush_declined` → al solicitante (opcional, configurable)
+- `crush_mutual` → a ambos con datos de contacto
 
-**Botón en `EventDetail.tsx`:** "Inclusiones" junto a "Exclusiones" (mismo gating: `hasFeature('avoid_encounters')`).
+Variables: `{{requesterName}}`, `{{targetName}}`, `{{contactEmail}}`, `{{eventName}}`, `{{responseUrl}}`.
 
-**Algoritmo (`generateSmartTables` + `generateB2BTables`):**
-- Tras cargar exclusiones, cargar también `inclusions` y construir un grafo de "componentes obligatorios" (Union-Find).
-- Antes del fill normal, sentar a cada componente **junto** en la misma mesa de cada ronda (validando que `tableSize` lo permita; si no, advertencia).
-- Si el componente excede `tableSize`, mostrar warning y degradar a "best effort" en `relaxConstraints`.
+Página pública `/crush/:token` para aceptar/rechazar (similar a `/repeat/:token`).
 
-## 4. Generación de rondas "just-in-time" (al acabar la ronda anterior)
+## 4. Panel de participante
 
-**Problema:** Hoy todas las rondas se generan en el `Iniciar evento`, así que las bajas a mitad de evento dejan huecos en futuras rondas.
+En `ParticipantSelect` (sección selecciones), añadir botón "💘 Flechazo" junto al Super Like en cada tarjeta, con:
+- Confirmación previa (1 uso por evento).
+- Disabled si ya envió o si el evento tiene `crush_enabled=false`.
+- Estado visible: "Enviado · Pendiente / Aceptado / Rechazado".
 
-**Cambio en flujo:**
-- Añadir flag opcional `events.tables_generation_mode` ENUM: `'upfront'` (actual, default) | `'per_round'` (nuevo).
-- En el editor de evento (`EventSettingsEditor`), añadir toggle "Generar cada ronda al finalizar la anterior" (recomendado para eventos largos / con bajas frecuentes).
-- En `'per_round'`:
-  - `Iniciar evento`: solo se genera **Ronda 1** con los participantes con check-in.
-  - `onCompleteRound(roundNumber)` (línea ~4262): si `mode='per_round'` y `nextRound <= eventData.rounds`, llamar a `generateSmartTables(checkedInActives, 1, ...)` con `existingEncounters` reconstruido (igual que `handleAddRound`), y **excluir participantes con `cancelled_at` o `dropped_at`** posterior al inicio.
-  - Persistir la nueva ronda en `eventData.tables`.
-- Reutilizar la lógica de `handleAddRound` (líneas 2333-2422), extrayéndola a un helper compartido `generateSingleRound(roundNumber, baseEncounters)`.
+## 5. Panel administrador
 
-## 5. Nueva funcionalidad: "Repetir" (volver a coincidir con un participante)
+### Ajustes del evento
+- Toggle `Habilitar Flechazo` (sección Funcionalidades).
 
-**UX (panel del participante `/access`):**
-- En cada tarjeta de mesa de una ronda terminada, junto a los botones "Amistad / Romance", añadir un botón **"🔁 Repetir"** (deshabilitado tras usarlo una vez por evento).
-- Al pulsarlo: dialog de confirmación → llamada a edge function `request-repeat`.
-- Indicador "Has usado tu repetición" + estado de la solicitud (`pendiente / aceptada / rechazada / caducada`).
+### Pestaña Eventos (EventsViewer)
+- Nueva sección "Flechazos" con tabla: De → Para, Estado (Pendiente/Aceptado/Rechazado), Mesa asignada en próxima ronda (si aplica).
 
-**Tabla:** `repeat_requests`
-```sql
-CREATE TABLE repeat_requests (
-  id uuid PK,
-  event_id uuid FK,
-  requester_id uuid FK participants,
-  target_id uuid FK participants,
-  status text CHECK (status IN ('pending','accepted','declined','expired','fulfilled')),
-  token text UNIQUE NOT NULL,           -- HMAC para enlace en email
-  scheduled_round int,                  -- ronda en que se materializa (null hasta aceptar)
-  created_at, accepted_at, expires_at
-);
-```
-+ Constraint único `(event_id, requester_id)` para garantizar **1 repetición por evento por participante**.
+## 6. Reorganización de Comunicaciones (UX)
 
-**Edge functions nuevas:**
-- `request-repeat`: valida (1 por evento, target ≠ requester, target con check-in, mismo evento) → INSERT pending → envía email al target con botón Aceptar/Rechazar (HMAC token, mismo patrón que `participant-cancellation-flow`).
-- `respond-repeat`: endpoint público (token-based) → acepta/rechaza.
+Agrupar los chips actuales en bloques `Accordion` desplegables:
 
-**Materialización (cuando target acepta):**
-- Determinar `currentRound` del evento.
-- Si `current_round < total_rounds`:
-  - **Si la siguiente ronda aún no está generada** (modo `per_round`): marcar el par como **inclusión temporal** sólo para esa ronda → cuando `generateSingleRound(nextRound)` corra, los sentará juntos.
-  - **Si ya está generada** (modo `upfront`): re-generar la siguiente ronda con la inclusión añadida (botón confirmar al organizador, o automático si activa "auto-aplicar repeticiones").
-- Si `current_round >= total_rounds`: marcar `status='expired'` y enviar email "no fue posible" al requester.
+- **Inscripción y acceso**: Confirmación, Código de acceso, Recordatorio
+- **Durante el evento**: Recordatorio de selecciones, Super Like
+- **Post-evento**: Resultados, No-show
+- **Repetir**: recibido, aceptada, rechazada
+- **Flechazo**: solicitud, rechazado, mutuo (nuevo bloque)
+- **Pagos**: Recordatorio pago
 
-**Comunicaciones nuevas (sección Ajustes de comunicación → plantillas):**
-- `repeat_request_received` (al target con botón Aceptar/Rechazar).
-- `repeat_request_accepted` (al requester: "te sentarás con X en la ronda Y").
-- `repeat_request_expired` (al requester: "ya no fue posible aplicar tu repetición").
+Misma lógica de edición, solo cambia el contenedor visual.
 
-**Gating:** feature flag `repeat_request` solo en plan Pro/Enterprise (configurable por Super Admin en "Gestión de Features").
+## 7. Retroactividad
+
+Aplicar a todos los eventos existentes: `crush_enabled` por defecto `false` (opt-in del organizador). La tabla y las plantillas estarán disponibles para cualquier evento al activar el toggle.
 
 ## Detalles técnicos
 
-- **Migraciones SQL:** 3 nuevas tablas (`participant_inclusions`, `repeat_requests`, columna `tables_generation_mode`) con RLS por `is_event_organizer` para administración y políticas públicas para edge functions con service-role.
-- **Algoritmo:** Union-Find sencillo para inclusiones; integrado en ambos `generateFixedHostTables` y `generateAllRotateTables` antes del bucle de seating.
-- **Helpers compartidos:**
-  - `src/lib/inclusions.ts` (carga + grupos).
-  - `src/lib/roundGeneration.ts` (extrae `generateSingleRound` desde `EventDetail.handleAddRound`).
-- **Lifecycle del repeat request:**
-  - Cron `pg_cron` cada 5 min: marca `expired` si `current_round >= rounds` o `expires_at < now()`.
-  - Al materializarse en una ronda → `status='fulfilled'`.
-- **Memoria a actualizar:** crear `mem://features/social-module/repeat-request` y `mem://features/social-module/inclusions-system`; actualizar `mem://features/social-module/dynamic-round-management` con el modo per-round.
+- Tabla `crush_requests` con índices en `(event_id, status)` y `(target_id, status)`.
+- HMAC con `SUPABASE_SERVICE_ROLE_KEY` (mismo patrón que `handle-participant-cancellation` y `respond-repeat`).
+- La inclusión se crea con `priority='crush'` para distinguirla en analytics y exclusiones.
+- Si no quedan rondas por generar, el email lo indica explícitamente ("os habéis perdido el match en mesa, pero aquí tenéis vuestros contactos").
+- `submit-selections` y `generate-tables` no requieren cambios — leen inclusions existentes.
 
-## Orden de implementación sugerido
+## Archivos afectados
 
-1. Fix estimación Modo Lúdico + nuevo QR Panel (rápido, sin migración).
-2. Inclusiones (migración + UI + algoritmo).
-3. Modo `per_round` para rondas (toggle + refactor de `generateSingleRound`).
-4. Función "Repetir" completa (tabla + 2 edge functions + UI panel + 3 plantillas + cron).
+**Nuevos:**
+- `supabase/migrations/<ts>_crush_system.sql`
+- `supabase/functions/request-crush/index.ts`
+- `supabase/functions/respond-crush/index.ts`
+- `src/pages/CrushResponse.tsx`
+- `src/components/event/CommunicationGroups.tsx` (wrapper accordion)
 
+**Editados:**
+- `src/components/event/CommunicationSettingsEditor.tsx` (agrupación + 3 plantillas nuevas)
+- `src/components/event/communication/types.ts` y `normalizeTemplates.ts`
+- `src/components/event/EventSettingsEditor.tsx` (toggle)
+- `src/components/event/EventsViewer.tsx` (sección Flechazos)
+- `src/pages/ParticipantSelect.tsx` (botón + estado)
+- `src/pages/EventDetail.tsx` (fetch crush_requests)
+- `src/App.tsx` (ruta `/crush/:token`)
