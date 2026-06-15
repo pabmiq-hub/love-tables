@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      crush_requests: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          requester_id: string
+          responded_at: string | null
+          scheduled_round: number | null
+          status: string
+          target_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          requester_id: string
+          responded_at?: string | null
+          scheduled_round?: number | null
+          status?: string
+          target_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          requester_id?: string
+          responded_at?: string | null
+          scheduled_round?: number | null
+          status?: string
+          target_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crush_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crush_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crush_requests_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           created_at: string
@@ -157,6 +215,7 @@ export type Database = {
           code_send_mode: string
           completed_rounds: number[] | null
           created_at: string
+          crush_enabled: boolean
           current_round: number | null
           custom_age_ranges: Json | null
           custom_dating_preferences: Json | null
@@ -219,6 +278,7 @@ export type Database = {
           code_send_mode?: string
           completed_rounds?: number[] | null
           created_at?: string
+          crush_enabled?: boolean
           current_round?: number | null
           custom_age_ranges?: Json | null
           custom_dating_preferences?: Json | null
@@ -281,6 +341,7 @@ export type Database = {
           code_send_mode?: string
           completed_rounds?: number[] | null
           created_at?: string
+          crush_enabled?: boolean
           current_round?: number | null
           custom_age_ranges?: Json | null
           custom_dating_preferences?: Json | null
