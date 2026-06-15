@@ -1,0 +1,1 @@
+UPDATE public.events SET crush_enabled = true WHERE id IN ('32ebdc2f-3b6b-462d-95c3-16aca1a05896','e2c6d179-b8a6-48e4-b9c2-9fd8a3dfc483');
