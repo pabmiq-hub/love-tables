@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Sparkles, Repeat, CheckCircle2, XCircle, Clock, ArrowRight } from "lucide-react";
+import { Sparkles, Repeat, CheckCircle2, XCircle, Clock, ArrowRight, Heart } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface DbParticipant {
@@ -31,17 +31,27 @@ interface RepeatRequestRow {
   scheduled_round: number | null;
 }
 
+interface CrushRequestRow {
+  id: string;
+  requester_id: string;
+  target_id: string;
+  status: string;
+  created_at: string;
+  responded_at: string | null;
+  scheduled_round: number | null;
+}
+
 interface EventsViewerProps {
   selections: Selection[];
   participants: DbParticipant[];
   matches: Match[];
   repeatRequests: RepeatRequestRow[];
+  crushRequests?: CrushRequestRow[];
 }
 
-const EventsViewer = ({ selections, participants, matches, repeatRequests }: EventsViewerProps) => {
+const EventsViewer = ({ selections, participants, matches, repeatRequests, crushRequests = [] }: EventsViewerProps) => {
   const byId = new Map(participants.map((p) => [p.id, p]));
 
-  // Mutual match pairs
   const matchPairs = new Set<string>();
   matches.forEach((m) => {
     matchPairs.add(`${m.participant1.id}-${m.participant2.id}`);
@@ -213,6 +223,72 @@ const EventsViewer = ({ selections, participants, matches, repeatRequests }: Eve
                           )}
                         </TableCell>
                         <TableCell className="text-right">{statusBadge(r.status)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Flechazo Requests */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+            Flechazos ({crushRequests.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {crushRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No se han enviado flechazos en este evento
+            </p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Solicitante</TableHead>
+                    <TableHead></TableHead>
+                    <TableHead>Destinatario</TableHead>
+                    <TableHead className="text-center">Ronda</TableHead>
+                    <TableHead className="text-right">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {crushRequests.map((c) => {
+                    const from = byId.get(c.requester_id);
+                    const to = byId.get(c.target_id);
+                    return (
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar1 name={from?.name || "?"} />
+                            <span className="text-sm">{from?.name || "—"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-6">
+                          <ArrowRight className="w-4 h-4 text-rose-400" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar1 name={to?.name || "?"} />
+                            <span className="text-sm">{to?.name || "—"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {c.scheduled_round ? (
+                            <Badge variant="outline" className="text-xs">
+                              Ronda {c.scheduled_round}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">{statusBadge(c.status)}</TableCell>
                       </TableRow>
                     );
                   })}
