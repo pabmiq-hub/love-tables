@@ -176,11 +176,15 @@ serve(async (req) => {
     const tablemateIds = new Set<string>();
     const assignments: { round: number; table: number; tablemateEntries: { id: string; name: string }[] }[] = [];
     
+    // For completed events, show all stored rounds regardless of current_round
+    // (protects against desync where current_round didn't advance while rounds were played)
+    const isCompleted = event.status === 'completed';
     for (const roundData of tables) {
       const roundNumber = roundData.round;
       
       // Only include rounds that are completed or currently active
-      if (roundNumber > currentRound) continue;
+      if (!isCompleted && roundNumber > currentRound) continue;
+      
       
       const roundTables = roundData.tables;
       if (!roundTables || !Array.isArray(roundTables)) continue;
