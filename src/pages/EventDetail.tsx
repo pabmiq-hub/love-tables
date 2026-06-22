@@ -4239,6 +4239,16 @@ const EventDetail = () => {
                           (p: any) => p.payment_status !== "paid" && p.email && !p.is_fake
                         );
                         if (unpaidWithEmail.length === 0) return null;
+                        // Hide bulk reminder once the event has started
+                        const baseDate = parseEventDate(eventData.date);
+                        let startAt: Date | null = null;
+                        if (baseDate) {
+                          startAt = new Date(baseDate);
+                          const t = (eventData.event_time || "").match(/^(\d{1,2}):(\d{2})/);
+                          if (t) startAt.setHours(Number(t[1]), Number(t[2]), 0, 0);
+                          else startAt.setHours(0, 0, 0, 0);
+                        }
+                        if (startAt && Date.now() >= startAt.getTime()) return null;
                         return (
                           <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/10">
                             <div className="flex items-center gap-2 text-sm">
