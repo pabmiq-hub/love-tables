@@ -51,6 +51,7 @@ interface ParticipantCardProps {
   onTogglePayment?: (id: string, currentPaid: boolean) => void;
   onSendPaymentReminder?: (id: string) => void;
   isSendingPaymentReminder?: boolean;
+  eventStartAt?: Date | null;
 }
 
 const getGenderBadge = (gender: string | null) => {
