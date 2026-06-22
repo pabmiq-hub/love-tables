@@ -4328,6 +4328,7 @@ const EventDetail = () => {
                         onTogglePayment={handleTogglePayment}
                         onSendPaymentReminder={(pId) => handleSendPaymentReminder([pId])}
                         isSendingPaymentReminder={sendingPaymentReminderFor === participant.id}
+                        eventStartAt={eventStartAt}
                       />
 
                     ))}
