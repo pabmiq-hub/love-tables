@@ -96,8 +96,15 @@ const ParticipantCard = ({
   onTogglePayment,
   onSendPaymentReminder,
   isSendingPaymentReminder,
+  eventStartAt,
 }: ParticipantCardProps) => {
   const isPaid = participant.payment_status === "paid";
+  const paidAtMs = participant.paid_at ? new Date(participant.paid_at).getTime() : null;
+  const eventStartMs = eventStartAt ? eventStartAt.getTime() : null;
+  const eventStarted = eventStartMs != null && Date.now() >= eventStartMs;
+  // "Late" payment = paid within the last hour before the event or after it started
+  const isLatePayment =
+    isPaid && paidAtMs != null && eventStartMs != null && paidAtMs >= eventStartMs - 60 * 60 * 1000;
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
