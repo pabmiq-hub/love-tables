@@ -223,16 +223,28 @@ const ParticipantCard = ({
                     variant={isPaid ? "default" : "outline"}
                     size="icon"
                     onClick={() => onTogglePayment(participant.id, isPaid)}
-                    className={`h-7 w-7 ${isPaid ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : "text-muted-foreground hover:text-emerald-600"}`}
+                    className={`h-7 w-7 ${
+                      isPaid
+                        ? isLatePayment
+                          ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                        : "text-muted-foreground hover:text-emerald-600"
+                    }`}
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isPaid ? "Marcar como no pagado" : "Marcar como pagado"}</TooltipContent>
+                <TooltipContent>
+                  {isPaid
+                    ? isLatePayment
+                      ? "Pagado en el evento (haz clic para deshacer)"
+                      : "Pagado antes del evento (haz clic para deshacer)"
+                    : "Marcar como pagado"}
+                </TooltipContent>
               </Tooltip>
             )}
 
-            {paymentTrackingEnabled && !isPaid && participant.email && onSendPaymentReminder && (
+            {paymentTrackingEnabled && !isPaid && !eventStarted && participant.email && onSendPaymentReminder && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
