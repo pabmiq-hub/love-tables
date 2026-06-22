@@ -31,6 +31,7 @@ import EventsViewer from "@/components/event/EventsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import ParticipantCard from "@/components/event/ParticipantCard";
+import { parseEventDate } from "@/lib/eventDate";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
