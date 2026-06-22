@@ -34,6 +34,7 @@ interface ParticipantCardProps {
     is_returning_participant?: boolean | null;
     is_fake?: boolean | null;
     payment_status?: string | null;
+    paid_at?: string | null;
   };
   index: number;
   isProfessional: boolean;
