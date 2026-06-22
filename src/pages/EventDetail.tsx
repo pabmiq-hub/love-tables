@@ -31,6 +31,7 @@ import EventsViewer from "@/components/event/EventsViewer";
 import EmailManagement from "@/components/event/EmailManagement";
 import InlineEmailEditor from "@/components/event/InlineEmailEditor";
 import ParticipantCard from "@/components/event/ParticipantCard";
+import { parseEventDate } from "@/lib/eventDate";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
@@ -3259,6 +3260,16 @@ const EventDetail = () => {
     ? nonCancelledParticipants.filter(p => p.checked_in)
     : nonCancelledParticipants;
 
+  const eventStartAt: Date | null = (() => {
+    const baseDate = parseEventDate(eventData?.date);
+    if (!baseDate) return null;
+    const d = new Date(baseDate);
+    const t = (eventData?.event_time || "").match(/^(\d{1,2}):(\d{2})/);
+    if (t) d.setHours(Number(t[1]), Number(t[2]), 0, 0);
+    else d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
   const filteredParticipants = activeParticipants
     .filter(p => {
       // Search by name or company name (for professional)
@@ -4238,6 +4249,16 @@ const EventDetail = () => {
                           (p: any) => p.payment_status !== "paid" && p.email && !p.is_fake
                         );
                         if (unpaidWithEmail.length === 0) return null;
+                        // Hide bulk reminder once the event has started
+                        const baseDate = parseEventDate(eventData.date);
+                        let startAt: Date | null = null;
+                        if (baseDate) {
+                          startAt = new Date(baseDate);
+                          const t = (eventData.event_time || "").match(/^(\d{1,2}):(\d{2})/);
+                          if (t) startAt.setHours(Number(t[1]), Number(t[2]), 0, 0);
+                          else startAt.setHours(0, 0, 0, 0);
+                        }
+                        if (startAt && Date.now() >= startAt.getTime()) return null;
                         return (
                           <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/10">
                             <div className="flex items-center gap-2 text-sm">
@@ -4307,6 +4328,7 @@ const EventDetail = () => {
                         onTogglePayment={handleTogglePayment}
                         onSendPaymentReminder={(pId) => handleSendPaymentReminder([pId])}
                         isSendingPaymentReminder={sendingPaymentReminderFor === participant.id}
+                        eventStartAt={eventStartAt}
                       />
 
                     ))}

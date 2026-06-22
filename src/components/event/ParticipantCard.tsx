@@ -34,6 +34,7 @@ interface ParticipantCardProps {
     is_returning_participant?: boolean | null;
     is_fake?: boolean | null;
     payment_status?: string | null;
+    paid_at?: string | null;
   };
   index: number;
   isProfessional: boolean;
@@ -50,6 +51,7 @@ interface ParticipantCardProps {
   onTogglePayment?: (id: string, currentPaid: boolean) => void;
   onSendPaymentReminder?: (id: string) => void;
   isSendingPaymentReminder?: boolean;
+  eventStartAt?: Date | null;
 }
 
 const getGenderBadge = (gender: string | null) => {
@@ -94,8 +96,15 @@ const ParticipantCard = ({
   onTogglePayment,
   onSendPaymentReminder,
   isSendingPaymentReminder,
+  eventStartAt,
 }: ParticipantCardProps) => {
   const isPaid = participant.payment_status === "paid";
+  const paidAtMs = participant.paid_at ? new Date(participant.paid_at).getTime() : null;
+  const eventStartMs = eventStartAt ? eventStartAt.getTime() : null;
+  const eventStarted = eventStartMs != null && Date.now() >= eventStartMs;
+  // "Late" payment = paid within the last hour before the event or after it started
+  const isLatePayment =
+    isPaid && paidAtMs != null && eventStartMs != null && paidAtMs >= eventStartMs - 60 * 60 * 1000;
   const genderConfig = getGenderBadge(participant.gender);
   const preferenceConfig = !isProfessional ? getPreferenceConfig(participant.preference) : null;
   const registrationDate = participant.created_at ? new Date(participant.created_at) : null;
@@ -214,16 +223,28 @@ const ParticipantCard = ({
                     variant={isPaid ? "default" : "outline"}
                     size="icon"
                     onClick={() => onTogglePayment(participant.id, isPaid)}
-                    className={`h-7 w-7 ${isPaid ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" : "text-muted-foreground hover:text-emerald-600"}`}
+                    className={`h-7 w-7 ${
+                      isPaid
+                        ? isLatePayment
+                          ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                        : "text-muted-foreground hover:text-emerald-600"
+                    }`}
                   >
                     <CreditCard className="w-3.5 h-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isPaid ? "Marcar como no pagado" : "Marcar como pagado"}</TooltipContent>
+                <TooltipContent>
+                  {isPaid
+                    ? isLatePayment
+                      ? "Pagado en el evento (haz clic para deshacer)"
+                      : "Pagado antes del evento (haz clic para deshacer)"
+                    : "Marcar como pagado"}
+                </TooltipContent>
               </Tooltip>
             )}
 
-            {paymentTrackingEnabled && !isPaid && participant.email && onSendPaymentReminder && (
+            {paymentTrackingEnabled && !isPaid && !eventStarted && participant.email && onSendPaymentReminder && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
