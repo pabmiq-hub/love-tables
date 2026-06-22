@@ -3260,6 +3260,16 @@ const EventDetail = () => {
     ? nonCancelledParticipants.filter(p => p.checked_in)
     : nonCancelledParticipants;
 
+  const eventStartAt: Date | null = (() => {
+    const baseDate = parseEventDate(eventData?.date);
+    if (!baseDate) return null;
+    const d = new Date(baseDate);
+    const t = (eventData?.event_time || "").match(/^(\d{1,2}):(\d{2})/);
+    if (t) d.setHours(Number(t[1]), Number(t[2]), 0, 0);
+    else d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
   const filteredParticipants = activeParticipants
     .filter(p => {
       // Search by name or company name (for professional)
