@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil, Send } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Star, Repeat2, Pencil, Send, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -126,6 +127,10 @@ const ParticipantSelect = () => {
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string }>>(new Map());
   const [confirmEditSubmit, setConfirmEditSubmit] = useState(false);
+  const [reviewedRounds, setReviewedRounds] = useState<Set<number>>(new Set());
+  const [submittingRound, setSubmittingRound] = useState<number | null>(null);
+  const [openRound, setOpenRound] = useState<string>("");
+  const [pendingRoundSubmit, setPendingRoundSubmit] = useState<number | null>(null);
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
@@ -183,6 +188,34 @@ const ParticipantSelect = () => {
 
     checkEventStatus();
   }, [eventId]);
+
+  // Load reviewed-rounds (per participant per event) from localStorage
+  useEffect(() => {
+    if (!eventId || !verifiedParticipant?.id) return;
+    try {
+      const raw = localStorage.getItem(`reviewed_rounds_${eventId}_${verifiedParticipant.id}`);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) setReviewedRounds(new Set(arr.filter((n) => typeof n === "number")));
+      }
+    } catch (e) {
+      // ignore corrupted entries
+    }
+  }, [eventId, verifiedParticipant?.id]);
+
+  const persistReviewedRounds = (next: Set<number>) => {
+    setReviewedRounds(next);
+    if (eventId && verifiedParticipant?.id) {
+      try {
+        localStorage.setItem(
+          `reviewed_rounds_${eventId}_${verifiedParticipant.id}`,
+          JSON.stringify(Array.from(next))
+        );
+      } catch (e) {
+        // ignore quota errors
+      }
+    }
+  };
 
   // Verify the code and get participant info
   const handleVerifyCode = async () => {
@@ -602,15 +635,211 @@ const ParticipantSelect = () => {
     return getTablemates(verifiedParticipant.id, tablesData, participants);
   };
 
+  // Build per-round buckets of tablemates for the verified participant.
+  // Only includes rounds that have already occurred (round <= currentRound)
+  // and where the participant was actually seated.
+  type RoundBucket = { round: number; tablemates: Participant[] };
+  const getRoundBuckets = (): RoundBucket[] => {
+    if (!verifiedParticipant) return [];
+    const buckets: RoundBucket[] = [];
+    const sorted = [...tablesData].sort((a, b) => a.round - b.round);
+    const seenPairs = new Set<string>();
+    for (const r of sorted) {
+      if (r.round > currentRound) continue;
+      const myTable = r.tables.find(t => t.some(p => p.id === verifiedParticipant.id));
+      if (!myTable) continue;
+      const ids = new Set(myTable.map(m => m.id).filter(id => id !== verifiedParticipant.id));
+      const tablemates: Participant[] = [];
+      for (const p of participants) {
+        if (!ids.has(p.id)) continue;
+        // Dedupe across rounds: don't show same person twice in same round bucket,
+        // but allow them to appear in multiple rounds (rare).
+        const key = `${r.round}:${p.id}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        tablemates.push(p);
+      }
+      if (tablemates.length > 0) buckets.push({ round: r.round, tablemates });
+    }
+    return buckets;
+  };
+
   const tablematesForSelection = getTablematesForSelection();
+  const roundBuckets = getRoundBuckets();
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
   const alreadySelectedCount = matchSelections.filter(ms => ms.alreadySelected).length;
 
+  // Round-state helpers
+  const isRoundCompleted = (round: number, tablemates: Participant[]): boolean => {
+    if (reviewedRounds.has(round)) return true;
+    if (tablemates.length === 0) return true;
+    return tablemates.every(p => {
+      const ms = matchSelections.find(s => s.participantId === p.id);
+      return !!ms?.alreadySelected;
+    });
+  };
+
+  const countNewSelectionsForRound = (tablemates: Participant[]): number => {
+    return tablemates.filter(p => {
+      const ms = matchSelections.find(s => s.participantId === p.id);
+      return ms && !ms.alreadySelected && (ms.friendship || ms.dating);
+    }).length;
+  };
+
+  const countPendingEditsForRound = (tablemates: Participant[]): number => {
+    let n = 0;
+    for (const p of tablemates) {
+      const edit = pendingEdits.get(p.id);
+      if (!edit) continue;
+      const newType = computePendingType(edit);
+      if (newType !== (edit.originalType || null)) n++;
+    }
+    return n;
+  };
+
+  const submitRound = async (round: number, tablemates: Participant[]) => {
+    if (!verifiedParticipant || !eventId) return;
+    setSubmittingRound(round);
+
+    const ids = new Set(tablemates.map(p => p.id));
+
+    // 1) Apply pending edits scoped to this round
+    const editEntries = Array.from(pendingEdits.entries()).filter(([pid, edit]) => {
+      if (!ids.has(pid)) return false;
+      const newType = computePendingType(edit);
+      return newType !== (edit.originalType || null);
+    });
+
+    for (const [participantId, edit] of editEntries) {
+      const newType = computePendingType(edit);
+      const { data, error } = await supabase.functions.invoke('update-selection', {
+        body: { eventId, verificationCode, selectedId: participantId, selectionType: newType },
+      });
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || (eventLang === "es" ? "No se pudo actualizar la selección" : "Could not update the selection"),
+          variant: "destructive",
+        });
+        setSubmittingRound(null);
+        return;
+      }
+    }
+
+    // 2) New selections (people of this round not previously selected)
+    const activeSelections = matchSelections.filter(ms =>
+      ids.has(ms.participantId) && !ms.alreadySelected && (ms.friendship || ms.dating)
+    );
+
+    if (activeSelections.length > 0) {
+      const selections = activeSelections.map(ms => {
+        let selectionType = 'friendship';
+        if (ms.friendship && ms.dating) selectionType = 'both';
+        else if (ms.dating) selectionType = 'dating';
+        return { selected_id: ms.participantId, selection_type: selectionType };
+      });
+
+      // Include superLikeId only if it belongs to this round
+      const slForRound = superLikeId && ids.has(superLikeId) ? superLikeId : null;
+
+      const { data, error } = await supabase.functions.invoke('submit-selections', {
+        body: { eventId, verificationCode, selections, superLikeId: slForRound }
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Error",
+          description: data?.error || t.select.noTablemates,
+          variant: "destructive",
+        });
+        setSubmittingRound(null);
+        return;
+      }
+    }
+
+    // Update local state: mark these participants as already selected so they
+    // render with the pencil-edit affordance.
+    setMatchSelections(prev =>
+      prev.map(ms => {
+        if (!ids.has(ms.participantId)) return ms;
+        const edit = pendingEdits.get(ms.participantId);
+        let newType: string | undefined = ms.previousSelectionType;
+        if (edit) {
+          const t = computePendingType(edit);
+          newType = t ?? undefined;
+        } else if (!ms.alreadySelected && (ms.friendship || ms.dating)) {
+          if (ms.friendship && ms.dating) newType = 'both';
+          else if (ms.dating) newType = 'dating';
+          else newType = 'friendship';
+        }
+        if (newType === undefined) {
+          // removed via edit
+          return { ...ms, alreadySelected: false, friendship: false, dating: false, previousSelectionType: undefined };
+        }
+        return {
+          ...ms,
+          alreadySelected: true,
+          friendship: false,
+          dating: false,
+          previousSelectionType: newType,
+        };
+      })
+    );
+
+    // Clear pending edits + editing flags for this round
+    setEditingIds(prev => {
+      const next = new Set(prev);
+      tablemates.forEach(p => next.delete(p.id));
+      return next;
+    });
+    setPendingEdits(prev => {
+      const next = new Map(prev);
+      tablemates.forEach(p => next.delete(p.id));
+      return next;
+    });
+
+    // Mark round as reviewed
+    const nextReviewed = new Set(reviewedRounds);
+    nextReviewed.add(round);
+    persistReviewedRounds(nextReviewed);
+
+    if (activeSelections.length > 0 || editEntries.length > 0) {
+      toast({
+        title: eventLang === "es" ? `✓ Ronda ${round} enviada` : `✓ Round ${round} sent`,
+        description: eventLang === "es"
+          ? `${activeSelections.length} selección(es) · ${editEntries.length} edición(es)`
+          : `${activeSelections.length} selection(s) · ${editEntries.length} edit(s)`,
+      });
+    } else {
+      toast({
+        title: eventLang === "es" ? `Ronda ${round} marcada` : `Round ${round} marked`,
+        description: eventLang === "es" ? "Sin conexiones en esta ronda" : "No connections in this round",
+      });
+    }
+
+    setSubmittingRound(null);
+    // Auto-collapse the just-submitted round
+    setOpenRound(prev => prev === `round-${round}` ? "" : prev);
+  };
+
+  const markRoundNoConnections = (round: number) => {
+    const nextReviewed = new Set(reviewedRounds);
+    nextReviewed.add(round);
+    persistReviewedRounds(nextReviewed);
+    setOpenRound("");
+    toast({
+      title: eventLang === "es" ? `Ronda ${round} marcada` : `Round ${round} marked`,
+      description: eventLang === "es"
+        ? "Has indicado que no conectaste con nadie en esta ronda"
+        : "You indicated that you didn't connect with anyone in this round",
+    });
+  };
+
+  // Legacy single-submit flow — kept for events without round data (e.g. preliminary-only)
   const performSubmit = async () => {
     if (!verifiedParticipant || !eventId) return;
     setIsSubmitting(true);
 
-    // 1) Apply pending edits via update-selection (sequentially to keep messages clear)
     const editEntries = Array.from(pendingEdits.entries()).filter(([, edit]) => {
       const newType = computePendingType(edit);
       return newType !== (edit.originalType || null);
@@ -622,7 +851,6 @@ const ParticipantSelect = () => {
         body: { eventId, verificationCode, selectedId: participantId, selectionType: newType },
       });
       if (error || data?.error) {
-        console.error('Error updating selection:', error || data?.error);
         toast({
           title: "Error",
           description: data?.error || (eventLang === "es" ? "No se pudo actualizar la selección" : "Could not update the selection"),
@@ -633,7 +861,6 @@ const ParticipantSelect = () => {
       }
     }
 
-    // 2) New selections (people not previously selected)
     const activeSelections = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating));
 
     if (activeSelections.length === 0 && editEntries.length === 0) {
@@ -659,7 +886,6 @@ const ParticipantSelect = () => {
       });
 
       if (error || data?.error) {
-        console.error('Error saving selections:', error || data?.error);
         toast({
           title: "Error",
           description: data?.error || t.select.noTablemates,
@@ -687,13 +913,14 @@ const ParticipantSelect = () => {
   };
 
   const handleSubmit = async () => {
-    // If user is editing previously-submitted selections, ask for confirmation first
     if (hasMeaningfulEdits()) {
       setConfirmEditSubmit(true);
       return;
     }
     await performSubmit();
   };
+
+
 
 
   if (isLoading) {
@@ -834,241 +1061,321 @@ const ParticipantSelect = () => {
         </Card>
       )}
 
-      {step === "select" && (
-        <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">{t.select.whoDidYouConnect}</CardTitle>
-            <CardDescription>{t.select.selectPeople}</CardDescription>
-            {alreadySelectedCount > 0 && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {t.select.previousSelections} {alreadySelectedCount} {t.select.previousSelectionsSuffix}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {tablematesForSelection.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">{t.select.noTablemates}</p>
+      {step === "select" && (() => {
+        // Per-person card renderer reused inside each round bucket
+        const renderPersonCard = (person: Participant) => {
+          const selectionState = getSelectionState(person.id);
+          const isSelected = hasAnySelection(person.id);
+          const isAlreadySelected = selectionState.alreadySelected;
+          return (
+            <div
+              key={person.id}
+              className={`p-4 rounded-lg transition-all ${isAlreadySelected
+                  ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
+                  : isSelected
+                    ? 'bg-primary/10 border-2 border-primary shadow-soft'
+                    : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
+                }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium">{formatAnonymousName(person.name, person.phone)}</span>
+                {isAlreadySelected && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {getPreviousSelectionLabel(selectionState.previousSelectionType)}
+                    </Badge>
+                    {!editingIds.has(person.id) && (
+                      <button
+                        type="button"
+                        onClick={() => startEditing(person.id)}
+                        aria-label={eventLang === "es" ? "Modificar selección" : "Modify selection"}
+                        title={eventLang === "es" ? "Modificar" : "Modify"}
+                        className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="grid gap-3 max-h-96 overflow-y-auto">
-                {tablematesForSelection.map((person) => {
-                  const selectionState = getSelectionState(person.id);
-                  const isSelected = hasAnySelection(person.id);
-                  const isAlreadySelected = selectionState.alreadySelected;
 
-                  return (
-                    <div
-                      key={person.id}
-                      className={`p-4 rounded-lg transition-all ${isAlreadySelected
-                          ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
-                          : isSelected
-                            ? 'bg-primary/10 border-2 border-primary shadow-soft'
-                            : 'bg-muted hover:bg-muted/80 border-2 border-transparent'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="font-medium">{formatAnonymousName(person.name, person.phone)}</span>
-                        {isAlreadySelected && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {getPreviousSelectionLabel(selectionState.previousSelectionType)}
-                            </Badge>
-                            {!editingIds.has(person.id) && (
-                              <button
-                                type="button"
-                                onClick={() => startEditing(person.id)}
-                                aria-label={eventLang === "es" ? "Modificar selección" : "Modify selection"}
-                                title={eventLang === "es" ? "Modificar" : "Modify"}
-                                className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {isAlreadySelected && !editingIds.has(person.id) ? (
-                        <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
-                      ) : isAlreadySelected && editingIds.has(person.id) ? (
-                        <div className="space-y-3">
-                          <div className="flex gap-4 items-center flex-wrap">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={pendingEdits.get(person.id)?.friendship || false}
-                                onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
-                              />
-                              <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
-                            </label>
-                            {selectionState.canShowDating && (
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <Checkbox
-                                  checked={pendingEdits.get(person.id)?.dating || false}
-                                  onCheckedChange={() => toggleEditOption(person.id, 'dating')}
-                                />
-                                <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
-                              </label>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => cancelEditing(person.id)}
-                            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                          >
-                            {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex gap-4 items-center flex-wrap">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
-                              <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
-                            </label>
-                            {selectionState.canShowDating && (
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
-                                <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
-                              </label>
-                            )}
-                          </div>
-                          {superLikeEnabled && (
-                            superLikeId === person.id ? (
-                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-950/40 dark:to-yellow-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold">
-                                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                                {eventLang === "es" ? "Super Like asignado" : "Super Like assigned"}
-                              </div>
-                            ) : (!existingSuperLike && !superLikeId) ? (
-                              <button
-                                type="button"
-                                onClick={() => requestSuperLike(person.id, person.name)}
-                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 dark:bg-amber-950/20 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
-                              >
-                                <Star className="w-4 h-4" />
-                                {eventLang === "es" ? "⭐ Dar Super Like" : "⭐ Give Super Like"}
-                              </button>
-                            ) : null
-                          )}
-                          {repeatEnabled && (() => {
-                            const isThisRepeat = repeatRequestUsed?.targetId === person.id;
-                            const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
-                            const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
-                            // Show "accepted/pending/etc" status even after event ends, but hide the action button.
-                            if (!isThisRepeat && !hasRemainingRounds) return null;
-                            return isThisRepeat ? (
-                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
-                                <Repeat2 className="w-4 h-4" />
-                                {eventLang === "es"
-                                  ? (repeatRequestUsed?.status === "accepted"
-                                      ? "Repetición aceptada ✓"
-                                      : repeatRequestUsed?.status === "declined"
-                                        ? "Repetición rechazada"
-                                        : repeatRequestUsed?.status === "expired"
-                                          ? "Repetición caducada"
-                                          : "Repetición pendiente")
-                                  : (repeatRequestUsed?.status === "accepted"
-                                      ? "Repeat accepted ✓"
-                                      : repeatRequestUsed?.status === "declined"
-                                        ? "Repeat declined"
-                                        : repeatRequestUsed?.status === "expired"
-                                          ? "Repeat expired"
-                                          : "Repeat pending")}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={repeatDisabled}
-                                onClick={() => requestRepeat(person.id, person.name)}
-                                title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar." : "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline."}
-                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                              >
-                                <Repeat2 className="w-4 h-4" />
-                                {eventLang === "es" ? "🔁 Repetir con esta persona" : "🔁 Repeat with this person"}
-                              </button>
-                            );
-                          })()}
-                          {crushEnabled && (() => {
-                            const isThisCrush = crushUsed?.targetId === person.id;
-                            const crushDisabled = !!crushUsed && !isThisCrush;
-                            if (!isThisCrush && crushUsed) return null;
-                            return isThisCrush ? (
-                              <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
-                                <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-                                {eventLang === "es"
-                                  ? (crushUsed?.status === "accepted"
-                                      ? "Flechazo aceptado 💘"
-                                      : crushUsed?.status === "declined"
-                                        ? "Flechazo rechazado"
-                                        : "Flechazo pendiente")
-                                  : (crushUsed?.status === "accepted"
-                                      ? "Flechazo accepted 💘"
-                                      : crushUsed?.status === "declined"
-                                        ? "Flechazo declined"
-                                        : "Flechazo pending")}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={crushDisabled}
-                                onClick={() => requestCrush(person.id, person.name)}
-                                title={eventLang === "es" ? "Envía un Flechazo directo: si la persona acepta, intercambiaréis datos de contacto y os sentaremos juntos en la próxima ronda." : "Send a direct Flechazo: if they accept, you'll exchange contact details and be seated together in the next round."}
-                                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                              >
-                                <Send className="w-4 h-4" />
-                                {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
-            {repeatEnabled && (() => {
-              const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
-              if (!hasRemainingRounds && !repeatRequestUsed) return null;
-              return (
-                <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
-                  <Repeat2 className="w-3.5 h-3.5" />
-                  {repeatRequestUsed
-                    ? (eventLang === "es" ? "Repetición usada 🔁 — Si la otra persona acepta, os volveréis a sentar juntos en una próxima ronda." : "Repeat used 🔁 — If the other person accepts, you'll be seated together again in an upcoming round.")
-                    : (eventLang === "es" ? "Te queda 1 Repetición 🔁 — solicita volver a coincidir con alguien en una próxima ronda" : "1 Repeat remaining 🔁 — request to meet someone again in an upcoming round")}
+              {isAlreadySelected && !editingIds.has(person.id) ? (
+                <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
+              ) : isAlreadySelected && editingIds.has(person.id) ? (
+                <div className="space-y-3">
+                  <div className="flex gap-4 items-center flex-wrap">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={pendingEdits.get(person.id)?.friendship || false}
+                        onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
+                      />
+                      <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
+                    </label>
+                    {selectionState.canShowDating && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={pendingEdits.get(person.id)?.dating || false}
+                          onCheckedChange={() => toggleEditOption(person.id, 'dating')}
+                        />
+                        <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                      </label>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => cancelEditing(person.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
+                  </button>
                 </div>
-              );
-            })()}
-            {crushEnabled && (
-              <div className="text-xs text-center text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1.5 font-medium">
-                <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                {crushUsed
-                  ? (eventLang === "es" ? "Flechazo enviado 💘 — Si acepta, recibiréis los datos de contacto e iréis juntos a la próxima ronda." : "Flechazo sent 💘 — If they accept, you'll get contact details and be seated together next round.")
-                  : (eventLang === "es" ? "Te queda 1 Flechazo 💘 — solicitud directa con intercambio de contactos si aceptan" : "1 Flechazo remaining 💘 — direct request with contact exchange if accepted")}
-              </div>
-            )}
-            {superLikeEnabled && (
-              <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
-                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                {existingSuperLike || superLikeId
-                  ? (eventLang === "es" ? "Super Like usado ✓" : "Super Like used ✓")
-                  : (eventLang === "es" ? "Te queda 1 Super Like ⭐ — anónimo, único por evento" : "1 Super Like remaining ⭐ — anonymous, one per event")}
-              </div>
-            )}
-            <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
-              ) : hasMeaningfulEdits() && newSelectionsCount === 0 ? (
-                <><Heart className="w-4 h-4 mr-2" />{eventLang === "es" ? "Guardar cambios" : "Save changes"}</>
               ) : (
-                <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.select.submit} ${newSelectionsCount} ${t.select.selections}` : t.select.continueWithout}</>
+                <div className="space-y-3">
+                  <div className="flex gap-4 items-center flex-wrap">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
+                      <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
+                    </label>
+                    {selectionState.canShowDating && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={selectionState.dating} onCheckedChange={() => toggleSelection(person.id, 'dating')} />
+                        <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                      </label>
+                    )}
+                  </div>
+                  {superLikeEnabled && (
+                    superLikeId === person.id ? (
+                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-950/40 dark:to-yellow-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold">
+                        <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                        {eventLang === "es" ? "Super Like asignado" : "Super Like assigned"}
+                      </div>
+                    ) : (!existingSuperLike && !superLikeId) ? (
+                      <button
+                        type="button"
+                        onClick={() => requestSuperLike(person.id, person.name)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 dark:bg-amber-950/20 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
+                      >
+                        <Star className="w-4 h-4" />
+                        {eventLang === "es" ? "⭐ Dar Super Like" : "⭐ Give Super Like"}
+                      </button>
+                    ) : null
+                  )}
+                  {repeatEnabled && (() => {
+                    const isThisRepeat = repeatRequestUsed?.targetId === person.id;
+                    const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                    const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                    if (!isThisRepeat && !hasRemainingRounds) return null;
+                    return isThisRepeat ? (
+                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
+                        <Repeat2 className="w-4 h-4" />
+                        {eventLang === "es"
+                          ? (repeatRequestUsed?.status === "accepted" ? "Repetición aceptada ✓" : repeatRequestUsed?.status === "declined" ? "Repetición rechazada" : repeatRequestUsed?.status === "expired" ? "Repetición caducada" : "Repetición pendiente")
+                          : (repeatRequestUsed?.status === "accepted" ? "Repeat accepted ✓" : repeatRequestUsed?.status === "declined" ? "Repeat declined" : repeatRequestUsed?.status === "expired" ? "Repeat expired" : "Repeat pending")}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={repeatDisabled}
+                        onClick={() => requestRepeat(person.id, person.name)}
+                        title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda." : "Request to be seated again with this person in an upcoming round."}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      >
+                        <Repeat2 className="w-4 h-4" />
+                        {eventLang === "es" ? "🔁 Repetir con esta persona" : "🔁 Repeat with this person"}
+                      </button>
+                    );
+                  })()}
+                  {crushEnabled && (() => {
+                    const isThisCrush = crushUsed?.targetId === person.id;
+                    const crushDisabled = !!crushUsed && !isThisCrush;
+                    if (!isThisCrush && crushUsed) return null;
+                    return isThisCrush ? (
+                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
+                        <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                        {eventLang === "es"
+                          ? (crushUsed?.status === "accepted" ? "Flechazo aceptado 💘" : crushUsed?.status === "declined" ? "Flechazo rechazado" : "Flechazo pendiente")
+                          : (crushUsed?.status === "accepted" ? "Flechazo accepted 💘" : crushUsed?.status === "declined" ? "Flechazo declined" : "Flechazo pending")}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={crushDisabled}
+                        onClick={() => requestCrush(person.id, person.name)}
+                        title={eventLang === "es" ? "Envía un Flechazo directo." : "Send a direct Flechazo."}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      >
+                        <Send className="w-4 h-4" />
+                        {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
+                      </button>
+                    );
+                  })()}
+                </div>
               )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          );
+        };
+
+        const useRoundView = roundBuckets.length > 0;
+        const allRoundsComplete = useRoundView && roundBuckets.every(b => isRoundCompleted(b.round, b.tablemates));
+
+        return (
+          <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">{t.select.whoDidYouConnect}</CardTitle>
+              <CardDescription>
+                {useRoundView
+                  ? (eventLang === "es"
+                      ? "Revisa cada ronda y envía tus selecciones por separado"
+                      : "Review each round and send your selections separately")
+                  : t.select.selectPeople}
+              </CardDescription>
+              {alreadySelectedCount > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {t.select.previousSelections} {alreadySelectedCount} {t.select.previousSelectionsSuffix}
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {tablematesForSelection.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">{t.select.noTablemates}</p>
+                </div>
+              ) : useRoundView ? (
+                <Accordion type="single" collapsible value={openRound} onValueChange={setOpenRound} className="w-full">
+                  {roundBuckets.map(({ round, tablemates }) => {
+                    const completed = isRoundCompleted(round, tablemates);
+                    const newCount = countNewSelectionsForRound(tablemates);
+                    const editCount = countPendingEditsForRound(tablemates);
+                    const isSubmittingThis = submittingRound === round;
+                    return (
+                      <AccordionItem key={round} value={`round-${round}`} className="border rounded-lg mb-2 px-3 bg-muted/40">
+                        <AccordionTrigger className="hover:no-underline py-3">
+                          <div className="flex items-center justify-between w-full pr-2">
+                            <div className="flex items-center gap-2 text-left">
+                              {completed ? (
+                                <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+                              ) : (
+                                <Users className="w-4 h-4 text-primary shrink-0" />
+                              )}
+                              <span className="font-semibold">
+                                {eventLang === "es" ? `Ronda ${round}` : `Round ${round}`}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                · {tablemates.length} {tablemates.length === 1 ? (eventLang === "es" ? "persona" : "person") : (eventLang === "es" ? "personas" : "people")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {completed && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
+                                  {eventLang === "es" ? "✓ Revisada" : "✓ Reviewed"}
+                                </Badge>
+                              )}
+                              {!completed && (newCount > 0 || editCount > 0) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {newCount + editCount} {eventLang === "es" ? "pend." : "pend."}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="grid gap-3 pt-2 pb-3">
+                            {tablemates.map(person => renderPersonCard(person))}
+                          </div>
+                          <div className="flex flex-col gap-2 pb-3">
+                            <Button
+                              variant="hero"
+                              className="w-full"
+                              onClick={() => submitRound(round, tablemates)}
+                              disabled={isSubmittingThis || (newCount === 0 && editCount === 0)}
+                            >
+                              {isSubmittingThis ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
+                              ) : (
+                                <><Send className="w-4 h-4 mr-2" />
+                                  {eventLang === "es"
+                                    ? `Enviar selecciones de esta ronda${newCount + editCount > 0 ? ` (${newCount + editCount})` : ""}`
+                                    : `Send selections for this round${newCount + editCount > 0 ? ` (${newCount + editCount})` : ""}`}
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              onClick={() => markRoundNoConnections(round)}
+                              disabled={isSubmittingThis || completed}
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              {eventLang === "es"
+                                ? "No he conectado con nadie de esta ronda"
+                                : "I didn't connect with anyone in this round"}
+                            </Button>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              ) : (
+                <div className="grid gap-3 max-h-96 overflow-y-auto">
+                  {tablematesForSelection.map((person) => renderPersonCard(person))}
+                </div>
+              )}
+
+              <p className="text-sm text-center text-muted-foreground">{t.select.matchHint}</p>
+              {repeatEnabled && (() => {
+                const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                if (!hasRemainingRounds && !repeatRequestUsed) return null;
+                return (
+                  <div className="text-xs text-center text-violet-700 dark:text-violet-400 flex items-center justify-center gap-1.5 font-medium">
+                    <Repeat2 className="w-3.5 h-3.5" />
+                    {repeatRequestUsed
+                      ? (eventLang === "es" ? "Repetición usada 🔁" : "Repeat used 🔁")
+                      : (eventLang === "es" ? "Te queda 1 Repetición 🔁" : "1 Repeat remaining 🔁")}
+                  </div>
+                );
+              })()}
+              {crushEnabled && (
+                <div className="text-xs text-center text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                  {crushUsed
+                    ? (eventLang === "es" ? "Flechazo enviado 💘" : "Flechazo sent 💘")
+                    : (eventLang === "es" ? "Te queda 1 Flechazo 💘" : "1 Flechazo remaining 💘")}
+                </div>
+              )}
+              {superLikeEnabled && (
+                <div className="text-xs text-center text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  {existingSuperLike || superLikeId
+                    ? (eventLang === "es" ? "Super Like usado ✓" : "Super Like used ✓")
+                    : (eventLang === "es" ? "Te queda 1 Super Like ⭐" : "1 Super Like remaining ⭐")}
+                </div>
+              )}
+
+              {useRoundView ? (
+                allRoundsComplete && (
+                  <Button variant="outline" className="w-full" onClick={() => setStep("done")}>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {eventLang === "es" ? "He revisado todas las rondas" : "I've reviewed all rounds"}
+                  </Button>
+                )
+              ) : (
+                <Button variant="hero" className="w-full" onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t.select.saving}</>
+                  ) : hasMeaningfulEdits() && newSelectionsCount === 0 ? (
+                    <><Heart className="w-4 h-4 mr-2" />{eventLang === "es" ? "Guardar cambios" : "Save changes"}</>
+                  ) : (
+                    <><Heart className="w-4 h-4 mr-2" />{newSelectionsCount > 0 ? `${t.select.submit} ${newSelectionsCount} ${t.select.selections}` : t.select.continueWithout}</>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
 
       {step === "done" && (
         <Card className="w-full max-w-md animate-scale-in bg-card/80 backdrop-blur-sm text-center">

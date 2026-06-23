@@ -152,6 +152,7 @@ interface DbParticipant {
   verification_code: string | null;
   selection_submitted_at?: string | null;
   global_participant_id?: string | null;
+  birth_date?: string | null;
   created_at?: string;
   // Professional fields
   company_name?: string | null;
@@ -425,15 +426,63 @@ const EventDetail = () => {
 
       // Store raw selections
       setSelections(filteredSelections);
-      
+
+      // --- Super Like / Flechazo: augment selections for match calculation ---
+      // Rules:
+      //  • Super Like: receptor's reciprocation of ANY type unlocks a match
+      //    (type follows receiver's selection). We model this by overriding the
+      //    super-like sender's selection_type to 'both', so the existing
+      //    reciprocity check produces the right match type.
+      //  • Flechazo (crush): if the target replies with dating/both, romance
+      //    match even if the crush was not formally accepted. If target replies
+      //    friendship, friendship match. Modeled as a synthetic 'both' selection
+      //    from requester → target if one doesn't already exist (otherwise we
+      //    override the existing one to 'both').
+      const augmentedSelections: typeof filteredSelections = filteredSelections.map(s => {
+        if (s.is_super_like) {
+          return { ...s, selection_type: 'both' };
+        }
+        return { ...s };
+      });
+
+      const augSelKey = (sel: { selector_id: string; selected_id: string }) =>
+        `${sel.selector_id}->${sel.selected_id}`;
+      const augIndex = new Map<string, number>();
+      augmentedSelections.forEach((s, i) => augIndex.set(augSelKey(s), i));
+
+      const crushSuperFlags = new Set<string>(); // pair keys flagged via crush
+
+      (crushData || []).forEach((cr: any) => {
+        if (!cr?.requester_id || !cr?.target_id) return;
+        const fwdKey = `${cr.requester_id}->${cr.target_id}`;
+        const idx = augIndex.get(fwdKey);
+        if (idx === undefined) {
+          augmentedSelections.push({
+            selector_id: cr.requester_id,
+            selected_id: cr.target_id,
+            selection_type: 'both',
+            is_super_like: true, // mark as "super match" visually
+          } as any);
+          augIndex.set(fwdKey, augmentedSelections.length - 1);
+        } else {
+          augmentedSelections[idx] = {
+            ...augmentedSelections[idx],
+            selection_type: 'both',
+            is_super_like: true,
+          };
+        }
+        const pairKey = [cr.requester_id, cr.target_id].sort().join('-');
+        crushSuperFlags.add(pairKey);
+      });
+
       const mutualMatches: Match[] = [];
       const processed = new Set<string>();
 
-      filteredSelections.forEach(sel => {
+      augmentedSelections.forEach(sel => {
         const key = [sel.selector_id, sel.selected_id].sort().join('-');
         if (processed.has(key)) return;
 
-        const reverse = filteredSelections.find(
+        const reverse = augmentedSelections.find(
           s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id
         );
 
@@ -456,7 +505,9 @@ const EventDetail = () => {
               dating: sel1HasDating && sel2HasDating,
             };
             
-            mutualMatches.push({ participant1: p1, participant2: p2, matchTypes });
+            if (matchTypes.friendship || matchTypes.dating) {
+              mutualMatches.push({ participant1: p1, participant2: p2, matchTypes });
+            }
           }
           processed.add(key);
         }
@@ -1084,9 +1135,25 @@ const EventDetail = () => {
       }
     }
     
+    // Sort each group internally by birth_date (ascending) so participants of
+    // similar age sit closer in the greedy seating loop. Missing DOBs go last.
+    // Gender parity still wins because wouldMaintainGenderBalance runs first
+    // when assigning to tables — this only changes the iteration order.
+    const sortByBirthDate = (arr: DbParticipant[]) => {
+      arr.sort((a, b) => {
+        const ad = (a as any).birth_date as string | null | undefined;
+        const bd = (b as any).birth_date as string | null | undefined;
+        if (!ad && !bd) return 0;
+        if (!ad) return 1;
+        if (!bd) return -1;
+        return ad.localeCompare(bd);
+      });
+      return arr;
+    };
+
     return orderedGroups
       .filter(g => g.participants.length > 0)
-      .map(g => g.participants);
+      .map(g => sortByBirthDate(g.participants));
   };
 
   // All rotate mode: everyone changes tables each round

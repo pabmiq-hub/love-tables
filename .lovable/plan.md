@@ -1,96 +1,77 @@
-## Resumen
 
-Añadir "Flechazo" como nueva acción dirigida (1 por participante por evento) que coexiste con Super Like. Aceptación bilateral, intercambio de datos de contacto por email y, si quedan rondas, materialización como inclusión obligatoria para la siguiente ronda generada. Además, reorganizar el panel de comunicaciones en bloques desplegables.
+Tres mejoras independientes en el panel del participante y en la lógica de matches/mesas.
 
-## 1. Base de datos
+---
 
-Nueva tabla `crush_requests` (migration):
+## 1. Selecciones por ronda en el panel del participante
 
-- `requester_id`, `target_id` → `participants(id)`
-- `event_id` → `events(id)`
-- `status`: `pending | accepted | declined`
-- `created_at`, `responded_at`
-- Unicidad: `(event_id, requester_id)` para forzar 1 flechazo por participante por evento.
-- RLS: solo el organizador puede leer/escribir (las acciones de participantes pasarán por edge functions con service role, como el resto del flujo público).
-- GRANT a `authenticated` y `service_role`.
+Actualmente `ParticipantSelect.tsx` muestra a todos los compañeros de mesa en una sola lista (suma de todas las rondas) con un único botón "Enviar selecciones". Se rediseña por ronda:
 
-En `events` añadir flag JSON dentro de `settings` (o columna boolean nueva `crush_enabled`) para habilitar/deshabilitar.
+- Calcular, a partir de `tablesData`, un mapa `roundNumber → compañeros de mesa de esa ronda` para el participante verificado.
+- Mostrar **una sección desplegable (`Collapsible`) por ronda**, ordenadas por número (sólo se muestran rondas en las que el participante haya estado sentado y la ronda ya haya ocurrido — `round <= currentRound`).
+- Cada sección lleva su propio cabezal con: `Ronda N · X personas · Y seleccionadas` y un check verde cuando todas las personas de la ronda tienen una decisión guardada.
+- Dentro de cada ronda, por cada persona:
+  - Si **no hay selección previa**: checkboxes 😊 Amistad / 💕 Romance (igual que ahora, respetando `canShowDating`) + botones Super Like / Flechazo / Repetir si aplica.
+  - Si **hay selección previa**: muestra la insignia con el tipo seleccionado y un **icono lápiz** (`Pencil`) que activa modo edición para esa persona (mismos checkboxes precargados con `previousSelectionType`; desmarcar ambos = eliminar la selección).
+- Pie de cada ronda con dos botones:
+  - **"Enviar selecciones de esta ronda"** — sólo envía las selecciones nuevas + ediciones de esa ronda concreta.
+  - **"No he conectado con nadie de esta ronda"** — marca la ronda como revisada sin selecciones.
+- Estado por ronda (`reviewedRounds: Set<number>`) persistido en `localStorage` con clave `reviewed_rounds_${eventId}_${participantId}` para que al recargar siga marcada como revisada.
+- Una ronda con el botón "no he conectado" pulsado queda colapsada y mostrada como completada; el usuario puede reabrirla y editar.
+- Cuando todas las rondas estén o enviadas o marcadas como "no conecté", se ofrece el resumen final (`step="done"`).
+- Se reutiliza `submit-selections` (envía sólo las nuevas de la ronda) y `update-selection` (edita una por una). Sin cambios de schema.
 
-## 2. Edge Functions
+---
 
-- `request-crush`: valida código OTP del solicitante, crea registro `pending`, envía email al destinatario con enlace de respuesta (HMAC token).
-- `respond-crush`: token firmado → marca `accepted` o `declined`. Si `accepted`:
-  1. Envía email recíproco a ambos con **nombre completo + email**.
-  2. Inserta una entrada en `participant_inclusions` (mismo patrón que "Repetir") para que el próximo `generate-tables` los coloque en la misma mesa.
-  3. Si los participantes ya tienen un match recíproco, también se registra como `mutuo`.
-- Usar el mismo sistema de rate limit (350ms Resend) y `email_logs`.
+## 2. Super Like y Flechazo despliegan match automáticamente
 
-## 3. Plantillas de email (personalizables)
+Cambia la lógica de matches en `supabase/functions/send-match-emails/index.ts` (cálculo de `matchesByParticipant`) y se replica el mismo criterio en `MatchesDashboard.tsx` (panel admin) para que ambos vean lo mismo.
 
-Tres plantillas nuevas en `CommunicationSettingsEditor` / `templates`:
+Reglas nuevas, manteniendo la actual (selección recíproca = match):
 
-- `crush_request` → al destinatario ("Alguien te ha enviado un flechazo")
-- `crush_declined` → al solicitante (opcional, configurable)
-- `crush_mutual` → a ambos con datos de contacto
+- **Super Like recibido** (`is_super_like = true` en la selección del emisor hacia el receptor): si el receptor selecciona al emisor con `friendship`, `dating` o `both`, hay match. El tipo del match es:
+  - Si el receptor marcó `friendship` → match de amistad.
+  - Si el receptor marcó `dating` → match de romance (si son compatibles según `dating_preference`; si no, baja a amistad).
+  - Si `both` → ambos.
+- **Flechazo (`crush_requests`)**: si el destinatario del flechazo selecciona al emisor con `dating` o `both`, se genera match de romance aunque el destinatario **no haya aceptado** la solicitud (sólo si son compatibles bilateralmente; en caso contrario se baja a amistad como ya hace `areDatingCompatible`). Si selecciona `friendship`, sólo se crea match de amistad si el emisor también ha seleccionado friendship/both (regla actual). No se crea match si el destinatario no ha seleccionado al emisor en absoluto.
+- Estos matches "asimétricos" se marcan con `isSuperMatch=true` para mantener el estilo visual ⭐ en los correos.
 
-Variables: `{{requesterName}}`, `{{targetName}}`, `{{contactEmail}}`, `{{eventName}}`, `{{responseUrl}}`.
+Implementación:
 
-Página pública `/crush/:token` para aceptar/rechazar (similar a `/repeat/:token`).
+- Cargar `crush_requests` (todas las del evento) junto a `participant_selections` en `send-match-emails` y en `MatchesDashboard`.
+- Al construir el mapa de matches, iterar también:
+  - Selecciones con `is_super_like=true` → forzar match con el receptor según su selección recíproca (si existe en cualquier tipo).
+  - Filas de `crush_requests` (cualquier `status`) → si la selección del destinatario hacia el emisor existe con `dating`/`both`, añadir match romance con compatibilidad bilateral.
+- Deduplicar por par ordenado antes de notificar.
 
-## 4. Panel de participante
+---
 
-En `ParticipantSelect` (sección selecciones), añadir botón "💘 Flechazo" junto al Super Like en cada tarjeta, con:
-- Confirmación previa (1 uso por evento).
-- Disabled si ya envió o si el evento tiene `crush_enabled=false`.
-- Estado visible: "Enviado · Pendiente / Aceptado / Rechazado".
+## 3. Mesas: priorizar paridad de género y luego cercanía por fecha de nacimiento
 
-## 5. Panel administrador
+Hoy, dentro de una franja de edad única (p. ej. todos +18), `generateFixedHostTables`/`generateAllRotateTables` en `src/pages/EventDetail.tsx` toman los participantes en orden de la franja sin ordenar por edad real (solo por `age_range`), de modo que se mezclan personas con diferencias de edad grandes aunque caben en la misma franja.
 
-### Ajustes del evento
-- Toggle `Habilitar Flechazo` (sección Funcionalidades).
+Cambios sin tocar la paridad ya existente:
 
-### Pestaña Eventos (EventsViewer)
-- Nueva sección "Flechazos" con tabla: De → Para, Estado (Pendiente/Aceptado/Rechazado), Mesa asignada en próxima ronda (si aplica).
+- Añadir un helper `sortParticipantsByBirthDate(participants)` que ordena por `date_of_birth` ascendente; los que no tengan DOB van al final con su orden original.
+- En `mergeSmallAgeGroups` (y donde se aplane la lista `sortedParticipants`), tras agrupar por `age_range`, ordenar **cada grupo internamente por DOB** antes del flatten. Esto asegura que cuando sólo hay un grupo de edad (caso del usuario), el iterador externo recorre la lista ya ordenada por edad y la asignación greedy a mesas mantiene edades parecidas juntas.
+- La paridad de género sigue siendo la restricción dura: `wouldMaintainGenderBalance` se evalúa antes de añadir a la mesa, de modo que la edad sólo influye en el orden de evaluación, no rompe la paridad.
+- Mismo cambio aplicado en el algoritmo del modo `all_rotate` y en `fixed_host`.
+- No se modifica `preliminaryRoundAssign.ts` ni `b2bTableGenerator.ts` (B2B no es social).
 
-## 6. Reorganización de Comunicaciones (UX)
+Riesgo: con DOBs ausentes el resultado es equivalente al actual.
 
-Agrupar los chips actuales en bloques `Accordion` desplegables:
-
-- **Inscripción y acceso**: Confirmación, Código de acceso, Recordatorio
-- **Durante el evento**: Recordatorio de selecciones, Super Like
-- **Post-evento**: Resultados, No-show
-- **Repetir**: recibido, aceptada, rechazada
-- **Flechazo**: solicitud, rechazado, mutuo (nuevo bloque)
-- **Pagos**: Recordatorio pago
-
-Misma lógica de edición, solo cambia el contenedor visual.
-
-## 7. Retroactividad
-
-Aplicar a todos los eventos existentes: `crush_enabled` por defecto `false` (opt-in del organizador). La tabla y las plantillas estarán disponibles para cualquier evento al activar el toggle.
+---
 
 ## Detalles técnicos
 
-- Tabla `crush_requests` con índices en `(event_id, status)` y `(target_id, status)`.
-- HMAC con `SUPABASE_SERVICE_ROLE_KEY` (mismo patrón que `handle-participant-cancellation` y `respond-repeat`).
-- La inclusión se crea con `priority='crush'` para distinguirla en analytics y exclusiones.
-- Si no quedan rondas por generar, el email lo indica explícitamente ("os habéis perdido el match en mesa, pero aquí tenéis vuestros contactos").
-- `submit-selections` y `generate-tables` no requieren cambios — leen inclusions existentes.
+**Archivos editados**
+- `src/pages/ParticipantSelect.tsx` — UI desplegable por ronda + flujo de envío por ronda + edición inline con lápiz.
+- `supabase/functions/send-match-emails/index.ts` — nueva lógica de matches (super like/flechazo).
+- `src/components/event/MatchesDashboard.tsx` — mismo criterio en el panel admin (revisar primero si calcula matches internamente o llama a la edge function).
+- `src/pages/EventDetail.tsx` — añadir orden por DOB dentro de cada grupo de edad en `mergeSmallAgeGroups` y en los dos generadores.
 
-## Archivos afectados
+**Edge functions**: sólo se reedita `send-match-emails`. Se mantiene `submit-selections` y `update-selection` intactas (la UI por ronda ya encaja con el modo incremental que ya soportan).
 
-**Nuevos:**
-- `supabase/migrations/<ts>_crush_system.sql`
-- `supabase/functions/request-crush/index.ts`
-- `supabase/functions/respond-crush/index.ts`
-- `src/pages/CrushResponse.tsx`
-- `src/components/event/CommunicationGroups.tsx` (wrapper accordion)
+**Sin cambios de schema**: `participant_selections.is_super_like` y `crush_requests.requester_id/target_id` ya existen.
 
-**Editados:**
-- `src/components/event/CommunicationSettingsEditor.tsx` (agrupación + 3 plantillas nuevas)
-- `src/components/event/communication/types.ts` y `normalizeTemplates.ts`
-- `src/components/event/EventSettingsEditor.tsx` (toggle)
-- `src/components/event/EventsViewer.tsx` (sección Flechazos)
-- `src/pages/ParticipantSelect.tsx` (botón + estado)
-- `src/pages/EventDetail.tsx` (fetch crush_requests)
-- `src/App.tsx` (ruta `/crush/:token`)
+**Compatibilidad con eventos en curso**: las mejoras sólo afectan a futuras generaciones (mesas) y a próximos cálculos de matches; los datos guardados no se migran.
