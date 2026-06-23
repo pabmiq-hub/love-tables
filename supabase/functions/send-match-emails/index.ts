@@ -532,6 +532,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     // For social events, get selections for mutual match calculation
     const { data: selections } = await supabase.from("participant_selections").select("selector_id, selected_id, selection_type, is_super_like").eq("event_id", event_id);
+    // Load crush (Flechazo) requests so they can produce matches automatically
+    const { data: crushRequests } = await supabase.from("crush_requests").select("requester_id, target_id").eq("event_id", event_id);
     
     // For professional events, get table assignments to find connections
     const { data: tableAssignments } = isProfessional 
@@ -607,10 +609,35 @@ const handler = async (req: Request): Promise<Response> => {
     const processed = new Set<string>();
 
     if (!isProfessional) {
-      for (const sel of selections || []) {
+      // Augment selections so super-like senders behave like 'both' and crush
+      // requesters get a synthetic 'both' selection toward their target. The
+      // existing reciprocity check then yields the correct match types based
+      // on the OTHER side's actual choice.
+      type Sel = { selector_id: string; selected_id: string; selection_type: string | null; is_super_like?: boolean };
+      const augmented: Sel[] = (selections || []).map((s: any) => ({
+        selector_id: s.selector_id,
+        selected_id: s.selected_id,
+        selection_type: s.is_super_like ? 'both' : s.selection_type,
+        is_super_like: !!s.is_super_like,
+      }));
+      const augIdx = new Map<string, number>();
+      augmented.forEach((s, i) => augIdx.set(`${s.selector_id}->${s.selected_id}`, i));
+      for (const cr of (crushRequests || []) as Array<{ requester_id: string; target_id: string }>) {
+        if (!cr.requester_id || !cr.target_id) continue;
+        const fwd = `${cr.requester_id}->${cr.target_id}`;
+        const i = augIdx.get(fwd);
+        if (i === undefined) {
+          augmented.push({ selector_id: cr.requester_id, selected_id: cr.target_id, selection_type: 'both', is_super_like: true });
+          augIdx.set(fwd, augmented.length - 1);
+        } else {
+          augmented[i] = { ...augmented[i], selection_type: 'both', is_super_like: true };
+        }
+      }
+
+      for (const sel of augmented) {
         const key = [sel.selector_id, sel.selected_id].sort().join('-');
         if (processed.has(key)) continue;
-        const reverse = selections?.find(s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id);
+        const reverse = augmented.find(s => s.selector_id === sel.selected_id && s.selected_id === sel.selector_id);
         if (reverse) {
           const sel1Type = sel.selection_type || 'friendship';
           const sel2Type = reverse.selection_type || 'friendship';
@@ -619,7 +646,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (matchedWith && selector) {
             const hasFriendship = (sel1Type === 'friendship' || sel1Type === 'both') && (sel2Type === 'friendship' || sel2Type === 'both');
             const hasDating = (sel1Type === 'dating' || sel1Type === 'both') && (sel2Type === 'dating' || sel2Type === 'both');
-            const isSuperMatch = !!(sel as any).is_super_like || !!(reverse as any).is_super_like;
+            const isSuperMatch = !!sel.is_super_like || !!reverse.is_super_like;
 
             if (!matchesByParticipant.has(sel.selector_id)) matchesByParticipant.set(sel.selector_id, { friendship: [], dating: [] });
             if (!matchesByParticipant.has(sel.selected_id)) matchesByParticipant.set(sel.selected_id, { friendship: [], dating: [] });
