@@ -130,7 +130,7 @@ const ParticipantSelect = () => {
   const [reviewedRounds, setReviewedRounds] = useState<Set<number>>(new Set());
   const [submittingRound, setSubmittingRound] = useState<number | null>(null);
   const [openRound, setOpenRound] = useState<string>("");
-  const [pendingRoundSubmit, setPendingRoundSubmit] = useState<number | null>(null);
+  const [openRound, _setOpenRound] = useState<string>("");
   const { toast } = useToast();
 
   const [eventLang, setEventLang] = useState<Language>("es");
