@@ -908,6 +908,14 @@ const EventSettingsEditor = ({
         registrationDescription={formRegDescription || null}
         eventLang={formLanguage}
       />
+
+      <CustomTableLayoutDialog
+        open={showCustomTablesDialog}
+        onOpenChange={setShowCustomTablesDialog}
+        defaultCapacity={formTableSize}
+        initialLayout={formCustomTables}
+        onSave={(layout) => setFormCustomTables(layout)}
+      />
     </>
   );
 };
