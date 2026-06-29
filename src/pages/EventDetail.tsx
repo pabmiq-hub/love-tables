@@ -64,6 +64,7 @@ import {
   writePlayedMap,
   rebuildPlayedFromTables,
 } from "@/lib/gameMode";
+import { isCustomTablesEnabled, computeCustomDistribution } from "@/lib/customTableLayout";
 
 interface ParticipantExclusion {
   id: string;
