@@ -46,6 +46,7 @@ interface EventSettingsTabsProps {
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;
   paymentReminderSecondHours?: number | null;
+  customTables?: CustomTableLayout | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
