@@ -1413,8 +1413,13 @@ const EventDetail = () => {
     const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
     const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
-    // Use optimal distribution to avoid tables with only 2 people
-    const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
+    // Use optimal distribution to avoid tables with only 2 people, unless
+    // the event has a custom per-table capacity layout (Enterprise feature).
+    const customLayout = (eventData as any)?.custom_tables;
+    const useCustomLayout = isCustomTablesEnabled(customLayout);
+    const distribution = useCustomLayout
+      ? computeCustomDistribution(numParticipants, customLayout.tables.map((t: any) => t.capacity))
+      : calculateOptimalTableDistribution(numParticipants, tableSize, 3);
     const numTables = distribution.numTables;
     const tableSizes = distribution.sizes;
     
