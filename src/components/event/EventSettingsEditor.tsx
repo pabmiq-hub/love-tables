@@ -184,6 +184,8 @@ const EventSettingsEditor = ({
 
   const isProfessional = eventModule === "professional";
   const isLocked = eventStatus !== "pending";
+  const canUseCustomTables = (hasFeature("custom_table_layout") || isSuperAdmin) && !isProfessional;
+  const customTablesActive = isCustomTablesEnabled(formCustomTables);
 
   // Sync super like prop
   useEffect(() => {
