@@ -136,6 +136,7 @@ interface EventData {
   game_mode: import("@/lib/gameMode").GameModeConfig | null;
   custom_tables: import("@/lib/customTableLayout").CustomTableLayout | null;
 }
+}
 
 interface DbParticipant {
   id: string;
