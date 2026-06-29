@@ -158,6 +158,11 @@ const EventSettingsEditor = ({
   const [formPaymentReminderSecondEnabled, setFormPaymentReminderSecondEnabled] = useState<boolean>(
     initialPaymentReminderSecondHours != null
   );
+  const [formCustomTables, setFormCustomTables] = useState<CustomTableLayout | null>(
+    initialCustomTables && isCustomTablesEnabled(initialCustomTables) ? initialCustomTables : null
+  );
+  const [showCustomTablesDialog, setShowCustomTablesDialog] = useState(false);
+  const canUseCustomTables = (hasFeature("custom_table_layout") || isSuperAdmin) && !isProfessional;
   const [formPaymentReminderSecondHours, setFormPaymentReminderSecondHours] = useState<number>(
     initialPaymentReminderSecondHours ?? 48
   );
