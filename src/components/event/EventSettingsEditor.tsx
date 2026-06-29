@@ -18,6 +18,9 @@ import GameModeEditor from "./GameModeEditor";
 import { GameModeConfig, EMPTY_GAME_MODE, normalizeGameMode } from "@/lib/gameMode";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
+import CustomTableLayoutDialog from "./CustomTableLayoutDialog";
+import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayout";
+import { Settings2 } from "lucide-react";
 
 interface EventSettingsEditorProps {
   eventId: string;
@@ -58,6 +61,7 @@ interface EventSettingsEditorProps {
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;
   paymentReminderSecondHours?: number | null;
+  customTables?: CustomTableLayout | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -100,6 +104,7 @@ const EventSettingsEditor = ({
   paymentRemindersEnabled: initialPaymentRemindersEnabled = false,
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
   paymentReminderSecondHours: initialPaymentReminderSecondHours = null,
+  customTables: initialCustomTables = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
@@ -153,6 +158,10 @@ const EventSettingsEditor = ({
   const [formPaymentReminderSecondEnabled, setFormPaymentReminderSecondEnabled] = useState<boolean>(
     initialPaymentReminderSecondHours != null
   );
+  const [formCustomTables, setFormCustomTables] = useState<CustomTableLayout | null>(
+    initialCustomTables && isCustomTablesEnabled(initialCustomTables) ? initialCustomTables : null
+  );
+  const [showCustomTablesDialog, setShowCustomTablesDialog] = useState(false);
   const [formPaymentReminderSecondHours, setFormPaymentReminderSecondHours] = useState<number>(
     initialPaymentReminderSecondHours ?? 48
   );
@@ -175,6 +184,8 @@ const EventSettingsEditor = ({
 
   const isProfessional = eventModule === "professional";
   const isLocked = eventStatus !== "pending";
+  const canUseCustomTables = (hasFeature("custom_table_layout") || isSuperAdmin) && !isProfessional;
+  const customTablesActive = isCustomTablesEnabled(formCustomTables);
 
   // Sync super like prop
   useEffect(() => {
@@ -221,6 +232,7 @@ const EventSettingsEditor = ({
         event_location: formEventLocation.trim() || null,
         rounds: formRounds,
         table_size: formTableSize,
+        custom_tables: canUseCustomTables && customTablesActive ? formCustomTables : null,
         round_duration: formRoundDuration,
         rotation_mode: formRotationMode,
         gender_parity: isProfessional ? false : formGenderParity,
@@ -380,15 +392,45 @@ const EventSettingsEditor = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="event-table-size">Tamaño de mesa {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
-              <Input
-                id="event-table-size"
-                type="number"
-                min={2}
-                max={12}
-                value={formTableSize}
-                onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
-                disabled={isLocked}
-              />
+              {customTablesActive ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2 rounded-md border bg-muted/40 text-sm">
+                    Personalizado · {formCustomTables!.tables.length} mesas · {formCustomTables!.tables.reduce((a, t) => a + (t.capacity || 0), 0)} plazas
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setShowCustomTablesDialog(true)} disabled={isLocked}>
+                    Editar
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setFormCustomTables(null)} disabled={isLocked}>
+                    Quitar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="event-table-size"
+                    type="number"
+                    min={2}
+                    max={12}
+                    value={formTableSize}
+                    onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
+                    disabled={isLocked}
+                    className="flex-1"
+                  />
+                  {canUseCustomTables && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowCustomTablesDialog(true)}
+                      disabled={isLocked}
+                      title="Configurar mesas con capacidades individuales"
+                    >
+                      <Settings2 className="w-4 h-4 mr-1" />
+                      Personalizar
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="event-duration">Duración de ronda (segundos)</Label>
@@ -865,6 +907,14 @@ const EventSettingsEditor = ({
         registrationSubtitle={formRegSubtitle || null}
         registrationDescription={formRegDescription || null}
         eventLang={formLanguage}
+      />
+
+      <CustomTableLayoutDialog
+        open={showCustomTablesDialog}
+        onOpenChange={setShowCustomTablesDialog}
+        defaultCapacity={formTableSize}
+        initialLayout={formCustomTables}
+        onSave={(layout) => setFormCustomTables(layout)}
       />
     </>
   );

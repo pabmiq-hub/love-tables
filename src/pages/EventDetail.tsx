@@ -64,6 +64,7 @@ import {
   writePlayedMap,
   rebuildPlayedFromTables,
 } from "@/lib/gameMode";
+import { isCustomTablesEnabled, computeCustomDistribution } from "@/lib/customTableLayout";
 
 interface ParticipantExclusion {
   id: string;
@@ -134,6 +135,7 @@ interface EventData {
   reminder_mode: string;
   reminder_scheduled_at: string | null;
   game_mode: import("@/lib/gameMode").GameModeConfig | null;
+  custom_tables: import("@/lib/customTableLayout").CustomTableLayout | null;
 }
 
 interface DbParticipant {
@@ -365,6 +367,7 @@ const EventDetail = () => {
       reminder_mode: (event as any).reminder_mode ?? 'manual',
       reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
       game_mode: normalizeGameMode((event as any).game_mode),
+      custom_tables: (event as any).custom_tables as EventData['custom_tables'] ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -1183,8 +1186,13 @@ const EventDetail = () => {
     // Flatten while maintaining age ordering
     const sortedParticipants = mergedGroups.flat();
     
-    // Use optimal distribution to avoid tables with only 2 people
-    const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
+    // Use optimal distribution to avoid tables with only 2 people, unless
+    // the event has a custom per-table capacity layout (Enterprise feature).
+    const customLayout = (eventData as any)?.custom_tables;
+    const useCustomLayout = isCustomTablesEnabled(customLayout);
+    const distribution = useCustomLayout
+      ? computeCustomDistribution(numParticipants, customLayout.tables.map((t: any) => t.capacity))
+      : calculateOptimalTableDistribution(numParticipants, tableSize, 3);
     const numTables = distribution.numTables;
     const tableSizes = distribution.sizes;
     
@@ -1405,8 +1413,13 @@ const EventDetail = () => {
     const inclusionGroupIndex = buildInclusionGroupIndex(inclusionGroups);
     const participantsById = new Map(participantsList.map(p => [p.id, p]));
     
-    // Use optimal distribution to avoid tables with only 2 people
-    const distribution = calculateOptimalTableDistribution(numParticipants, tableSize, 3);
+    // Use optimal distribution to avoid tables with only 2 people, unless
+    // the event has a custom per-table capacity layout (Enterprise feature).
+    const customLayout = (eventData as any)?.custom_tables;
+    const useCustomLayout = isCustomTablesEnabled(customLayout);
+    const distribution = useCustomLayout
+      ? computeCustomDistribution(numParticipants, customLayout.tables.map((t: any) => t.capacity))
+      : calculateOptimalTableDistribution(numParticipants, tableSize, 3);
     const numTables = distribution.numTables;
     const tableSizes = distribution.sizes;
     
@@ -5431,6 +5444,7 @@ const EventDetail = () => {
                 eventLocation={eventData.event_location}
                 rounds={eventData.rounds}
                 tableSize={eventData.table_size}
+                customTables={eventData.custom_tables}
                 roundDuration={eventData.round_duration}
                 rotationMode={eventData.rotation_mode}
                 genderParity={eventData.gender_parity}

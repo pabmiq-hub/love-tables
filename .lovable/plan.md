@@ -1,77 +1,65 @@
+# Mesas personalizadas (Enterprise · Social)
 
-Tres mejoras independientes en el panel del participante y en la lógica de matches/mesas.
+Nueva opción que permite definir manualmente cuántas mesas hay y la capacidad de cada una. Sustituye al "Tamaño de mesa" uniforme cuando se activa.
 
----
+## 1. Gating y feature flag
 
-## 1. Selecciones por ronda en el panel del participante
+- Añadir nueva feature `custom_table_layout` (solo plan Enterprise) en `plan_features`.
+- En el cliente, mostrar la opción "Personalizar" únicamente si `hasFeature('custom_table_layout')` y el módulo del evento es Social. Si no, se mantiene el flujo actual (tamaño fijo).
 
-Actualmente `ParticipantSelect.tsx` muestra a todos los compañeros de mesa en una sola lista (suma de todas las rondas) con un único botón "Enviar selecciones". Se rediseña por ronda:
+## 2. UI en Ajustes del evento
 
-- Calcular, a partir de `tablesData`, un mapa `roundNumber → compañeros de mesa de esa ronda` para el participante verificado.
-- Mostrar **una sección desplegable (`Collapsible`) por ronda**, ordenadas por número (sólo se muestran rondas en las que el participante haya estado sentado y la ronda ya haya ocurrido — `round <= currentRound`).
-- Cada sección lleva su propio cabezal con: `Ronda N · X personas · Y seleccionadas` y un check verde cuando todas las personas de la ronda tienen una decisión guardada.
-- Dentro de cada ronda, por cada persona:
-  - Si **no hay selección previa**: checkboxes 😊 Amistad / 💕 Romance (igual que ahora, respetando `canShowDating`) + botones Super Like / Flechazo / Repetir si aplica.
-  - Si **hay selección previa**: muestra la insignia con el tipo seleccionado y un **icono lápiz** (`Pencil`) que activa modo edición para esa persona (mismos checkboxes precargados con `previousSelectionType`; desmarcar ambos = eliminar la selección).
-- Pie de cada ronda con dos botones:
-  - **"Enviar selecciones de esta ronda"** — sólo envía las selecciones nuevas + ediciones de esa ronda concreta.
-  - **"No he conectado con nadie de esta ronda"** — marca la ronda como revisada sin selecciones.
-- Estado por ronda (`reviewedRounds: Set<number>`) persistido en `localStorage` con clave `reviewed_rounds_${eventId}_${participantId}` para que al recargar siga marcada como revisada.
-- Una ronda con el botón "no he conectado" pulsado queda colapsada y mostrada como completada; el usuario puede reabrirla y editar.
-- Cuando todas las rondas estén o enviadas o marcadas como "no conecté", se ofrece el resumen final (`step="done"`).
-- Se reutiliza `submit-selections` (envía sólo las nuevas de la ronda) y `update-selection` (edita una por una). Sin cambios de schema.
+En `EventSettingsEditor.tsx` (y replicado en `CreateEvent.tsx` para mantener paridad), junto al campo **Tamaño de mesa**:
 
----
+- Botón secundario "Personalizar" (visible solo con la feature).
+- Abre un **pop-up (`Dialog`)** con dos pasos:
+  1. Input: **Número de mesas**.
+  2. Lista de N inputs (uno por mesa) con la **capacidad de cada mesa** (default = el tamaño global actual).
+- Acciones: "Guardar" persiste, "Cancelar" descarta.
+- Tras guardar, el campo "Tamaño de mesa" muestra un resumen tipo `Personalizado · 5 mesas · 22 plazas` (deshabilitado, con botón "Editar"). Botón "Quitar personalización" vuelve al modo uniforme.
 
-## 2. Super Like y Flechazo despliegan match automáticamente
+## 3. Persistencia
 
-Cambia la lógica de matches en `supabase/functions/send-match-emails/index.ts` (cálculo de `matchesByParticipant`) y se replica el mismo criterio en `MatchesDashboard.tsx` (panel admin) para que ambos vean lo mismo.
+Nueva columna en `events`:
+- `custom_tables` JSONB nullable: `{ enabled: boolean, tables: [{ capacity: number }] }` (orden = número de mesa 1..N).
 
-Reglas nuevas, manteniendo la actual (selección recíproca = match):
+Cuando `custom_tables.enabled = true`, esta config tiene prioridad sobre `table_size`.
 
-- **Super Like recibido** (`is_super_like = true` en la selección del emisor hacia el receptor): si el receptor selecciona al emisor con `friendship`, `dating` o `both`, hay match. El tipo del match es:
-  - Si el receptor marcó `friendship` → match de amistad.
-  - Si el receptor marcó `dating` → match de romance (si son compatibles según `dating_preference`; si no, baja a amistad).
-  - Si `both` → ambos.
-- **Flechazo (`crush_requests`)**: si el destinatario del flechazo selecciona al emisor con `dating` o `both`, se genera match de romance aunque el destinatario **no haya aceptado** la solicitud (sólo si son compatibles bilateralmente; en caso contrario se baja a amistad como ya hace `areDatingCompatible`). Si selecciona `friendship`, sólo se crea match de amistad si el emisor también ha seleccionado friendship/both (regla actual). No se crea match si el destinatario no ha seleccionado al emisor en absoluto.
-- Estos matches "asimétricos" se marcan con `isSuperMatch=true` para mantener el estilo visual ⭐ en los correos.
+## 4. Algoritmo de generación de mesas
 
-Implementación:
+En `generateSmartTables` (y los dos generadores en `EventDetail.tsx`: `generateFixedHostTables` y `generateAllRotateTables`):
 
-- Cargar `crush_requests` (todas las del evento) junto a `participant_selections` en `send-match-emails` y en `MatchesDashboard`.
-- Al construir el mapa de matches, iterar también:
-  - Selecciones con `is_super_like=true` → forzar match con el receptor según su selección recíproca (si existe en cualquier tipo).
-  - Filas de `crush_requests` (cualquier `status`) → si la selección del destinatario hacia el emisor existe con `dating`/`both`, añadir match romance con compatibilidad bilateral.
-- Deduplicar por par ordenado antes de notificar.
+- Si `custom_tables.enabled`:
+  - Se crean exactamente las mesas configuradas con sus capacidades.
+  - Reparto **proporcional**: se distribuyen los participantes presentes por mesa respetando la **capacidad máxima** de cada una, manteniendo las restricciones existentes (paridad de género, edad, game mode, exclusiones).
+  - Si hay menos participantes que capacidad total, las mesas se llenan proporcionalmente al peso de su capacidad (`asignados_i = round(presentes * capacidad_i / sum_capacidades)`), respetando paridad.
+- Misma lógica en `preliminaryRoundAssign.ts` y `checkin-participant` (edge function).
 
----
+## 5. Rebalanceo por bajas durante el evento
 
-## 3. Mesas: priorizar paridad de género y luego cercanía por fecha de nacimiento
+Cuando un participante se da de baja después de iniciado el evento (handler ya existente `handle-participant-cancellation` + flujo manual desde el admin):
 
-Hoy, dentro de una franja de edad única (p. ej. todos +18), `generateFixedHostTables`/`generateAllRotateTables` en `src/pages/EventDetail.tsx` toman los participantes en orden de la franja sin ordenar por edad real (solo por `age_range`), de modo que se mezclan personas con diferencias de edad grandes aunque caben en la misma franja.
+- Recalcular para las **rondas futuras** (no las ya jugadas) usando el algoritmo anterior con el conjunto actual de participantes activos.
+- **Eliminación dinámica de mesas**: si tras la baja la suma de participantes activos cabe en menos mesas, se eliminan mesas empezando por las de mayor capacidad cuya retirada deje el resto cuadrado (ej.: 4 bajas en mesas de 4 → quitar 1 mesa de 4). La selección de qué mesa eliminar prefiere la de capacidad = nº de bajas; si no, la mesa con menos participantes asignados actualmente.
+- Solo afecta a rondas con estado "pendiente". Las rondas ya generadas y publicadas no se tocan automáticamente, pero queda un botón "Regenerar próximas rondas" en el panel admin (ya existe el flujo de regeneración).
 
-Cambios sin tocar la paridad ya existente:
+## 6. Detalles técnicos
 
-- Añadir un helper `sortParticipantsByBirthDate(participants)` que ordena por `date_of_birth` ascendente; los que no tengan DOB van al final con su orden original.
-- En `mergeSmallAgeGroups` (y donde se aplane la lista `sortedParticipants`), tras agrupar por `age_range`, ordenar **cada grupo internamente por DOB** antes del flatten. Esto asegura que cuando sólo hay un grupo de edad (caso del usuario), el iterador externo recorre la lista ya ordenada por edad y la asignación greedy a mesas mantiene edades parecidas juntas.
-- La paridad de género sigue siendo la restricción dura: `wouldMaintainGenderBalance` se evalúa antes de añadir a la mesa, de modo que la edad sólo influye en el orden de evaluación, no rompe la paridad.
-- Mismo cambio aplicado en el algoritmo del modo `all_rotate` y en `fixed_host`.
-- No se modifica `preliminaryRoundAssign.ts` ni `b2bTableGenerator.ts` (B2B no es social).
+**Archivos a editar / crear**
+- Migration: añadir `events.custom_tables JSONB` + insertar feature `custom_table_layout` con asociación al plan Enterprise.
+- `src/components/event/CustomTableLayoutEditor.tsx` (nuevo) — pop-up de 2 pasos.
+- `src/components/event/EventSettingsEditor.tsx` — integración + gating con `useFeatures`.
+- `src/pages/CreateEvent.tsx` — mismo control en creación.
+- `src/pages/EventDetail.tsx` — `generateFixedHostTables` y `generateAllRotateTables` aceptan layout custom + función `rebalanceFutureRoundsAfterDropout(eventId)`.
+- `src/lib/preliminaryRoundAssign.ts` — respetar capacidades por mesa.
+- `supabase/functions/checkin-participant/index.ts` — idem.
+- `supabase/functions/handle-participant-cancellation/index.ts` — disparar rebalanceo de rondas futuras cuando el evento ya está iniciado.
+- `src/integrations/supabase/types.ts` — auto-regenerado tras migration.
 
-Riesgo: con DOBs ausentes el resultado es equivalente al actual.
+**Sin cambios**: B2B (`b2bTableGenerator.ts`), módulo profesional, comunicaciones.
 
----
+**Compatibilidad**: eventos existentes con `custom_tables = NULL` mantienen el comportamiento actual sin cambios.
 
-## Detalles técnicos
-
-**Archivos editados**
-- `src/pages/ParticipantSelect.tsx` — UI desplegable por ronda + flujo de envío por ronda + edición inline con lápiz.
-- `supabase/functions/send-match-emails/index.ts` — nueva lógica de matches (super like/flechazo).
-- `src/components/event/MatchesDashboard.tsx` — mismo criterio en el panel admin (revisar primero si calcula matches internamente o llama a la edge function).
-- `src/pages/EventDetail.tsx` — añadir orden por DOB dentro de cada grupo de edad en `mergeSmallAgeGroups` y en los dos generadores.
-
-**Edge functions**: sólo se reedita `send-match-emails`. Se mantiene `submit-selections` y `update-selection` intactas (la UI por ronda ya encaja con el modo incremental que ya soportan).
-
-**Sin cambios de schema**: `participant_selections.is_super_like` y `crush_requests.requester_id/target_id` ya existen.
-
-**Compatibilidad con eventos en curso**: las mejoras sólo afectan a futuras generaciones (mesas) y a próximos cálculos de matches; los datos guardados no se migran.
+**Riesgos**
+- Si la suma de capacidades < participantes confirmados, mostrar warning al guardar y bloquear el inicio del evento hasta corregir.
+- Paridad de género puede ser difícil con mesas de capacidades muy desiguales (ej. mesa de 3 + mesa de 5): el algoritmo prioriza paridad y, si no es posible, deja la mesa con desbalance mínimo (igual que hoy en última mesa residual).

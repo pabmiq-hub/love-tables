@@ -4,6 +4,7 @@ import { Settings2, MessageSquare } from "lucide-react";
 import EventSettingsEditor from "./EventSettingsEditor";
 import CommunicationSettingsEditor from "./CommunicationSettingsEditor";
 import { GroupRound } from "./GroupRoundsEditor";
+import { CustomTableLayout } from "@/lib/customTableLayout";
 
 interface EventSettingsTabsProps {
   eventId: string;
@@ -45,6 +46,7 @@ interface EventSettingsTabsProps {
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;
   paymentReminderSecondHours?: number | null;
+  customTables?: CustomTableLayout | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
