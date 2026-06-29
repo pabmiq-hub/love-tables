@@ -5433,6 +5433,7 @@ const EventDetail = () => {
                 eventLocation={eventData.event_location}
                 rounds={eventData.rounds}
                 tableSize={eventData.table_size}
+                customTables={eventData.custom_tables}
                 roundDuration={eventData.round_duration}
                 rotationMode={eventData.rotation_mode}
                 genderParity={eventData.gender_parity}
