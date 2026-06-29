@@ -18,6 +18,9 @@ import GameModeEditor from "./GameModeEditor";
 import { GameModeConfig, EMPTY_GAME_MODE, normalizeGameMode } from "@/lib/gameMode";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
+import CustomTableLayoutDialog from "./CustomTableLayoutDialog";
+import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayout";
+import { Settings2 } from "lucide-react";
 
 interface EventSettingsEditorProps {
   eventId: string;
