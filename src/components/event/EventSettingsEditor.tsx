@@ -232,6 +232,7 @@ const EventSettingsEditor = ({
         event_location: formEventLocation.trim() || null,
         rounds: formRounds,
         table_size: formTableSize,
+        custom_tables: canUseCustomTables && customTablesActive ? formCustomTables : null,
         round_duration: formRoundDuration,
         rotation_mode: formRotationMode,
         gender_parity: isProfessional ? false : formGenderParity,
