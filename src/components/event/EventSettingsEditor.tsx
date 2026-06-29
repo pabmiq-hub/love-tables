@@ -104,6 +104,7 @@ const EventSettingsEditor = ({
   paymentRemindersEnabled: initialPaymentRemindersEnabled = false,
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
   paymentReminderSecondHours: initialPaymentReminderSecondHours = null,
+  customTables: initialCustomTables = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
