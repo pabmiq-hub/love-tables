@@ -162,14 +162,14 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
-        setTotalRounds((event as any).rounds || 0);
-        setSuperLikeEnabled((event as any).super_like_enabled || false);
+        setTotalRounds(event.rounds || 0);
+        setSuperLikeEnabled(event.super_like_enabled || false);
 
         // "Repetir" — trust event-level toggle as source of truth.
         // Plan-level enforcement happens at toggle time in the dashboard,
         // and the request-repeat edge function re-validates server-side.
-        setRepeatEnabled(!!(event as any).repeat_request_enabled);
-        setCrushEnabled(!!(event as any).crush_enabled);
+        setRepeatEnabled(!!event.repeat_request_enabled);
+        setCrushEnabled(!!event.crush_enabled);
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -278,6 +278,11 @@ const ParticipantSelect = () => {
       const participantsData = data.participants;
       const tables = data.tables || [];
       const allExistingSelections = data.existingSelections || [];
+      if (data.featureFlags) {
+        setSuperLikeEnabled(!!data.featureFlags.superLikeEnabled);
+        setRepeatEnabled(!!data.featureFlags.repeatRequestEnabled);
+        setCrushEnabled(!!data.featureFlags.crushEnabled);
+      }
 
       setParticipants(participantsData);
       setTablesData(tables);
@@ -314,7 +319,7 @@ const ParticipantSelect = () => {
 
       // Check existing repeat request for this participant
       if (verifiedParticipant) {
-        const { data: existingRepeat } = await (supabase as any)
+        const { data: existingRepeat } = await supabase
           .from('repeat_requests')
           .select('status, target_id')
           .eq('event_id', eventId)
@@ -325,7 +330,7 @@ const ParticipantSelect = () => {
         }
 
         // Check existing crush (Flechazo) for this participant
-        const { data: existingCrush } = await (supabase as any)
+        const { data: existingCrush } = await supabase
           .from('crush_requests')
           .select('status, target_id')
           .eq('event_id', eventId)
@@ -347,7 +352,7 @@ const ParticipantSelect = () => {
         userPreference?.toLowerCase().includes('ligue');
 
       const userDatingPref = verifiedParticipant.dating_preference || '';
-      const userGender = (verifiedParticipant as any).gender || null;
+      const userGender = verifiedParticipant.gender || null;
 
       setMatchSelections(tablemates.map(p => {
         const targetPreference = p.preference?.toLowerCase() || '';
@@ -1066,6 +1071,74 @@ const ParticipantSelect = () => {
           const selectionState = getSelectionState(person.id);
           const isSelected = hasAnySelection(person.id);
           const isAlreadySelected = selectionState.alreadySelected;
+          const renderActionButtons = () => (
+            <div className="space-y-2">
+              {superLikeEnabled && (
+                superLikeId === person.id ? (
+                  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-950/40 dark:to-yellow-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold">
+                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                    {eventLang === "es" ? "Super Like asignado" : "Super Like assigned"}
+                  </div>
+                ) : (!existingSuperLike && !superLikeId) ? (
+                  <button
+                    type="button"
+                    onClick={() => requestSuperLike(person.id, person.name)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 dark:bg-amber-950/20 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
+                  >
+                    <Star className="w-4 h-4" />
+                    {eventLang === "es" ? "⭐ Dar Super Like" : "⭐ Give Super Like"}
+                  </button>
+                ) : null
+              )}
+              {repeatEnabled && (() => {
+                const isThisRepeat = repeatRequestUsed?.targetId === person.id;
+                const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                if (!isThisRepeat && !hasRemainingRounds) return null;
+                return isThisRepeat ? (
+                  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
+                    <Repeat2 className="w-4 h-4" />
+                    {eventLang === "es"
+                      ? (repeatRequestUsed?.status === "accepted" ? "Repetición aceptada ✓" : repeatRequestUsed?.status === "declined" ? "Repetición rechazada" : repeatRequestUsed?.status === "expired" ? "Repetición caducada" : "Repetición pendiente")
+                      : (repeatRequestUsed?.status === "accepted" ? "Repeat accepted ✓" : repeatRequestUsed?.status === "declined" ? "Repeat declined" : repeatRequestUsed?.status === "expired" ? "Repeat expired" : "Repeat pending")}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={repeatDisabled}
+                    onClick={() => requestRepeat(person.id, person.name)}
+                    title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda." : "Request to be seated again with this person in an upcoming round."}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                  >
+                    <Repeat2 className="w-4 h-4" />
+                    {eventLang === "es" ? "🔁 Repetir con esta persona" : "🔁 Repeat with this person"}
+                  </button>
+                );
+              })()}
+              {crushEnabled && (() => {
+                const isThisCrush = crushUsed?.targetId === person.id;
+                if (!isThisCrush && crushUsed) return null;
+                return isThisCrush ? (
+                  <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
+                    <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                    {eventLang === "es"
+                      ? (crushUsed?.status === "accepted" ? "Flechazo aceptado 💘" : crushUsed?.status === "declined" ? "Flechazo rechazado" : "Flechazo pendiente")
+                      : (crushUsed?.status === "accepted" ? "Flechazo accepted 💘" : crushUsed?.status === "declined" ? "Flechazo declined" : "Flechazo pending")}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => requestCrush(person.id, person.name)}
+                    title={eventLang === "es" ? "Envía un Flechazo directo." : "Send a direct Flechazo."}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
+                  >
+                    <Send className="w-4 h-4" />
+                    {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
+                  </button>
+                );
+              })()}
+            </div>
+          );
           return (
             <div
               key={person.id}
@@ -1099,38 +1172,38 @@ const ParticipantSelect = () => {
                 )}
               </div>
 
-              {isAlreadySelected && !editingIds.has(person.id) ? (
-                <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
-              ) : isAlreadySelected && editingIds.has(person.id) ? (
-                <div className="space-y-3">
-                  <div className="flex gap-4 items-center flex-wrap">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={pendingEdits.get(person.id)?.friendship || false}
-                        onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
-                      />
-                      <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
-                    </label>
-                    {selectionState.canShowDating && (
+              <div className="space-y-3">
+                {isAlreadySelected && !editingIds.has(person.id) ? (
+                  <p className="text-xs text-muted-foreground">{t.select.alreadySelected}</p>
+                ) : isAlreadySelected && editingIds.has(person.id) ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-4 items-center flex-wrap">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <Checkbox
-                          checked={pendingEdits.get(person.id)?.dating || false}
-                          onCheckedChange={() => toggleEditOption(person.id, 'dating')}
+                          checked={pendingEdits.get(person.id)?.friendship || false}
+                          onCheckedChange={() => toggleEditOption(person.id, 'friendship')}
                         />
-                        <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                        <span className="text-sm flex items-center gap-1"><Smile className="w-4 h-4" /> {t.select.friendship}</span>
                       </label>
-                    )}
+                      {selectionState.canShowDating && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={pendingEdits.get(person.id)?.dating || false}
+                            onCheckedChange={() => toggleEditOption(person.id, 'dating')}
+                          />
+                          <span className="text-sm flex items-center gap-1"><Heart className="w-4 h-4" /> {t.select.dating}</span>
+                        </label>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => cancelEditing(person.id)}
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    >
+                      {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => cancelEditing(person.id)}
-                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                  >
-                    {eventLang === "es" ? "Descartar cambios" : "Discard changes"}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
+                ) : (
                   <div className="flex gap-4 items-center flex-wrap">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox checked={selectionState.friendship} onCheckedChange={() => toggleSelection(person.id, 'friendship')} />
@@ -1143,72 +1216,9 @@ const ParticipantSelect = () => {
                       </label>
                     )}
                   </div>
-                  {superLikeEnabled && (
-                    superLikeId === person.id ? (
-                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-950/40 dark:to-yellow-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold">
-                        <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                        {eventLang === "es" ? "Super Like asignado" : "Super Like assigned"}
-                      </div>
-                    ) : (!existingSuperLike && !superLikeId) ? (
-                      <button
-                        type="button"
-                        onClick={() => requestSuperLike(person.id, person.name)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 dark:bg-amber-950/20 dark:border-amber-700/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
-                      >
-                        <Star className="w-4 h-4" />
-                        {eventLang === "es" ? "⭐ Dar Super Like" : "⭐ Give Super Like"}
-                      </button>
-                    ) : null
-                  )}
-                  {repeatEnabled && (() => {
-                    const isThisRepeat = repeatRequestUsed?.targetId === person.id;
-                    const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
-                    const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
-                    if (!isThisRepeat && !hasRemainingRounds) return null;
-                    return isThisRepeat ? (
-                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 border-2 border-violet-300 text-violet-800 dark:text-violet-200 text-sm font-semibold">
-                        <Repeat2 className="w-4 h-4" />
-                        {eventLang === "es"
-                          ? (repeatRequestUsed?.status === "accepted" ? "Repetición aceptada ✓" : repeatRequestUsed?.status === "declined" ? "Repetición rechazada" : repeatRequestUsed?.status === "expired" ? "Repetición caducada" : "Repetición pendiente")
-                          : (repeatRequestUsed?.status === "accepted" ? "Repeat accepted ✓" : repeatRequestUsed?.status === "declined" ? "Repeat declined" : repeatRequestUsed?.status === "expired" ? "Repeat expired" : "Repeat pending")}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={repeatDisabled}
-                        onClick={() => requestRepeat(person.id, person.name)}
-                        title={eventLang === "es" ? "Solicita volver a coincidir con esta persona en una próxima ronda." : "Request to be seated again with this person in an upcoming round."}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-violet-300 hover:border-violet-500 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                      >
-                        <Repeat2 className="w-4 h-4" />
-                        {eventLang === "es" ? "🔁 Repetir con esta persona" : "🔁 Repeat with this person"}
-                      </button>
-                    );
-                  })()}
-                  {crushEnabled && (() => {
-                    const isThisCrush = crushUsed?.targetId === person.id;
-                    if (!isThisCrush && crushUsed) return null;
-                    return isThisCrush ? (
-                      <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
-                        <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-                        {eventLang === "es"
-                          ? (crushUsed?.status === "accepted" ? "Flechazo aceptado 💘" : crushUsed?.status === "declined" ? "Flechazo rechazado" : "Flechazo pendiente")
-                          : (crushUsed?.status === "accepted" ? "Flechazo accepted 💘" : crushUsed?.status === "declined" ? "Flechazo declined" : "Flechazo pending")}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => requestCrush(person.id, person.name)}
-                        title={eventLang === "es" ? "Envía un Flechazo directo." : "Send a direct Flechazo."}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
-                      >
-                        <Send className="w-4 h-4" />
-                        {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
-                      </button>
-                    );
-                  })()}
-                </div>
-              )}
+                )}
+                {renderActionButtons()}
+              </div>
 
 
 
