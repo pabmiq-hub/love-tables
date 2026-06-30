@@ -368,6 +368,16 @@ const ParticipantJoin = () => {
     if (eventId) await loadAllQuotaCounts(eventId, slotQuotas);
     const slots = getAvailableSlots();
     if (slots && !slots.available) {
+      if (!waitlistEnabled) {
+        toast({
+          title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
+          description: eventLang === 'en'
+            ? `Registration for ${gender} (${calculatedAgeRange}) is full and the waitlist is not enabled for this event.`
+            : `Las plazas para ${gender} (${calculatedAgeRange}) están completas y la lista de espera no está activa en este evento.`,
+          variant: 'destructive',
+        });
+        return;
+      }
       setWizardForceWaitlist(true);
     } else {
       setWizardForceWaitlist(false);
