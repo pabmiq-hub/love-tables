@@ -162,14 +162,14 @@ const ParticipantSelect = () => {
 
         setEventStatus(event.status);
         setCurrentRound(event.current_round || 0);
-        setTotalRounds((event as any).rounds || 0);
-        setSuperLikeEnabled((event as any).super_like_enabled || false);
+        setTotalRounds(event.rounds || 0);
+        setSuperLikeEnabled(event.super_like_enabled || false);
 
         // "Repetir" — trust event-level toggle as source of truth.
         // Plan-level enforcement happens at toggle time in the dashboard,
         // and the request-repeat edge function re-validates server-side.
-        setRepeatEnabled(!!(event as any).repeat_request_enabled);
-        setCrushEnabled(!!(event as any).crush_enabled);
+        setRepeatEnabled(!!event.repeat_request_enabled);
+        setCrushEnabled(!!event.crush_enabled);
 
         if (event.status === 'completed') {
           setStep("completed");
@@ -319,7 +319,7 @@ const ParticipantSelect = () => {
 
       // Check existing repeat request for this participant
       if (verifiedParticipant) {
-        const { data: existingRepeat } = await (supabase as any)
+        const { data: existingRepeat } = await supabase
           .from('repeat_requests')
           .select('status, target_id')
           .eq('event_id', eventId)
@@ -330,7 +330,7 @@ const ParticipantSelect = () => {
         }
 
         // Check existing crush (Flechazo) for this participant
-        const { data: existingCrush } = await (supabase as any)
+        const { data: existingCrush } = await supabase
           .from('crush_requests')
           .select('status, target_id')
           .eq('event_id', eventId)
@@ -352,7 +352,7 @@ const ParticipantSelect = () => {
         userPreference?.toLowerCase().includes('ligue');
 
       const userDatingPref = verifiedParticipant.dating_preference || '';
-      const userGender = (verifiedParticipant as any).gender || null;
+      const userGender = verifiedParticipant.gender || null;
 
       setMatchSelections(tablemates.map(p => {
         const targetPreference = p.preference?.toLowerCase() || '';
