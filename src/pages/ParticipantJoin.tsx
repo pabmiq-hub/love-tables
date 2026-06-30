@@ -521,6 +521,7 @@ const ParticipantJoin = () => {
       if (slots && !slots.available) {
           if (waitlistEnabled) {
             setWizardForceWaitlist(true);
+            setIsSubmitting(true);
             const { data, error } = await supabase.functions.invoke('register-participant', {
               body: {
                 eventId,
