@@ -472,7 +472,7 @@ serve(async (req) => {
 
         if (currentCount >= matchingQuota.maxSlots) {
           quotaFullDetected = true;
-          if (!socialForceWaitlist) {
+          if (!socialForceWaitlist && !socialWaitlistEnabled) {
             return new Response(
               JSON.stringify({
                 error: 'No hay plazas disponibles para tu perfil',
