@@ -3308,7 +3308,31 @@ const EventDetail = () => {
   };
 
   const handleTableEditorSave = async (updatedRoundData: any) => {
-    if (!id || !eventData?.tables) return;
+    if (!id) return;
+
+    // Preliminary round (Round 0) writes to preliminary_round.tables
+    if (updatedRoundData?.__preliminary || updatedRoundData?.round === 0) {
+      if (!eventData?.preliminary_round) return;
+      const updatedPrelim = {
+        ...eventData.preliminary_round,
+        tables: updatedRoundData.tables,
+      };
+      const { error } = await supabase
+        .from("events")
+        .update({ preliminary_round: updatedPrelim } as any)
+        .eq("id", id);
+      if (error) {
+        toast({ title: "Error", description: "No se pudieron guardar los cambios", variant: "destructive" });
+        return;
+      }
+      setEventData(prev => prev ? { ...prev, preliminary_round: updatedPrelim } : prev);
+      setShowTableEditor(false);
+      setEditingRoundData(null);
+      toast({ title: "Mesas actualizadas", description: "Ronda preliminar actualizada correctamente" });
+      return;
+    }
+
+    if (!eventData?.tables) return;
     const updatedTables = (eventData.tables as any[]).map((rd: any) =>
       rd.round === updatedRoundData.round ? updatedRoundData : rd
     );
