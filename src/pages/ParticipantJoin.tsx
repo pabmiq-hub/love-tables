@@ -290,6 +290,20 @@ const ParticipantJoin = () => {
     });
 
     setQuotaStatuses(statuses);
+    return statuses;
+  };
+
+  const getAvailableSlotsFromStatuses = (statuses: QuotaStatus[]): { available: boolean; remaining: number; total: number } | null => {
+    if (!quotasEnabled || !gender || !calculatedAgeRange) return null;
+
+    const status = statuses.find(
+      (q) =>
+        normalizeKey(q.gender) === normalizeKey(gender) &&
+        normalizeKey(q.ageRange) === normalizeKey(calculatedAgeRange)
+    );
+    if (!status) return null;
+
+    return { available: status.available > 0, remaining: status.available, total: status.max };
   };
 
   // Calculate age range from birth date
@@ -365,8 +379,8 @@ const ParticipantJoin = () => {
       return;
     }
     // Refresh quotas before checking
-    if (eventId) await loadAllQuotaCounts(eventId, slotQuotas);
-    const slots = getAvailableSlots();
+    const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
+    const slots = getAvailableSlotsFromStatuses(freshStatuses);
     if (slots && !slots.available) {
       if (!waitlistEnabled) {
         toast({
@@ -502,9 +516,46 @@ const ParticipantJoin = () => {
 
     // Refresh quotas and re-check just before submitting
     if (quotasEnabled && eventId) {
-      await loadAllQuotaCounts(eventId, slotQuotas);
-      const slots = getAvailableSlots();
+        const freshStatuses = await loadAllQuotaCounts(eventId, slotQuotas);
+        const slots = getAvailableSlotsFromStatuses(freshStatuses);
       if (slots && !slots.available) {
+          if (waitlistEnabled) {
+            setWizardForceWaitlist(true);
+            const { data, error } = await supabase.functions.invoke('register-participant', {
+              body: {
+                eventId,
+                name: name.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                gender,
+                birthDate,
+                preference,
+                datingPreference: (preference === "Amistad y ligue" || preference === "Friendship & dating") ? datingPreference : null,
+                preferredAgeRange: selectedAgeRanges.join(', '),
+                isReturningParticipant: isReturningParticipant === "yes",
+                marketingConsent,
+                forceWaitlist: true,
+              }
+            });
+
+            if (error || data?.error) {
+              toast({ title: "Error", description: data?.error || t.join.errorRegister, variant: "destructive" });
+              setIsSubmitting(false);
+              return;
+            }
+
+            try {
+              await supabase.functions.invoke('send-waitlist-confirmation', {
+                body: { eventId, name: data.name || name.trim(), email: data.email || email.trim(), position: data.position }
+              });
+            } catch (e) {
+              console.error('Error sending waitlist confirmation email:', e);
+            }
+            setIsWaitlistSubmission(true);
+            setIsSubmitted(true);
+            setIsSubmitting(false);
+            return;
+          }
         setWizardForceWaitlist(true);
         toast({
           title: t.join.errorNoSlots,
