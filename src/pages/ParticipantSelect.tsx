@@ -1185,11 +1185,14 @@ const ParticipantSelect = () => {
                       </button>
                     );
                   })()}
-                  {crushEnabled && (() => {
-                    const isThisCrush = crushUsed?.targetId === person.id;
-                    const crushDisabled = !!crushUsed && !isThisCrush;
-                    if (!isThisCrush && crushUsed) return null;
-                    return isThisCrush ? (
+                </div>
+              )}
+              {crushEnabled && (() => {
+                const isThisCrush = crushUsed?.targetId === person.id;
+                if (!isThisCrush && crushUsed) return null;
+                return (
+                  <div className="mt-3">
+                    {isThisCrush ? (
                       <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
                         <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
                         {eventLang === "es"
@@ -1199,18 +1202,18 @@ const ParticipantSelect = () => {
                     ) : (
                       <button
                         type="button"
-                        disabled={crushDisabled}
                         onClick={() => requestCrush(person.id, person.name)}
                         title={eventLang === "es" ? "Envía un Flechazo directo." : "Send a direct Flechazo."}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-rose-300 hover:border-rose-500 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-md"
                       >
                         <Send className="w-4 h-4" />
                         {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
                       </button>
-                    );
-                  })()}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
+
             </div>
           );
         };
