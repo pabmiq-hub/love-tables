@@ -1185,14 +1185,10 @@ const ParticipantSelect = () => {
                       </button>
                     );
                   })()}
-                </div>
-              )}
-              {crushEnabled && (() => {
-                const isThisCrush = crushUsed?.targetId === person.id;
-                if (!isThisCrush && crushUsed) return null;
-                return (
-                  <div className="mt-3">
-                    {isThisCrush ? (
+                  {crushEnabled && (() => {
+                    const isThisCrush = crushUsed?.targetId === person.id;
+                    if (!isThisCrush && crushUsed) return null;
+                    return isThisCrush ? (
                       <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-300 text-rose-800 dark:text-rose-200 text-sm font-semibold">
                         <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
                         {eventLang === "es"
@@ -1209,10 +1205,12 @@ const ParticipantSelect = () => {
                         <Send className="w-4 h-4" />
                         {eventLang === "es" ? "💘 Enviar Flechazo" : "💘 Send Flechazo"}
                       </button>
-                    )}
-                  </div>
-                );
-              })()}
+                    );
+                  })()}
+                </div>
+              )}
+
+
 
             </div>
           );
