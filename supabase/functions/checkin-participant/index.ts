@@ -294,7 +294,7 @@ serve(async (req) => {
     try {
       const { data: eventConfig } = await supabase
         .from('events')
-        .select('preliminary_round, table_size, module, game_mode')
+        .select('preliminary_round, table_size, module, game_mode, custom_tables')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -305,6 +305,26 @@ serve(async (req) => {
         const tableSize = (eventConfig as any)?.table_size || 4;
         const tables: any[][] = Array.isArray(prelim.tables) ? prelim.tables.map((t: any[]) => [...t]) : [];
         const dismissed: number[] = Array.isArray(prelim.dismissed_tables) ? prelim.dismissed_tables : [];
+
+        // Custom table layout (Enterprise): per-table capacities.
+        const customCfg = (eventConfig as any)?.custom_tables;
+        const capacities: number[] | null = (customCfg && customCfg.enabled && Array.isArray(customCfg.tables) && customCfg.tables.length > 0)
+          ? customCfg.tables.map((t: any) => Math.max(0, Math.floor(Number(t?.capacity) || 0)))
+          : null;
+        const hasCustomCaps = Array.isArray(capacities) && capacities.length > 0;
+        const capacityFor = (idx: number): number => {
+          if (hasCustomCaps && idx < (capacities as number[]).length) {
+            const c = (capacities as number[])[idx];
+            return c > 0 ? c : tableSize;
+          }
+          return tableSize;
+        };
+        // Ensure baseline tables match the custom layout
+        if (hasCustomCaps) {
+          while (tables.length < (capacities as number[]).length) {
+            tables.push([]);
+          }
+        }
 
         // ----- Modo Lúdico (Game Mode) -----
         const rawGM = (eventConfig as any)?.game_mode;
@@ -318,9 +338,6 @@ serve(async (req) => {
           }
           return null;
         };
-        // CRITICAL: rebuild `played` from the CURRENT preliminary tables (source of truth)
-        // instead of trusting the persisted `played` field, which can drift after
-        // re-generations or manual edits and falsely block participants from being seated.
         const played: Record<string, string[]> = {};
         if (gmEnabled) {
           tables.forEach((seats, idx) => {
@@ -337,15 +354,17 @@ serve(async (req) => {
         const hasPlayed = (pid: string, dynId: string) =>
           Array.isArray(played[pid]) && played[pid].includes(dynId);
 
-        // Avoid duplicates: check if participant already in any preliminary table
         const alreadyAssigned = tables.some(t => t.some((p: any) => p.id === participant.id));
 
         if (!alreadyAssigned) {
-          // Find last non-dismissed table with free seat AND no dynamic conflict
+          // Pick the non-dismissed table with the most free seats (ties → earliest).
+          const candidates = tables
+            .map((t, i) => ({ i, free: capacityFor(i) - t.length }))
+            .filter(({ i, free }) => !dismissed.includes(i) && free > 0)
+            .sort((a, b) => b.free - a.free || a.i - b.i);
+
           let placed = false;
-          for (let i = tables.length - 1; i >= 0; i--) {
-            if (dismissed.includes(i)) continue;
-            if (tables[i].length >= tableSize) continue;
+          for (const { i } of candidates) {
             const dynId = dynForTable(i + 1);
             if (dynId && hasPlayed(participant.id, dynId)) continue;
             tables[i].push({ id: participant.id, name: participant.name });
@@ -356,7 +375,6 @@ serve(async (req) => {
             break;
           }
 
-          // Otherwise create a new table (new tables don't have a dynamic by default)
           if (!placed) {
             tables.push([{ id: participant.id, name: participant.name }]);
             const newTableNumber = tables.length;

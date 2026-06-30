@@ -3308,7 +3308,31 @@ const EventDetail = () => {
   };
 
   const handleTableEditorSave = async (updatedRoundData: any) => {
-    if (!id || !eventData?.tables) return;
+    if (!id) return;
+
+    // Preliminary round (Round 0) writes to preliminary_round.tables
+    if (updatedRoundData?.__preliminary || updatedRoundData?.round === 0) {
+      if (!eventData?.preliminary_round) return;
+      const updatedPrelim = {
+        ...eventData.preliminary_round,
+        tables: updatedRoundData.tables,
+      };
+      const { error } = await supabase
+        .from("events")
+        .update({ preliminary_round: updatedPrelim } as any)
+        .eq("id", id);
+      if (error) {
+        toast({ title: "Error", description: "No se pudieron guardar los cambios", variant: "destructive" });
+        return;
+      }
+      setEventData(prev => prev ? { ...prev, preliminary_round: updatedPrelim } : prev);
+      setShowTableEditor(false);
+      setEditingRoundData(null);
+      toast({ title: "Mesas actualizadas", description: "Ronda preliminar actualizada correctamente" });
+      return;
+    }
+
+    if (!eventData?.tables) return;
     const updatedTables = (eventData.tables as any[]).map((rd: any) =>
       rd.round === updatedRoundData.round ? updatedRoundData : rd
     );
@@ -4977,7 +5001,7 @@ const EventDetail = () => {
                     {/* Preliminary Round Tables - shown during pending state */}
                     {eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0 && (
                       <div className="mt-8">
-                        <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+                        <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2 flex-wrap">
                           🎯 Ronda Preliminar (Ronda 0)
                           <Badge variant="secondary">
                             {(eventData.preliminary_round.tables || []).filter((_, i) => !(eventData.preliminary_round?.dismissed_tables || []).includes(i)).length} mesas activas
@@ -4987,6 +5011,21 @@ const EventDetail = () => {
                               {(eventData.preliminary_round.dismissed_tables || []).length} invalidada(s)
                             </Badge>
                           )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => {
+                              setEditingRoundData({
+                                round: 0,
+                                tables: (eventData.preliminary_round?.tables || []).map((t: any[]) => [...t]),
+                                __preliminary: true,
+                              } as any);
+                              setShowTableEditor(true);
+                            }}
+                          >
+                            ✏️ Editar mesas
+                          </Button>
                         </h3>
                         {/* Confirmation status summary */}
                         {eventData.preliminary_round.confirmations && Object.keys(eventData.preliminary_round.confirmations).length > 0 && (

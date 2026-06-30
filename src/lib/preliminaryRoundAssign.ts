@@ -37,7 +37,8 @@ export function fillPreliminaryTables(
   prelim: PreliminaryRoundData,
   newParticipants: PreliminaryParticipant[],
   tableSize: number,
-  gameMode: GameModeConfig | null = null
+  gameMode: GameModeConfig | null = null,
+  capacities: number[] | null = null
 ): PreliminaryRoundData {
   const tables: PreliminaryParticipant[][] = Array.isArray(prelim.tables)
     ? prelim.tables.map((t) => [...t])
@@ -45,6 +46,23 @@ export function fillPreliminaryTables(
   const dismissed: number[] = Array.isArray(prelim.dismissed_tables)
     ? prelim.dismissed_tables
     : [];
+
+  const hasCustomCaps = Array.isArray(capacities) && capacities.length > 0;
+  const capacityFor = (idx: number): number => {
+    if (hasCustomCaps && idx < (capacities as number[]).length) {
+      const c = Math.floor(Number((capacities as number[])[idx]) || 0);
+      return c > 0 ? c : tableSize;
+    }
+    return tableSize;
+  };
+
+  // Ensure baseline tables exist matching the custom layout so capacities
+  // are reflected even before everyone checks in.
+  if (hasCustomCaps) {
+    while (tables.length < (capacities as number[]).length) {
+      tables.push([]);
+    }
+  }
 
   // Track played dynamics live so we can persist them on the event
   const played: Record<string, string[]> =
@@ -54,16 +72,19 @@ export function fillPreliminaryTables(
     Array.isArray(played[pid]) && played[pid].includes(dynId);
 
   for (const p of newParticipants) {
-    // Skip if already in any table
     const alreadyAssigned = tables.some((t) => t.some((x) => x.id === p.id));
     if (alreadyAssigned) continue;
 
-    // Find last non-dismissed table with free seat that the participant
-    // can join without repeating a dynamic.
+    // Pick the non-dismissed table with the most free seats, falling back to
+    // earliest index on tie — fills custom layouts predictably and respects
+    // per-table capacity.
+    const candidates = tables
+      .map((t, i) => ({ i, free: capacityFor(i) - t.length }))
+      .filter(({ i, free }) => !dismissed.includes(i) && free > 0)
+      .sort((a, b) => b.free - a.free || a.i - b.i);
+
     let placed = false;
-    for (let i = tables.length - 1; i >= 0; i--) {
-      if (dismissed.includes(i)) continue;
-      if (tables[i].length >= tableSize) continue;
+    for (const { i } of candidates) {
       const tableNumber = i + 1;
       const dynId = getDynamicIdForTable(gameMode, tableNumber);
       if (dynId && hasPlayed(p.id, dynId)) continue;
@@ -75,8 +96,6 @@ export function fillPreliminaryTables(
       break;
     }
     if (!placed) {
-      // Create a new trailing table; new tables never have a dynamic by default
-      // (dynamics are admin-defined per table number).
       tables.push([{ id: p.id, name: p.name }]);
       const newTableNumber = tables.length;
       const dynId = getDynamicIdForTable(gameMode, newTableNumber);
@@ -90,7 +109,6 @@ export function fillPreliminaryTables(
     ...prelim,
     tables,
     started_at: prelim.started_at || new Date().toISOString(),
-    // Stash the updated played map so the caller can persist it onto game_mode
     __updated_played: played,
   } as PreliminaryRoundData;
 }
@@ -108,7 +126,7 @@ export async function assignParticipantsToPreliminaryTables(
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("preliminary_round, table_size, module, game_mode")
+    .select("preliminary_round, table_size, module, game_mode, custom_tables")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -122,6 +140,12 @@ export async function assignParticipantsToPreliminaryTables(
 
   const tableSize = event.table_size || 4;
 
+  // Custom table layout (Enterprise): per-table capacities override uniform table_size.
+  const customCfg = (event as any).custom_tables as { enabled?: boolean; tables?: { capacity: number }[] } | null;
+  const capacities = customCfg?.enabled && Array.isArray(customCfg.tables) && customCfg.tables.length > 0
+    ? customCfg.tables.map((t) => Math.max(0, Math.floor(Number(t?.capacity) || 0)))
+    : null;
+
   // Modo Lúdico: rebuild `played` from current preliminary tables (source of truth)
   // before adding new participants — avoids drift from stale persisted data.
   const gameModeForFill = gameMode
@@ -131,7 +155,7 @@ export async function assignParticipantsToPreliminaryTables(
       }
     : null;
 
-  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameModeForFill);
+  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameModeForFill, capacities);
 
   const { __updated_played, ...prelimToSave } = updated as any;
 
