@@ -43,7 +43,7 @@ serve(async (req) => {
     // First verify the event exists and get tables + current_round
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, super_like_enabled, repeat_request_enabled, crush_enabled')
+      .select('id, status, tables, current_round, rounds, completed_rounds, super_like_enabled, repeat_request_enabled, crush_enabled')
       .eq('id', eventId)
       .single();
 
@@ -159,7 +159,18 @@ serve(async (req) => {
       // Filter tables based on event status and current_round
       let filteredTables: any[] = [];
       const allTables = event.tables || [];
-      const currentRound = event.current_round || 0;
+      const maxTableRound = Array.isArray(allTables)
+        ? allTables.reduce((max: number, roundData: any) => Math.max(max, Number(roundData?.round) || 0), 0)
+        : 0;
+      const completedRounds: number[] = (event as any).completed_rounds || [];
+      const maxCompletedRound = completedRounds.reduce((max, round) => Math.max(max, Number(round) || 0), 0);
+      const storedCurrentRound = event.current_round || 0;
+      const currentRound = event.status === 'completed'
+        ? Math.max(storedCurrentRound, maxTableRound)
+        : Math.min(
+            Math.max((event as any).rounds || maxTableRound || 0, maxTableRound),
+            Math.max(storedCurrentRound, maxCompletedRound > 0 ? maxCompletedRound + 1 : 0)
+          );
 
       if (event.status === 'completed') {
         // Event completed: show all tables from all rounds
