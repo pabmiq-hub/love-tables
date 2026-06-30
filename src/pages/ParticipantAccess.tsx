@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil, Send } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -162,6 +162,12 @@ const ParticipantAccess = () => {
   const [repeatTarget, setRepeatTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingRepeat, setIsSendingRepeat] = useState(false);
 
+  // Crush/Flechazo feature
+  const [crushEnabled, setCrushEnabled] = useState(false);
+  const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
+  const [isSendingCrush, setIsSendingCrush] = useState(false);
+
   // Edit-existing-selection feature (key = `${participantId}-${round}`)
   const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
   const [pendingEdits, setPendingEdits] = useState<Map<string, { friendship: boolean; dating: boolean; originalType?: string; participantId: string }>>(new Map());
@@ -213,7 +219,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, organizer_id')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, crush_enabled, organizer_id')
           .eq('id', eventId)
           .single();
 
@@ -238,6 +244,7 @@ const ParticipantAccess = () => {
         // The organizer can only enable it from the dashboard if their plan supports it,
         // and the request-repeat edge function re-validates the event flag server-side.
         setRepeatEnabled(!!(event as any).repeat_request_enabled);
+        setCrushEnabled(!!(event as any).crush_enabled);
 
         if (event.selection_closed_at) {
           clearSession();
@@ -377,6 +384,14 @@ const ParticipantAccess = () => {
       const assignments: TableAssignment[] = data.assignments || [];
       setTableAssignments(assignments);
       setTotalRounds(data.totalRounds);
+      setEventStatus(data.eventStatus || eventStatus);
+      setCurrentRound(data.currentRound ?? currentRound);
+      // Do not overwrite the event-level flag with false when an older cached
+      // Edge Function response does not include the field yet.
+      if (Object.prototype.hasOwnProperty.call(data, 'crushEnabled')) {
+        setCrushEnabled(!!data.crushEnabled);
+      }
+      setCrushUsed(data.existingCrush || null);
 
       // Store timer data
       if (data.timer) {
@@ -463,6 +478,22 @@ const ParticipantAccess = () => {
         }
       } catch (e) {
         console.warn('Could not fetch repeat request:', e);
+      }
+
+      if (!data.existingCrush) {
+        try {
+          const { data: existingCrush } = await (supabase as any)
+            .from('crush_requests')
+            .select('status, target_id')
+            .eq('event_id', eventId)
+            .eq('requester_id', verifiedParticipant.id)
+            .maybeSingle();
+          if (existingCrush) {
+            setCrushUsed({ status: existingCrush.status, targetId: existingCrush.target_id });
+          }
+        } catch (e) {
+          console.warn('Could not fetch crush request:', e);
+        }
       }
 
       // Save session to localStorage
@@ -600,16 +631,6 @@ const ParticipantAccess = () => {
   const selectionsByRound = tableAssignments.map(assignment => {
     const roundSelections = matchSelections.filter(ms => ms.round === assignment.round);
     return { round: assignment.round, table: assignment.table, selections: roundSelections };
-  });
-
-  const seenParticipantIds = new Set<string>();
-  const deduplicatedSelectionsByRound = selectionsByRound.map(roundGroup => {
-    const uniqueSelections = roundGroup.selections.filter(ms => {
-      if (seenParticipantIds.has(ms.participantId)) return false;
-      seenParticipantIds.add(ms.participantId);
-      return true;
-    });
-    return { ...roundGroup, selections: uniqueSelections };
   });
 
   const newSelectionsCount = matchSelections.filter(ms => !ms.alreadySelected && (ms.friendship || ms.dating)).length;
@@ -765,7 +786,7 @@ const ParticipantAccess = () => {
     if (repeatRequestUsed) return;
     if (eventStatus === 'completed' || currentRound >= totalRounds) return;
     const ms = matchSelections.find(s => s.participantId === participantId && s.round === round);
-    if (!ms || ms.alreadySelected) return;
+    if (!ms) return;
     setRepeatTarget({ id: participantId, name, round });
   };
 
@@ -801,6 +822,46 @@ const ParticipantAccess = () => {
       toast({ title: t.access.error, description: String(err), variant: 'destructive' });
     } finally {
       setIsSendingRepeat(false);
+    }
+  };
+
+  const openCrushDialog = (participantId: string, name: string, round: number) => {
+    if (crushUsed) return;
+    setCrushTarget({ id: participantId, name, round });
+  };
+
+  const confirmCrush = async () => {
+    if (!crushTarget || !verifiedParticipant || !eventId) return;
+    setIsSendingCrush(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('request-crush', {
+        body: {
+          event_id: eventId,
+          requester_id: verifiedParticipant.id,
+          target_id: crushTarget.id,
+        },
+      });
+      if (error || data?.error) {
+        toast({
+          title: t.access.error,
+          description: data?.error || (eventLang === 'es' ? 'No se pudo enviar el flechazo' : 'Could not send the Flechazo'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      setCrushUsed({ status: 'pending', targetId: crushTarget.id });
+      toast({
+        title: eventLang === 'es' ? '💘 Flechazo enviado' : '💘 Flechazo sent',
+        description: eventLang === 'es'
+          ? 'La otra persona recibirá un email para aceptar o rechazar tu flechazo.'
+          : 'The other person will receive an email to accept or decline your Flechazo.',
+      });
+      setCrushTarget(null);
+    } catch (err) {
+      console.error('Error sending crush request:', err);
+      toast({ title: t.access.error, description: String(err), variant: 'destructive' });
+    } finally {
+      setIsSendingCrush(false);
     }
   };
 
@@ -1091,7 +1152,7 @@ const ParticipantAccess = () => {
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[28rem] overflow-y-auto">
-                    {deduplicatedSelectionsByRound.map(({ round, table, selections: roundSelections }) => {
+                    {selectionsByRound.map(({ round, table, selections: roundSelections }) => {
                       if (roundSelections.length === 0) return null;
                       return (
                       <div key={round} className="space-y-2">
@@ -1193,65 +1254,92 @@ const ParticipantAccess = () => {
                                           </label>
                                         )}
                                       </div>
-                                      {!hasSentSuperLike && !ms.superLikedByMe && (
-                                        <button
-                                          type="button"
-                                          onClick={() => openSuperLikeDialog(ms.participantId, tablemate.name, round)}
-                                          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 text-amber-700 dark:text-amber-300 hover:from-amber-100 hover:to-yellow-100 transition-all"
-                                        >
-                                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-                                          {eventLang === 'en' ? 'Give Super Like' : 'Dar Super Like'}
-                                        </button>
-                                      )}
-                                      {ms.superLikedByMe && (
-                                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
-                                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                                          {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
-                                        </div>
-                                      )}
-                                      {repeatEnabled && (() => {
-                                        const isThisRepeat = repeatRequestUsed?.targetId === ms.participantId;
-                                        const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
-                                        const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
-                                        // Hide the action button if the event has no upcoming rounds, but still show "accepted/pending" status badge.
-                                        if (!isThisRepeat && !hasRemainingRounds) return null;
-                                        if (isThisRepeat) {
-                                          return (
-                                            <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-300 text-violet-800 dark:text-violet-200 text-xs font-semibold">
-                                              <Repeat2 className="w-3.5 h-3.5" />
-                                              {eventLang === 'es'
-                                                ? (repeatRequestUsed?.status === 'accepted'
-                                                    ? 'Repetición aceptada ✓'
-                                                    : repeatRequestUsed?.status === 'declined'
-                                                      ? 'Repetición rechazada'
-                                                      : repeatRequestUsed?.status === 'expired'
-                                                        ? 'Repetición caducada'
-                                                        : 'Repetición pendiente')
-                                                : (repeatRequestUsed?.status === 'accepted'
-                                                    ? 'Repeat accepted ✓'
-                                                    : repeatRequestUsed?.status === 'declined'
-                                                      ? 'Repeat declined'
-                                                      : repeatRequestUsed?.status === 'expired'
-                                                        ? 'Repeat expired'
-                                                        : 'Repeat pending')}
-                                            </div>
-                                          );
-                                        }
-                                        return (
-                                          <button
-                                            type="button"
-                                            disabled={repeatDisabled}
-                                            onClick={() => openRepeatDialog(ms.participantId, tablemate.name, round)}
-                                            title={eventLang === 'en' ? "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline." : 'Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar.'}
-                                            className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                          >
-                                            <Repeat2 className="w-3.5 h-3.5" />
-                                            {eventLang === 'en' ? '🔁 Repeat with this person' : '🔁 Repetir con esta persona'}
-                                          </button>
-                                        );
-                                      })()}
                                     </div>
                                   )}
+                                  <div className="space-y-2 mt-2">
+                                    {!ms.alreadySelected && !hasSentSuperLike && !ms.superLikedByMe && (
+                                      <button
+                                        type="button"
+                                        onClick={() => openSuperLikeDialog(ms.participantId, tablemate.name, round)}
+                                        className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40 text-amber-700 dark:text-amber-300 hover:from-amber-100 hover:to-yellow-100 transition-all"
+                                      >
+                                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                                        {eventLang === 'en' ? 'Give Super Like' : 'Dar Super Like'}
+                                      </button>
+                                    )}
+                                    {ms.superLikedByMe && (
+                                      <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
+                                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                                        {eventLang === 'en' ? 'Super Like ready to send' : 'Super Like listo para enviar'}
+                                      </div>
+                                    )}
+                                    {repeatEnabled && (() => {
+                                      const isThisRepeat = repeatRequestUsed?.targetId === ms.participantId;
+                                      const repeatDisabled = !!repeatRequestUsed && !isThisRepeat;
+                                      const hasRemainingRounds = eventStatus !== 'completed' && currentRound < totalRounds;
+                                      // Hide the action button if the event has no upcoming rounds, but still show "accepted/pending" status badge.
+                                      if (!isThisRepeat && !hasRemainingRounds) return null;
+                                      if (isThisRepeat) {
+                                        return (
+                                          <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-300 text-violet-800 dark:text-violet-200 text-xs font-semibold">
+                                            <Repeat2 className="w-3.5 h-3.5" />
+                                            {eventLang === 'es'
+                                              ? (repeatRequestUsed?.status === 'accepted'
+                                                  ? 'Repetición aceptada ✓'
+                                                  : repeatRequestUsed?.status === 'declined'
+                                                    ? 'Repetición rechazada'
+                                                    : repeatRequestUsed?.status === 'expired'
+                                                      ? 'Repetición caducada'
+                                                      : 'Repetición pendiente')
+                                              : (repeatRequestUsed?.status === 'accepted'
+                                                  ? 'Repeat accepted ✓'
+                                                  : repeatRequestUsed?.status === 'declined'
+                                                    ? 'Repeat declined'
+                                                    : repeatRequestUsed?.status === 'expired'
+                                                      ? 'Repeat expired'
+                                                      : 'Repeat pending')}
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <button
+                                          type="button"
+                                          disabled={repeatDisabled}
+                                          onClick={() => openRepeatDialog(ms.participantId, tablemate.name, round)}
+                                          title={eventLang === 'en' ? "Request to be seated again with this person in an upcoming round. They'll get an email to accept or decline." : 'Solicita volver a coincidir con esta persona en una próxima ronda. Recibirá un email para aceptar o rechazar.'}
+                                          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/20 dark:border-violet-700/40 text-violet-700 dark:text-violet-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                          <Repeat2 className="w-3.5 h-3.5" />
+                                          {eventLang === 'en' ? '🔁 Repeat with this person' : '🔁 Repetir con esta persona'}
+                                        </button>
+                                      );
+                                    })()}
+                                    {crushEnabled && (() => {
+                                      const isThisCrush = crushUsed?.targetId === ms.participantId;
+                                      if (!isThisCrush && crushUsed) return null;
+                                      if (isThisCrush) {
+                                        return (
+                                          <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-rose-50 dark:bg-rose-950/30 border border-rose-300 text-rose-800 dark:text-rose-200 text-xs font-semibold">
+                                            <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                                            {eventLang === 'es'
+                                              ? (crushUsed?.status === 'accepted' ? 'Flechazo aceptado 💘' : crushUsed?.status === 'declined' ? 'Flechazo rechazado' : 'Flechazo pendiente')
+                                              : (crushUsed?.status === 'accepted' ? 'Flechazo accepted 💘' : crushUsed?.status === 'declined' ? 'Flechazo declined' : 'Flechazo pending')}
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => openCrushDialog(ms.participantId, tablemate.name, round)}
+                                          title={eventLang === 'en' ? 'Send a direct Flechazo.' : 'Envía un Flechazo directo.'}
+                                          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-md border border-rose-300 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-700/40 text-rose-700 dark:text-rose-300 transition-all"
+                                        >
+                                          <Send className="w-3.5 h-3.5" />
+                                          {eventLang === 'en' ? '💘 Send Flechazo' : '💘 Enviar Flechazo'}
+                                        </button>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1340,6 +1428,33 @@ const ParticipantAccess = () => {
             </Button>
             <Button variant="hero" className="flex-1" onClick={confirmRepeat} disabled={isSendingRepeat}>
               {isSendingRepeat ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === 'es' ? 'Enviar' : 'Send')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Flechazo Confirmation Dialog */}
+      <Dialog open={!!crushTarget} onOpenChange={(open) => { if (!open && !isSendingCrush) setCrushTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <div className="w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mx-auto mb-2">
+              <Heart className="w-7 h-7 text-rose-600 dark:text-rose-400 fill-rose-500" />
+            </div>
+            <DialogTitle className="text-center">
+              {eventLang === 'es' ? `¿Enviar Flechazo a ${crushTarget?.name || ''}?` : `Send a Flechazo to ${crushTarget?.name || ''}?`}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {eventLang === 'es'
+                ? 'Solo puedes enviar UN Flechazo por evento. La otra persona recibirá un email con tu nombre para aceptar o rechazar. Si acepta, ambos recibiréis vuestros datos de contacto.'
+                : 'You can only send ONE Flechazo per event. The other person will receive an email with your name to accept or decline. If accepted, you will both receive each other\'s contact details.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setCrushTarget(null)} disabled={isSendingCrush}>
+              {eventLang === 'es' ? 'Cancelar' : 'Cancel'}
+            </Button>
+            <Button variant="hero" className="flex-1" onClick={confirmCrush} disabled={isSendingCrush}>
+              {isSendingCrush ? <Loader2 className="w-4 h-4 animate-spin" /> : (eventLang === 'es' ? 'Enviar Flechazo' : 'Send Flechazo')}
             </Button>
           </DialogFooter>
         </DialogContent>

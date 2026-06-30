@@ -93,7 +93,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round, game_mode')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round, game_mode, crush_enabled')
       .eq('id', eventId)
       .single();
 
@@ -142,11 +142,25 @@ serve(async (req) => {
       );
     }
 
-    const currentRound = event.current_round || 0;
     const completedRounds: number[] = event.completed_rounds || [];
+    const tables = event.tables as any;
+    const maxTableRound = Array.isArray(tables)
+      ? tables.reduce((max: number, roundData: any) => {
+          const roundNumber = Number(roundData?.round) || 0;
+          return Math.max(max, roundNumber);
+        }, 0)
+      : 0;
+    const maxCompletedRound = completedRounds.reduce((max, round) => Math.max(max, Number(round) || 0), 0);
+    const storedCurrentRound = event.current_round || 0;
+    const currentRound = event.status === 'completed'
+      ? Math.max(storedCurrentRound, maxTableRound)
+      : Math.min(
+          Math.max(event.rounds || maxTableRound || 0, maxTableRound),
+          Math.max(storedCurrentRound, maxCompletedRound > 0 ? maxCompletedRound + 1 : 0)
+        );
+    const totalRounds = Math.max(event.rounds || 0, maxTableRound);
 
     // Extract table assignments for this participant
-    const tables = event.tables as any;
     if (!tables || !Array.isArray(tables) || tables.length === 0) {
       return new Response(
         JSON.stringify({ 
@@ -158,7 +172,9 @@ serve(async (req) => {
           existingSelections: [],
           message: 'Las mesas aún no han sido asignadas',
           currentRound,
-          totalRounds: event.rounds,
+          totalRounds,
+          eventStatus: event.status,
+          crushEnabled: !!(event as any).crush_enabled,
           timer: {
             roundDuration: Math.floor((event.round_duration || 300) / 60),
             roundStartedAt: event.round_started_at,
@@ -247,8 +263,8 @@ serve(async (req) => {
       }
     }
 
-    // Fetch preferences for all tablemates + existing selections + super like info in parallel
-    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult] = await Promise.all([
+    // Fetch preferences for all tablemates + existing selections + super like/crush info in parallel
+    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult, existingCrushResult] = await Promise.all([
       tablemateIds.size > 0
         ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
@@ -257,6 +273,8 @@ serve(async (req) => {
       supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true).limit(1),
       // Has this participant RECEIVED any super like?
       supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true).limit(1),
+      // Has this participant already used their Flechazo?
+      supabase.from('crush_requests').select('status, target_id').eq('event_id', eventId).eq('requester_id', participant.id).maybeSingle(),
     ]);
 
     const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
@@ -316,10 +334,15 @@ serve(async (req) => {
         assignments: finalAssignments,
         existingSelections,
         currentRound,
-        totalRounds: event.rounds,
+        totalRounds,
+        eventStatus: event.status,
         preliminaryConfirmation,
         hasSentSuperLike,
         hasReceivedSuperLike,
+        crushEnabled: !!(event as any).crush_enabled,
+        existingCrush: existingCrushResult.data
+          ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }
+          : null,
         gameMode: gameModePayload,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
