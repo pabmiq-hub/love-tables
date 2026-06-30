@@ -126,7 +126,7 @@ export async function assignParticipantsToPreliminaryTables(
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("preliminary_round, table_size, module, game_mode")
+    .select("preliminary_round, table_size, module, game_mode, custom_tables")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -140,6 +140,12 @@ export async function assignParticipantsToPreliminaryTables(
 
   const tableSize = event.table_size || 4;
 
+  // Custom table layout (Enterprise): per-table capacities override uniform table_size.
+  const customCfg = (event as any).custom_tables as { enabled?: boolean; tables?: { capacity: number }[] } | null;
+  const capacities = customCfg?.enabled && Array.isArray(customCfg.tables) && customCfg.tables.length > 0
+    ? customCfg.tables.map((t) => Math.max(0, Math.floor(Number(t?.capacity) || 0)))
+    : null;
+
   // Modo Lúdico: rebuild `played` from current preliminary tables (source of truth)
   // before adding new participants — avoids drift from stale persisted data.
   const gameModeForFill = gameMode
@@ -149,7 +155,7 @@ export async function assignParticipantsToPreliminaryTables(
       }
     : null;
 
-  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameModeForFill);
+  const updated = fillPreliminaryTables(prelim, newParticipants, tableSize, gameModeForFill, capacities);
 
   const { __updated_played, ...prelimToSave } = updated as any;
 
