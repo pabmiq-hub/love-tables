@@ -2992,7 +2992,7 @@ const EventDetail = () => {
         throw new Error(data.error);
       }
 
-      const typeLabel = reminderType === "event" ? "del evento" : "de selecciones";
+      const typeLabel = reminderType === "event" ? "del evento" : reminderType === "next_event" ? "de invitación al próximo evento" : "de selecciones";
       toast({
         title: "Recordatorios enviados",
         description: `Se enviaron ${data?.stats?.sent || 0} recordatorios ${typeLabel} correctamente`,
