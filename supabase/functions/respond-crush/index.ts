@@ -169,7 +169,7 @@ serve(async (req: Request) => {
 
     const { data: people } = await supabase
       .from("participants")
-      .select("id, name, email")
+      .select("id, name, email, phone")
       .in("id", [cr.requester_id, cr.target_id]);
     const requester = people?.find((p: any) => p.id === cr.requester_id);
     const target = people?.find((p: any) => p.id === cr.target_id);
