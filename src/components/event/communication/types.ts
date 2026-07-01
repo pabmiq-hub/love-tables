@@ -63,7 +63,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
   repeat_request_declined: ["{{nombre}}", "{{evento}}"],
   crush_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}"],
-  crush_mutual: ["{{nombre}}", "{{evento}}", "{{otraPersona}}", "{{contactoEmail}}", "{{ronda}}"],
+  crush_mutual: ["{{nombre}}", "{{evento}}", "{{otraPersona}}", "{{contactoTelefono}}", "{{ronda}}"],
   crush_declined: ["{{nombre}}", "{{evento}}"],
   payment_reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
 };
