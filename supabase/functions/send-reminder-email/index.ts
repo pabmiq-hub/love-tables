@@ -416,9 +416,27 @@ const handler = async (req: Request): Promise<Response> => {
       signature: `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`,
     };
 
+    const defaultNextEventInviteES = {
+      subject: `👋 ¡Te esperamos en nuestro próximo evento!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `Sentimos no haber coincidido contigo en ${event.name}.\n\nNos encantaría verte en nuestro próximo evento: será una nueva oportunidad para conocer gente increíble y pasar un rato inolvidable.\n\nMantente atento a nuestras próximas convocatorias. 💫`,
+      closing: `¡Esperamos verte muy pronto! 🎉`,
+      signature: `Un saludo,\n${brandName}`,
+    };
+    const defaultNextEventInviteEN = {
+      subject: `👋 We hope to see you at our next event!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `We're sorry we missed you at ${event.name}.\n\nWe'd love to see you at our next event — a new chance to meet amazing people and have a great time.\n\nStay tuned for our upcoming events. 💫`,
+      closing: `We hope to see you very soon! 🎉`,
+      signature: `Best regards,\n${brandName}`,
+    };
+
     const eventReminderDefaults = isEn ? defaultEventReminderEN : defaultEventReminderES;
     const selectionReminderDefaults = isEn ? defaultSelectionReminderEN : defaultSelectionReminderES;
-    const tpl = isSelectionReminder
+    const nextEventInviteDefaults = isEn ? defaultNextEventInviteEN : defaultNextEventInviteES;
+    const tpl = isNextEventInvite
+      ? (communicationTemplate?.next_event_invite || nextEventInviteDefaults)
+      : isSelectionReminder
       ? (communicationTemplate?.selection_reminder || selectionReminderDefaults)
       : (
           shouldFallbackToEventReminder(
@@ -428,7 +446,7 @@ const handler = async (req: Request): Promise<Response> => {
             ? eventReminderDefaults
             : (communicationTemplate?.reminder || eventReminderDefaults)
         );
-    const defaults = isSelectionReminder ? selectionReminderDefaults : eventReminderDefaults;
+    const defaults = isNextEventInvite ? nextEventInviteDefaults : (isSelectionReminder ? selectionReminderDefaults : eventReminderDefaults);
 
     for (let i = 0; i < (participants || []).length; i++) {
       const participant = participants![i];
