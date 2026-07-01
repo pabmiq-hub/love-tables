@@ -63,7 +63,7 @@ export const TEMPLATE_VARIABLES: Record<TemplateKey, string[]> = {
   repeat_request_accepted: ["{{nombre}}", "{{evento}}", "{{ronda}}"],
   repeat_request_declined: ["{{nombre}}", "{{evento}}"],
   crush_request_received: ["{{nombre}}", "{{evento}}", "{{solicitante}}"],
-  crush_mutual: ["{{nombre}}", "{{evento}}", "{{otraPersona}}", "{{contactoEmail}}", "{{ronda}}"],
+  crush_mutual: ["{{nombre}}", "{{evento}}", "{{otraPersona}}", "{{contactoTelefono}}", "{{ronda}}"],
   crush_declined: ["{{nombre}}", "{{evento}}"],
   payment_reminder: ["{{nombre}}", "{{evento}}", "{{fecha}}", "{{ubicacion}}", "{{hora}}"],
 };
@@ -167,7 +167,7 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
   crush_mutual: {
     subject: "💘 ¡Flechazo mutuo con {{otraPersona}} en {{evento}}!",
     greeting: "¡Hola {{nombre}}! 🎉",
-    intro: "¡Buenas noticias! Tú y {{otraPersona}} tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su email de contacto para que puedas escribirle: {{contactoEmail}}\n\nSi aún quedan rondas, os asignaremos a la misma mesa en la ronda {{ronda}}.",
+    intro: "¡Buenas noticias! Tú y {{otraPersona}} tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su teléfono de contacto para que puedas escribirle: {{contactoTelefono}}\n\nSi aún quedan rondas, os asignaremos a la misma mesa en la ronda {{ronda}}.",
     closing: "¡Disfruta de la conexión! Las mejores historias empiezan con un primer paso.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
@@ -297,7 +297,7 @@ export const DEFAULT_TEMPLATES_EN: CommunicationTemplates = {
   crush_mutual: {
     subject: "💘 Mutual Flechazo with {{otraPersona}} at {{evento}}!",
     greeting: "Hi {{nombre}}! 🎉",
-    intro: "Great news! You and {{otraPersona}} have a mutual Flechazo at {{evento}}.\n\nHere's their contact email so you can reach out: {{contactoEmail}}\n\nIf any rounds remain, we'll seat you together at the same table in round {{ronda}}.",
+    intro: "Great news! You and {{otraPersona}} have a mutual Flechazo at {{evento}}.\n\nHere's their contact phone so you can reach out: {{contactoTelefono}}\n\nIf any rounds remain, we'll seat you together at the same table in round {{ronda}}.",
     closing: "Enjoy the connection! The best stories start with a first step.",
     signature: "With love,\nThe Konektum Team 💕",
   },
