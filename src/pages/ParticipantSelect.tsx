@@ -29,6 +29,16 @@ interface Participant {
   gender?: string;
 }
 
+// Detects if a participant's connection preference includes romance/dating interest.
+// Used to gate the Flechazo action (must be reciprocal).
+const wantsRomance = (pref?: string | null): boolean => {
+  const s = (pref || '').toLowerCase().trim();
+  if (!s) return false;
+  const friendshipOnly = ['solo amistad', 'amistad', 'friendship', 'friendship only', 'nuevas amistades', 'nuevas amistades.'];
+  if (friendshipOnly.includes(s)) return false;
+  return /(ligue|dating|romance|pareja|amistad y|friendship and|friendship &)/.test(s);
+};
+
 interface MatchSelection {
   participantId: string;
   friendship: boolean;
@@ -1115,7 +1125,7 @@ const ParticipantSelect = () => {
                   </button>
                 );
               })()}
-              {crushEnabled && (() => {
+              {crushEnabled && wantsRomance(verifiedParticipant?.preference) && wantsRomance(person.preference) && (() => {
                 const isThisCrush = crushUsed?.targetId === person.id;
                 if (!isThisCrush && crushUsed) return null;
                 return isThisCrush ? (

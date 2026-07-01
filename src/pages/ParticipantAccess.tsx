@@ -64,6 +64,17 @@ type Step = "verify_code" | "confirm_identity" | "panel" | "done" | "error" | "n
 
 const SESSION_EXPIRY_BUFFER_MS = 60 * 60 * 1000; // 1 hour after event
 
+// Detects if a participant's connection preference includes romance/dating interest.
+// Used to gate the Flechazo action (must be reciprocal).
+const wantsRomance = (pref?: string | null): boolean => {
+  const s = (pref || '').toLowerCase().trim();
+  if (!s) return false;
+  const friendshipOnly = ['solo amistad', 'amistad', 'friendship', 'friendship only', 'nuevas amistades', 'nuevas amistades.'];
+  if (friendshipOnly.includes(s)) return false;
+  return /(ligue|dating|romance|pareja|amistad y|friendship and|friendship &)/.test(s);
+};
+
+
 /**
  * Check bilateral dating preference compatibility based on gender and orientation.
  * Both participants must match each other's search criteria.
@@ -1314,7 +1325,7 @@ const ParticipantAccess = () => {
                                         </button>
                                       );
                                     })()}
-                                    {crushEnabled && (() => {
+                                    {crushEnabled && wantsRomance(verifiedParticipant?.preference) && wantsRomance(tablemate.preference) && (() => {
                                       const isThisCrush = crushUsed?.targetId === ms.participantId;
                                       if (!isThisCrush && crushUsed) return null;
                                       if (isThisCrush) {

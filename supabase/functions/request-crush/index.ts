@@ -86,7 +86,7 @@ serve(async (req: Request) => {
 
     const { data: parts } = await supabase
       .from("participants")
-      .select("id, name, email, cancelled_at, event_id")
+      .select("id, name, email, cancelled_at, event_id, preference")
       .in("id", [requester_id, target_id]);
     const requester = parts?.find((p: any) => p.id === requester_id);
     const target = parts?.find((p: any) => p.id === target_id);
@@ -106,6 +106,26 @@ serve(async (req: Request) => {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Reciprocity check: both requester and target must be interested in romance/dating.
+    const wantsRomance = (pref?: string | null): boolean => {
+      const s = (pref || "").toLowerCase().trim();
+      if (!s) return false;
+      const friendshipOnly = ["solo amistad", "amistad", "friendship", "friendship only", "nuevas amistades", "nuevas amistades."];
+      if (friendshipOnly.includes(s)) return false;
+      return /(ligue|dating|romance|pareja|amistad y|friendship and|friendship &)/.test(s);
+    };
+    if (!wantsRomance((requester as any).preference)) {
+      return new Response(JSON.stringify({ error: "Solo puedes enviar Flechazos si tu preferencia incluye ligue/romance" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!wantsRomance((target as any).preference)) {
+      return new Response(JSON.stringify({ error: "Esta persona no ha indicado interés en ligue/romance" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     const { data: existing } = await supabase
       .from("crush_requests")
