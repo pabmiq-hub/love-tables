@@ -107,6 +107,26 @@ serve(async (req: Request) => {
       });
     }
 
+    // Reciprocity check: both requester and target must be interested in romance/dating.
+    const wantsRomance = (pref?: string | null): boolean => {
+      const s = (pref || "").toLowerCase().trim();
+      if (!s) return false;
+      const friendshipOnly = ["solo amistad", "amistad", "friendship", "friendship only", "nuevas amistades", "nuevas amistades."];
+      if (friendshipOnly.includes(s)) return false;
+      return /(ligue|dating|romance|pareja|amistad y|friendship and|friendship &)/.test(s);
+    };
+    if (!wantsRomance((requester as any).preference)) {
+      return new Response(JSON.stringify({ error: "Solo puedes enviar Flechazos si tu preferencia incluye ligue/romance" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!wantsRomance((target as any).preference)) {
+      return new Response(JSON.stringify({ error: "Esta persona no ha indicado interés en ligue/romance" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
     const { data: existing } = await supabase
       .from("crush_requests")
       .select("id, status")
