@@ -278,7 +278,7 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("email_logs").insert({
           event_id,
           participant_id: participantId,
-          email_type: isSelectionReminder ? 'selection_reminder' : 'event_reminder',
+          email_type: isNextEventInvite ? 'next_event_invite' : (isSelectionReminder ? 'selection_reminder' : 'event_reminder'),
           status,
           error_message: errorMessage || null,
           sent_at: status === 'sent' ? new Date().toISOString() : null,
