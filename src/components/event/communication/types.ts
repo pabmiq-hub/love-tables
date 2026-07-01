@@ -167,7 +167,7 @@ export const DEFAULT_TEMPLATES_ES: CommunicationTemplates = {
   crush_mutual: {
     subject: "💘 ¡Flechazo mutuo con {{otraPersona}} en {{evento}}!",
     greeting: "¡Hola {{nombre}}! 🎉",
-    intro: "¡Buenas noticias! Tú y {{otraPersona}} tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su email de contacto para que puedas escribirle: {{contactoEmail}}\n\nSi aún quedan rondas, os asignaremos a la misma mesa en la ronda {{ronda}}.",
+    intro: "¡Buenas noticias! Tú y {{otraPersona}} tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su teléfono de contacto para que puedas escribirle: {{contactoTelefono}}\n\nSi aún quedan rondas, os asignaremos a la misma mesa en la ronda {{ronda}}.",
     closing: "¡Disfruta de la conexión! Las mejores historias empiezan con un primer paso.",
     signature: "Con cariño,\nEl equipo de Konektum 💕",
   },
