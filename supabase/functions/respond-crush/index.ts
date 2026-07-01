@@ -251,6 +251,7 @@ serve(async (req: Request) => {
         recipientName: target.name || "",
         partnerName: requester.name || "",
         partnerEmail: requester.email || "",
+        partnerPhone: (requester as any).phone || "",
         eventName, lang, variant: "mutual", scheduledRound, storedTpl,
       });
     }
