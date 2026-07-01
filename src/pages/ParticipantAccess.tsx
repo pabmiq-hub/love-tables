@@ -1325,7 +1325,7 @@ const ParticipantAccess = () => {
                                         </button>
                                       );
                                     })()}
-                                    {crushEnabled && (() => {
+                                    {crushEnabled && wantsRomance(verifiedParticipant?.preference) && wantsRomance(tablemate.preference) && (() => {
                                       const isThisCrush = crushUsed?.targetId === ms.participantId;
                                       if (!isThisCrush && crushUsed) return null;
                                       if (isThisCrush) {
