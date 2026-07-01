@@ -1115,7 +1115,7 @@ const ParticipantSelect = () => {
                   </button>
                 );
               })()}
-              {crushEnabled && (() => {
+              {crushEnabled && wantsRomance(verifiedParticipant?.preference) && wantsRomance(person.preference) && (() => {
                 const isThisCrush = crushUsed?.targetId === person.id;
                 if (!isThisCrush && crushUsed) return null;
                 return isThisCrush ? (
