@@ -244,6 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { event_id, participant_ids, reminder_type } = await req.json();
     const isSelectionReminder = reminder_type === "selection";
+    const isNextEventInvite = reminder_type === "next_event";
 
     if (!event_id) {
       return new Response(
@@ -277,7 +278,7 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("email_logs").insert({
           event_id,
           participant_id: participantId,
-          email_type: isSelectionReminder ? 'selection_reminder' : 'event_reminder',
+          email_type: isNextEventInvite ? 'next_event_invite' : (isSelectionReminder ? 'selection_reminder' : 'event_reminder'),
           status,
           error_message: errorMessage || null,
           sent_at: status === 'sent' ? new Date().toISOString() : null,
@@ -415,9 +416,27 @@ const handler = async (req: Request): Promise<Response> => {
       signature: `This is an automatic reminder from ${brandName}.\nIf you have already sent your selections, please ignore this message.`,
     };
 
+    const defaultNextEventInviteES = {
+      subject: `👋 ¡Te esperamos en nuestro próximo evento!`,
+      greeting: `¡Hola {{nombre}}! 👋`,
+      intro: `Sentimos no haber coincidido contigo en ${event.name}.\n\nNos encantaría verte en nuestro próximo evento: será una nueva oportunidad para conocer gente increíble y pasar un rato inolvidable.\n\nMantente atento a nuestras próximas convocatorias. 💫`,
+      closing: `¡Esperamos verte muy pronto! 🎉`,
+      signature: `Un saludo,\n${brandName}`,
+    };
+    const defaultNextEventInviteEN = {
+      subject: `👋 We hope to see you at our next event!`,
+      greeting: `Hi {{nombre}}! 👋`,
+      intro: `We're sorry we missed you at ${event.name}.\n\nWe'd love to see you at our next event — a new chance to meet amazing people and have a great time.\n\nStay tuned for our upcoming events. 💫`,
+      closing: `We hope to see you very soon! 🎉`,
+      signature: `Best regards,\n${brandName}`,
+    };
+
     const eventReminderDefaults = isEn ? defaultEventReminderEN : defaultEventReminderES;
     const selectionReminderDefaults = isEn ? defaultSelectionReminderEN : defaultSelectionReminderES;
-    const tpl = isSelectionReminder
+    const nextEventInviteDefaults = isEn ? defaultNextEventInviteEN : defaultNextEventInviteES;
+    const tpl = isNextEventInvite
+      ? (communicationTemplate?.next_event_invite || nextEventInviteDefaults)
+      : isSelectionReminder
       ? (communicationTemplate?.selection_reminder || selectionReminderDefaults)
       : (
           shouldFallbackToEventReminder(
@@ -427,7 +446,7 @@ const handler = async (req: Request): Promise<Response> => {
             ? eventReminderDefaults
             : (communicationTemplate?.reminder || eventReminderDefaults)
         );
-    const defaults = isSelectionReminder ? selectionReminderDefaults : eventReminderDefaults;
+    const defaults = isNextEventInvite ? nextEventInviteDefaults : (isSelectionReminder ? selectionReminderDefaults : eventReminderDefaults);
 
     for (let i = 0; i < (participants || []).length; i++) {
       const participant = participants![i];
@@ -482,8 +501,9 @@ const handler = async (req: Request): Promise<Response> => {
               </a>
             </div>` : '';
 
-      // Calendar links - only for event reminders
-      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && eventDateForLinks) ? (() => {
+      // Calendar links - only for event reminders (not selection, not next-event invite)
+      const showEventBlocks = !isSelectionReminder && !isNextEventInvite;
+      const calendarHtml = (showEventBlocks && reminderOptions.showCalendarLinks && eventDateForLinks) ? (() => {
         const eventDate = eventDateForLinks;
         const eventTime = event.event_time || "19:00";
         const eventLoc = event.event_location || "";
@@ -500,7 +520,7 @@ const handler = async (req: Request): Promise<Response> => {
       const locationLine = event.event_location ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">📍 ${escapeHtml(event.event_location)}</p>` : '';
       const timeLine = event.event_time ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">🕐 ${escapeHtml(event.event_time)}</p>` : '';
 
-      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && formattedEventDate) ? `
+      const countdownHtml = (showEventBlocks && reminderOptions.showCountdown && formattedEventDate) ? `
         <div style="border-radius: 8px; overflow: hidden; border: 1px solid ${primaryColor}30; margin: 15px 0;">
           <div style="background: ${primaryColor}; text-align: center; padding: 8px; color: white; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
             📅 ${isEn ? 'EVENT DETAILS' : 'DETALLES DEL EVENTO'}
@@ -512,7 +532,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>` : '';
 
-      const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `
+      const unsubscribeHtml = (showEventBlocks && reminderOptions.showUnsubscribe) ? `
         <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
           <a href="${cancellationUrl}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
         </p>` : '';

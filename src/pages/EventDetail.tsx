@@ -2961,7 +2961,7 @@ const EventDetail = () => {
     }
   };
 
-  const handleSendReminder = async (participantIds: string[], reminderType: "event" | "selection" = "selection") => {
+  const handleSendReminder = async (participantIds: string[], reminderType: "event" | "selection" | "next_event" = "selection") => {
     if (!id || participantIds.length === 0) return;
     
     setIsSendingReminder(true);
@@ -2992,7 +2992,7 @@ const EventDetail = () => {
         throw new Error(data.error);
       }
 
-      const typeLabel = reminderType === "event" ? "del evento" : "de selecciones";
+      const typeLabel = reminderType === "event" ? "del evento" : reminderType === "next_event" ? "de invitación al próximo evento" : "de selecciones";
       toast({
         title: "Recordatorios enviados",
         description: `Se enviaron ${data?.stats?.sent || 0} recordatorios ${typeLabel} correctamente`,
@@ -4055,11 +4055,18 @@ const EventDetail = () => {
                               {isSendingReminder ? "Enviando..." : `Recordatorio evento a todos (${participants.filter(p => p.email).length})`}
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleSendReminder(participants.filter(p => p.email).map(p => p.id), "selection")}
+                              onClick={() => {
+                                const checkedIn = participants.filter(p => p.email && p.checked_in);
+                                if (checkedIn.length === 0) {
+                                  toast({ title: "Sin participantes", description: "No hay participantes con check-in y email", variant: "destructive" });
+                                  return;
+                                }
+                                handleSendReminder(checkedIn.map(p => p.id), "selection");
+                              }}
                               disabled={isSendingReminder}
                             >
                               <Send className="w-4 h-4 mr-2" />
-                              {isSendingReminder ? "Enviando..." : `Rec. selecciones a todos (${participants.filter(p => p.email).length})`}
+                              {isSendingReminder ? "Enviando..." : `Rec. selecciones (check-in) (${participants.filter(p => p.email && p.checked_in).length})`}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -4074,6 +4081,20 @@ const EventDetail = () => {
                             >
                               <Bell className="w-4 h-4 mr-2" />
                               Rec. evento check-in ({participants.filter(p => p.email && p.checked_in).length})
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const nonAttendees = participants.filter(p => p.email && !p.checked_in);
+                                if (nonAttendees.length === 0) {
+                                  toast({ title: "Sin destinatarios", description: "No hay inscritos sin check-in con email", variant: "destructive" });
+                                  return;
+                                }
+                                handleSendReminder(nonAttendees.map(p => p.id), "next_event");
+                              }}
+                              disabled={isSendingReminder}
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              Invitar al próximo evento ({participants.filter(p => p.email && !p.checked_in).length})
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                           </>
