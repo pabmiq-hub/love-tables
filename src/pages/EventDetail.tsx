@@ -2961,7 +2961,7 @@ const EventDetail = () => {
     }
   };
 
-  const handleSendReminder = async (participantIds: string[], reminderType: "event" | "selection" = "selection") => {
+  const handleSendReminder = async (participantIds: string[], reminderType: "event" | "selection" | "next_event" = "selection") => {
     if (!id || participantIds.length === 0) return;
     
     setIsSendingReminder(true);
