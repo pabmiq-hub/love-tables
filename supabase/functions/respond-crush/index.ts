@@ -47,6 +47,7 @@ interface SendArgs {
   recipientName: string;
   partnerName: string;
   partnerEmail: string;
+  partnerPhone: string;
   eventName: string;
   lang: "es" | "en";
   variant: "mutual" | "declined";
@@ -55,17 +56,20 @@ interface SendArgs {
 }
 
 const sendCrushEmail = async (args: SendArgs) => {
-  const { resendApiKey, toEmail, recipientName, partnerName, partnerEmail, eventName, lang, variant, scheduledRound, storedTpl } = args;
+  const { resendApiKey, toEmail, recipientName, partnerName, partnerEmail, partnerPhone, eventName, lang, variant, scheduledRound, storedTpl } = args;
   if (!resendApiKey || !toEmail) return;
 
   const tplKey = variant === "mutual" ? "crush_mutual" : "crush_declined";
   const tpl = storedTpl?.[tplKey] || null;
 
+  const phoneDisplay = partnerPhone || (lang === "en" ? "(not provided)" : "(no facilitado)");
+
   const renderVar = (s: string) => (s || "")
     .replace(/\{\{nombre\}\}/g, escapeHtml(recipientName))
     .replace(/\{\{evento\}\}/g, escapeHtml(eventName))
     .replace(/\{\{otraPersona\}\}/g, escapeHtml(partnerName))
-    .replace(/\{\{contactoEmail\}\}/g, escapeHtml(partnerEmail))
+    .replace(/\{\{contactoTelefono\}\}/g, escapeHtml(phoneDisplay))
+    .replace(/\{\{contactoEmail\}\}/g, escapeHtml(phoneDisplay))
     .replace(/\{\{ronda\}\}/g, scheduledRound ? String(scheduledRound) : "");
 
   const defaults = variant === "mutual"
@@ -75,8 +79,9 @@ const sendCrushEmail = async (args: SendArgs) => {
           : `💘 ¡Flechazo mutuo con {{otraPersona}} en {{evento}}!`,
         greeting: lang === "en" ? `Hi {{nombre}}! 🎉` : `¡Hola {{nombre}}! 🎉`,
         intro: lang === "en"
-          ? `Great news! You and <strong>{{otraPersona}}</strong> have a mutual Flechazo at {{evento}}.\n\nHere's their contact email so you can reach out: <a href="mailto:{{contactoEmail}}" style="color:#e11d48;">{{contactoEmail}}</a>${scheduledRound ? `\n\nWe'll also seat you together at the same table in round {{ronda}}.` : ""}`
-          : `¡Buenas noticias! Tú y <strong>{{otraPersona}}</strong> tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su email de contacto para que puedas escribirle: <a href="mailto:{{contactoEmail}}" style="color:#e11d48;">{{contactoEmail}}</a>${scheduledRound ? `\n\nAdemás, os sentaremos en la misma mesa en la ronda {{ronda}}.` : ""}`,
+          ? `Great news! You and <strong>{{otraPersona}}</strong> have a mutual Flechazo at {{evento}}.\n\nHere's their contact phone so you can reach out: <strong>{{contactoTelefono}}</strong>${scheduledRound ? `\n\nWe'll also seat you together at the same table in round {{ronda}}.` : ""}`
+          : `¡Buenas noticias! Tú y <strong>{{otraPersona}}</strong> tenéis un Flechazo mutuo en {{evento}}.\n\nAquí tienes su teléfono de contacto para que puedas escribirle: <strong>{{contactoTelefono}}</strong>${scheduledRound ? `\n\nAdemás, os sentaremos en la misma mesa en la ronda {{ronda}}.` : ""}`,
+
         closing: lang === "en" ? `Enjoy the connection!` : `¡Disfruta de la conexión!`,
         signature: lang === "en" ? `With love,<br/>Konektum 💕` : `Con cariño,<br/>Konektum 💕`,
       }
