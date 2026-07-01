@@ -501,8 +501,9 @@ const handler = async (req: Request): Promise<Response> => {
               </a>
             </div>` : '';
 
-      // Calendar links - only for event reminders
-      const calendarHtml = (!isSelectionReminder && reminderOptions.showCalendarLinks && eventDateForLinks) ? (() => {
+      // Calendar links - only for event reminders (not selection, not next-event invite)
+      const showEventBlocks = !isSelectionReminder && !isNextEventInvite;
+      const calendarHtml = (showEventBlocks && reminderOptions.showCalendarLinks && eventDateForLinks) ? (() => {
         const eventDate = eventDateForLinks;
         const eventTime = event.event_time || "19:00";
         const eventLoc = event.event_location || "";
@@ -519,7 +520,7 @@ const handler = async (req: Request): Promise<Response> => {
       const locationLine = event.event_location ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">📍 ${escapeHtml(event.event_location)}</p>` : '';
       const timeLine = event.event_time ? `<p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">🕐 ${escapeHtml(event.event_time)}</p>` : '';
 
-      const countdownHtml = (!isSelectionReminder && reminderOptions.showCountdown && formattedEventDate) ? `
+      const countdownHtml = (showEventBlocks && reminderOptions.showCountdown && formattedEventDate) ? `
         <div style="border-radius: 8px; overflow: hidden; border: 1px solid ${primaryColor}30; margin: 15px 0;">
           <div style="background: ${primaryColor}; text-align: center; padding: 8px; color: white; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
             📅 ${isEn ? 'EVENT DETAILS' : 'DETALLES DEL EVENTO'}
@@ -531,7 +532,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>` : '';
 
-      const unsubscribeHtml = (!isSelectionReminder && reminderOptions.showUnsubscribe) ? `
+      const unsubscribeHtml = (showEventBlocks && reminderOptions.showUnsubscribe) ? `
         <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px;">
           <a href="${cancellationUrl}" style="color: ${primaryColor}; text-decoration: underline;">${escapeHtml(reminderOptions.unsubscribeText || (isEn ? 'If you cannot attend, click here' : 'Si no puedes asistir, haz clic aquí'))}</a>
         </p>` : '';
