@@ -86,7 +86,7 @@ serve(async (req: Request) => {
 
     const { data: parts } = await supabase
       .from("participants")
-      .select("id, name, email, cancelled_at, event_id")
+      .select("id, name, email, cancelled_at, event_id, preference")
       .in("id", [requester_id, target_id]);
     const requester = parts?.find((p: any) => p.id === requester_id);
     const target = parts?.find((p: any) => p.id === target_id);
