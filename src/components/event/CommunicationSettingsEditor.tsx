@@ -37,7 +37,7 @@ const TABS_CONFIG: { key: TemplateKey; label: string; icon: typeof Mail; descrip
   { key: "repeat_request_accepted", label: "Repetir: aceptada", icon: Repeat2, description: "Email al solicitante cuando aceptan", socialOnly: true, group: "repeat" },
   { key: "repeat_request_declined", label: "Repetir: rechazada", icon: Repeat2, description: "Email al solicitante cuando rechazan o caduca", socialOnly: true, group: "repeat" },
   { key: "crush_request_received", label: "Flechazo: solicitud", icon: Send, description: "Email al destinatario del Flechazo", socialOnly: true, group: "crush" },
-  { key: "crush_mutual", label: "Flechazo: mutuo", icon: Heart, description: "Email recíproco con datos de contacto al aceptar", socialOnly: true, group: "crush" },
+  { key: "crush_mutual", label: "Flechazo: mutuo", icon: Heart, description: "Email recíproco con el teléfono de contacto al aceptar", socialOnly: true, group: "crush" },
   { key: "crush_declined", label: "Flechazo: rechazado", icon: Heart, description: "Email al solicitante cuando rechazan el Flechazo", socialOnly: true, group: "crush" },
   { key: "payment_reminder", label: "Recordatorio pago", icon: CreditCard, description: "Email recordando completar el pago", paymentOnly: true, group: "payment" },
 ];
