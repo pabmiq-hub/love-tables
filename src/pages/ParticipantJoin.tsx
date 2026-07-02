@@ -1336,6 +1336,23 @@ const ParticipantJoin = () => {
                     </>
                   )}
 
+                  {showStep2 && wrappedEnabled && !hasWrappedProfile && wrappedQuestions.length > 0 && (
+                    <WrappedInterestsForm
+                      questions={wrappedQuestions}
+                      lang={eventLang}
+                      values={wrappedAnswers}
+                      onChange={setWrappedAnswers}
+                    />
+                  )}
+
+                  {showStep2 && wrappedEnabled && hasWrappedProfile && (
+                    <div className="p-3 rounded-lg border bg-primary/5 text-sm text-foreground/80">
+                      {eventLang === 'en'
+                        ? '✨ We already have your interests from a previous Wrapped event — no need to fill them in again.'
+                        : '✨ Ya tenemos tus intereses de un evento Wrapped anterior — no hace falta que los rellenes de nuevo.'}
+                    </div>
+                  )}
+
                   {(showStep2 || showWaitlistMode) && (
                     <GDPRConsent
                       lang={eventLang}
@@ -1347,8 +1364,12 @@ const ParticipantJoin = () => {
                   )}
 
                   {showStep1Only ? (
-                    <Button type="button" variant="hero" className="w-full mt-6" onClick={handleWizardContinue}>
-                      {eventLang === 'en' ? 'Continue' : 'Continuar'}
+                    <Button type="button" variant="hero" className="w-full mt-6" onClick={handleWizardContinue} disabled={checkingEligibility}>
+                      {checkingEligibility ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{eventLang === 'en' ? 'Checking...' : 'Comprobando...'}</>
+                      ) : (
+                        eventLang === 'en' ? 'Continue' : 'Continuar'
+                      )}
                     </Button>
                   ) : (
                     <Button
