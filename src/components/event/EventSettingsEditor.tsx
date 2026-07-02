@@ -570,19 +570,75 @@ const EventSettingsEditor = ({
           )}
 
           {!isProfessional && (
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex-1 pr-4">
-                <Label className="text-base">✨ Modo Wrapped</Label>
-                <p className="text-sm text-muted-foreground">
-                  Añade un formulario de intereses en 2 pasos y calcula compatibilidad entre participantes. Los intereses se reutilizan en futuros eventos Wrapped del mismo organizador.
-                </p>
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base">✨ Modo Wrapped</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Añade un formulario de intereses en 2 pasos y calcula compatibilidad entre participantes. Los intereses se reutilizan en futuros eventos Wrapped del mismo organizador.
+                  </p>
+                </div>
+                <Switch
+                  checked={formWrappedEnabled}
+                  onCheckedChange={setFormWrappedEnabled}
+                />
               </div>
-              <Switch
-                checked={formWrappedEnabled}
-                onCheckedChange={setFormWrappedEnabled}
-              />
+              {formWrappedEnabled && (
+                <div className="flex items-center justify-between pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {formWrappedQuestions.length} preguntas de intereses configuradas
+                  </p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowWrappedEditor(true)}>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Personalizar preguntas
+                  </Button>
+                </div>
+              )}
             </div>
           )}
+
+          {!isProfessional && (
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base flex items-center gap-2">
+                    <Languages className="w-4 h-4" /> Idiomas que hablan los asistentes
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Muestra un selector de idiomas en el formulario de inscripción. Se tiene en cuenta al generar las mesas para agrupar personas con idiomas en común.
+                  </p>
+                </div>
+                <Switch
+                  checked={formLanguagesEnabled}
+                  onCheckedChange={setFormLanguagesEnabled}
+                />
+              </div>
+              {formLanguagesEnabled && (
+                <div className="pt-3 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground">Idiomas disponibles en el formulario:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {AVAILABLE_LANGUAGE_OPTIONS.map((opt) => {
+                      const checked = formAvailableLanguages.includes(opt.code);
+                      return (
+                        <label key={opt.code} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              setFormAvailableLanguages((prev) =>
+                                v ? Array.from(new Set([...prev, opt.code])) : prev.filter((c) => c !== opt.code)
+                              );
+                            }}
+                          />
+                          <span className="text-sm">{opt.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
 
 
           <div className="flex items-center justify-between p-4 border rounded-lg">
