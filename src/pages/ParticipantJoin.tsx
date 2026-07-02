@@ -522,6 +522,28 @@ const ParticipantJoin = () => {
       return;
     }
 
+    // Wrapped: validate required interest questions
+    if (wrappedEnabled && !hasWrappedProfile) {
+      for (const q of wrappedQuestions) {
+        if (!q.required) continue;
+        const v = wrappedAnswers[q.id];
+        const missing =
+          v === undefined || v === null ||
+          (Array.isArray(v) && v.length === 0) ||
+          (q.type === 'ranked_top3' && (!(v as any)?.top1 || !(v as any)?.top2 || !(v as any)?.top3));
+        if (missing) {
+          toast({
+            title: "Error",
+            description: eventLang === 'en'
+              ? 'Please answer all required interest questions.'
+              : 'Responde todas las preguntas de intereses obligatorias.',
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     if (!dataConsent) {
       toast({
         title: "Error",
@@ -637,7 +659,8 @@ const ParticipantJoin = () => {
         datingPreference: isDating ? datingPreference : null,
         preferredAgeRange,
         isReturningParticipant: isReturningParticipant === "yes",
-        marketingConsent
+        marketingConsent,
+        wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
       }
     });
 
