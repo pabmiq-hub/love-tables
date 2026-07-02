@@ -374,12 +374,14 @@ const ParticipantJoin = () => {
 
   const preferredAgeRanges = [...eventAgeRanges, eventLang === "en" ? "Any age range" : "Cualquier rango de edad"];
 
-  // Step 1 → Step 2 transition (when quotas enabled)
+  // Step 1 → Step 2 transition (when quotas or wrapped are enabled)
   const handleWizardContinue = async () => {
-    if (!gender || !birthDate) {
+    if (!gender || !birthDate || (wrappedEnabled && !email.trim())) {
       toast({
         title: "Error",
-        description: eventLang === 'en' ? 'Please fill in gender and date of birth' : 'Completa género y fecha de nacimiento',
+        description: eventLang === 'en'
+          ? 'Please fill in email, gender and date of birth'
+          : 'Completa email, género y fecha de nacimiento',
         variant: "destructive",
       });
       return;
@@ -393,25 +395,61 @@ const ParticipantJoin = () => {
       toast({ title: "Error", description: t.join.errorMinAge, variant: "destructive" });
       return;
     }
-    // Refresh quotas before checking
-    const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
-    const slots = getAvailableSlotsFromStatuses(freshStatuses);
-    if (slots && !slots.available) {
-      if (!waitlistEnabled) {
+
+    // Wrapped eligibility check (quota + existing profile)
+    if (wrappedEnabled && eventId) {
+      setCheckingEligibility(true);
+      const { data: elig, error: eligErr } = await supabase.functions.invoke('check-wrapped-eligibility', {
+        body: { eventId, email: email.trim(), gender, birthDate },
+      });
+      setCheckingEligibility(false);
+      if (eligErr || elig?.error) {
         toast({
-          title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
-          description: eventLang === 'en'
-            ? `Registration for ${gender} (${calculatedAgeRange}) is full and the waitlist is not enabled for this event.`
-            : `Las plazas para ${gender} (${calculatedAgeRange}) están completas y la lista de espera no está activa en este evento.`,
-          variant: 'destructive',
+          title: "Error",
+          description: elig?.error || (eventLang === 'en' ? 'Could not validate your data' : 'No pudimos validar tus datos'),
+          variant: "destructive",
         });
         return;
       }
-      setWizardForceWaitlist(true);
-    } else {
-      setWizardForceWaitlist(false);
-      setWizardStep(2);
+      setHasWrappedProfile(!!elig?.hasWrappedProfile);
+      if (elig?.quotaFull) {
+        if (!waitlistEnabled) {
+          toast({
+            title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
+            description: eventLang === 'en'
+              ? `Registration for ${gender} (${calculatedAgeRange}) is full.`
+              : `Las plazas para ${gender} (${calculatedAgeRange}) están completas.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        setWizardForceWaitlist(true);
+        return;
+      }
     }
+
+    // Refresh quotas before checking
+    if (quotasEnabled) {
+      const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
+      const slots = getAvailableSlotsFromStatuses(freshStatuses);
+      if (slots && !slots.available) {
+        if (!waitlistEnabled) {
+          toast({
+            title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
+            description: eventLang === 'en'
+              ? `Registration for ${gender} (${calculatedAgeRange}) is full and the waitlist is not enabled for this event.`
+              : `Las plazas para ${gender} (${calculatedAgeRange}) están completas y la lista de espera no está activa en este evento.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        setWizardForceWaitlist(true);
+        return;
+      }
+    }
+
+    setWizardForceWaitlist(false);
+    setWizardStep(2);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
