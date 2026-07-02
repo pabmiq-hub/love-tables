@@ -546,6 +546,22 @@ const EventSettingsEditor = ({
             </div>
           )}
 
+          {!isProfessional && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex-1 pr-4">
+                <Label className="text-base">✨ Modo Wrapped</Label>
+                <p className="text-sm text-muted-foreground">
+                  Añade un formulario de intereses en 2 pasos y calcula compatibilidad entre participantes. Los intereses se reutilizan en futuros eventos Wrapped del mismo organizador.
+                </p>
+              </div>
+              <Switch
+                checked={formWrappedEnabled}
+                onCheckedChange={setFormWrappedEnabled}
+              />
+            </div>
+          )}
+
+
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <Label className="text-base">Idioma del evento</Label>
