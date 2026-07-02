@@ -349,7 +349,7 @@ serve(async (req) => {
     }
 
     // ─── SOCIAL REGISTRATION (existing flow) ───
-    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant } = body;
+    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant, wrappedAnswers } = body;
     
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
@@ -578,6 +578,48 @@ serve(async (req) => {
       }
     }
 
+    // Wrapped: upsert profile per organizer and link to participant
+    let wrappedProfileId: string | null = null;
+    if (event.organizer_id) {
+      const emailLower = email.toLowerCase().trim();
+      const { data: existingProfile } = await supabase
+        .from('wrapped_profiles')
+        .select('id, answers, hobbies_ranked')
+        .eq('organizer_id', event.organizer_id)
+        .eq('email', emailLower)
+        .maybeSingle();
+
+      if (existingProfile) {
+        wrappedProfileId = existingProfile.id;
+        // If new answers arrive, update the profile
+        if (wrappedAnswers && typeof wrappedAnswers === 'object') {
+          const hobbies = wrappedAnswers?.top_hobbies
+            ? [wrappedAnswers.top_hobbies.top1, wrappedAnswers.top_hobbies.top2, wrappedAnswers.top_hobbies.top3].filter(Boolean)
+            : (existingProfile.hobbies_ranked || []);
+          await supabase
+            .from('wrapped_profiles')
+            .update({ answers: wrappedAnswers, hobbies_ranked: hobbies, updated_at: new Date().toISOString() })
+            .eq('id', existingProfile.id);
+        }
+      } else if (wrappedAnswers && typeof wrappedAnswers === 'object') {
+        const hobbies = wrappedAnswers?.top_hobbies
+          ? [wrappedAnswers.top_hobbies.top1, wrappedAnswers.top_hobbies.top2, wrappedAnswers.top_hobbies.top3].filter(Boolean)
+          : [];
+        const { data: newProfile, error: profileErr } = await supabase
+          .from('wrapped_profiles')
+          .insert({
+            organizer_id: event.organizer_id,
+            email: emailLower,
+            answers: wrappedAnswers,
+            hobbies_ranked: hobbies,
+          })
+          .select('id')
+          .single();
+        if (!profileErr) wrappedProfileId = newProfile.id;
+        else console.error('[register-participant] wrapped_profile insert error', profileErr);
+      }
+    }
+
     const { data: participant, error: insertError } = await supabase
       .from('participants')
       .insert({
@@ -595,6 +637,7 @@ serve(async (req) => {
         verification_code: verificationCode,
         checked_in: shouldAutoCheckin,
         marketing_consent: marketingConsent,
+        wrapped_profile_id: wrappedProfileId,
       })
       .select()
       .single();
