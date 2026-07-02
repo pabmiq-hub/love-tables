@@ -39,14 +39,14 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Validate sender identity via access_code
+    // Validate sender identity via verification_code (accepts `access_code` alias for BC)
     const { data: sender, error: senderErr } = await supabase
       .from("participants")
-      .select("id, event_id, access_code, name, first_name")
+      .select("id, event_id, verification_code, name")
       .eq("id", sender_participant_id)
       .maybeSingle();
 
-    if (senderErr || !sender || sender.event_id !== event_id || sender.access_code !== access_code) {
+    if (senderErr || !sender || sender.event_id !== event_id || sender.verification_code !== access_code) {
       return new Response(JSON.stringify({ error: "Autenticación inválida" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -56,7 +56,7 @@ serve(async (req) => {
     // Validate receiver
     const { data: receiver, error: recvErr } = await supabase
       .from("participants")
-      .select("id, event_id, name, first_name")
+      .select("id, event_id, name")
       .eq("id", receiver_participant_id)
       .maybeSingle();
 

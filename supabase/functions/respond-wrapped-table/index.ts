@@ -30,14 +30,14 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Auth check
+    // Auth check via verification_code (client passes it as `access_code`)
     const { data: receiver } = await supabase
       .from("participants")
-      .select("id, access_code")
+      .select("id, verification_code")
       .eq("id", receiver_participant_id)
       .maybeSingle();
 
-    if (!receiver || receiver.access_code !== access_code) {
+    if (!receiver || receiver.verification_code !== access_code) {
       return new Response(JSON.stringify({ error: "Autenticación inválida" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

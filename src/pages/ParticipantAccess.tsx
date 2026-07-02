@@ -35,6 +35,7 @@ import SuperLikeBanner from "@/components/ui/super-like-banner";
 import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 import { Star } from "lucide-react";
 import confetti from "canvas-confetti";
+import WrappedCompatibilityTab from "@/components/event/WrappedCompatibilityTab";
 
 interface MatchSelection {
   participantId: string;
@@ -164,7 +165,7 @@ const ParticipantAccess = () => {
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
   // Active tab control (for guiding user after prelim confirmation)
-  const [activeTab, setActiveTab] = useState<"tables" | "selections">("tables");
+  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility">("tables");
   const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
 
   // Repeat request feature
@@ -178,6 +179,7 @@ const ParticipantAccess = () => {
   const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
   const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingCrush, setIsSendingCrush] = useState(false);
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
 
   // Edit-existing-selection feature (key = `${participantId}-${round}`)
   const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
@@ -230,7 +232,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await supabase
           .from('events')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, crush_enabled, organizer_id')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled, organizer_id')
           .eq('id', eventId)
           .single();
 
@@ -256,6 +258,7 @@ const ParticipantAccess = () => {
         // and the request-repeat edge function re-validates the event flag server-side.
         setRepeatEnabled(!!(event as any).repeat_request_enabled);
         setCrushEnabled(!!(event as any).crush_enabled);
+        setWrappedEnabled(!!(event as any).wrapped_enabled);
 
         if (event.selection_closed_at) {
           clearSession();
@@ -1060,8 +1063,8 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "tables" | "selections")} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+              <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
@@ -1075,6 +1078,12 @@ const ParticipantAccess = () => {
                   <Heart className="w-4 h-4" />
                   {t.access.selections}
                 </TabsTrigger>
+                {wrappedEnabled && (
+                  <TabsTrigger value="compatibility" className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" />
+                    {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="tables" className="space-y-3 mt-4">
@@ -1386,6 +1395,17 @@ const ParticipantAccess = () => {
                   </Button>
                 )}
               </TabsContent>
+
+              {wrappedEnabled && verifiedParticipant && (
+                <TabsContent value="compatibility" className="mt-4">
+                  <WrappedCompatibilityTab
+                    eventId={eventId!}
+                    participantId={verifiedParticipant.id}
+                    verificationCode={verificationCode}
+                    lang={eventLang}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </CardContent>
         </Card>

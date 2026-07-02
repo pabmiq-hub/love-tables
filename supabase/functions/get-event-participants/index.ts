@@ -43,7 +43,7 @@ serve(async (req) => {
     // First verify the event exists and get tables + current_round
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, completed_rounds, super_like_enabled, repeat_request_enabled, crush_enabled')
+      .select('id, status, tables, current_round, rounds, completed_rounds, super_like_enabled, repeat_request_enabled, crush_enabled, wrapped_enabled')
       .eq('id', eventId)
       .single();
 
@@ -198,6 +198,7 @@ serve(async (req) => {
             superLikeEnabled: !!event.super_like_enabled,
             repeatRequestEnabled: !!event.repeat_request_enabled,
             crushEnabled: !!event.crush_enabled,
+            wrappedEnabled: !!(event as any).wrapped_enabled,
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

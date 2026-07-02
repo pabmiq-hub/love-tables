@@ -71,3 +71,21 @@ verify_jwt = false
 
 [functions.send-payment-reminder]
 verify_jwt = false
+
+[functions.request-wrapped-table]
+verify_jwt = false
+
+[functions.respond-wrapped-table]
+verify_jwt = false
+
+[functions.get-wrapped-compatibility]
+verify_jwt = false
+
+[functions.check-wrapped-eligibility]
+verify_jwt = false
+
+[functions.request-crush]
+verify_jwt = false
+
+[functions.respond-crush]
+verify_jwt = false
