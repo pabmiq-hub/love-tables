@@ -1186,6 +1186,21 @@ const ParticipantJoin = () => {
                         </Select>
                       </div>
 
+                      {wrappedEnabled && (
+                        <div className="space-y-2">
+                          <Label htmlFor="wrapped-email">{t.join.emailLabel}</Label>
+                          <Input
+                            id="wrapped-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={t.join.emailPlaceholder}
+                            required
+                            disabled={showStep2 || showWaitlistMode}
+                          />
+                        </div>
+                      )}
+
                       {(showStep2 || showWaitlistMode) && (
                         <Button
                           type="button"
