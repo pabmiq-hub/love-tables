@@ -20,6 +20,8 @@ import DynamicRegistrationForm from "@/components/registration/DynamicRegistrati
 import type { FormField } from "@/components/event/RegistrationFormEditor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { normalizeUpcomingEventDate } from "@/lib/eventDate";
+import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
+import { getWrappedQuestions, type WrappedQuestion, type WrappedAnswers } from "@/lib/wrappedQuestions";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -144,6 +146,13 @@ const ParticipantJoin = () => {
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [wizardForceWaitlist, setWizardForceWaitlist] = useState(false);
 
+  // Wrapped submode
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
+  const [wrappedQuestions, setWrappedQuestions] = useState<WrappedQuestion[]>([]);
+  const [wrappedAnswers, setWrappedAnswers] = useState<WrappedAnswers>({});
+  const [hasWrappedProfile, setHasWrappedProfile] = useState(false);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+
   // Normalize for tolerant comparisons (dashes, case, whitespace)
   const normalizeKey = (v: any) =>
     String(v ?? '').toLowerCase().trim().replace(/–/g, '-').replace(/\s+/g, '');
@@ -158,7 +167,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions")
         .eq("id", eventId)
         .single();
 
@@ -260,7 +269,13 @@ const ParticipantJoin = () => {
         
         await loadAllQuotaCounts(eventId, quotas);
       }
-      
+
+      // Wrapped mode
+      if ((data as any).wrapped_enabled) {
+        setWrappedEnabled(true);
+        setWrappedQuestions(getWrappedQuestions((data as any).wrapped_questions));
+      }
+
       setIsLoading(false);
     };
 
@@ -359,12 +374,14 @@ const ParticipantJoin = () => {
 
   const preferredAgeRanges = [...eventAgeRanges, eventLang === "en" ? "Any age range" : "Cualquier rango de edad"];
 
-  // Step 1 → Step 2 transition (when quotas enabled)
+  // Step 1 → Step 2 transition (when quotas or wrapped are enabled)
   const handleWizardContinue = async () => {
-    if (!gender || !birthDate) {
+    if (!gender || !birthDate || (wrappedEnabled && !email.trim())) {
       toast({
         title: "Error",
-        description: eventLang === 'en' ? 'Please fill in gender and date of birth' : 'Completa género y fecha de nacimiento',
+        description: eventLang === 'en'
+          ? 'Please fill in email, gender and date of birth'
+          : 'Completa email, género y fecha de nacimiento',
         variant: "destructive",
       });
       return;
@@ -378,25 +395,61 @@ const ParticipantJoin = () => {
       toast({ title: "Error", description: t.join.errorMinAge, variant: "destructive" });
       return;
     }
-    // Refresh quotas before checking
-    const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
-    const slots = getAvailableSlotsFromStatuses(freshStatuses);
-    if (slots && !slots.available) {
-      if (!waitlistEnabled) {
+
+    // Wrapped eligibility check (quota + existing profile)
+    if (wrappedEnabled && eventId) {
+      setCheckingEligibility(true);
+      const { data: elig, error: eligErr } = await supabase.functions.invoke('check-wrapped-eligibility', {
+        body: { eventId, email: email.trim(), gender, birthDate },
+      });
+      setCheckingEligibility(false);
+      if (eligErr || elig?.error) {
         toast({
-          title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
-          description: eventLang === 'en'
-            ? `Registration for ${gender} (${calculatedAgeRange}) is full and the waitlist is not enabled for this event.`
-            : `Las plazas para ${gender} (${calculatedAgeRange}) están completas y la lista de espera no está activa en este evento.`,
-          variant: 'destructive',
+          title: "Error",
+          description: elig?.error || (eventLang === 'en' ? 'Could not validate your data' : 'No pudimos validar tus datos'),
+          variant: "destructive",
         });
         return;
       }
-      setWizardForceWaitlist(true);
-    } else {
-      setWizardForceWaitlist(false);
-      setWizardStep(2);
+      setHasWrappedProfile(!!elig?.hasWrappedProfile);
+      if (elig?.quotaFull) {
+        if (!waitlistEnabled) {
+          toast({
+            title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
+            description: eventLang === 'en'
+              ? `Registration for ${gender} (${calculatedAgeRange}) is full.`
+              : `Las plazas para ${gender} (${calculatedAgeRange}) están completas.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        setWizardForceWaitlist(true);
+        return;
+      }
     }
+
+    // Refresh quotas before checking
+    if (quotasEnabled) {
+      const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
+      const slots = getAvailableSlotsFromStatuses(freshStatuses);
+      if (slots && !slots.available) {
+        if (!waitlistEnabled) {
+          toast({
+            title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
+            description: eventLang === 'en'
+              ? `Registration for ${gender} (${calculatedAgeRange}) is full and the waitlist is not enabled for this event.`
+              : `Las plazas para ${gender} (${calculatedAgeRange}) están completas y la lista de espera no está activa en este evento.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        setWizardForceWaitlist(true);
+        return;
+      }
+    }
+
+    setWizardForceWaitlist(false);
+    setWizardStep(2);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -467,6 +520,28 @@ const ParticipantJoin = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Wrapped: validate required interest questions
+    if (wrappedEnabled && !hasWrappedProfile) {
+      for (const q of wrappedQuestions) {
+        if (!q.required) continue;
+        const v = wrappedAnswers[q.id];
+        const missing =
+          v === undefined || v === null ||
+          (Array.isArray(v) && v.length === 0) ||
+          (q.type === 'ranked_top3' && (!(v as any)?.top1 || !(v as any)?.top2 || !(v as any)?.top3));
+        if (missing) {
+          toast({
+            title: "Error",
+            description: eventLang === 'en'
+              ? 'Please answer all required interest questions.'
+              : 'Responde todas las preguntas de intereses obligatorias.',
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     if (!dataConsent) {
@@ -584,7 +659,8 @@ const ParticipantJoin = () => {
         datingPreference: isDating ? datingPreference : null,
         preferredAgeRange,
         isReturningParticipant: isReturningParticipant === "yes",
-        marketingConsent
+        marketingConsent,
+        wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
       }
     });
 
@@ -1051,7 +1127,7 @@ const ParticipantJoin = () => {
               </div>
             )}
             {(() => {
-              const isWizard = quotasEnabled;
+              const isWizard = quotasEnabled || wrappedEnabled;
               const showStep1Only = isWizard && wizardStep === 1 && !wizardForceWaitlist;
               const showWaitlistMode = isWizard && wizardForceWaitlist;
               const showStep2 = !isWizard || wizardStep === 2;
@@ -1132,6 +1208,21 @@ const ParticipantJoin = () => {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {wrappedEnabled && (
+                        <div className="space-y-2">
+                          <Label htmlFor="wrapped-email">{t.join.emailLabel}</Label>
+                          <Input
+                            id="wrapped-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={t.join.emailPlaceholder}
+                            required
+                            disabled={showStep2 || showWaitlistMode}
+                          />
+                        </div>
+                      )}
 
                       {(showStep2 || showWaitlistMode) && (
                         <Button
@@ -1268,6 +1359,23 @@ const ParticipantJoin = () => {
                     </>
                   )}
 
+                  {showStep2 && wrappedEnabled && !hasWrappedProfile && wrappedQuestions.length > 0 && (
+                    <WrappedInterestsForm
+                      questions={wrappedQuestions}
+                      lang={eventLang}
+                      values={wrappedAnswers}
+                      onChange={setWrappedAnswers}
+                    />
+                  )}
+
+                  {showStep2 && wrappedEnabled && hasWrappedProfile && (
+                    <div className="p-3 rounded-lg border bg-primary/5 text-sm text-foreground/80">
+                      {eventLang === 'en'
+                        ? '✨ We already have your interests from a previous Wrapped event — no need to fill them in again.'
+                        : '✨ Ya tenemos tus intereses de un evento Wrapped anterior — no hace falta que los rellenes de nuevo.'}
+                    </div>
+                  )}
+
                   {(showStep2 || showWaitlistMode) && (
                     <GDPRConsent
                       lang={eventLang}
@@ -1279,8 +1387,12 @@ const ParticipantJoin = () => {
                   )}
 
                   {showStep1Only ? (
-                    <Button type="button" variant="hero" className="w-full mt-6" onClick={handleWizardContinue}>
-                      {eventLang === 'en' ? 'Continue' : 'Continuar'}
+                    <Button type="button" variant="hero" className="w-full mt-6" onClick={handleWizardContinue} disabled={checkingEligibility}>
+                      {checkingEligibility ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{eventLang === 'en' ? 'Checking...' : 'Comprobando...'}</>
+                      ) : (
+                        eventLang === 'en' ? 'Continue' : 'Continuar'
+                      )}
                     </Button>
                   ) : (
                     <Button
