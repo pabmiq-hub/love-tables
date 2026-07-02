@@ -1394,6 +1394,17 @@ const ParticipantAccess = () => {
                   </Button>
                 )}
               </TabsContent>
+
+              {wrappedEnabled && verifiedParticipant && (
+                <TabsContent value="compatibility" className="mt-4">
+                  <WrappedCompatibilityTab
+                    eventId={eventId!}
+                    participantId={verifiedParticipant.id}
+                    verificationCode={verificationCode}
+                    lang={eventLang}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           </CardContent>
         </Card>
