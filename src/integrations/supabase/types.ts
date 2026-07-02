@@ -208,6 +208,7 @@ export type Database = {
       }
       events: {
         Row: {
+          available_languages: string[]
           avoid_encounters_mode: string
           avoid_previous_encounters: boolean
           checkin_open: boolean | null
@@ -234,6 +235,7 @@ export type Database = {
           id: string
           is_test_event: boolean
           language: string
+          languages_enabled: boolean
           module: string | null
           name: string
           organizer_id: string | null
@@ -270,8 +272,11 @@ export type Database = {
           test_config: Json | null
           updated_at: string
           waitlist_enabled: boolean
+          wrapped_enabled: boolean
+          wrapped_questions: Json | null
         }
         Insert: {
+          available_languages?: string[]
           avoid_encounters_mode?: string
           avoid_previous_encounters?: boolean
           checkin_open?: boolean | null
@@ -298,6 +303,7 @@ export type Database = {
           id?: string
           is_test_event?: boolean
           language?: string
+          languages_enabled?: boolean
           module?: string | null
           name: string
           organizer_id?: string | null
@@ -334,8 +340,11 @@ export type Database = {
           test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
+          wrapped_enabled?: boolean
+          wrapped_questions?: Json | null
         }
         Update: {
+          available_languages?: string[]
           avoid_encounters_mode?: string
           avoid_previous_encounters?: boolean
           checkin_open?: boolean | null
@@ -362,6 +371,7 @@ export type Database = {
           id?: string
           is_test_event?: boolean
           language?: string
+          languages_enabled?: boolean
           module?: string | null
           name?: string
           organizer_id?: string | null
@@ -398,6 +408,8 @@ export type Database = {
           test_config?: Json | null
           updated_at?: string
           waitlist_enabled?: boolean
+          wrapped_enabled?: boolean
+          wrapped_questions?: Json | null
         }
         Relationships: []
       }
@@ -1049,8 +1061,10 @@ export type Database = {
           sector: string | null
           selection_submitted_at: string | null
           solutions: string[] | null
+          spoken_languages: string[]
           verification_code: string | null
           verification_email_sent_at: string | null
+          wrapped_profile_id: string | null
         }
         Insert: {
           age?: number | null
@@ -1084,8 +1098,10 @@ export type Database = {
           sector?: string | null
           selection_submitted_at?: string | null
           solutions?: string[] | null
+          spoken_languages?: string[]
           verification_code?: string | null
           verification_email_sent_at?: string | null
+          wrapped_profile_id?: string | null
         }
         Update: {
           age?: number | null
@@ -1119,8 +1135,10 @@ export type Database = {
           sector?: string | null
           selection_submitted_at?: string | null
           solutions?: string[] | null
+          spoken_languages?: string[]
           verification_code?: string | null
           verification_email_sent_at?: string | null
+          wrapped_profile_id?: string | null
         }
         Relationships: [
           {
@@ -1135,6 +1153,13 @@ export type Database = {
             columns: ["global_participant_id"]
             isOneToOne: false
             referencedRelation: "global_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participants_wrapped_profile_id_fkey"
+            columns: ["wrapped_profile_id"]
+            isOneToOne: false
+            referencedRelation: "wrapped_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1417,6 +1442,91 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wrapped_profiles: {
+        Row: {
+          answers: Json
+          created_at: string
+          email: string
+          hobbies_ranked: string[]
+          id: string
+          organizer_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          email: string
+          hobbies_ranked?: string[]
+          id?: string
+          organizer_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          email?: string
+          hobbies_ranked?: string[]
+          id?: string
+          organizer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wrapped_table_requests: {
+        Row: {
+          compatibility_score: number | null
+          created_at: string
+          event_id: string
+          id: string
+          receiver_participant_id: string
+          responded_at: string | null
+          sender_participant_id: string
+          status: string
+        }
+        Insert: {
+          compatibility_score?: number | null
+          created_at?: string
+          event_id: string
+          id?: string
+          receiver_participant_id: string
+          responded_at?: string | null
+          sender_participant_id: string
+          status?: string
+        }
+        Update: {
+          compatibility_score?: number | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          receiver_participant_id?: string
+          responded_at?: string | null
+          sender_participant_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wrapped_table_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wrapped_table_requests_receiver_participant_id_fkey"
+            columns: ["receiver_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wrapped_table_requests_sender_participant_id_fkey"
+            columns: ["sender_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
