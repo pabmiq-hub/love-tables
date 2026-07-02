@@ -136,6 +136,7 @@ const EventSettingsEditor = ({
   const [formSuperLikeEnabled, setFormSuperLikeEnabled] = useState(initialSuperLikeEnabled);
   const [formRepeatRequestEnabled, setFormRepeatRequestEnabled] = useState(initialRepeatRequestEnabled);
   const [formCrushEnabled, setFormCrushEnabled] = useState(initialCrushEnabled);
+  const [formWrappedEnabled, setFormWrappedEnabled] = useState(false);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
@@ -202,12 +203,12 @@ const EventSettingsEditor = ({
     setFormCrushEnabled(initialCrushEnabled);
   }, [initialCrushEnabled]);
 
-  // Load custom registration form from DB
+  // Load custom registration form + wrapped flag from DB
   useEffect(() => {
-    const loadCustomForm = async () => {
+    const loadExtras = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form")
+        .select("custom_registration_form, wrapped_enabled")
         .eq("id", eventId)
         .single();
 
@@ -218,8 +219,9 @@ const EventSettingsEditor = ({
           setCustomFormFields(formConfig.fields);
         }
       }
+      if ((data as any)?.wrapped_enabled) setFormWrappedEnabled(true);
     };
-    loadCustomForm();
+    loadExtras();
   }, [eventId]);
 
   const handleSave = async () => {
@@ -250,6 +252,7 @@ const EventSettingsEditor = ({
         super_like_enabled: !isProfessional ? formSuperLikeEnabled : false,
         repeat_request_enabled: !isProfessional ? formRepeatRequestEnabled : false,
         crush_enabled: !isProfessional ? formCrushEnabled : false,
+        wrapped_enabled: !isProfessional ? formWrappedEnabled : false,
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
         reminder_mode: formReminderMode,
