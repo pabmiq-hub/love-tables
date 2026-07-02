@@ -257,6 +257,7 @@ const ParticipantAccess = () => {
         // and the request-repeat edge function re-validates the event flag server-side.
         setRepeatEnabled(!!(event as any).repeat_request_enabled);
         setCrushEnabled(!!(event as any).crush_enabled);
+        setWrappedEnabled(!!(event as any).wrapped_enabled);
 
         if (event.selection_closed_at) {
           clearSession();
