@@ -56,7 +56,7 @@ serve(async (req) => {
     // Validate receiver
     const { data: receiver, error: recvErr } = await supabase
       .from("participants")
-      .select("id, event_id, name, first_name")
+      .select("id, event_id, name")
       .eq("id", receiver_participant_id)
       .maybeSingle();
 
