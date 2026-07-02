@@ -22,6 +22,15 @@ import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { normalizeUpcomingEventDate } from "@/lib/eventDate";
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedQuestion, type WrappedAnswers } from "@/lib/wrappedQuestions";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const LANGUAGE_LABELS: Record<string, { es: string; en: string }> = {
+  es: { es: "Castellano", en: "Spanish" },
+  ca: { es: "Català", en: "Catalan" },
+  en: { es: "English", en: "English" },
+  pt: { es: "Português", en: "Portuguese" },
+  fr: { es: "Français", en: "French" },
+};
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
