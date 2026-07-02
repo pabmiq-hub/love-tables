@@ -1104,7 +1104,7 @@ const ParticipantJoin = () => {
               </div>
             )}
             {(() => {
-              const isWizard = quotasEnabled;
+              const isWizard = quotasEnabled || wrappedEnabled;
               const showStep1Only = isWizard && wizardStep === 1 && !wizardForceWaitlist;
               const showWaitlistMode = isWizard && wizardForceWaitlist;
               const showStep2 = !isWizard || wizardStep === 2;
