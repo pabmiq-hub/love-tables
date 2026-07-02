@@ -164,7 +164,7 @@ const ParticipantAccess = () => {
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
   // Active tab control (for guiding user after prelim confirmation)
-  const [activeTab, setActiveTab] = useState<"tables" | "selections">("tables");
+  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility">("tables");
   const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
 
   // Repeat request feature
