@@ -162,6 +162,12 @@ const ParticipantJoin = () => {
   const [hasWrappedProfile, setHasWrappedProfile] = useState(false);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
 
+  // Languages
+  const [languagesEnabled, setLanguagesEnabled] = useState(false);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>([]);
+
+
   // Normalize for tolerant comparisons (dashes, case, whitespace)
   const normalizeKey = (v: any) =>
     String(v ?? '').toLowerCase().trim().replace(/–/g, '-').replace(/\s+/g, '');
