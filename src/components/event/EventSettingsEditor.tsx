@@ -218,12 +218,12 @@ const EventSettingsEditor = ({
     setFormCrushEnabled(initialCrushEnabled);
   }, [initialCrushEnabled]);
 
-  // Load custom registration form + wrapped flag from DB
+  // Load custom registration form + wrapped flag + languages from DB
   useEffect(() => {
     const loadExtras = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form, wrapped_enabled")
+        .select("custom_registration_form, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -235,6 +235,11 @@ const EventSettingsEditor = ({
         }
       }
       if ((data as any)?.wrapped_enabled) setFormWrappedEnabled(true);
+      setFormWrappedQuestions(getWrappedQuestions((data as any)?.wrapped_questions));
+      if ((data as any)?.languages_enabled) setFormLanguagesEnabled(true);
+      if (Array.isArray((data as any)?.available_languages) && (data as any).available_languages.length > 0) {
+        setFormAvailableLanguages((data as any).available_languages);
+      }
     };
     loadExtras();
   }, [eventId]);
