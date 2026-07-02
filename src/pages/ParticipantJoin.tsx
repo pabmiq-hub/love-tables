@@ -685,6 +685,7 @@ const ParticipantJoin = () => {
         isReturningParticipant: isReturningParticipant === "yes",
         marketingConsent,
         wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
+        spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
       }
     });
 
