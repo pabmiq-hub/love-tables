@@ -269,7 +269,13 @@ const ParticipantJoin = () => {
         
         await loadAllQuotaCounts(eventId, quotas);
       }
-      
+
+      // Wrapped mode
+      if ((data as any).wrapped_enabled) {
+        setWrappedEnabled(true);
+        setWrappedQuestions(getWrappedQuestions((data as any).wrapped_questions));
+      }
+
       setIsLoading(false);
     };
 
