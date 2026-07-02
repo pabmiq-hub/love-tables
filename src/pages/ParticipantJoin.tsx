@@ -291,6 +291,15 @@ const ParticipantJoin = () => {
         setWrappedQuestions(getWrappedQuestions((data as any).wrapped_questions));
       }
 
+      // Languages
+      if ((data as any).languages_enabled) {
+        setLanguagesEnabled(true);
+        const langs = Array.isArray((data as any).available_languages) && (data as any).available_languages.length > 0
+          ? (data as any).available_languages
+          : ["es", "ca", "en"];
+        setAvailableLanguages(langs);
+      }
+
       setIsLoading(false);
     };
 
