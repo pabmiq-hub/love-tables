@@ -1383,6 +1383,40 @@ const ParticipantJoin = () => {
                     </>
                   )}
 
+                  {showStep2 && languagesEnabled && availableLanguages.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>
+                        {eventLang === "en" ? "Languages you speak" : "Idiomas que hablas"}{" "}
+                        <span className="text-muted-foreground text-xs">
+                          ({eventLang === "en" ? "select all that apply" : "selecciona los que hablas"})
+                        </span>
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availableLanguages.map((code) => {
+                          const label = LANGUAGE_LABELS[code]?.[eventLang] || code.toUpperCase();
+                          const checked = spokenLanguages.includes(code);
+                          return (
+                            <label
+                              key={code}
+                              className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSpokenLanguages((prev) =>
+                                    v ? Array.from(new Set([...prev, code])) : prev.filter((c) => c !== code)
+                                  );
+                                }}
+                              />
+                              <span className="text-sm">{label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+
                   {showStep2 && wrappedEnabled && !hasWrappedProfile && wrappedQuestions.length > 0 && (
                     <WrappedInterestsForm
                       questions={wrappedQuestions}
