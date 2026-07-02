@@ -35,6 +35,7 @@ import SuperLikeBanner from "@/components/ui/super-like-banner";
 import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 import { Star } from "lucide-react";
 import confetti from "canvas-confetti";
+import WrappedCompatibilityTab from "@/components/event/WrappedCompatibilityTab";
 
 interface MatchSelection {
   participantId: string;
