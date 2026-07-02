@@ -91,8 +91,8 @@ serve(async (req) => {
         .from("participant_inclusions")
         .insert({
           event_id: request.event_id,
-          participant_a_id: p1,
-          participant_b_id: p2,
+          participant_1_id: p1,
+          participant_2_id: p2,
           reason: "wrapped_table_request",
         });
 
