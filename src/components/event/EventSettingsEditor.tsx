@@ -20,7 +20,18 @@ import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
 import CustomTableLayoutDialog from "./CustomTableLayoutDialog";
 import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayout";
-import { Settings2 } from "lucide-react";
+import { Settings2, Languages, Sparkles } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import WrappedQuestionsEditor from "./WrappedQuestionsEditor";
+import { DEFAULT_WRAPPED_QUESTIONS, getWrappedQuestions, type WrappedQuestion } from "@/lib/wrappedQuestions";
+
+const AVAILABLE_LANGUAGE_OPTIONS: { code: string; label: string }[] = [
+  { code: "es", label: "Castellano" },
+  { code: "ca", label: "Català" },
+  { code: "en", label: "English" },
+  { code: "pt", label: "Português" },
+  { code: "fr", label: "Français" },
+];
 
 interface EventSettingsEditorProps {
   eventId: string;
