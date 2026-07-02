@@ -178,6 +178,7 @@ const ParticipantAccess = () => {
   const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
   const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingCrush, setIsSendingCrush] = useState(false);
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
 
   // Edit-existing-selection feature (key = `${participantId}-${round}`)
   const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
