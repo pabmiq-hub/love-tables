@@ -20,7 +20,18 @@ import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
 import CustomTableLayoutDialog from "./CustomTableLayoutDialog";
 import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayout";
-import { Settings2 } from "lucide-react";
+import { Settings2, Languages, Sparkles } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import WrappedQuestionsEditor from "./WrappedQuestionsEditor";
+import { DEFAULT_WRAPPED_QUESTIONS, getWrappedQuestions, type WrappedQuestion } from "@/lib/wrappedQuestions";
+
+const AVAILABLE_LANGUAGE_OPTIONS: { code: string; label: string }[] = [
+  { code: "es", label: "Castellano" },
+  { code: "ca", label: "Català" },
+  { code: "en", label: "English" },
+  { code: "pt", label: "Português" },
+  { code: "fr", label: "Français" },
+];
 
 interface EventSettingsEditorProps {
   eventId: string;
@@ -137,6 +148,10 @@ const EventSettingsEditor = ({
   const [formRepeatRequestEnabled, setFormRepeatRequestEnabled] = useState(initialRepeatRequestEnabled);
   const [formCrushEnabled, setFormCrushEnabled] = useState(initialCrushEnabled);
   const [formWrappedEnabled, setFormWrappedEnabled] = useState(false);
+  const [formWrappedQuestions, setFormWrappedQuestions] = useState<WrappedQuestion[]>(DEFAULT_WRAPPED_QUESTIONS);
+  const [showWrappedEditor, setShowWrappedEditor] = useState(false);
+  const [formLanguagesEnabled, setFormLanguagesEnabled] = useState(false);
+  const [formAvailableLanguages, setFormAvailableLanguages] = useState<string[]>(["es", "ca", "en"]);
   const [formCheckinMinutes, setFormCheckinMinutes] = useState(checkinOpensMinutesBefore);
   const [formCodeSendMode, setFormCodeSendMode] = useState(initialCodeSendMode);
   const [formPreliminaryRoundEnabled, setFormPreliminaryRoundEnabled] = useState(initialPreliminaryRoundEnabled);
@@ -203,12 +218,12 @@ const EventSettingsEditor = ({
     setFormCrushEnabled(initialCrushEnabled);
   }, [initialCrushEnabled]);
 
-  // Load custom registration form + wrapped flag from DB
+  // Load custom registration form + wrapped flag + languages from DB
   useEffect(() => {
     const loadExtras = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form, wrapped_enabled")
+        .select("custom_registration_form, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -220,6 +235,11 @@ const EventSettingsEditor = ({
         }
       }
       if ((data as any)?.wrapped_enabled) setFormWrappedEnabled(true);
+      setFormWrappedQuestions(getWrappedQuestions((data as any)?.wrapped_questions));
+      if ((data as any)?.languages_enabled) setFormLanguagesEnabled(true);
+      if (Array.isArray((data as any)?.available_languages) && (data as any).available_languages.length > 0) {
+        setFormAvailableLanguages((data as any).available_languages);
+      }
     };
     loadExtras();
   }, [eventId]);
@@ -253,6 +273,9 @@ const EventSettingsEditor = ({
         repeat_request_enabled: !isProfessional ? formRepeatRequestEnabled : false,
         crush_enabled: !isProfessional ? formCrushEnabled : false,
         wrapped_enabled: !isProfessional ? formWrappedEnabled : false,
+        wrapped_questions: !isProfessional && formWrappedEnabled ? formWrappedQuestions : null,
+        languages_enabled: !isProfessional ? formLanguagesEnabled : false,
+        available_languages: !isProfessional && formLanguagesEnabled ? formAvailableLanguages : [],
         checkin_opens_minutes_before: formCheckinMinutes,
         code_send_mode: formCodeSendMode,
         reminder_mode: formReminderMode,
@@ -547,19 +570,75 @@ const EventSettingsEditor = ({
           )}
 
           {!isProfessional && (
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex-1 pr-4">
-                <Label className="text-base">✨ Modo Wrapped</Label>
-                <p className="text-sm text-muted-foreground">
-                  Añade un formulario de intereses en 2 pasos y calcula compatibilidad entre participantes. Los intereses se reutilizan en futuros eventos Wrapped del mismo organizador.
-                </p>
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base">✨ Modo Wrapped</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Añade un formulario de intereses en 2 pasos y calcula compatibilidad entre participantes. Los intereses se reutilizan en futuros eventos Wrapped del mismo organizador.
+                  </p>
+                </div>
+                <Switch
+                  checked={formWrappedEnabled}
+                  onCheckedChange={setFormWrappedEnabled}
+                />
               </div>
-              <Switch
-                checked={formWrappedEnabled}
-                onCheckedChange={setFormWrappedEnabled}
-              />
+              {formWrappedEnabled && (
+                <div className="flex items-center justify-between pt-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {formWrappedQuestions.length} preguntas de intereses configuradas
+                  </p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowWrappedEditor(true)}>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Personalizar preguntas
+                  </Button>
+                </div>
+              )}
             </div>
           )}
+
+          {!isProfessional && (
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 pr-4">
+                  <Label className="text-base flex items-center gap-2">
+                    <Languages className="w-4 h-4" /> Idiomas que hablan los asistentes
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Muestra un selector de idiomas en el formulario de inscripción. Se tiene en cuenta al generar las mesas para agrupar personas con idiomas en común.
+                  </p>
+                </div>
+                <Switch
+                  checked={formLanguagesEnabled}
+                  onCheckedChange={setFormLanguagesEnabled}
+                />
+              </div>
+              {formLanguagesEnabled && (
+                <div className="pt-3 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground">Idiomas disponibles en el formulario:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {AVAILABLE_LANGUAGE_OPTIONS.map((opt) => {
+                      const checked = formAvailableLanguages.includes(opt.code);
+                      return (
+                        <label key={opt.code} className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              setFormAvailableLanguages((prev) =>
+                                v ? Array.from(new Set([...prev, opt.code])) : prev.filter((c) => c !== opt.code)
+                              );
+                            }}
+                          />
+                          <span className="text-sm">{opt.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
 
 
           <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -934,6 +1013,13 @@ const EventSettingsEditor = ({
         defaultCapacity={formTableSize}
         initialLayout={formCustomTables}
         onSave={(layout) => setFormCustomTables(layout)}
+      />
+
+      <WrappedQuestionsEditor
+        open={showWrappedEditor}
+        onOpenChange={setShowWrappedEditor}
+        value={formWrappedQuestions}
+        onSave={(qs) => setFormWrappedQuestions(qs)}
       />
     </>
   );

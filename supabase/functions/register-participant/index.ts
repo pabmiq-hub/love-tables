@@ -349,7 +349,7 @@ serve(async (req) => {
     }
 
     // ─── SOCIAL REGISTRATION (existing flow) ───
-    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant, wrappedAnswers } = body;
+    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant, wrappedAnswers, spokenLanguages } = body;
     
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
@@ -638,6 +638,7 @@ serve(async (req) => {
         checked_in: shouldAutoCheckin,
         marketing_consent: marketingConsent,
         wrapped_profile_id: wrappedProfileId,
+        spoken_languages: Array.isArray(spokenLanguages) ? spokenLanguages : [],
       })
       .select()
       .single();

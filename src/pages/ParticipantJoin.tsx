@@ -22,6 +22,15 @@ import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { normalizeUpcomingEventDate } from "@/lib/eventDate";
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedQuestion, type WrappedAnswers } from "@/lib/wrappedQuestions";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const LANGUAGE_LABELS: Record<string, { es: string; en: string }> = {
+  es: { es: "Castellano", en: "Spanish" },
+  ca: { es: "Català", en: "Catalan" },
+  en: { es: "English", en: "English" },
+  pt: { es: "Português", en: "Portuguese" },
+  fr: { es: "Français", en: "French" },
+};
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -153,6 +162,12 @@ const ParticipantJoin = () => {
   const [hasWrappedProfile, setHasWrappedProfile] = useState(false);
   const [checkingEligibility, setCheckingEligibility] = useState(false);
 
+  // Languages
+  const [languagesEnabled, setLanguagesEnabled] = useState(false);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>([]);
+
+
   // Normalize for tolerant comparisons (dashes, case, whitespace)
   const normalizeKey = (v: any) =>
     String(v ?? '').toLowerCase().trim().replace(/–/g, '-').replace(/\s+/g, '');
@@ -167,7 +182,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -274,6 +289,15 @@ const ParticipantJoin = () => {
       if ((data as any).wrapped_enabled) {
         setWrappedEnabled(true);
         setWrappedQuestions(getWrappedQuestions((data as any).wrapped_questions));
+      }
+
+      // Languages
+      if ((data as any).languages_enabled) {
+        setLanguagesEnabled(true);
+        const langs = Array.isArray((data as any).available_languages) && (data as any).available_languages.length > 0
+          ? (data as any).available_languages
+          : ["es", "ca", "en"];
+        setAvailableLanguages(langs);
       }
 
       setIsLoading(false);
@@ -661,6 +685,7 @@ const ParticipantJoin = () => {
         isReturningParticipant: isReturningParticipant === "yes",
         marketingConsent,
         wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
+        spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
       }
     });
 
@@ -1358,6 +1383,40 @@ const ParticipantJoin = () => {
                       </div>
                     </>
                   )}
+
+                  {showStep2 && languagesEnabled && availableLanguages.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>
+                        {eventLang === "en" ? "Languages you speak" : "Idiomas que hablas"}{" "}
+                        <span className="text-muted-foreground text-xs">
+                          ({eventLang === "en" ? "select all that apply" : "selecciona los que hablas"})
+                        </span>
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availableLanguages.map((code) => {
+                          const label = LANGUAGE_LABELS[code]?.[eventLang] || code.toUpperCase();
+                          const checked = spokenLanguages.includes(code);
+                          return (
+                            <label
+                              key={code}
+                              className="flex items-center gap-2 p-2 rounded-md border cursor-pointer hover:bg-muted/50"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSpokenLanguages((prev) =>
+                                    v ? Array.from(new Set([...prev, code])) : prev.filter((c) => c !== code)
+                                  );
+                                }}
+                              />
+                              <span className="text-sm">{label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
 
                   {showStep2 && wrappedEnabled && !hasWrappedProfile && wrappedQuestions.length > 0 && (
                     <WrappedInterestsForm
