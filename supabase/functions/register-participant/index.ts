@@ -638,6 +638,7 @@ serve(async (req) => {
         checked_in: shouldAutoCheckin,
         marketing_consent: marketingConsent,
         wrapped_profile_id: wrappedProfileId,
+        spoken_languages: Array.isArray(spokenLanguages) ? spokenLanguages : [],
       })
       .select()
       .single();
