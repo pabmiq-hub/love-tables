@@ -20,6 +20,8 @@ import DynamicRegistrationForm from "@/components/registration/DynamicRegistrati
 import type { FormField } from "@/components/event/RegistrationFormEditor";
 import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { normalizeUpcomingEventDate } from "@/lib/eventDate";
+import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
+import { getWrappedQuestions, type WrappedQuestion, type WrappedAnswers } from "@/lib/wrappedQuestions";
 
 // Default dropdown values per language
 const GENDERS_ES = ["Hombre", "Mujer", "No binario", "Prefiero no decirlo"];
@@ -143,6 +145,13 @@ const ParticipantJoin = () => {
   // 2-step wizard when quotas are enabled
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [wizardForceWaitlist, setWizardForceWaitlist] = useState(false);
+
+  // Wrapped submode
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
+  const [wrappedQuestions, setWrappedQuestions] = useState<WrappedQuestion[]>([]);
+  const [wrappedAnswers, setWrappedAnswers] = useState<WrappedAnswers>({});
+  const [hasWrappedProfile, setHasWrappedProfile] = useState(false);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   // Normalize for tolerant comparisons (dashes, case, whitespace)
   const normalizeKey = (v: any) =>
