@@ -1062,8 +1062,8 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "tables" | "selections")} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+              <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
@@ -1077,6 +1077,12 @@ const ParticipantAccess = () => {
                   <Heart className="w-4 h-4" />
                   {t.access.selections}
                 </TabsTrigger>
+                {wrappedEnabled && (
+                  <TabsTrigger value="compatibility" className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" />
+                    {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="tables" className="space-y-3 mt-4">
