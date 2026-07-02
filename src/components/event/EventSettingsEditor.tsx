@@ -1014,6 +1014,13 @@ const EventSettingsEditor = ({
         initialLayout={formCustomTables}
         onSave={(layout) => setFormCustomTables(layout)}
       />
+
+      <WrappedQuestionsEditor
+        open={showWrappedEditor}
+        onOpenChange={setShowWrappedEditor}
+        value={formWrappedQuestions}
+        onSave={(qs) => setFormWrappedQuestions(qs)}
+      />
     </>
   );
 };
