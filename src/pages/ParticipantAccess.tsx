@@ -1065,6 +1065,10 @@ const ParticipantAccess = () => {
             )}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
               <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <TabsTrigger value="info" className="flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4" />
+                  {eventLang === 'es' ? 'Inicio' : 'Home'}
+                </TabsTrigger>
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
@@ -1084,10 +1088,6 @@ const ParticipantAccess = () => {
                     {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="info" className="flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" />
-                  {eventLang === 'es' ? 'Funcionamiento' : 'How it works'}
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="tables" className="space-y-3 mt-4">
