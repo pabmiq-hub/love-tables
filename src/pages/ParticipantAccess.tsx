@@ -165,7 +165,7 @@ const ParticipantAccess = () => {
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
   // Active tab control (for guiding user after prelim confirmation)
-  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility" | "info">("tables");
+  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility" | "info">("info");
   const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
 
   // Repeat request feature
@@ -1065,6 +1065,10 @@ const ParticipantAccess = () => {
             )}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
               <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <TabsTrigger value="info" className="flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4" />
+                  {eventLang === 'es' ? 'Inicio' : 'Home'}
+                </TabsTrigger>
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
@@ -1084,10 +1088,6 @@ const ParticipantAccess = () => {
                     {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="info" className="flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" />
-                  {eventLang === 'es' ? 'Funcionamiento' : 'How it works'}
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="tables" className="space-y-3 mt-4">
@@ -1412,26 +1412,45 @@ const ParticipantAccess = () => {
               )}
 
               <TabsContent value="info" className="mt-4 space-y-3">
-                <div className="rounded-lg border p-4 bg-muted/30">
+                <div className="rounded-lg border p-4 bg-primary/5 border-primary/20">
+                  <p className="text-sm font-semibold mb-1">
+                    {eventLang === 'es' ? '👋 ¡Bienvenido/a!' : '👋 Welcome!'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {eventLang === 'es'
+                      ? 'Aquí tienes cómo funciona el evento. Toca cada sección para acceder.'
+                      : 'Here is how the event works. Tap any section to open it.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('tables')}
+                  className="w-full text-left rounded-lg border p-4 bg-muted/30 hover:bg-muted/60 transition-colors"
+                >
                   <div className="flex items-start gap-2">
                     <Table2 className="w-4 h-4 text-primary mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-semibold">
-                        {eventLang === 'es' ? 'Rondas y mesas' : 'Rounds and tables'}
+                        {eventLang === 'es' ? 'Mesas' : 'Tables'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {eventLang === 'es'
-                          ? `El evento se compone de ${totalRounds || 'varias'} ronda${(totalRounds || 2) === 1 ? '' : 's'}. En cada ronda te sentarás en una mesa distinta con nuevos compañeros. Consulta tu mesa en cada momento desde la pestaña "Mis mesas".`
-                          : `The event has ${totalRounds || 'several'} round${(totalRounds || 2) === 1 ? '' : 's'}. In each round you'll sit at a different table with new people. Check your table any time in the "My tables" tab.`}
+                          ? `El evento se compone de ${totalRounds || 'varias'} ronda${(totalRounds || 2) === 1 ? '' : 's'}. En cada ronda te sentarás en una mesa distinta con nuevos compañeros. Toca aquí para ver tu mesa en cada momento.`
+                          : `The event has ${totalRounds || 'several'} round${(totalRounds || 2) === 1 ? '' : 's'}. In each round you'll sit at a different table with new people. Tap here to see your current table.`}
                       </p>
                     </div>
                   </div>
-                </div>
+                </button>
 
-                <div className="rounded-lg border p-4 bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('selections')}
+                  className="w-full text-left rounded-lg border p-4 bg-muted/30 hover:bg-muted/60 transition-colors"
+                >
                   <div className="flex items-start gap-2">
                     <Heart className="w-4 h-4 text-primary mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-semibold">
                         {eventLang === 'es' ? 'Selecciones y coincidencias' : 'Selections and matches'}
                       </p>
@@ -1442,6 +1461,34 @@ const ParticipantAccess = () => {
                       </p>
                     </div>
                   </div>
+                </button>
+
+                {wrappedEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('compatibility')}
+                    className="w-full text-left rounded-lg border p-4 bg-muted/30 hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-primary mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold">
+                          {eventLang === 'es' ? 'Compatibilidad Wrapped' : 'Wrapped compatibility'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'Consulta tu Top 10 anónimo por afinidad de intereses. Puedes pedir coincidir en mesa con hasta 3 personas.'
+                            : 'Check your anonymous Top 10 by shared interests. You can request to share a table with up to 3 people.'}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
+                <div className="pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                    {eventLang === 'es' ? 'Acciones especiales' : 'Special actions'}
+                  </p>
                 </div>
 
                 <div className="rounded-lg border p-4 bg-muted/30">
@@ -1453,8 +1500,8 @@ const ParticipantAccess = () => {
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {eventLang === 'es'
-                          ? 'Tienes 1 Super Like por evento. Notifica de forma anticipada a esa persona que te ha causado una gran impresión. Si además marcáis Amistad o Ligue, se genera una coincidencia.'
-                          : 'You have 1 Super Like per event. It anonymously notifies that special person. If either of you also marks Friendship or Dating, a match is created.'}
+                          ? 'Tienes 1 Super Like por evento. Se envía una notificación por correo electrónico de forma anónima a esa persona (no sabrá quién ha sido). Si además marcáis Amistad o Ligue, se genera una coincidencia.'
+                          : 'You have 1 Super Like per event. An anonymous email notification is sent to that person (they will not know who sent it). If either of you also marks Friendship or Dating, a match is created.'}
                       </p>
                     </div>
                   </div>
@@ -1470,8 +1517,8 @@ const ParticipantAccess = () => {
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {eventLang === 'es'
-                            ? 'Tienes 1 solicitud de "Repetir" por evento: pide compartir mesa de nuevo con alguien. Si acepta, os agruparemos en la siguiente ronda disponible.'
-                            : 'You have 1 "Repeat" request per event: ask to share a table again with someone. If they accept, we will group you in the next available round.'}
+                            ? 'Tienes 1 solicitud de "Repetir" por evento. Se envía una solicitud no anónima por correo electrónico (verá tu nombre): si acepta, os agruparemos en la siguiente ronda disponible.'
+                            : 'You have 1 "Repeat" request per event. A non-anonymous email request is sent (they will see your name): if they accept, we will group you together in the next available round.'}
                         </p>
                       </div>
                     </div>
@@ -1488,26 +1535,8 @@ const ParticipantAccess = () => {
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {eventLang === 'es'
-                            ? 'Solo disponible si buscas ligue/romance y con personas que también lo buscan. Tienes 1 Flechazo por evento: si acepta, os intercambiaremos los teléfonos por email y coincidiréis en la próxima ronda.'
-                            : 'Only available if you and the other person are looking for dating/romance. You have 1 Flechazo per event: if accepted, we will share phone numbers by email and pair you in the next round.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {wrappedEnabled && (
-                  <div className="rounded-lg border p-4 bg-muted/30">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {eventLang === 'es' ? 'Compatibilidad Wrapped' : 'Wrapped compatibility'}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {eventLang === 'es'
-                            ? 'En la pestaña "Compatibilidad" verás tu Top 10 anónimo por afinidad de intereses. Puedes pedir coincidir en mesa con hasta 3 personas.'
-                            : 'In the "Compatibility" tab you will see your anonymous Top 10 by shared interests. You can request to share a table with up to 3 people.'}
+                            ? 'Solo disponible si buscas ligue/romance y con personas que también lo buscan. Tienes 1 Flechazo por evento: se envía una solicitud no anónima por correo electrónico (verá tu nombre). Si acepta, os intercambiaremos los teléfonos por email y coincidiréis en la próxima ronda.'
+                            : 'Only available if you and the other person are looking for dating/romance. You have 1 Flechazo per event: a non-anonymous email request is sent (they will see your name). If accepted, we will share phone numbers by email and pair you in the next round.'}
                         </p>
                       </div>
                     </div>
