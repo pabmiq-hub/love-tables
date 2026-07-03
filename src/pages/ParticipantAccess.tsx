@@ -165,7 +165,7 @@ const ParticipantAccess = () => {
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
   // Active tab control (for guiding user after prelim confirmation)
-  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility">("tables");
+  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility" | "info">("tables");
   const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
 
   // Repeat request feature
@@ -1064,7 +1064,7 @@ const ParticipantAccess = () => {
               </div>
             )}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <TabsTrigger value="tables" className="flex items-center gap-1.5">
                   <Table2 className="w-4 h-4" />
                   {t.access.myTables}
@@ -1084,6 +1084,10 @@ const ParticipantAccess = () => {
                     {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
                   </TabsTrigger>
                 )}
+                <TabsTrigger value="info" className="flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4" />
+                  {eventLang === 'es' ? 'Funcionamiento' : 'How it works'}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="tables" className="space-y-3 mt-4">
@@ -1406,6 +1410,121 @@ const ParticipantAccess = () => {
                   />
                 </TabsContent>
               )}
+
+              <TabsContent value="info" className="mt-4 space-y-3">
+                <div className="rounded-lg border p-4 bg-muted/30">
+                  <div className="flex items-start gap-2">
+                    <Table2 className="w-4 h-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {eventLang === 'es' ? 'Rondas y mesas' : 'Rounds and tables'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {eventLang === 'es'
+                          ? `El evento se compone de ${totalRounds || 'varias'} ronda${(totalRounds || 2) === 1 ? '' : 's'}. En cada ronda te sentarás en una mesa distinta con nuevos compañeros. Consulta tu mesa en cada momento desde la pestaña "Mis mesas".`
+                          : `The event has ${totalRounds || 'several'} round${(totalRounds || 2) === 1 ? '' : 's'}. In each round you'll sit at a different table with new people. Check your table any time in the "My tables" tab.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/30">
+                  <div className="flex items-start gap-2">
+                    <Heart className="w-4 h-4 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {eventLang === 'es' ? 'Selecciones y coincidencias' : 'Selections and matches'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {eventLang === 'es'
+                          ? 'Al terminar cada ronda marca con quién te gustaría volver a hablar (Amistad o Ligue). Si el interés es mutuo, recibiréis un email con vuestros datos de contacto tras el evento.'
+                          : 'After each round mark who you would like to meet again (Friendship or Dating). If the interest is mutual, you will both receive an email with contact details after the event.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4 bg-muted/30">
+                  <div className="flex items-start gap-2">
+                    <Star className="w-4 h-4 text-amber-500 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {eventLang === 'es' ? 'Super Like' : 'Super Like'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {eventLang === 'es'
+                          ? 'Tienes 1 Super Like por evento. Notifica de forma anticipada a esa persona que te ha causado una gran impresión. Si además marcáis Amistad o Ligue, se genera una coincidencia.'
+                          : 'You have 1 Super Like per event. It anonymously notifies that special person. If either of you also marks Friendship or Dating, a match is created.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {repeatEnabled && (
+                  <div className="rounded-lg border p-4 bg-muted/30">
+                    <div className="flex items-start gap-2">
+                      <Repeat2 className="w-4 h-4 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {eventLang === 'es' ? 'Repetir' : 'Repeat'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'Tienes 1 solicitud de "Repetir" por evento: pide compartir mesa de nuevo con alguien. Si acepta, os agruparemos en la siguiente ronda disponible.'
+                            : 'You have 1 "Repeat" request per event: ask to share a table again with someone. If they accept, we will group you in the next available round.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {crushEnabled && (
+                  <div className="rounded-lg border p-4 bg-muted/30">
+                    <div className="flex items-start gap-2">
+                      <Heart className="w-4 h-4 text-rose-500 fill-rose-500 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {eventLang === 'es' ? 'Flechazo' : 'Flechazo'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'Solo disponible si buscas ligue/romance y con personas que también lo buscan. Tienes 1 Flechazo por evento: si acepta, os intercambiaremos los teléfonos por email y coincidiréis en la próxima ronda.'
+                            : 'Only available if you and the other person are looking for dating/romance. You have 1 Flechazo per event: if accepted, we will share phone numbers by email and pair you in the next round.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {wrappedEnabled && (
+                  <div className="rounded-lg border p-4 bg-muted/30">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {eventLang === 'es' ? 'Compatibilidad Wrapped' : 'Wrapped compatibility'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'En la pestaña "Compatibilidad" verás tu Top 10 anónimo por afinidad de intereses. Puedes pedir coincidir en mesa con hasta 3 personas.'
+                            : 'In the "Compatibility" tab you will see your anonymous Top 10 by shared interests. You can request to share a table with up to 3 people.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-lg border p-4 bg-primary/5 border-primary/20">
+                  <div className="flex items-start gap-2">
+                    <Lock className="w-4 h-4 text-primary mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      {eventLang === 'es'
+                        ? 'Tus datos son confidenciales: solo compartimos tu contacto cuando hay coincidencia mutua o aceptas un Flechazo.'
+                        : 'Your data is confidential: we only share your contact info when there is a mutual match or you accept a Flechazo.'}
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
