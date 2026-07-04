@@ -63,6 +63,12 @@ const AddParticipantFromCRM = ({
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<"bulk" | "review">("bulk");
 
+  // Stable key so parent-created Sets don't re-fire the effect on every render.
+  const excludeKey = useMemo(
+    () => Array.from(excludeGlobalIds).sort().join(","),
+    [excludeGlobalIds]
+  );
+
   useEffect(() => {
     const load = async () => {
       if (!user?.id) return;
@@ -77,9 +83,8 @@ const AddParticipantFromCRM = ({
 
         if (error) throw error;
 
-        const filtered = (globals || []).filter(
-          (g) => !excludeGlobalIds.has(g.id)
-        );
+        const excludeSet = new Set(excludeKey ? excludeKey.split(",") : []);
+        const filtered = (globals || []).filter((g) => !excludeSet.has(g.id));
 
         if (filtered.length === 0) {
           setCandidates([]);
@@ -133,7 +138,8 @@ const AddParticipantFromCRM = ({
       }
     };
     load();
-  }, [user?.id, excludeGlobalIds, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, excludeKey]);
 
   const filteredList = useMemo(() => {
     const q = search.trim().toLowerCase();
