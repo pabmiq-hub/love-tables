@@ -1449,14 +1449,31 @@ const EventDetail = () => {
     const hosts: DbParticipant[] = [];
     const hostIndices = new Set<number>();
     
-    // Try to pick one host from each merged group
-    for (const group of mergedGroups) {
-      if (hosts.length >= numTables) break;
-      // Pick from middle of group for better distribution
-      const pickIdx = Math.floor(group.length / 2);
-      const host = group[pickIdx];
-      hosts.push(host);
-      hostIndices.add(sortedParticipants.indexOf(host));
+    if (mergedGroups.length === 1 && numTables > 0) {
+      // Single age range: distribute hosts evenly across the DOB-sorted list so
+      // each host anchors a different birth-date cluster. Rotators near each
+      // host in the sorted order will score higher and sit together.
+      const total = sortedParticipants.length;
+      for (let t = 0; t < numTables && hosts.length < total; t++) {
+        // Place picks at fractional positions (t+0.5)/numTables to spread evenly.
+        let idx = Math.floor(((t + 0.5) * total) / numTables);
+        // Avoid collisions if numTables > total (shouldn't happen after distribution).
+        while (hostIndices.has(idx) && idx < total - 1) idx++;
+        while (hostIndices.has(idx) && idx > 0) idx--;
+        if (!hostIndices.has(idx)) {
+          hosts.push(sortedParticipants[idx]);
+          hostIndices.add(idx);
+        }
+      }
+    } else {
+      // Try to pick one host from each merged group (middle of group)
+      for (const group of mergedGroups) {
+        if (hosts.length >= numTables) break;
+        const pickIdx = Math.floor(group.length / 2);
+        const host = group[pickIdx];
+        hosts.push(host);
+        hostIndices.add(sortedParticipants.indexOf(host));
+      }
     }
     
     // Fill remaining hosts from sorted list
@@ -1468,6 +1485,16 @@ const EventDetail = () => {
     }
     
     const rotators = sortedParticipants.filter((_, idx) => !hostIndices.has(idx));
+
+    // Helper: absolute difference in years between two ISO birth dates.
+    // Returns null when either date is missing so scoring stays neutral.
+    const birthYearDiff = (a?: string | null, b?: string | null): number | null => {
+      if (!a || !b) return null;
+      const ay = parseInt(a.slice(0, 4), 10);
+      const by = parseInt(b.slice(0, 4), 10);
+      if (!Number.isFinite(ay) || !Number.isFinite(by)) return null;
+      return Math.abs(ay - by);
+    };
     
     let hasIncomplete = false;
     
@@ -1581,8 +1608,23 @@ const EventDetail = () => {
           if (ageDist === 0) score += 50;      // Same age range: highest bonus
           else if (ageDist === 1) score += 25; // Adjacent: good bonus
           else if (ageDist >= 3) score -= 50;  // Very different: bigger penalty
-          
-          // Check compatibility with other table members
+
+          // Birth-date proximity: within the same (or single) age range, prefer
+          // rotators whose year of birth is close to the host's and to the
+          // members already seated. This is what makes tables cluster by
+          // similar age when only one franja de edad exists.
+          const hostBd = (host as any).birth_date as string | null | undefined;
+          const rotBd = (rotator as any).birth_date as string | null | undefined;
+          const hostRotDiff = birthYearDiff(hostBd, rotBd);
+          if (hostRotDiff !== null) {
+            if (hostRotDiff <= 2) score += 40;
+            else if (hostRotDiff <= 5) score += 20;
+            else if (hostRotDiff <= 8) score += 5;
+            else if (hostRotDiff <= 12) score -= 15;
+            else score -= 35;
+          }
+
+          // Compatibility with other table members (age range + DOB proximity)
           table.forEach(member => {
             const memberParticipant = participantsList.find(p => p.id === member.id);
             if (memberParticipant) {
@@ -1591,6 +1633,13 @@ const EventDetail = () => {
                 score += 30;
               } else if (!relaxConstraints) {
                 score -= 50;
+              }
+              const memberBd = (memberParticipant as any).birth_date as string | null | undefined;
+              const memberDiff = birthYearDiff(memberBd, rotBd);
+              if (memberDiff !== null) {
+                if (memberDiff <= 2) score += 20;
+                else if (memberDiff <= 5) score += 10;
+                else if (memberDiff >= 10) score -= 15;
               }
             }
           });
