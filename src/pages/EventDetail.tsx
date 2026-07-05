@@ -1608,8 +1608,23 @@ const EventDetail = () => {
           if (ageDist === 0) score += 50;      // Same age range: highest bonus
           else if (ageDist === 1) score += 25; // Adjacent: good bonus
           else if (ageDist >= 3) score -= 50;  // Very different: bigger penalty
-          
-          // Check compatibility with other table members
+
+          // Birth-date proximity: within the same (or single) age range, prefer
+          // rotators whose year of birth is close to the host's and to the
+          // members already seated. This is what makes tables cluster by
+          // similar age when only one franja de edad exists.
+          const hostBd = (host as any).birth_date as string | null | undefined;
+          const rotBd = (rotator as any).birth_date as string | null | undefined;
+          const hostRotDiff = birthYearDiff(hostBd, rotBd);
+          if (hostRotDiff !== null) {
+            if (hostRotDiff <= 2) score += 40;
+            else if (hostRotDiff <= 5) score += 20;
+            else if (hostRotDiff <= 8) score += 5;
+            else if (hostRotDiff <= 12) score -= 15;
+            else score -= 35;
+          }
+
+          // Compatibility with other table members (age range + DOB proximity)
           table.forEach(member => {
             const memberParticipant = participantsList.find(p => p.id === member.id);
             if (memberParticipant) {
@@ -1618,6 +1633,13 @@ const EventDetail = () => {
                 score += 30;
               } else if (!relaxConstraints) {
                 score -= 50;
+              }
+              const memberBd = (memberParticipant as any).birth_date as string | null | undefined;
+              const memberDiff = birthYearDiff(memberBd, rotBd);
+              if (memberDiff !== null) {
+                if (memberDiff <= 2) score += 20;
+                else if (memberDiff <= 5) score += 10;
+                else if (memberDiff >= 10) score -= 15;
               }
             }
           });
