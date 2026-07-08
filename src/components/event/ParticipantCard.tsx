@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical, CreditCard, CheckCircle2, BellRing } from "lucide-react";
+import { Eye, UserCheck, Send, Trash2, Loader2, Mail, Calendar, Key, User, Heart, Users, Handshake, Bell, Sparkles, RotateCcw, FlaskConical, CreditCard, CheckCircle2, BellRing, Cake } from "lucide-react";
 import InlineEmailEditor from "./InlineEmailEditor";
 import { normalizePreference } from "@/lib/analyticsNormalization";
 
@@ -24,6 +24,7 @@ interface ParticipantCardProps {
     phone?: string | null;
     gender?: string | null;
     age_range?: string | null;
+    birth_date?: string | null;
     preference?: string | null;
     entity_type?: string | null;
     company_name?: string | null;
@@ -358,6 +359,20 @@ const ParticipantCard = ({
               <span className="truncate">{participant.email}</span>
             </div>
           )}
+
+          {/* Birth date */}
+          {!isProfessional && participant.birth_date && (() => {
+            const bd = new Date(`${participant.birth_date}T12:00:00`);
+            if (isNaN(bd.getTime())) return null;
+            return (
+              <div className="flex items-center gap-1.5">
+                <Cake className="w-3 h-3 shrink-0 text-muted-foreground/60" />
+                <span>
+                  {bd.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Registration date - full format */}
           {registrationDate && (

@@ -136,6 +136,7 @@ interface EventData {
   reminder_scheduled_at: string | null;
   game_mode: import("@/lib/gameMode").GameModeConfig | null;
   custom_tables: import("@/lib/customTableLayout").CustomTableLayout | null;
+  draft_round: number | null;
 }
 
 interface DbParticipant {
@@ -368,6 +369,7 @@ const EventDetail = () => {
       reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
       game_mode: normalizeGameMode((event as any).game_mode),
       custom_tables: (event as any).custom_tables as EventData['custom_tables'] ?? null,
+      draft_round: (event as any).draft_round ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
@@ -776,7 +778,8 @@ const EventDetail = () => {
       status: "active",
       participants_count: checkedInParticipants.length,
       original_participants_count: originalCount,
-      current_round: 1
+      current_round: 1,
+      draft_round: 1,
     };
     
     if (eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0) {
@@ -837,14 +840,15 @@ const EventDetail = () => {
       ...prev, 
       tables: generatedTables, 
       participants_count: checkedInParticipants.length,
-      original_participants_count: originalCount 
+      original_participants_count: originalCount,
+      draft_round: 1,
     } : prev);
     setEventStatus("active");
     setPendingTableGeneration(null);
     setShowTableConfirmDialog(false);
     toast({
-      title: "Evento iniciado",
-      description: `${nonCheckedInParticipants.length > 0 ? `${nonCheckedInParticipants.length} participantes sin check-in en el banco. ` : ""}Las mesas han sido generadas.`,
+      title: "Mesas generadas en modo borrador",
+      description: `Revisa la Ronda 1 y pulsa "Publicar Ronda 1" para que los participantes puedan verla.`,
     });
   };
 
@@ -2822,7 +2826,7 @@ const EventDetail = () => {
     const incrementTotal = options.incrementTotal !== false;
     const newRoundsCount = incrementTotal ? eventData.rounds + 1 : eventData.rounds;
 
-    const dynUpdate: any = { tables: updatedTables };
+    const dynUpdate: any = { tables: updatedTables, draft_round: newRoundNumber };
     if (incrementTotal) dynUpdate.rounds = newRoundsCount;
     if (eventData.game_mode?.enabled && result.playedAfter) {
       dynUpdate.game_mode = { ...eventData.game_mode, played: result.playedAfter };
@@ -2838,12 +2842,12 @@ const EventDetail = () => {
       return;
     }
 
-    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
+    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount, draft_round: newRoundNumber } : prev);
     setViewingRound(newRoundNumber);
     if (incrementTotal) {
       toast({ 
-        title: "Ronda añadida", 
-        description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
+        title: `Ronda ${newRoundNumber} generada en borrador`,
+        description: `Revísala y pulsa "Publicar" para hacerla visible a los participantes.`,
       });
     }
   };
@@ -4939,12 +4943,19 @@ const EventDetail = () => {
                         }
                       }
                       
+                      // Mark next round as DRAFT so participants don't see it until admin publishes.
+                      // Only applies to rounds that already have tables generated (upfront) or that were
+                      // just JIT-generated above.
+                      const nextRoundHasTables = updatedTables.some((r: any) => r?.round === nextRound);
+                      const nextDraft = !isLastRound && nextRoundHasTables ? nextRound : null;
+
                       // Reset timer state for next round
                       await supabase
                         .from("events")
                         .update({ 
                           completed_rounds: newCompletedRounds,
                           current_round: isLastRound ? roundNumber : nextRound,
+                          draft_round: nextDraft,
                           round_started_at: null,
                           round_paused_at: null,
                           round_elapsed_seconds: 0
@@ -4956,7 +4967,8 @@ const EventDetail = () => {
                         ...prev,
                         round_started_at: null,
                         round_paused_at: null,
-                        round_elapsed_seconds: 0
+                        round_elapsed_seconds: 0,
+                        draft_round: nextDraft,
                       } : null);
                       
                       if (!isLastRound) {
@@ -4964,9 +4976,9 @@ const EventDetail = () => {
                         setViewingRound(nextRound);
                         toast({
                           title: `Ronda ${roundNumber} completada`,
-                          description: generationMode === "per_round" 
-                            ? `Ronda ${nextRound} generada con los participantes activos.`
-                            : `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
+                          description: nextRoundHasTables
+                            ? `Ronda ${nextRound} lista en borrador. Revisa y pulsa "Publicar Ronda ${nextRound}" cuando esté todo correcto.`
+                            : `Ronda ${nextRound} iniciada.`,
                         });
                       } else {
                         toast({
@@ -5298,11 +5310,20 @@ const EventDetail = () => {
                                 Completada
                               </Badge>
                             )}
-                            {viewingRound === currentRound && !completedRounds.includes(viewingRound) && (
+                            {eventData.draft_round === viewingRound && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                Borrador · no visible para participantes
+                              </Badge>
+                            )}
+                            {viewingRound === currentRound && !completedRounds.includes(viewingRound) && eventData.draft_round !== viewingRound && (
                               <Badge variant="default">Activa</Badge>
                             )}
                           </CardTitle>
-                          <CardDescription>Distribución de mesas para esta ronda</CardDescription>
+                          <CardDescription>
+                            {eventData.draft_round === viewingRound
+                              ? "Previsualiza cómo queda la ronda. Puedes editar las mesas antes de publicarla."
+                              : "Distribución de mesas para esta ronda"}
+                          </CardDescription>
                         </div>
                         {(eventStatus === "active" || eventStatus === "completed") && (
                           <Button
@@ -5318,6 +5339,30 @@ const EventDetail = () => {
                           >
                             <Settings2 className="w-4 h-4 mr-2" />
                             Editar mesas
+                          </Button>
+                        )}
+                        {eventData.draft_round === viewingRound && (
+                          <Button
+                            size="sm"
+                            className="bg-primary text-primary-foreground"
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from("events")
+                                .update({ draft_round: null })
+                                .eq("id", id);
+                              if (error) {
+                                toast({ title: "Error", description: "No se pudo publicar la ronda", variant: "destructive" });
+                                return;
+                              }
+                              setEventData(prev => prev ? { ...prev, draft_round: null } : prev);
+                              toast({
+                                title: `Ronda ${viewingRound} publicada`,
+                                description: "Los participantes ya pueden ver sus mesas.",
+                              });
+                            }}
+                          >
+                            <Check className="w-4 h-4 mr-2" />
+                            Publicar Ronda {viewingRound}
                           </Button>
                         )}
                         {eventStatus === "active" && (
@@ -5411,9 +5456,25 @@ const EventDetail = () => {
                                               </div>
                                               <span className="text-sm flex-1 truncate">{participant.name}</span>
                                               <div className="flex items-center gap-1.5">
-                                                <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
-                                                  {normalizeAgeRange(fullParticipant?.age_range) || "?"}
-                                                </Badge>
+                                                {uniqueAgeRanges.length <= 1 && fullParticipant?.birth_date ? (() => {
+                                                  const bd = new Date(`${fullParticipant.birth_date}T12:00:00`);
+                                                  if (isNaN(bd.getTime())) {
+                                                    return (
+                                                      <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
+                                                        {normalizeAgeRange(fullParticipant?.age_range) || "?"}
+                                                      </Badge>
+                                                    );
+                                                  }
+                                                  return (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+                                                      {bd.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    </Badge>
+                                                  );
+                                                })() : (
+                                                  <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
+                                                    {normalizeAgeRange(fullParticipant?.age_range) || "?"}
+                                                  </Badge>
+                                                )}
                                                 {getGenderIcon(fullParticipant?.gender)}
                                                 {getPreferenceIcon(fullParticipant?.preference)}
                                               </div>

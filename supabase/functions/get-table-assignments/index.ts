@@ -93,7 +93,7 @@ serve(async (req) => {
     // Verify event exists and is active or completed
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round, game_mode, crush_enabled')
+      .select('id, status, tables, current_round, rounds, selection_deadline_hours, selection_closed_at, round_duration, round_started_at, round_paused_at, round_elapsed_seconds, completed_rounds, preliminary_round, game_mode, crush_enabled, draft_round')
       .eq('id', eventId)
       .single();
 
@@ -195,11 +195,15 @@ serve(async (req) => {
     // For completed events, show all stored rounds regardless of current_round
     // (protects against desync where current_round didn't advance while rounds were played)
     const isCompleted = event.status === 'completed';
+    const draftRound = (event as any).draft_round ?? null;
     for (const roundData of tables) {
       const roundNumber = roundData.round;
       
       // Only include rounds that are completed or currently active
       if (!isCompleted && roundNumber > currentRound) continue;
+      // Skip rounds that are still in DRAFT (not yet published by the organizer)
+      if (draftRound !== null && roundNumber === draftRound) continue;
+      
       
       
       const roundTables = roundData.tables;
