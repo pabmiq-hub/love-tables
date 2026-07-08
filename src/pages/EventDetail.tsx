@@ -778,7 +778,8 @@ const EventDetail = () => {
       status: "active",
       participants_count: checkedInParticipants.length,
       original_participants_count: originalCount,
-      current_round: 1
+      current_round: 1,
+      draft_round: 1,
     };
     
     if (eventData?.preliminary_round?.enabled && (eventData.preliminary_round.tables || []).length > 0) {
