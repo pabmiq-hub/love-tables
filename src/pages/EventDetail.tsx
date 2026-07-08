@@ -5310,11 +5310,20 @@ const EventDetail = () => {
                                 Completada
                               </Badge>
                             )}
-                            {viewingRound === currentRound && !completedRounds.includes(viewingRound) && (
+                            {eventData.draft_round === viewingRound && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                Borrador · no visible para participantes
+                              </Badge>
+                            )}
+                            {viewingRound === currentRound && !completedRounds.includes(viewingRound) && eventData.draft_round !== viewingRound && (
                               <Badge variant="default">Activa</Badge>
                             )}
                           </CardTitle>
-                          <CardDescription>Distribución de mesas para esta ronda</CardDescription>
+                          <CardDescription>
+                            {eventData.draft_round === viewingRound
+                              ? "Previsualiza cómo queda la ronda. Puedes editar las mesas antes de publicarla."
+                              : "Distribución de mesas para esta ronda"}
+                          </CardDescription>
                         </div>
                         {(eventStatus === "active" || eventStatus === "completed") && (
                           <Button
