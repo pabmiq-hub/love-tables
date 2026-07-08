@@ -4943,12 +4943,19 @@ const EventDetail = () => {
                         }
                       }
                       
+                      // Mark next round as DRAFT so participants don't see it until admin publishes.
+                      // Only applies to rounds that already have tables generated (upfront) or that were
+                      // just JIT-generated above.
+                      const nextRoundHasTables = updatedTables.some((r: any) => r?.round === nextRound);
+                      const nextDraft = !isLastRound && nextRoundHasTables ? nextRound : null;
+
                       // Reset timer state for next round
                       await supabase
                         .from("events")
                         .update({ 
                           completed_rounds: newCompletedRounds,
                           current_round: isLastRound ? roundNumber : nextRound,
+                          draft_round: nextDraft,
                           round_started_at: null,
                           round_paused_at: null,
                           round_elapsed_seconds: 0
@@ -4960,7 +4967,8 @@ const EventDetail = () => {
                         ...prev,
                         round_started_at: null,
                         round_paused_at: null,
-                        round_elapsed_seconds: 0
+                        round_elapsed_seconds: 0,
+                        draft_round: nextDraft,
                       } : null);
                       
                       if (!isLastRound) {
@@ -4968,9 +4976,9 @@ const EventDetail = () => {
                         setViewingRound(nextRound);
                         toast({
                           title: `Ronda ${roundNumber} completada`,
-                          description: generationMode === "per_round" 
-                            ? `Ronda ${nextRound} generada con los participantes activos.`
-                            : `Ronda ${nextRound} iniciada. Los participantes pueden ver sus nuevos compañeros.`,
+                          description: nextRoundHasTables
+                            ? `Ronda ${nextRound} lista en borrador. Revisa y pulsa "Publicar Ronda ${nextRound}" cuando esté todo correcto.`
+                            : `Ronda ${nextRound} iniciada.`,
                         });
                       } else {
                         toast({
