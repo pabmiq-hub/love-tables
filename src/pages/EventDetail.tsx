@@ -5341,6 +5341,30 @@ const EventDetail = () => {
                             Editar mesas
                           </Button>
                         )}
+                        {eventData.draft_round === viewingRound && (
+                          <Button
+                            size="sm"
+                            className="bg-primary text-primary-foreground"
+                            onClick={async () => {
+                              const { error } = await supabase
+                                .from("events")
+                                .update({ draft_round: null })
+                                .eq("id", id);
+                              if (error) {
+                                toast({ title: "Error", description: "No se pudo publicar la ronda", variant: "destructive" });
+                                return;
+                              }
+                              setEventData(prev => prev ? { ...prev, draft_round: null } : prev);
+                              toast({
+                                title: `Ronda ${viewingRound} publicada`,
+                                description: "Los participantes ya pueden ver sus mesas.",
+                              });
+                            }}
+                          >
+                            <Check className="w-4 h-4 mr-2" />
+                            Publicar Ronda {viewingRound}
+                          </Button>
+                        )}
                         {eventStatus === "active" && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
