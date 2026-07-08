@@ -369,6 +369,7 @@ const EventDetail = () => {
       reminder_scheduled_at: (event as any).reminder_scheduled_at ?? null,
       game_mode: normalizeGameMode((event as any).game_mode),
       custom_tables: (event as any).custom_tables as EventData['custom_tables'] ?? null,
+      draft_round: (event as any).draft_round ?? null,
     });
     setEventStatus(event.status as "pending" | "active" | "completed");
     // Load current_round and completed_rounds from database
