@@ -840,14 +840,15 @@ const EventDetail = () => {
       ...prev, 
       tables: generatedTables, 
       participants_count: checkedInParticipants.length,
-      original_participants_count: originalCount 
+      original_participants_count: originalCount,
+      draft_round: 1,
     } : prev);
     setEventStatus("active");
     setPendingTableGeneration(null);
     setShowTableConfirmDialog(false);
     toast({
-      title: "Evento iniciado",
-      description: `${nonCheckedInParticipants.length > 0 ? `${nonCheckedInParticipants.length} participantes sin check-in en el banco. ` : ""}Las mesas han sido generadas.`,
+      title: "Mesas generadas en modo borrador",
+      description: `Revisa la Ronda 1 y pulsa "Publicar Ronda 1" para que los participantes puedan verla.`,
     });
   };
 
