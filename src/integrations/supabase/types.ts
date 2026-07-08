@@ -225,6 +225,7 @@ export type Database = {
           custom_registration_form: Json | null
           custom_tables: Json | null
           date: string
+          draft_round: number | null
           email_template: Json | null
           emails_sent_at: string | null
           event_location: string | null
@@ -293,6 +294,7 @@ export type Database = {
           custom_registration_form?: Json | null
           custom_tables?: Json | null
           date: string
+          draft_round?: number | null
           email_template?: Json | null
           emails_sent_at?: string | null
           event_location?: string | null
@@ -361,6 +363,7 @@ export type Database = {
           custom_registration_form?: Json | null
           custom_tables?: Json | null
           date?: string
+          draft_round?: number | null
           email_template?: Json | null
           emails_sent_at?: string | null
           event_location?: string | null
