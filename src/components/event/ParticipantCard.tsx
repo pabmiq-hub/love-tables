@@ -360,6 +360,20 @@ const ParticipantCard = ({
             </div>
           )}
 
+          {/* Birth date */}
+          {!isProfessional && participant.birth_date && (() => {
+            const bd = new Date(`${participant.birth_date}T12:00:00`);
+            if (isNaN(bd.getTime())) return null;
+            return (
+              <div className="flex items-center gap-1.5">
+                <Cake className="w-3 h-3 shrink-0 text-muted-foreground/60" />
+                <span>
+                  {bd.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            );
+          })()}
+
           {/* Registration date - full format */}
           {registrationDate && (
             <div className="flex items-center gap-1.5">
