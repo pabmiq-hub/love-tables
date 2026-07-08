@@ -205,7 +205,7 @@ serve(async (req) => {
         );
       }
 
-      if (event.status !== 'pending') {
+      if (event.status !== 'pending' && event.status !== 'active') {
         return new Response(
           JSON.stringify({ error: 'Las inscripciones para este evento están cerradas' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -420,7 +420,7 @@ serve(async (req) => {
       );
     }
 
-    if (event.status !== 'pending') {
+    if (event.status !== 'pending' && event.status !== 'active') {
       return new Response(
         JSON.stringify({ error: 'Las inscripciones para este evento están cerradas' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

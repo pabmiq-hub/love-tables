@@ -3723,7 +3723,7 @@ const EventDetail = () => {
               </DropdownMenu>
 
               {/* Exclusions - available from event creation */}
-              {eventStatus === "pending" && participants.length >= 2 && (
+              {(eventStatus === "pending" || eventStatus === "active") && participants.length >= 2 && (
                 (hasFeature("avoid_encounters") || isSuperAdmin) ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -3755,7 +3755,7 @@ const EventDetail = () => {
               )}
 
               {/* Inclusions - pairs that must sit together */}
-              {eventStatus === "pending" && participants.length >= 2 && (
+              {(eventStatus === "pending" || eventStatus === "active") && participants.length >= 2 && (
                 (hasFeature("avoid_encounters") || isSuperAdmin) ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
