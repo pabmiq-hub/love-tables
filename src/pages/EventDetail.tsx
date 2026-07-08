@@ -5456,9 +5456,25 @@ const EventDetail = () => {
                                               </div>
                                               <span className="text-sm flex-1 truncate">{participant.name}</span>
                                               <div className="flex items-center gap-1.5">
-                                                <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
-                                                  {normalizeAgeRange(fullParticipant?.age_range) || "?"}
-                                                </Badge>
+                                                {uniqueAgeRanges.length <= 1 && fullParticipant?.birth_date ? (() => {
+                                                  const bd = new Date(`${fullParticipant.birth_date}T12:00:00`);
+                                                  if (isNaN(bd.getTime())) {
+                                                    return (
+                                                      <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
+                                                        {normalizeAgeRange(fullParticipant?.age_range) || "?"}
+                                                      </Badge>
+                                                    );
+                                                  }
+                                                  return (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+                                                      {bd.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    </Badge>
+                                                  );
+                                                })() : (
+                                                  <Badge className={`${getAgeRangeColor(fullParticipant?.age_range)} text-xs px-1.5 py-0`}>
+                                                    {normalizeAgeRange(fullParticipant?.age_range) || "?"}
+                                                  </Badge>
+                                                )}
                                                 {getGenderIcon(fullParticipant?.gender)}
                                                 {getPreferenceIcon(fullParticipant?.preference)}
                                               </div>
