@@ -192,7 +192,7 @@ const ParticipantJoin = () => {
         return;
       }
 
-      if (data.status !== 'pending') {
+      if (data.status !== 'pending' && data.status !== 'active') {
         setEventExists(false);
         setIsLoading(false);
         return;
