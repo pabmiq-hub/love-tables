@@ -2826,7 +2826,7 @@ const EventDetail = () => {
     const incrementTotal = options.incrementTotal !== false;
     const newRoundsCount = incrementTotal ? eventData.rounds + 1 : eventData.rounds;
 
-    const dynUpdate: any = { tables: updatedTables };
+    const dynUpdate: any = { tables: updatedTables, draft_round: newRoundNumber };
     if (incrementTotal) dynUpdate.rounds = newRoundsCount;
     if (eventData.game_mode?.enabled && result.playedAfter) {
       dynUpdate.game_mode = { ...eventData.game_mode, played: result.playedAfter };
@@ -2842,12 +2842,12 @@ const EventDetail = () => {
       return;
     }
 
-    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount } : prev);
+    setEventData(prev => prev ? { ...prev, tables: updatedTables, rounds: newRoundsCount, draft_round: newRoundNumber } : prev);
     setViewingRound(newRoundNumber);
     if (incrementTotal) {
       toast({ 
-        title: "Ronda añadida", 
-        description: `Ronda ${newRoundNumber} generada con asignaciones inteligentes evitando repeticiones.` 
+        title: `Ronda ${newRoundNumber} generada en borrador`,
+        description: `Revísala y pulsa "Publicar" para hacerla visible a los participantes.`,
       });
     }
   };
