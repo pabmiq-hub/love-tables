@@ -195,11 +195,15 @@ serve(async (req) => {
     // For completed events, show all stored rounds regardless of current_round
     // (protects against desync where current_round didn't advance while rounds were played)
     const isCompleted = event.status === 'completed';
+    const draftRound = (event as any).draft_round ?? null;
     for (const roundData of tables) {
       const roundNumber = roundData.round;
       
       // Only include rounds that are completed or currently active
       if (!isCompleted && roundNumber > currentRound) continue;
+      // Skip rounds that are still in DRAFT (not yet published by the organizer)
+      if (draftRound !== null && roundNumber === draftRound) continue;
+      
       
       
       const roundTables = roundData.tables;
