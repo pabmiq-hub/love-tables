@@ -24,6 +24,7 @@ interface ParticipantCardProps {
     phone?: string | null;
     gender?: string | null;
     age_range?: string | null;
+    birth_date?: string | null;
     preference?: string | null;
     entity_type?: string | null;
     company_name?: string | null;
