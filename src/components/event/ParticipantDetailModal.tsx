@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key } from "lucide-react";
+import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key, Cake, Languages, RotateCcw, Megaphone, Sparkles, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ParticipantData {
   id: string;
@@ -27,6 +29,15 @@ interface ParticipantData {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  // Extended registration fields
+  birth_date?: string | null;
+  spoken_languages?: string[] | null;
+  is_returning_participant?: boolean | null;
+  marketing_consent?: boolean | null;
+  payment_status?: string | null;
+  paid_at?: string | null;
+  wrapped_profile_id?: string | null;
+  created_at?: string | null;
 }
 
 interface TableData {
@@ -66,6 +77,30 @@ const ParticipantDetailModal = ({
   onAssignToTables,
 }: ParticipantDetailModalProps) => {
   const { toast } = useToast();
+  const [wrappedProfile, setWrappedProfile] = useState<{ hobbies_ranked: string[] | null; answers: Record<string, unknown> | null } | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      if (!participant.wrapped_profile_id) { setWrappedProfile(null); return; }
+      const { data } = await supabase
+        .from("wrapped_profiles")
+        .select("hobbies_ranked, answers")
+        .eq("id", participant.wrapped_profile_id)
+        .maybeSingle();
+      if (!cancel) setWrappedProfile(data as any);
+    })();
+    return () => { cancel = true; };
+  }, [participant.wrapped_profile_id]);
+
+  const formatBirthDate = (d?: string | null) => {
+    if (!d) return null;
+    try {
+      const date = new Date(`${d}T12:00:00`);
+      return date.toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
+    } catch { return d; }
+  };
+
   // Find tables where this participant sat
   const getParticipantTables = () => {
     const participantTables: { round: number; tableNumber: number; tablemates: { id: string; name: string }[] }[] = [];
@@ -324,6 +359,110 @@ const ParticipantDetailModal = ({
 
           <TabsContent value="details" className="mt-4 space-y-4">
             {isProfessional ? renderProfessionalDetails() : renderSocialDetails()}
+
+            {/* Extra registration answers */}
+            {(participant.birth_date || (participant.spoken_languages && participant.spoken_languages.length > 0) || participant.is_returning_participant != null || participant.marketing_consent != null) && (
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Respuestas del formulario</p>
+                <div className="grid gap-3">
+                  {participant.birth_date && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Cake className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Fecha de nacimiento</p>
+                        <p className="font-medium">{formatBirthDate(participant.birth_date)}</p>
+                      </div>
+                    </div>
+                  )}
+                  {participant.spoken_languages && participant.spoken_languages.length > 0 && (
+                    <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Languages className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Idiomas</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {participant.spoken_languages.map((l, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{l}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {participant.is_returning_participant != null && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                      <RotateCcw className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">¿Ha participado antes?</p>
+                        <p className="font-medium">{participant.is_returning_participant ? "Sí" : "No"}</p>
+                      </div>
+                    </div>
+                  )}
+                  {participant.marketing_consent != null && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Megaphone className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Consentimiento marketing</p>
+                        <p className="font-medium">{participant.marketing_consent ? "Aceptado" : "No aceptado"}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Wrapped interests */}
+            {wrappedProfile && ((wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0) || (wrappedProfile.answers && Object.keys(wrappedProfile.answers).length > 0)) && (
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" /> Intereses (Wrapped)
+                </p>
+                <div className="grid gap-3">
+                  {wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0 && (
+                    <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Sparkles className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Top hobbies</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {wrappedProfile.hobbies_ranked.map((h, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">#{i + 1} {h}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {wrappedProfile.answers && Object.entries(wrappedProfile.answers).map(([k, v]) => (
+                    <div key={k} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Target className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-muted-foreground break-words">{k}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {Array.isArray(v)
+                            ? (v as unknown[]).map((it, i) => <Badge key={i} variant="outline" className="text-xs">{String(it)}</Badge>)
+                            : <p className="font-medium text-sm">{String(v)}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Payment status */}
+            {participant.payment_status && (
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Pago</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <CreditCard className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estado</p>
+                    <p className="font-medium">
+                      {participant.payment_status === "paid" ? "Pagado" : participant.payment_status === "pending" ? "Pendiente" : participant.payment_status}
+                      {participant.paid_at && ` · ${new Date(participant.paid_at).toLocaleString("es-ES")}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             
             {/* Verification Code */}
             {participant.verification_code && (
