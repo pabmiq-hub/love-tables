@@ -29,6 +29,15 @@ interface ParticipantData {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  // Extended registration fields
+  birth_date?: string | null;
+  spoken_languages?: string[] | null;
+  is_returning_participant?: boolean | null;
+  marketing_consent?: boolean | null;
+  payment_status?: string | null;
+  paid_at?: string | null;
+  wrapped_profile_id?: string | null;
+  created_at?: string | null;
 }
 
 interface TableData {
