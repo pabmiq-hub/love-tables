@@ -238,7 +238,25 @@ const EventSettingsEditor = ({
       setFormWrappedQuestions(getWrappedQuestions((data as any)?.wrapped_questions));
       if ((data as any)?.languages_enabled) setFormLanguagesEnabled(true);
       if (Array.isArray((data as any)?.available_languages) && (data as any).available_languages.length > 0) {
-        setFormAvailableLanguages((data as any).available_languages);
+        // Normalize legacy label values (e.g. "Castellano") to codes ("es") and dedupe
+        const labelToCode: Record<string, string> = {
+          castellano: "es", "español": "es", spanish: "es",
+          "català": "ca", catala: "ca", catalan: "ca",
+          english: "en", inglés: "en", ingles: "en",
+          "português": "pt", portugues: "pt", portuguese: "pt", portugués: "pt",
+          "français": "fr", francais: "fr", french: "fr", francés: "fr", frances: "fr",
+        };
+        const validCodes = new Set(AVAILABLE_LANGUAGE_OPTIONS.map(o => o.code));
+        const normalized = Array.from(new Set(
+          ((data as any).available_languages as string[])
+            .map((v) => {
+              const s = String(v).trim();
+              if (validCodes.has(s)) return s;
+              return labelToCode[s.toLowerCase()] || null;
+            })
+            .filter((v): v is string => !!v)
+        ));
+        setFormAvailableLanguages(normalized);
       }
     };
     loadExtras();
