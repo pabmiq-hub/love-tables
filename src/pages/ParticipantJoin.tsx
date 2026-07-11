@@ -294,9 +294,27 @@ const ParticipantJoin = () => {
       // Languages
       if ((data as any).languages_enabled) {
         setLanguagesEnabled(true);
-        const langs = Array.isArray((data as any).available_languages) && (data as any).available_languages.length > 0
+        const rawLangs = Array.isArray((data as any).available_languages) && (data as any).available_languages.length > 0
           ? (data as any).available_languages
           : ["es", "ca", "en"];
+        // Normalize legacy labels to codes and dedupe (some events stored "Castellano" etc.)
+        const labelToCode: Record<string, string> = {
+          castellano: "es", "español": "es", spanish: "es",
+          "català": "ca", catala: "ca", catalan: "ca",
+          english: "en", inglés: "en", ingles: "en",
+          "português": "pt", portugues: "pt", portuguese: "pt", portugués: "pt",
+          "français": "fr", francais: "fr", french: "fr", francés: "fr", frances: "fr",
+        };
+        const validCodes = new Set(Object.keys(LANGUAGE_LABELS));
+        const langs = Array.from(new Set(
+          (rawLangs as string[])
+            .map((v) => {
+              const s = String(v).trim();
+              if (validCodes.has(s)) return s;
+              return labelToCode[s.toLowerCase()] || null;
+            })
+            .filter((v): v is string => !!v)
+        ));
         setAvailableLanguages(langs);
       }
 
