@@ -77,6 +77,30 @@ const ParticipantDetailModal = ({
   onAssignToTables,
 }: ParticipantDetailModalProps) => {
   const { toast } = useToast();
+  const [wrappedProfile, setWrappedProfile] = useState<{ hobbies_ranked: string[] | null; answers: Record<string, unknown> | null } | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      if (!participant.wrapped_profile_id) { setWrappedProfile(null); return; }
+      const { data } = await supabase
+        .from("wrapped_profiles")
+        .select("hobbies_ranked, answers")
+        .eq("id", participant.wrapped_profile_id)
+        .maybeSingle();
+      if (!cancel) setWrappedProfile(data as any);
+    })();
+    return () => { cancel = true; };
+  }, [participant.wrapped_profile_id]);
+
+  const formatBirthDate = (d?: string | null) => {
+    if (!d) return null;
+    try {
+      const date = new Date(`${d}T12:00:00`);
+      return date.toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
+    } catch { return d; }
+  };
+
   // Find tables where this participant sat
   const getParticipantTables = () => {
     const participantTables: { round: number; tableNumber: number; tablemates: { id: string; name: string }[] }[] = [];
