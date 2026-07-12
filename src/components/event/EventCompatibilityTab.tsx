@@ -53,7 +53,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
     let cancel = false;
     (async () => {
       setLoading(true);
-      const { data: parts } = await supabase
+      const { data: parts } = await (supabase as any)
         .from("participants")
         .select("id, name, wrapped_profile_id, status")
         .eq("event_id", eventId)
