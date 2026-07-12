@@ -34,6 +34,7 @@ import ParticipantCard from "@/components/event/ParticipantCard";
 import { parseEventDate } from "@/lib/eventDate";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
+import EventCompatibilityTab from "@/components/event/EventCompatibilityTab";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
 import ScheduleEmailDialog from "@/components/event/ScheduleEmailDialog";
 import { useToast } from "@/hooks/use-toast";
