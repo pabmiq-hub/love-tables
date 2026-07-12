@@ -34,6 +34,7 @@ import ParticipantCard from "@/components/event/ParticipantCard";
 import { parseEventDate } from "@/lib/eventDate";
 import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
+import EventCompatibilityTab from "@/components/event/EventCompatibilityTab";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
 import ScheduleEmailDialog from "@/components/event/ScheduleEmailDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -3874,6 +3875,12 @@ const EventDetail = () => {
                   <span className="hidden sm:inline">Selecciones</span>
                 </TabsTrigger>
               )}
+              {(eventData as any)?.wrapped_enabled && (
+                <TabsTrigger value="compatibility" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <Sparkles className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Compatibilidad</span>
+                </TabsTrigger>
+              )}
               {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("analytics") || isSuperAdmin) && (
                 <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <BarChart3 className="w-4 h-4 sm:mr-2" />
@@ -5592,6 +5599,16 @@ const EventDetail = () => {
             </div>
           </TabsContent>
 
+
+          {/* Compatibility Tab (Wrapped) */}
+          {(eventData as any)?.wrapped_enabled && (
+            <TabsContent value="compatibility">
+              <EventCompatibilityTab
+                eventId={id!}
+                wrappedQuestions={(eventData as any).wrapped_questions}
+              />
+            </TabsContent>
+          )}
 
           {/* Analytics Tab */}
           <TabsContent value="analytics">
