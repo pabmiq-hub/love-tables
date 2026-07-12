@@ -6,6 +6,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key, Cake, Languages, RotateCcw, Megaphone, Sparkles, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_WRAPPED_QUESTIONS } from "@/lib/wrappedQuestions";
+
+// Normalize a mix of language codes/labels into a deduped list of Spanish labels.
+const LANG_MAP: Record<string, string> = {
+  es: "Castellano", castellano: "Castellano", spanish: "Castellano", español: "Castellano",
+  ca: "Català", catala: "Català", català: "Català", catalan: "Català",
+  en: "English", english: "English", inglés: "English", ingles: "English",
+  pt: "Português", portugues: "Português", português: "Português", portuguese: "Português",
+  fr: "Français", francais: "Français", français: "Français", french: "Français",
+};
+const normalizeLanguages = (langs: string[] | null | undefined): string[] => {
+  if (!langs) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of langs) {
+    if (!raw) continue;
+    const key = String(raw).trim().toLowerCase();
+    const label = LANG_MAP[key] || String(raw).trim();
+    const dedupeKey = label.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    out.push(label);
+  }
+  return out;
+};
 
 interface ParticipantData {
   id: string;
