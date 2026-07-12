@@ -5599,6 +5599,16 @@ const EventDetail = () => {
           </TabsContent>
 
 
+          {/* Compatibility Tab (Wrapped) */}
+          {(eventData as any)?.wrapped_enabled && (
+            <TabsContent value="compatibility">
+              <EventCompatibilityTab
+                eventId={id!}
+                wrappedQuestions={(eventData as any).wrapped_questions}
+              />
+            </TabsContent>
+          )}
+
           {/* Analytics Tab */}
           <TabsContent value="analytics">
             <EventAnalytics
