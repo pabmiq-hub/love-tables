@@ -3874,6 +3874,12 @@ const EventDetail = () => {
                   <span className="hidden sm:inline">Selecciones</span>
                 </TabsTrigger>
               )}
+              {(eventData as any)?.wrapped_enabled && (
+                <TabsTrigger value="compatibility" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
+                  <Sparkles className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Compatibilidad</span>
+                </TabsTrigger>
+              )}
               {(eventStatus === "active" || eventStatus === "completed") && (hasFeature("analytics") || isSuperAdmin) && (
                 <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">
                   <BarChart3 className="w-4 h-4 sm:mr-2" />
