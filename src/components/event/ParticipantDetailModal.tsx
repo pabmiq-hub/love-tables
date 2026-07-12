@@ -439,41 +439,84 @@ const ParticipantDetailModal = ({
             )}
 
             {/* Wrapped interests */}
-            {wrappedProfile && ((wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0) || (wrappedProfile.answers && Object.keys(wrappedProfile.answers).length > 0)) && (
-              <div className="border-t pt-3 mt-3">
-                <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" /> Intereses (Wrapped)
-                </p>
-                <div className="grid gap-3">
-                  {wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0 && (
-                    <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                      <Sparkles className="w-5 h-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Top hobbies</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {wrappedProfile.hobbies_ranked.map((h, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">#{i + 1} {h}</Badge>
-                          ))}
+            {wrappedProfile && ((wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0) || (wrappedProfile.answers && Object.keys(wrappedProfile.answers).length > 0)) && (() => {
+              // Build ES label maps from wrapped question defs.
+              const questionLabelEs: Record<string, string> = {};
+              const optionLabelEs: Record<string, Record<string, string>> = {};
+              for (const q of DEFAULT_WRAPPED_QUESTIONS) {
+                questionLabelEs[q.id] = q.i18n.es.label;
+                if (q.options_key && q.i18n.es.options) {
+                  optionLabelEs[q.id] = {};
+                  q.options_key.forEach((k, i) => {
+                    optionLabelEs[q.id][k] = q.i18n.es.options![i] || k;
+                  });
+                }
+                if (q.type === "yes_no") {
+                  optionLabelEs[q.id] = { true: "Sí", false: "No" };
+                }
+              }
+              const translateOption = (qid: string, val: unknown): string => {
+                const raw = String(val);
+                return optionLabelEs[qid]?.[raw] ?? raw;
+              };
+              const translateHobby = (key: string): string =>
+                optionLabelEs["top_hobbies"]?.[key] ?? key;
+
+              return (
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" /> Intereses (Wrapped)
+                  </p>
+                  <div className="grid gap-3">
+                    {wrappedProfile.hobbies_ranked && wrappedProfile.hobbies_ranked.length > 0 && (
+                      <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Sparkles className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Top hobbies</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {wrappedProfile.hobbies_ranked.map((h, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">#{i + 1} {translateHobby(h)}</Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {wrappedProfile.answers && Object.entries(wrappedProfile.answers).map(([k, v]) => (
-                    <div key={k} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                      <Target className="w-5 h-5 text-muted-foreground mt-0.5" />
-                      <div className="min-w-0">
-                        <p className="text-sm text-muted-foreground break-words">{k}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {Array.isArray(v)
-                            ? (v as unknown[]).map((it, i) => <Badge key={i} variant="outline" className="text-xs">{String(it)}</Badge>)
-                            : <p className="font-medium text-sm">{String(v)}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )}
+                    {wrappedProfile.answers && Object.entries(wrappedProfile.answers)
+                      .filter(([k]) => k !== "top_hobbies") // already shown above
+                      .map(([k, v]) => {
+                        const label = questionLabelEs[k] || k;
+                        let displayNode: React.ReactNode;
+                        if (v === null || v === undefined) {
+                          displayNode = <p className="font-medium text-sm">—</p>;
+                        } else if (Array.isArray(v)) {
+                          displayNode = (v as unknown[]).map((it, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{translateOption(k, it)}</Badge>
+                          ));
+                        } else if (typeof v === "object") {
+                          const obj = v as { top1?: string; top2?: string; top3?: string };
+                          const items = [obj.top1, obj.top2, obj.top3].filter(Boolean) as string[];
+                          displayNode = items.map((it, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">#{i + 1} {translateOption(k, it)}</Badge>
+                          ));
+                        } else if (typeof v === "boolean") {
+                          displayNode = <p className="font-medium text-sm">{v ? "Sí" : "No"}</p>;
+                        } else {
+                          displayNode = <p className="font-medium text-sm">{translateOption(k, v)}</p>;
+                        }
+                        return (
+                          <div key={k} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                            <Target className="w-5 h-5 text-muted-foreground mt-0.5" />
+                            <div className="min-w-0">
+                              <p className="text-sm text-muted-foreground break-words">{label}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">{displayNode}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Payment status */}
             {participant.payment_status && (
