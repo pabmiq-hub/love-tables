@@ -399,19 +399,23 @@ const ParticipantDetailModal = ({
                       </div>
                     </div>
                   )}
-                  {participant.spoken_languages && participant.spoken_languages.length > 0 && (
-                    <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                      <Languages className="w-5 h-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Idiomas</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {participant.spoken_languages.map((l, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{l}</Badge>
-                          ))}
+                  {participant.spoken_languages && participant.spoken_languages.length > 0 && (() => {
+                    const normLangs = normalizeLanguages(participant.spoken_languages);
+                    if (normLangs.length === 0) return null;
+                    return (
+                      <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Languages className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Idiomas</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {normLangs.map((l, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">{l}</Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   {participant.is_returning_participant != null && (
                     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <RotateCcw className="w-5 h-5 text-muted-foreground" />
