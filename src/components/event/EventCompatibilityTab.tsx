@@ -55,9 +55,9 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
       setLoading(true);
       const { data: parts } = await (supabase as any)
         .from("participants")
-        .select("id, name, wrapped_profile_id, status")
+        .select("id, name, wrapped_profile_id, cancelled_at")
         .eq("event_id", eventId)
-        .neq("status", "cancelled");
+        .is("cancelled_at", null);
 
       const profileIds = Array.from(
         new Set((parts || []).map((p: any) => p.wrapped_profile_id).filter(Boolean))
