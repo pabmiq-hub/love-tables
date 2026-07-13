@@ -46,8 +46,8 @@ export function useOrganizerBySlug(slug: string | undefined): OrganizerBrandingB
 
     const load = async () => {
       try {
-        const { data: organizer } = await supabase
-          .from("organizers")
+        const { data: organizer } = await (supabase as any)
+          .from("organizers_public")
           .select("id, user_id, logo_url, company_name, slug")
           .eq("slug", slug)
           .maybeSingle();
