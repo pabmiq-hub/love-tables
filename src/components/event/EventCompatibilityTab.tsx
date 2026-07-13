@@ -51,13 +51,12 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
 
   useEffect(() => {
     let cancel = false;
-    (async () => {
-      setLoading(true);
+    const load = async () => {
       const { data: parts } = await (supabase as any)
         .from("participants")
-        .select("id, name, wrapped_profile_id, status")
+        .select("id, name, wrapped_profile_id, cancelled_at")
         .eq("event_id", eventId)
-        .neq("status", "cancelled");
+        .is("cancelled_at", null);
 
       const profileIds = Array.from(
         new Set((parts || []).map((p: any) => p.wrapped_profile_id).filter(Boolean))
@@ -89,8 +88,24 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         setRows(mapped);
         setLoading(false);
       }
-    })();
-    return () => { cancel = true; };
+    };
+
+    setLoading(true);
+    load();
+
+    const channel = supabase
+      .channel(`compat-${eventId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "participants", filter: `event_id=eq.${eventId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "wrapped_profiles" }, () => load())
+      .subscribe();
+
+    const interval = setInterval(load, 15000);
+
+    return () => {
+      cancel = true;
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [eventId]);
 
   const withProfile = useMemo(() => rows.filter(r => r.answers), [rows]);
