@@ -48,8 +48,8 @@ const ParticipantCheckin = () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("events")
+      const { data, error } = await (supabase as any)
+        .from("events_public")
         .select("id, status, language, date, event_time, checkin_open, checkin_opens_minutes_before, name")
         .eq("id", eventId)
         .single();
