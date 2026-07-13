@@ -53,8 +53,8 @@ const ParticipantTables = () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("events")
+      const { data, error } = await (supabase as any)
+        .from("events_public")
         .select("id, status, language")
         .eq("id", eventId)
         .single();
