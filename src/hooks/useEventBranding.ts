@@ -43,8 +43,8 @@ export function useEventBranding(eventId: string | undefined): EventBranding {
     const loadBranding = async () => {
       try {
         // Get event's organizer_id (which is the auth user_id)
-        const { data: event } = await supabase
-          .from("events")
+        const { data: event } = await (supabase as any)
+          .from("events_public")
           .select("organizer_id")
           .eq("id", eventId)
           .single();
@@ -55,8 +55,8 @@ export function useEventBranding(eventId: string | undefined): EventBranding {
         }
 
         // Get organizer profile using user_id
-        const { data: organizer } = await supabase
-          .from("organizers")
+        const { data: organizer } = await (supabase as any)
+          .from("organizers_public")
           .select("id, logo_url, company_name, active_modules")
           .eq("user_id", event.organizer_id)
           .maybeSingle();
