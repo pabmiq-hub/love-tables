@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, Search } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Sparkles, Search, ChevronDown } from "lucide-react";
 import {
   computeCompatibility,
   getWrappedQuestions,
@@ -44,6 +45,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
   const questions: WrappedQuestion[] = useMemo(
     () => getWrappedQuestions(wrappedQuestions),
     [wrappedQuestions]
@@ -84,6 +86,8 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         };
       });
 
+      mapped.sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+
       if (!cancel) {
         setRows(mapped);
         setLoading(false);
@@ -111,25 +115,24 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
   const withProfile = useMemo(() => rows.filter(r => r.answers), [rows]);
 
   const topMatches = useMemo(() => {
-    const result = new Map<string, RankedMatch | null>();
+    const result = new Map<string, RankedMatch[]>();
     for (const a of withProfile) {
-      let best: RankedMatch | null = null;
+      const list: RankedMatch[] = [];
       for (const b of withProfile) {
         if (b.id === a.id) continue;
         const score = computeCompatibility(a.answers, b.answers, questions);
-        if (!best || score > best.score) {
-          best = { otherId: b.id, otherName: b.name, score };
-        }
+        list.push({ otherId: b.id, otherName: b.name, score });
       }
-      result.set(a.id, best);
+      list.sort((x, y) => y.score - x.score);
+      result.set(a.id, list.slice(0, 10));
     }
     return result;
   }, [withProfile, questions]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r => r.name.toLowerCase().includes(q));
+    const base = q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
+    return base;
   }, [rows, search]);
 
   if (loading) {
@@ -149,7 +152,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
               <Sparkles className="w-5 h-5 text-primary" /> Compatibilidad
             </CardTitle>
             <CardDescription>
-              Persona más compatible con cada participante según sus respuestas Wrapped.
+              Top 10 de personas más compatibles con cada participante según sus respuestas Wrapped.
               {withProfile.length > 0 && (
                 <> · {withProfile.length} con perfil de {rows.length}</>
               )}
@@ -176,37 +179,84 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         ) : (
           <div className="space-y-2">
             {filtered.map(r => {
-              const best = topMatches.get(r.id);
+              const list = topMatches.get(r.id) || [];
+              const best = list[0];
               const hasProfile = !!r.answers;
-              return (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{r.name}</p>
-                    {r.topHobbyKey && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        Top hobby: {HOBBY_LABEL_ES[r.topHobbyKey] || r.topHobbyKey}
-                      </p>
-                    )}
-                  </div>
-                  {!hasProfile ? (
-                    <Badge variant="outline" className="text-xs">Sin perfil</Badge>
-                  ) : best ? (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Más compatible</p>
-                        <p className="text-sm font-medium truncate max-w-[160px]">{best.otherName}</p>
-                      </div>
-                      <Badge className="bg-primary/10 text-primary border-primary/30" variant="outline">
-                        {best.score}%
-                      </Badge>
+              const isOpen = openId === r.id;
+
+              if (!hasProfile) {
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{r.name}</p>
                     </div>
-                  ) : (
-                    <Badge variant="outline" className="text-xs">—</Badge>
-                  )}
-                </div>
+                    <Badge variant="outline" className="text-xs">Sin perfil</Badge>
+                  </div>
+                );
+              }
+
+              return (
+                <Collapsible
+                  key={r.id}
+                  open={isOpen}
+                  onOpenChange={(o) => setOpenId(o ? r.id : null)}
+                  className="rounded-lg border bg-card"
+                >
+                  <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 p-3 hover:bg-muted/30 transition-colors text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{r.name}</p>
+                      {r.topHobbyKey && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          Top hobby: {HOBBY_LABEL_ES[r.topHobbyKey] || r.topHobbyKey}
+                        </p>
+                      )}
+                    </div>
+                    {best ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Más compatible</p>
+                          <p className="text-sm font-medium truncate max-w-[160px]">{best.otherName}</p>
+                        </div>
+                        <Badge className="bg-primary/10 text-primary border-primary/30" variant="outline">
+                          {best.score}%
+                        </Badge>
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">—</Badge>
+                    )}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="border-t px-3 py-2 space-y-1">
+                      {list.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2">Sin coincidencias.</p>
+                      ) : (
+                        list.map((m, i) => (
+                          <div
+                            key={m.otherId}
+                            className={`flex items-center justify-between gap-3 py-1.5 px-2 rounded ${i === 0 ? "bg-primary/5" : ""}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`text-xs w-5 text-center ${i === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+                                {i + 1}
+                              </span>
+                              <span className={`text-sm truncate ${i === 0 ? "font-medium" : ""}`}>{m.otherName}</span>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={i === 0 ? "bg-primary/10 text-primary border-primary/30" : ""}
+                            >
+                              {m.score}%
+                            </Badge>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>
