@@ -62,8 +62,8 @@ const ParticipantCancellation = () => {
         return;
       }
 
-      const { data } = await supabase
-        .from("events")
+      const { data } = await (supabase as any)
+        .from("events_public")
         .select("name, language")
         .eq("id", eventId)
         .maybeSingle();
