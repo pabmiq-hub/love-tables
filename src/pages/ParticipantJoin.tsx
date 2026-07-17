@@ -457,7 +457,7 @@ const ParticipantJoin = () => {
       }
       setHasWrappedProfile(!!elig?.hasWrappedProfile);
       if (elig?.quotaFull) {
-        if (!waitlistEnabled) {
+        if (!waitlistEnabled && !quotaWaitlistEnabled) {
           toast({
             title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
             description: eventLang === 'en'
