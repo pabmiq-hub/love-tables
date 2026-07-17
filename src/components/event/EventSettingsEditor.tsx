@@ -112,6 +112,7 @@ const EventSettingsEditor = ({
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
   registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
   slotQuotas: initialSlotQuotas = null,
+  quotaWaitlistEnabled: initialQuotaWaitlistEnabled = true,
   paymentTrackingEnabled: initialPaymentTrackingEnabled = false,
   paymentRemindersEnabled: initialPaymentRemindersEnabled = false,
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
