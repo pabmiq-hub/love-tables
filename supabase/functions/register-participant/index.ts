@@ -400,7 +400,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, event_time, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled, code_send_mode, is_test_event')
+      .select('id, name, status, date, event_time, custom_age_ranges, registration_requirements_enabled, slot_quotas, quota_waitlist_enabled, module, organizer_id, registration_open, waitlist_enabled, code_send_mode, is_test_event')
       .eq('id', eventId)
       .single();
 
