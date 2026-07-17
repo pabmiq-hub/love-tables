@@ -603,6 +603,13 @@ export type Database = {
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       organizer_email_connections: {
@@ -657,6 +664,13 @@ export type Database = {
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organizer_email_connections_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       organizer_features: {
@@ -695,6 +709,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_features_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -743,6 +764,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_resend_config_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -839,6 +867,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_verified_domains_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1663,6 +1698,7 @@ export type Database = {
           languages_enabled: boolean | null
           module: string | null
           name: string | null
+          organizer_id: string | null
           organizer_profile_id: string | null
           participants_count: number | null
           payment_tracking_enabled: boolean | null
@@ -1711,6 +1747,7 @@ export type Database = {
           languages_enabled?: boolean | null
           module?: string | null
           name?: string | null
+          organizer_id?: string | null
           organizer_profile_id?: string | null
           participants_count?: number | null
           payment_tracking_enabled?: boolean | null
@@ -1759,6 +1796,7 @@ export type Database = {
           languages_enabled?: boolean | null
           module?: string | null
           name?: string | null
+          organizer_id?: string | null
           organizer_profile_id?: string | null
           participants_count?: number | null
           payment_tracking_enabled?: boolean | null
@@ -1789,25 +1827,31 @@ export type Database = {
       }
       organizers_public: {
         Row: {
+          active_modules: string[] | null
           company_name: string | null
           id: string | null
           logo_url: string | null
           slug: string | null
           status: string | null
+          user_id: string | null
         }
         Insert: {
+          active_modules?: never
           company_name?: string | null
           id?: string | null
           logo_url?: string | null
           slug?: string | null
           status?: string | null
+          user_id?: string | null
         }
         Update: {
+          active_modules?: never
           company_name?: string | null
           id?: string | null
           logo_url?: string | null
           slug?: string | null
           status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
