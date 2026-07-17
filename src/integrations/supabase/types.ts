@@ -1662,6 +1662,7 @@ export type Database = {
           payment_tracking_enabled: boolean | null
           preliminary_round: Json | null
           professional_config: Json | null
+          quota_waitlist_enabled: boolean | null
           registration_description: string | null
           registration_open: boolean | null
           registration_requirements_enabled: boolean | null
@@ -1710,6 +1711,7 @@ export type Database = {
           payment_tracking_enabled?: boolean | null
           preliminary_round?: Json | null
           professional_config?: Json | null
+          quota_waitlist_enabled?: boolean | null
           registration_description?: string | null
           registration_open?: boolean | null
           registration_requirements_enabled?: boolean | null
@@ -1758,6 +1760,7 @@ export type Database = {
           payment_tracking_enabled?: boolean | null
           preliminary_round?: Json | null
           professional_config?: Json | null
+          quota_waitlist_enabled?: boolean | null
           registration_description?: string | null
           registration_open?: boolean | null
           registration_requirements_enabled?: boolean | null
