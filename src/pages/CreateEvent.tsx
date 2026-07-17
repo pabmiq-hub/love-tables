@@ -393,6 +393,7 @@ const CreateEvent = () => {
       professional_config: professionalConfig,
       registration_requirements_enabled: eventModule === "social" ? registrationRequirementsEnabled : false,
       slot_quotas: (eventModule === "social" && registrationRequirementsEnabled ? slotQuotas : null) as unknown as Json,
+      quota_waitlist_enabled: true,
       group_rounds: (eventModule === "social" && groupRoundsEnabled && groupRounds.length > 0 ? groupRounds : null) as unknown as Json,
       custom_registration_form: customFormEnabled && customFormFields.length > 0
         ? { fields: customFormFields, formMode: "custom" } as unknown as Json
