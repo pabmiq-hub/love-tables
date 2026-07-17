@@ -19,6 +19,8 @@ interface EventQuotasEditorProps {
   onQuotasChange: (quotas: SlotQuota[]) => void;
   availableGenders: string[];
   availableAgeRanges: string[];
+  waitlistEnabled?: boolean;
+  onWaitlistEnabledChange?: (enabled: boolean) => void;
 }
 
 const EventQuotasEditor = ({
@@ -28,6 +30,8 @@ const EventQuotasEditor = ({
   onQuotasChange,
   availableGenders,
   availableAgeRanges,
+  waitlistEnabled = true,
+  onWaitlistEnabledChange,
 }: EventQuotasEditorProps) => {
   const addQuota = () => {
     const newQuota: SlotQuota = {
