@@ -214,6 +214,7 @@ const ParticipantJoin = () => {
         setRegistrationClosed(true);
         setWaitlistEnabled(true);
       }
+      setQuotaWaitlistEnabled(((data as any).quota_waitlist_enabled ?? true) === true);
 
       setEventExists(true);
       setEventName(data.name);
