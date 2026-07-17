@@ -170,6 +170,9 @@ const EventSettingsEditor = ({
   const [formSlotQuotas, setFormSlotQuotas] = useState<SlotQuota[]>(
     Array.isArray(initialSlotQuotas) ? (initialSlotQuotas as SlotQuota[]) : []
   );
+  const [formQuotaWaitlistEnabled, setFormQuotaWaitlistEnabled] = useState<boolean>(
+    initialQuotaWaitlistEnabled !== false
+  );
   const [formPaymentTrackingEnabled, setFormPaymentTrackingEnabled] = useState(initialPaymentTrackingEnabled);
   const [formPaymentRemindersEnabled, setFormPaymentRemindersEnabled] = useState(initialPaymentRemindersEnabled);
   const [formPaymentReminderFirstHours, setFormPaymentReminderFirstHours] = useState<number>(initialPaymentReminderFirstHours || 24);
