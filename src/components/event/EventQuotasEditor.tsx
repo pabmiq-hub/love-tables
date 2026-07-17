@@ -176,6 +176,25 @@ const EventQuotasEditor = ({
             </div>
           )}
 
+
+          {onWaitlistEnabledChange && (
+            <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-background">
+              <div className="min-w-0">
+                <Label htmlFor="quota-waitlist-toggle" className="font-medium cursor-pointer">
+                  Lista de espera cuando la cuota esté completa
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Si un grupo llena sus plazas, los nuevos registros se apuntan a la lista de espera en lugar de ser rechazados.
+                </p>
+              </div>
+              <Switch
+                id="quota-waitlist-toggle"
+                checked={waitlistEnabled}
+                onCheckedChange={onWaitlistEnabledChange}
+              />
+            </div>
+          )}
+
           {quotas.some((_, i) => getDuplicateWarning(i)) && (
             <p className="text-xs text-destructive">
               ⚠️ Hay combinaciones duplicadas de género y edad
