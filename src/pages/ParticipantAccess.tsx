@@ -232,7 +232,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await (supabase as any)
           .from('events_public')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, preliminary_round, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled, organizer_id')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, has_preliminary_tables, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled')
           .eq('id', eventId)
           .single();
 
@@ -279,8 +279,7 @@ const ParticipantAccess = () => {
         }
 
         // Allow access if preliminary round has tables (even if event is pending)
-        const prelimRound = (event as any).preliminary_round;
-        const hasPrelimTables = prelimRound?.enabled && Array.isArray(prelimRound?.tables) && prelimRound.tables.length > 0;
+        const hasPrelimTables = !!(event as any).has_preliminary_tables;
         const isCheckinOpen = !!(event as any).checkin_open;
         
         // Allow verify_code when checkin is open OR event is active/completed

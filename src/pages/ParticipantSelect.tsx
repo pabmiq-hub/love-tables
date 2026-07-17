@@ -156,7 +156,7 @@ const ParticipantSelect = () => {
       try {
         const { data: event, error } = await (supabase as any)
           .from('events_public')
-          .select('status, current_round, rounds, language, super_like_enabled, organizer_id, repeat_request_enabled, crush_enabled')
+          .select('status, current_round, rounds, language, super_like_enabled, repeat_request_enabled, crush_enabled')
           .eq('id', eventId)
           .single();
 
