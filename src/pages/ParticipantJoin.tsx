@@ -102,6 +102,7 @@ const ParticipantJoin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const [waitlistEnabled, setWaitlistEnabled] = useState(false);
+  const [quotaWaitlistEnabled, setQuotaWaitlistEnabled] = useState(true);
   const [isWaitlistSubmission, setIsWaitlistSubmission] = useState(false);
 
   // Event module type
