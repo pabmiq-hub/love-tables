@@ -477,7 +477,7 @@ const ParticipantJoin = () => {
       const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
       const slots = getAvailableSlotsFromStatuses(freshStatuses);
       if (slots && !slots.available) {
-        if (!waitlistEnabled) {
+        if (!waitlistEnabled && !quotaWaitlistEnabled) {
           toast({
             title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
             description: eventLang === 'en'
