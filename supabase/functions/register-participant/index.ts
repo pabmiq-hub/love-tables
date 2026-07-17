@@ -429,6 +429,7 @@ serve(async (req) => {
 
     const socialRegistrationOpen = event.registration_open ?? true;
     const socialWaitlistEnabled = event.waitlist_enabled ?? false;
+    const socialQuotaWaitlistEnabled = (event as any).quota_waitlist_enabled ?? true;
     const socialIsFromWaitlist = body.fromWaitlist === true;
 
     if (!socialRegistrationOpen && !socialWaitlistEnabled && !socialIsFromWaitlist) {
@@ -472,7 +473,8 @@ serve(async (req) => {
 
         if (currentCount >= matchingQuota.maxSlots) {
           quotaFullDetected = true;
-          if (!socialForceWaitlist && !socialWaitlistEnabled) {
+          // Block only if neither the quota waitlist nor the event waitlist is enabled
+          if (!socialForceWaitlist && !socialQuotaWaitlistEnabled && !socialWaitlistEnabled) {
             return new Response(
               JSON.stringify({
                 error: 'No hay plazas disponibles para tu perfil',
