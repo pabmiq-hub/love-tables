@@ -68,6 +68,7 @@ interface EventSettingsEditorProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: SlotQuota[] | null;
+  quotaWaitlistEnabled?: boolean;
   paymentTrackingEnabled?: boolean;
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;
