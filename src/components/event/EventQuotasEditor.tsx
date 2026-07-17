@@ -19,6 +19,8 @@ interface EventQuotasEditorProps {
   onQuotasChange: (quotas: SlotQuota[]) => void;
   availableGenders: string[];
   availableAgeRanges: string[];
+  waitlistEnabled?: boolean;
+  onWaitlistEnabledChange?: (enabled: boolean) => void;
 }
 
 const EventQuotasEditor = ({
@@ -28,6 +30,8 @@ const EventQuotasEditor = ({
   onQuotasChange,
   availableGenders,
   availableAgeRanges,
+  waitlistEnabled = true,
+  onWaitlistEnabledChange,
 }: EventQuotasEditorProps) => {
   const addQuota = () => {
     const newQuota: SlotQuota = {
@@ -169,6 +173,25 @@ const EventQuotasEditor = ({
             <div className="flex items-center justify-between text-sm pt-2 border-t">
               <span className="text-muted-foreground">Total plazas configuradas:</span>
               <span className="font-semibold">{totalSlots}</span>
+            </div>
+          )}
+
+
+          {onWaitlistEnabledChange && (
+            <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-background">
+              <div className="min-w-0">
+                <Label htmlFor="quota-waitlist-toggle" className="font-medium cursor-pointer">
+                  Lista de espera cuando la cuota esté completa
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Si un grupo llena sus plazas, los nuevos registros se apuntan a la lista de espera en lugar de ser rechazados.
+                </p>
+              </div>
+              <Switch
+                id="quota-waitlist-toggle"
+                checked={waitlistEnabled}
+                onCheckedChange={onWaitlistEnabledChange}
+              />
             </div>
           )}
 

@@ -42,6 +42,7 @@ interface EventSettingsTabsProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: any;
+  quotaWaitlistEnabled?: boolean;
   paymentTrackingEnabled?: boolean;
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;

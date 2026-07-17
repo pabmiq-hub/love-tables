@@ -68,6 +68,7 @@ interface EventSettingsEditorProps {
   tablesGenerationMode?: string;
   registrationRequirementsEnabled?: boolean;
   slotQuotas?: SlotQuota[] | null;
+  quotaWaitlistEnabled?: boolean;
   paymentTrackingEnabled?: boolean;
   paymentRemindersEnabled?: boolean;
   paymentReminderFirstHours?: number;
@@ -111,6 +112,7 @@ const EventSettingsEditor = ({
   tablesGenerationMode: initialTablesGenerationMode = "upfront",
   registrationRequirementsEnabled: initialRegRequirementsEnabled = false,
   slotQuotas: initialSlotQuotas = null,
+  quotaWaitlistEnabled: initialQuotaWaitlistEnabled = true,
   paymentTrackingEnabled: initialPaymentTrackingEnabled = false,
   paymentRemindersEnabled: initialPaymentRemindersEnabled = false,
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
@@ -167,6 +169,9 @@ const EventSettingsEditor = ({
   const [formRegRequirementsEnabled, setFormRegRequirementsEnabled] = useState(initialRegRequirementsEnabled);
   const [formSlotQuotas, setFormSlotQuotas] = useState<SlotQuota[]>(
     Array.isArray(initialSlotQuotas) ? (initialSlotQuotas as SlotQuota[]) : []
+  );
+  const [formQuotaWaitlistEnabled, setFormQuotaWaitlistEnabled] = useState<boolean>(
+    initialQuotaWaitlistEnabled !== false
   );
   const [formPaymentTrackingEnabled, setFormPaymentTrackingEnabled] = useState(initialPaymentTrackingEnabled);
   const [formPaymentRemindersEnabled, setFormPaymentRemindersEnabled] = useState(initialPaymentRemindersEnabled);
@@ -301,6 +306,7 @@ const EventSettingsEditor = ({
         tables_generation_mode: formTablesGenerationMode,
         registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
         slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
+        quota_waitlist_enabled: !isProfessional ? formQuotaWaitlistEnabled : true,
         payment_tracking_enabled: formPaymentTrackingEnabled,
         payment_reminders_enabled: formPaymentTrackingEnabled && formPaymentRemindersEnabled,
         payment_reminder_first_hours: Math.max(1, Number(formPaymentReminderFirstHours) || 24),
@@ -910,6 +916,8 @@ const EventSettingsEditor = ({
               onQuotasChange={setFormSlotQuotas}
               availableGenders={formPreferences.genders}
               availableAgeRanges={formPreferences.ageRanges}
+              waitlistEnabled={formQuotaWaitlistEnabled}
+              onWaitlistEnabledChange={setFormQuotaWaitlistEnabled}
             />
           )}
 

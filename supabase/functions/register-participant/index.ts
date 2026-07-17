@@ -400,7 +400,7 @@ serve(async (req) => {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, name, status, date, event_time, custom_age_ranges, registration_requirements_enabled, slot_quotas, module, organizer_id, registration_open, waitlist_enabled, code_send_mode, is_test_event')
+      .select('id, name, status, date, event_time, custom_age_ranges, registration_requirements_enabled, slot_quotas, quota_waitlist_enabled, module, organizer_id, registration_open, waitlist_enabled, code_send_mode, is_test_event')
       .eq('id', eventId)
       .single();
 
@@ -429,6 +429,7 @@ serve(async (req) => {
 
     const socialRegistrationOpen = event.registration_open ?? true;
     const socialWaitlistEnabled = event.waitlist_enabled ?? false;
+    const socialQuotaWaitlistEnabled = (event as any).quota_waitlist_enabled ?? true;
     const socialIsFromWaitlist = body.fromWaitlist === true;
 
     if (!socialRegistrationOpen && !socialWaitlistEnabled && !socialIsFromWaitlist) {
@@ -472,7 +473,8 @@ serve(async (req) => {
 
         if (currentCount >= matchingQuota.maxSlots) {
           quotaFullDetected = true;
-          if (!socialForceWaitlist && !socialWaitlistEnabled) {
+          // Block only if neither the quota waitlist nor the event waitlist is enabled
+          if (!socialForceWaitlist && !socialQuotaWaitlistEnabled && !socialWaitlistEnabled) {
             return new Response(
               JSON.stringify({
                 error: 'No hay plazas disponibles para tu perfil',

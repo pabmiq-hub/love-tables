@@ -5660,6 +5660,7 @@ const EventDetail = () => {
                 tablesGenerationMode={(eventData as any).tables_generation_mode || "upfront"}
                 registrationRequirementsEnabled={(eventData as any).registration_requirements_enabled || false}
                 slotQuotas={(eventData as any).slot_quotas || null}
+                quotaWaitlistEnabled={(eventData as any).quota_waitlist_enabled ?? true}
                 paymentTrackingEnabled={(eventData as any).payment_tracking_enabled || false}
                 paymentRemindersEnabled={(eventData as any).payment_reminders_enabled || false}
                 paymentReminderFirstHours={(eventData as any).payment_reminder_first_hours ?? 24}

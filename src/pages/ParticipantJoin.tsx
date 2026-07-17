@@ -102,6 +102,7 @@ const ParticipantJoin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationClosed, setRegistrationClosed] = useState(false);
   const [waitlistEnabled, setWaitlistEnabled] = useState(false);
+  const [quotaWaitlistEnabled, setQuotaWaitlistEnabled] = useState(true);
   const [isWaitlistSubmission, setIsWaitlistSubmission] = useState(false);
 
   // Event module type
@@ -182,7 +183,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await (supabase as any)
         .from("events_public")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, quota_waitlist_enabled, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -213,6 +214,7 @@ const ParticipantJoin = () => {
         setRegistrationClosed(true);
         setWaitlistEnabled(true);
       }
+      setQuotaWaitlistEnabled(((data as any).quota_waitlist_enabled ?? true) === true);
 
       setEventExists(true);
       setEventName(data.name);
@@ -455,7 +457,7 @@ const ParticipantJoin = () => {
       }
       setHasWrappedProfile(!!elig?.hasWrappedProfile);
       if (elig?.quotaFull) {
-        if (!waitlistEnabled) {
+        if (!waitlistEnabled && !quotaWaitlistEnabled) {
           toast({
             title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
             description: eventLang === 'en'
@@ -475,7 +477,7 @@ const ParticipantJoin = () => {
       const freshStatuses = eventId ? await loadAllQuotaCounts(eventId, slotQuotas) : quotaStatuses;
       const slots = getAvailableSlotsFromStatuses(freshStatuses);
       if (slots && !slots.available) {
-        if (!waitlistEnabled) {
+        if (!waitlistEnabled && !quotaWaitlistEnabled) {
           toast({
             title: eventLang === 'en' ? 'No spots available' : 'Sin plazas disponibles',
             description: eventLang === 'en'
@@ -636,7 +638,7 @@ const ParticipantJoin = () => {
         const freshStatuses = await loadAllQuotaCounts(eventId, slotQuotas);
         const slots = getAvailableSlotsFromStatuses(freshStatuses);
       if (slots && !slots.available) {
-          if (waitlistEnabled) {
+          if (waitlistEnabled || quotaWaitlistEnabled) {
             setWizardForceWaitlist(true);
             setIsSubmitting(true);
             const { data, error } = await supabase.functions.invoke('register-participant', {
