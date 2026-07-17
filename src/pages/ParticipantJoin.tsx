@@ -638,7 +638,7 @@ const ParticipantJoin = () => {
         const freshStatuses = await loadAllQuotaCounts(eventId, slotQuotas);
         const slots = getAvailableSlotsFromStatuses(freshStatuses);
       if (slots && !slots.available) {
-          if (waitlistEnabled) {
+          if (waitlistEnabled || quotaWaitlistEnabled) {
             setWizardForceWaitlist(true);
             setIsSubmitting(true);
             const { data, error } = await supabase.functions.invoke('register-participant', {
