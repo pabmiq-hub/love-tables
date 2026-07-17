@@ -261,6 +261,7 @@ export type Database = {
           module: string | null
           name: string
           organizer_id: string | null
+          organizer_profile_id: string | null
           original_participants_count: number | null
           participants_count: number
           payment_reminder_first_hours: number
@@ -269,6 +270,7 @@ export type Database = {
           payment_tracking_enabled: boolean
           preliminary_round: Json | null
           professional_config: Json | null
+          public_preliminary_tables_available: boolean
           quota_waitlist_enabled: boolean
           registration_description: string | null
           registration_open: boolean
@@ -331,6 +333,7 @@ export type Database = {
           module?: string | null
           name: string
           organizer_id?: string | null
+          organizer_profile_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
           payment_reminder_first_hours?: number
@@ -339,6 +342,7 @@ export type Database = {
           payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
+          public_preliminary_tables_available?: boolean
           quota_waitlist_enabled?: boolean
           registration_description?: string | null
           registration_open?: boolean
@@ -401,6 +405,7 @@ export type Database = {
           module?: string | null
           name?: string
           organizer_id?: string | null
+          organizer_profile_id?: string | null
           original_participants_count?: number | null
           participants_count?: number
           payment_reminder_first_hours?: number
@@ -409,6 +414,7 @@ export type Database = {
           payment_tracking_enabled?: boolean
           preliminary_round?: Json | null
           professional_config?: Json | null
+          public_preliminary_tables_available?: boolean
           quota_waitlist_enabled?: boolean
           registration_description?: string | null
           registration_open?: boolean
@@ -597,6 +603,13 @@ export type Database = {
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       organizer_email_connections: {
@@ -651,6 +664,13 @@ export type Database = {
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "organizer_email_connections_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       organizer_features: {
@@ -689,6 +709,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_features_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -737,6 +764,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_resend_config_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -833,6 +867,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "organizers_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_verified_domains_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1646,21 +1687,21 @@ export type Database = {
           custom_genders: Json | null
           custom_preferences: Json | null
           custom_registration_form: Json | null
-          custom_tables: Json | null
           date: string | null
           draft_round: number | null
           event_location: string | null
           event_time: string | null
           group_rounds: Json | null
+          has_preliminary_tables: boolean | null
           id: string | null
           language: string | null
           languages_enabled: boolean | null
           module: string | null
           name: string | null
           organizer_id: string | null
+          organizer_profile_id: string | null
           participants_count: number | null
           payment_tracking_enabled: boolean | null
-          preliminary_round: Json | null
           professional_config: Json | null
           quota_waitlist_enabled: boolean | null
           registration_description: string | null
@@ -1695,21 +1736,21 @@ export type Database = {
           custom_genders?: Json | null
           custom_preferences?: Json | null
           custom_registration_form?: Json | null
-          custom_tables?: Json | null
           date?: string | null
           draft_round?: number | null
           event_location?: string | null
           event_time?: string | null
           group_rounds?: Json | null
+          has_preliminary_tables?: boolean | null
           id?: string | null
           language?: string | null
           languages_enabled?: boolean | null
           module?: string | null
           name?: string | null
           organizer_id?: string | null
+          organizer_profile_id?: string | null
           participants_count?: number | null
           payment_tracking_enabled?: boolean | null
-          preliminary_round?: Json | null
           professional_config?: Json | null
           quota_waitlist_enabled?: boolean | null
           registration_description?: string | null
@@ -1744,21 +1785,21 @@ export type Database = {
           custom_genders?: Json | null
           custom_preferences?: Json | null
           custom_registration_form?: Json | null
-          custom_tables?: Json | null
           date?: string | null
           draft_round?: number | null
           event_location?: string | null
           event_time?: string | null
           group_rounds?: Json | null
+          has_preliminary_tables?: boolean | null
           id?: string | null
           language?: string | null
           languages_enabled?: boolean | null
           module?: string | null
           name?: string | null
           organizer_id?: string | null
+          organizer_profile_id?: string | null
           participants_count?: number | null
           payment_tracking_enabled?: boolean | null
-          preliminary_round?: Json | null
           professional_config?: Json | null
           quota_waitlist_enabled?: boolean | null
           registration_description?: string | null
@@ -1795,7 +1836,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          active_modules?: string[] | null
+          active_modules?: never
           company_name?: string | null
           id?: string | null
           logo_url?: string | null
@@ -1804,7 +1845,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          active_modules?: string[] | null
+          active_modules?: never
           company_name?: string | null
           id?: string | null
           logo_url?: string | null
