@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS quota_waitlist_enabled boolean NOT NULL DEFAULT true;
