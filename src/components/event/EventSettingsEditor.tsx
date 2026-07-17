@@ -916,6 +916,8 @@ const EventSettingsEditor = ({
               onQuotasChange={setFormSlotQuotas}
               availableGenders={formPreferences.genders}
               availableAgeRanges={formPreferences.ageRanges}
+              waitlistEnabled={formQuotaWaitlistEnabled}
+              onWaitlistEnabledChange={setFormQuotaWaitlistEnabled}
             />
           )}
 
