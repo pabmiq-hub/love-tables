@@ -306,6 +306,7 @@ const EventSettingsEditor = ({
         tables_generation_mode: formTablesGenerationMode,
         registration_requirements_enabled: !isProfessional ? formRegRequirementsEnabled : false,
         slot_quotas: !isProfessional && formRegRequirementsEnabled ? formSlotQuotas : null,
+        quota_waitlist_enabled: !isProfessional ? formQuotaWaitlistEnabled : true,
         payment_tracking_enabled: formPaymentTrackingEnabled,
         payment_reminders_enabled: formPaymentTrackingEnabled && formPaymentRemindersEnabled,
         payment_reminder_first_hours: Math.max(1, Number(formPaymentReminderFirstHours) || 24),
