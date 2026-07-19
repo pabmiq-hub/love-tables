@@ -33,7 +33,7 @@ const AdminRegister = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/admin/complete-registration`,
+        redirectTo: `${window.location.origin}/admin/register`,
       },
     });
     if (error) {
@@ -56,20 +56,52 @@ const AdminRegister = () => {
 
   const checkOrganizerProfile = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from("organizers")
       .select("id, status")
       .eq("user_id", user.id)
       .maybeSingle();
-    
+
     if (data) {
       if (data.status === "active") {
         navigate("/admin/dashboard");
       } else {
         navigate("/admin/pending-approval");
       }
+      return;
     }
+
+    // No organizer profile yet (e.g. Google sign-up) — create a pending one
+    const { data: defaultPlan } = await supabase
+      .from("subscription_plans")
+      .select("id")
+      .eq("is_default", true)
+      .maybeSingle();
+
+    const { error: orgError } = await supabase
+      .from("organizers")
+      .insert({
+        user_id: user.id,
+        contact_email: user.email ?? "",
+        company_name: (user.user_metadata as any)?.full_name ?? (user.user_metadata as any)?.name ?? null,
+        status: "pending",
+        plan_id: defaultPlan?.id || null,
+        active_modules: ["social"],
+        slug: "",
+      });
+
+    if (orgError) {
+      console.error("Error creating organizer from Google sign-up:", orgError);
+      toast({
+        title: "Error al crear perfil",
+        description: "Tu cuenta fue creada pero hubo un error al crear tu perfil. Contacta con soporte.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    navigate("/admin/pending-approval");
   };
 
   const handleNextStep = () => {
