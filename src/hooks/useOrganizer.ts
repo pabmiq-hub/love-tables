@@ -103,7 +103,7 @@ export function useOrganizer() {
           const { count, error: countError } = await supabase
             .from("events")
             .select("*", { count: "exact", head: true })
-            .eq("organizer_id", orgData.id)
+            .eq("organizer_id", orgData.user_id)
             .in("status", ["pending", "active"]);
 
           if (countError) throw countError;
