@@ -462,17 +462,30 @@ serve(async (req) => {
       if (matchingQuota) {
         const { data: allParts } = await supabase
           .from('participants')
-          .select('id, gender, age_range')
+          .select('id, gender, age_range, cancelled_at, is_fake')
           .eq('event_id', eventId);
 
         const currentCount = (allParts || []).filter(
           (p: any) =>
+            !p.cancelled_at &&
+            !p.is_fake &&
             normalizeKey(p.gender) === normalizeKey(matchingQuota.gender) &&
             normalizeKey(p.age_range) === normalizeKey(matchingQuota.ageRange)
         ).length;
 
         if (currentCount >= matchingQuota.maxSlots) {
           quotaFullDetected = true;
+          if (socialIsFromWaitlist) {
+            return new Response(
+              JSON.stringify({
+                error: 'La cuota correspondiente sigue completa. No se puede inscribir desde lista de espera hasta que haya una plaza disponible en ese grupo.',
+                quotaFull: true,
+                gender,
+                ageRange
+              }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
           // Block only if neither the quota waitlist nor the event waitlist is enabled
           if (!socialForceWaitlist && !socialQuotaWaitlistEnabled && !socialWaitlistEnabled) {
             return new Response(
