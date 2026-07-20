@@ -140,6 +140,12 @@ interface EventData {
   draft_round: number | null;
 }
 
+interface SlotQuotaConfig {
+  gender: string;
+  ageRange: string;
+  maxSlots: number;
+}
+
 interface DbParticipant {
   id: string;
   name: string;
@@ -285,6 +291,58 @@ const EventDetail = () => {
   
   // Helper to determine if this is a professional event
   const isProfessionalEvent = eventData?.module === "professional";
+
+  const normalizeQuotaKey = (value: any) => String(value ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/–/g, '-')
+    .replace(/\s+/g, '');
+
+  const getSlotQuotas = (): SlotQuotaConfig[] => {
+    const quotas = (eventData as any)?.slot_quotas;
+    return Array.isArray(quotas) ? quotas : [];
+  };
+
+  const quotasAreEnabled = () => {
+    return !!(eventData as any)?.registration_requirements_enabled && getSlotQuotas().length > 0;
+  };
+
+  const getMatchingQuota = (gender?: string | null, ageRange?: string | null) => {
+    return getSlotQuotas().find((quota) =>
+      normalizeQuotaKey(quota.gender) === normalizeQuotaKey(gender) &&
+      normalizeQuotaKey(quota.ageRange) === normalizeQuotaKey(ageRange)
+    );
+  };
+
+  const countParticipantsForQuota = (quota: SlotQuotaConfig, participantPool: DbParticipant[] = participants) => {
+    return participantPool.filter((participant: any) =>
+      !participant.cancelled_at &&
+      !participant.is_fake &&
+      normalizeQuotaKey(participant.gender) === normalizeQuotaKey(quota.gender) &&
+      normalizeQuotaKey(participant.age_range) === normalizeQuotaKey(quota.ageRange)
+    ).length;
+  };
+
+  const getWaitlistPromotionEligibility = (entry: any, participantPool: DbParticipant[] = participants) => {
+    if (!quotasAreEnabled() || isProfessionalEvent) {
+      return { allowed: true, message: null as string | null };
+    }
+
+    const quota = getMatchingQuota(entry.gender, entry.age_range);
+    if (!quota) {
+      return { allowed: true, message: null as string | null };
+    }
+
+    const current = countParticipantsForQuota(quota, participantPool);
+    if (current >= quota.maxSlots) {
+      return {
+        allowed: false,
+        message: `La cuota ${quota.gender} · ${quota.ageRange} está completa (${current}/${quota.maxSlots}).`,
+      };
+    }
+
+    return { allowed: true, message: null as string | null };
+  };
 
   useEffect(() => {
     loadEventData();
@@ -2520,20 +2578,41 @@ const EventDetail = () => {
       description: "El participante ha sido eliminado del evento",
     });
 
-    // Auto-promote from waitlist if enabled (FIFO)
+    // Auto-promote from waitlist if enabled, but never exceeding per gender/age quota
     if (eventData?.waitlist_enabled && waitlistEntries.some(w => w.status === 'waiting')) {
-      await handleAutoPromoteWaitlist();
+      await handleAutoPromoteWaitlist(newParticipants);
     }
   };
 
-  const handleAutoPromoteWaitlist = async () => {
-    const nextInLine = waitlistEntries.find(w => w.status === 'waiting');
-    if (!nextInLine) return;
-    await handlePromoteFromWaitlist(nextInLine);
+  const handleAutoPromoteWaitlist = async (participantPool: DbParticipant[] = participants) => {
+    const waitingEntries = waitlistEntries.filter(w => w.status === 'waiting');
+    const nextEligible = quotasAreEnabled() && !isProfessionalEvent
+      ? waitingEntries.find(entry => getWaitlistPromotionEligibility(entry, participantPool).allowed)
+      : waitingEntries[0];
+
+    if (!nextEligible) {
+      toast({
+        title: "Plaza liberada",
+        description: "No hay nadie en lista de espera con una cuota disponible para inscribir automáticamente.",
+      });
+      return;
+    }
+
+    await handlePromoteFromWaitlist(nextEligible, participantPool);
   };
 
-  const handlePromoteFromWaitlist = async (entry: any) => {
+  const handlePromoteFromWaitlist = async (entry: any, participantPool: DbParticipant[] = participants) => {
     if (!id) return;
+
+    const eligibility = getWaitlistPromotionEligibility(entry, participantPool);
+    if (!eligibility.allowed) {
+      toast({
+        title: "Cuota completa",
+        description: eligibility.message || "No hay plazas disponibles para esta cuota.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Insert as participant via edge function to handle verification code generation
@@ -4743,22 +4822,31 @@ const EventDetail = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => (
-                      <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    {waitlistEntries.filter(w => w.status === 'waiting').map((entry, index) => {
+                      const promotionEligibility = getWaitlistPromotionEligibility(entry);
+                      return (
+                      <div key={entry.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
                           <div>
                             <p className="font-medium text-sm">{entry.name}</p>
                             <p className="text-xs text-muted-foreground">{entry.email}</p>
+                            {promotionEligibility.message && (
+                              <p className="text-xs text-destructive mt-1">{promotionEligibility.message}</p>
+                            )}
                           </div>
                           {entry.gender && (
                             <Badge variant="secondary" className="text-xs">{entry.gender}</Badge>
+                          )}
+                          {entry.age_range && (
+                            <Badge variant="outline" className="text-xs">{entry.age_range}</Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button 
                             size="sm" 
                             variant="outline"
+                            disabled={!promotionEligibility.allowed}
                             onClick={() => handlePromoteFromWaitlist(entry)}
                           >
                             <Plus className="w-4 h-4 mr-1" />
@@ -4780,7 +4868,7 @@ const EventDetail = () => {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </CardContent>
