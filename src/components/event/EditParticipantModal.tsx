@@ -74,16 +74,23 @@ interface EditParticipantModalProps {
   customPreferences?: EventCustomPreferences;
   isProfessional?: boolean;
   professionalConfig?: ProfessionalConfig;
+  wrappedEnabled?: boolean;
+  wrappedQuestions?: unknown;
+  eventLanguage?: "es" | "en";
 }
 
-const EditParticipantModal = ({ 
-  participant, 
-  onClose, 
-  onSave, 
+const EditParticipantModal = ({
+  participant,
+  onClose,
+  onSave,
   customPreferences,
   isProfessional = false,
   professionalConfig,
+  wrappedEnabled = false,
+  wrappedQuestions = null,
+  eventLanguage = "es",
 }: EditParticipantModalProps) => {
+
   // Use custom preferences if provided, otherwise use defaults
   const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
   const genders = customPreferences?.genders || [...GENDERS];
