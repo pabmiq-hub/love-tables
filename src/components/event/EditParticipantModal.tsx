@@ -117,6 +117,46 @@ const EditParticipantModal = ({
   
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Wrapped (interests) state
+  const wrappedQuestionList: WrappedQuestion[] = wrappedEnabled ? getWrappedQuestions(wrappedQuestions) : [];
+  const [wrappedAnswers, setWrappedAnswers] = useState<WrappedAnswers>({});
+  const [wrappedProfileId, setWrappedProfileId] = useState<string | null>(null);
+  const [loadingWrapped, setLoadingWrapped] = useState<boolean>(false);
+  const [wrappedProfileEmail, setWrappedProfileEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!wrappedEnabled) return;
+      setLoadingWrapped(true);
+      const { data: p } = await supabase
+        .from("participants")
+        .select("wrapped_profile_id, email")
+        .eq("id", participant.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (p?.wrapped_profile_id) {
+        const { data: prof } = await supabase
+          .from("wrapped_profiles")
+          .select("id, answers, email")
+          .eq("id", p.wrapped_profile_id)
+          .maybeSingle();
+        if (!cancelled && prof) {
+          setWrappedProfileId(prof.id);
+          setWrappedAnswers((prof.answers as WrappedAnswers) || {});
+          setWrappedProfileEmail(prof.email || null);
+        }
+      } else {
+        setWrappedProfileEmail(p?.email || participant.email || null);
+      }
+      setLoadingWrapped(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [wrappedEnabled, participant.id]);
+
+
   
   // Social fields
   const [formData, setFormData] = useState({
