@@ -5945,7 +5945,11 @@ const EventDetail = () => {
               companySizes: undefined,
               rotationType: eventData.professional_config.rotation_type,
             } : undefined}
+            wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
+            wrappedQuestions={(eventData as any)?.wrapped_questions || null}
+            eventLanguage={(eventData?.language === 'en' ? 'en' : 'es') as 'es' | 'en'}
           />
+
         )}
 
         {/* Exclusions Manager Modal */}
