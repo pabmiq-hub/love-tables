@@ -467,7 +467,10 @@ const ParticipantJoin = () => {
           });
           return;
         }
+        // Quota full but waitlist available: continue to step 2 so we still collect
+        // wrapped answers + preferences. Submission will be flagged as forceWaitlist.
         setWizardForceWaitlist(true);
+        setWizardStep(2);
         return;
       }
     }
@@ -488,6 +491,7 @@ const ParticipantJoin = () => {
           return;
         }
         setWizardForceWaitlist(true);
+        setWizardStep(2);
         return;
       }
     }
@@ -495,6 +499,7 @@ const ParticipantJoin = () => {
     setWizardForceWaitlist(false);
     setWizardStep(2);
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
