@@ -711,7 +711,9 @@ const ParticipantJoin = () => {
         marketingConsent,
         wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
         spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
+        forceWaitlist: wizardForceWaitlist || undefined,
       }
+
     });
 
     if (error || data?.error) {
