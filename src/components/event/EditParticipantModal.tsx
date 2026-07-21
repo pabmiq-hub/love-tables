@@ -636,6 +636,35 @@ const EditParticipantModal = ({
 
           {isProfessional ? renderProfessionalFields() : renderSocialFields()}
 
+          {wrappedEnabled && !isProfessional && (
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div>
+                <h3 className="font-semibold text-base">
+                  {eventLanguage === "en" ? "Interests (Wrapped)" : "Intereses (Wrapped)"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {wrappedProfileId
+                    ? (eventLanguage === "en" ? "Edit the participant's interest answers." : "Edita las respuestas de intereses del participante.")
+                    : (eventLanguage === "en" ? "No profile yet — fill it in on behalf of the participant." : "Sin perfil aún — rellénalo en nombre del participante.")}
+                </p>
+              </div>
+              {loadingWrapped ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> {eventLanguage === "en" ? "Loading…" : "Cargando…"}
+                </div>
+              ) : (
+                <WrappedInterestsForm
+                  questions={wrappedQuestionList}
+                  value={wrappedAnswers}
+                  onChange={setWrappedAnswers}
+                  lang={eventLanguage}
+                />
+              )}
+            </div>
+          )}
+
+
+
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
