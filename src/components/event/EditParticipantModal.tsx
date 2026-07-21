@@ -284,9 +284,8 @@ const EditParticipantModal = ({
       .update(updateData)
       .eq("id", participant.id);
 
-    setIsLoading(false);
-
     if (error) {
+      setIsLoading(false);
       toast({
         title: "Error",
         description: "No se pudo actualizar el participante",
@@ -294,6 +293,43 @@ const EditParticipantModal = ({
       });
       return;
     }
+
+    // Wrapped answers: upsert profile & link
+    if (wrappedEnabled && !isProfessional && wrappedQuestionList.length > 0) {
+      try {
+        const hobbies = (wrappedAnswers?.top_hobbies as any)
+          ? [
+              (wrappedAnswers.top_hobbies as any)?.top1,
+              (wrappedAnswers.top_hobbies as any)?.top2,
+              (wrappedAnswers.top_hobbies as any)?.top3,
+            ].filter(Boolean)
+          : [];
+        if (wrappedProfileId) {
+          await supabase
+            .from("wrapped_profiles")
+            .update({ answers: wrappedAnswers as any, hobbies_ranked: hobbies, updated_at: new Date().toISOString() })
+            .eq("id", wrappedProfileId);
+        } else {
+          const emailForProfile = (formData.email.trim() || wrappedProfileEmail || "").toLowerCase();
+          if (emailForProfile) {
+            const { data: newProf, error: profErr } = await supabase
+              .from("wrapped_profiles")
+              .insert({ email: emailForProfile, answers: wrappedAnswers as any, hobbies_ranked: hobbies })
+              .select("id")
+              .single();
+            if (!profErr && newProf) {
+              await supabase.from("participants").update({ wrapped_profile_id: newProf.id }).eq("id", participant.id);
+              setWrappedProfileId(newProf.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error saving wrapped answers:", err);
+      }
+    }
+
+    setIsLoading(false);
+
 
     toast({
       title: "Participante actualizado",
