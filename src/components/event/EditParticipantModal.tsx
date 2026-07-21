@@ -655,10 +655,11 @@ const EditParticipantModal = ({
               ) : (
                 <WrappedInterestsForm
                   questions={wrappedQuestionList}
-                  value={wrappedAnswers}
+                  values={wrappedAnswers}
                   onChange={setWrappedAnswers}
                   lang={eventLanguage}
                 />
+
               )}
             </div>
           )}
