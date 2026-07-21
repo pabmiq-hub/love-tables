@@ -159,6 +159,7 @@ export type Database = {
           sector: string | null
           solutions: string[] | null
           status: string
+          wrapped_answers: Json | null
         }
         Insert: {
           age_range?: string | null
@@ -184,6 +185,7 @@ export type Database = {
           sector?: string | null
           solutions?: string[] | null
           status?: string
+          wrapped_answers?: Json | null
         }
         Update: {
           age_range?: string | null
@@ -209,6 +211,7 @@ export type Database = {
           sector?: string | null
           solutions?: string[] | null
           status?: string
+          wrapped_answers?: Json | null
         }
         Relationships: [
           {

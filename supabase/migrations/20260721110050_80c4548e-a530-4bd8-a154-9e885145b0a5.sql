@@ -1,0 +1,1 @@
+ALTER TABLE public.event_waitlist ADD COLUMN IF NOT EXISTS wrapped_answers jsonb;
