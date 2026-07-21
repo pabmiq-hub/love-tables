@@ -15,6 +15,9 @@ import {
   PREFERENCES,
   DATING_PREFERENCES,
 } from "@/lib/excelParser";
+import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
+import { getWrappedQuestions, type WrappedAnswers, type WrappedQuestion } from "@/lib/wrappedQuestions";
+
 
 // Default professional options
 const DEFAULT_SECTORS = [
