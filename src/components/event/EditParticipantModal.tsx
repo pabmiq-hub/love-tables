@@ -134,10 +134,15 @@ const EditParticipantModal = ({
       setLoadingWrapped(true);
       const { data: p } = await supabase
         .from("participants")
-        .select("wrapped_profile_id, email")
+        .select("wrapped_profile_id, email, event_id")
         .eq("id", participant.id)
         .maybeSingle();
       if (cancelled) return;
+      if (p?.event_id) {
+        const { data: ev } = await supabase.from("events").select("organizer_id").eq("id", p.event_id).maybeSingle();
+        if (!cancelled && ev?.organizer_id) setWrappedOrganizerId(ev.organizer_id);
+      }
+
       if (p?.wrapped_profile_id) {
         const { data: prof } = await supabase
           .from("wrapped_profiles")
