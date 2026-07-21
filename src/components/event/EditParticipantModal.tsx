@@ -15,6 +15,9 @@ import {
   PREFERENCES,
   DATING_PREFERENCES,
 } from "@/lib/excelParser";
+import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
+import { getWrappedQuestions, type WrappedAnswers, type WrappedQuestion } from "@/lib/wrappedQuestions";
+
 
 // Default professional options
 const DEFAULT_SECTORS = [
@@ -71,16 +74,23 @@ interface EditParticipantModalProps {
   customPreferences?: EventCustomPreferences;
   isProfessional?: boolean;
   professionalConfig?: ProfessionalConfig;
+  wrappedEnabled?: boolean;
+  wrappedQuestions?: unknown;
+  eventLanguage?: "es" | "en";
 }
 
-const EditParticipantModal = ({ 
-  participant, 
-  onClose, 
-  onSave, 
+const EditParticipantModal = ({
+  participant,
+  onClose,
+  onSave,
   customPreferences,
   isProfessional = false,
   professionalConfig,
+  wrappedEnabled = false,
+  wrappedQuestions = null,
+  eventLanguage = "es",
 }: EditParticipantModalProps) => {
+
   // Use custom preferences if provided, otherwise use defaults
   const ageRanges = customPreferences?.ageRanges || [...AGE_RANGES];
   const genders = customPreferences?.genders || [...GENDERS];
@@ -107,6 +117,53 @@ const EditParticipantModal = ({
   
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Wrapped (interests) state
+  const wrappedQuestionList: WrappedQuestion[] = wrappedEnabled ? getWrappedQuestions(wrappedQuestions) : [];
+  const [wrappedAnswers, setWrappedAnswers] = useState<WrappedAnswers>({});
+  const [wrappedProfileId, setWrappedProfileId] = useState<string | null>(null);
+  const [loadingWrapped, setLoadingWrapped] = useState<boolean>(false);
+  const [wrappedProfileEmail, setWrappedProfileEmail] = useState<string | null>(null);
+  const [wrappedOrganizerId, setWrappedOrganizerId] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!wrappedEnabled) return;
+      setLoadingWrapped(true);
+      const { data: p } = await supabase
+        .from("participants")
+        .select("wrapped_profile_id, email, event_id")
+        .eq("id", participant.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (p?.event_id) {
+        const { data: ev } = await supabase.from("events").select("organizer_id").eq("id", p.event_id).maybeSingle();
+        if (!cancelled && ev?.organizer_id) setWrappedOrganizerId(ev.organizer_id);
+      }
+
+      if (p?.wrapped_profile_id) {
+        const { data: prof } = await supabase
+          .from("wrapped_profiles")
+          .select("id, answers, email")
+          .eq("id", p.wrapped_profile_id)
+          .maybeSingle();
+        if (!cancelled && prof) {
+          setWrappedProfileId(prof.id);
+          setWrappedAnswers((prof.answers as WrappedAnswers) || {});
+          setWrappedProfileEmail(prof.email || null);
+        }
+      } else {
+        setWrappedProfileEmail(p?.email || participant.email || null);
+      }
+      setLoadingWrapped(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [wrappedEnabled, participant.id]);
+
+
   
   // Social fields
   const [formData, setFormData] = useState({
@@ -234,9 +291,8 @@ const EditParticipantModal = ({
       .update(updateData)
       .eq("id", participant.id);
 
-    setIsLoading(false);
-
     if (error) {
+      setIsLoading(false);
       toast({
         title: "Error",
         description: "No se pudo actualizar el participante",
@@ -244,6 +300,49 @@ const EditParticipantModal = ({
       });
       return;
     }
+
+    // Wrapped answers: upsert profile & link
+    if (wrappedEnabled && !isProfessional && wrappedQuestionList.length > 0) {
+      try {
+        const hobbies = (wrappedAnswers?.top_hobbies as any)
+          ? [
+              (wrappedAnswers.top_hobbies as any)?.top1,
+              (wrappedAnswers.top_hobbies as any)?.top2,
+              (wrappedAnswers.top_hobbies as any)?.top3,
+            ].filter(Boolean)
+          : [];
+        if (wrappedProfileId) {
+          await supabase
+            .from("wrapped_profiles")
+            .update({ answers: wrappedAnswers as any, hobbies_ranked: hobbies, updated_at: new Date().toISOString() })
+            .eq("id", wrappedProfileId);
+        } else {
+          const emailForProfile = (formData.email.trim() || wrappedProfileEmail || "").toLowerCase();
+          if (emailForProfile && wrappedOrganizerId) {
+            const { data: newProf, error: profErr } = await supabase
+              .from("wrapped_profiles")
+              .insert({
+                email: emailForProfile,
+                answers: wrappedAnswers as any,
+                hobbies_ranked: hobbies,
+                organizer_id: wrappedOrganizerId,
+              })
+              .select("id")
+              .single();
+            if (!profErr && newProf) {
+              await supabase.from("participants").update({ wrapped_profile_id: newProf.id }).eq("id", participant.id);
+              setWrappedProfileId(newProf.id);
+            }
+          }
+
+        }
+      } catch (err) {
+        console.error("Error saving wrapped answers:", err);
+      }
+    }
+
+    setIsLoading(false);
+
 
     toast({
       title: "Participante actualizado",
@@ -536,6 +635,36 @@ const EditParticipantModal = ({
           </div>
 
           {isProfessional ? renderProfessionalFields() : renderSocialFields()}
+
+          {wrappedEnabled && !isProfessional && (
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div>
+                <h3 className="font-semibold text-base">
+                  {eventLanguage === "en" ? "Interests (Wrapped)" : "Intereses (Wrapped)"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {wrappedProfileId
+                    ? (eventLanguage === "en" ? "Edit the participant's interest answers." : "Edita las respuestas de intereses del participante.")
+                    : (eventLanguage === "en" ? "No profile yet — fill it in on behalf of the participant." : "Sin perfil aún — rellénalo en nombre del participante.")}
+                </p>
+              </div>
+              {loadingWrapped ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> {eventLanguage === "en" ? "Loading…" : "Cargando…"}
+                </div>
+              ) : (
+                <WrappedInterestsForm
+                  questions={wrappedQuestionList}
+                  values={wrappedAnswers}
+                  onChange={setWrappedAnswers}
+                  lang={eventLanguage}
+                />
+
+              )}
+            </div>
+          )}
+
+
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onClose}>

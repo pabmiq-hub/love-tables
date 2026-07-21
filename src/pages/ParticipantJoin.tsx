@@ -467,7 +467,10 @@ const ParticipantJoin = () => {
           });
           return;
         }
+        // Quota full but waitlist available: continue to step 2 so we still collect
+        // wrapped answers + preferences. Submission will be flagged as forceWaitlist.
         setWizardForceWaitlist(true);
+        setWizardStep(2);
         return;
       }
     }
@@ -488,6 +491,7 @@ const ParticipantJoin = () => {
           return;
         }
         setWizardForceWaitlist(true);
+        setWizardStep(2);
         return;
       }
     }
@@ -496,66 +500,14 @@ const ParticipantJoin = () => {
     setWizardStep(2);
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Waitlist-only submission (quota full)
-    if (wizardForceWaitlist) {
-      if (!name.trim() || !email.trim() || !phone.trim() || !birthDate || !gender) {
-        toast({ title: "Error", description: t.join.errorMissingFields, variant: "destructive" });
-        return;
-      }
-      if (!dataConsent) {
-        toast({
-          title: "Error",
-          description: eventLang === "en" ? "You must accept the privacy policy to register" : "Debes aceptar la política de privacidad para inscribirte",
-          variant: "destructive",
-        });
-        return;
-      }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        toast({ title: "Error", description: t.join.errorInvalidEmail, variant: "destructive" });
-        return;
-      }
+    // Note: waitlist submissions (when quota is full) go through the normal path
+    // with `forceWaitlist: true` so we still collect wrapped answers and preferences.
 
-      setIsSubmitting(true);
-      const { data, error } = await supabase.functions.invoke('register-participant', {
-        body: {
-          eventId,
-          name: name.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
-          gender,
-          birthDate,
-          preference: preference || 'Solo amistad',
-          datingPreference: null,
-          preferredAgeRange: null,
-          isReturningParticipant: isReturningParticipant === 'yes',
-          marketingConsent,
-          forceWaitlist: true,
-        },
-      });
 
-      if (error || data?.error) {
-        let errorMessage = data?.error || t.join.errorRegister;
-        toast({ title: "Error", description: errorMessage, variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-      }
-
-      try {
-        await supabase.functions.invoke('send-waitlist-confirmation', {
-          body: { eventId, name: data.name || name.trim(), email: data.email || email.trim(), position: data.position },
-        });
-      } catch (err) {
-        console.error('Error sending waitlist confirmation email:', err);
-      }
-      setIsWaitlistSubmission(true);
-      setIsSubmitted(true);
-      setIsSubmitting(false);
-      return;
-    }
 
     if (!name.trim() || !email.trim() || !phone.trim() || !birthDate || !gender || selectedAgeRanges.length === 0 || !preference || !isReturningParticipant) {
       toast({
@@ -706,7 +658,9 @@ const ParticipantJoin = () => {
         marketingConsent,
         wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
         spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
+        forceWaitlist: wizardForceWaitlist || undefined,
       }
+
     });
 
     if (error || data?.error) {

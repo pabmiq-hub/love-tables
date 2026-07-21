@@ -544,7 +544,9 @@ serve(async (req) => {
           is_returning_participant: isReturningParticipant || false,
           position: nextPosition,
           marketing_consent: marketingConsent,
+          wrapped_answers: wrappedAnswers && typeof wrappedAnswers === 'object' ? wrappedAnswers : null,
         });
+
 
       if (waitlistError) {
         if (waitlistError.code === '23505') {

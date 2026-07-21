@@ -2636,9 +2636,12 @@ const EventDetail = () => {
           companySize: entry.company_size,
           needs: entry.needs,
           solutions: entry.solutions,
+          // Wrapped answers captured at waitlist signup, if any
+          wrappedAnswers: entry.wrapped_answers || undefined,
           fromWaitlist: true,
         }
       });
+
 
       if (error || data?.error) {
         toast({
@@ -5942,7 +5945,11 @@ const EventDetail = () => {
               companySizes: undefined,
               rotationType: eventData.professional_config.rotation_type,
             } : undefined}
+            wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
+            wrappedQuestions={(eventData as any)?.wrapped_questions || null}
+            eventLanguage={(eventData?.language === 'en' ? 'en' : 'es') as 'es' | 'en'}
           />
+
         )}
 
         {/* Exclusions Manager Modal */}
