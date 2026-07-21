@@ -124,6 +124,8 @@ const EditParticipantModal = ({
   const [wrappedProfileId, setWrappedProfileId] = useState<string | null>(null);
   const [loadingWrapped, setLoadingWrapped] = useState<boolean>(false);
   const [wrappedProfileEmail, setWrappedProfileEmail] = useState<string | null>(null);
+  const [wrappedOrganizerId, setWrappedOrganizerId] = useState<string | null>(null);
+
 
   useEffect(() => {
     let cancelled = false;
