@@ -2636,9 +2636,12 @@ const EventDetail = () => {
           companySize: entry.company_size,
           needs: entry.needs,
           solutions: entry.solutions,
+          // Wrapped answers captured at waitlist signup, if any
+          wrappedAnswers: entry.wrapped_answers || undefined,
           fromWaitlist: true,
         }
       });
+
 
       if (error || data?.error) {
         toast({
