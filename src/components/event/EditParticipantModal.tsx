@@ -318,10 +318,15 @@ const EditParticipantModal = ({
             .eq("id", wrappedProfileId);
         } else {
           const emailForProfile = (formData.email.trim() || wrappedProfileEmail || "").toLowerCase();
-          if (emailForProfile) {
+          if (emailForProfile && wrappedOrganizerId) {
             const { data: newProf, error: profErr } = await supabase
               .from("wrapped_profiles")
-              .insert({ email: emailForProfile, answers: wrappedAnswers as any, hobbies_ranked: hobbies })
+              .insert({
+                email: emailForProfile,
+                answers: wrappedAnswers as any,
+                hobbies_ranked: hobbies,
+                organizer_id: wrappedOrganizerId,
+              })
               .select("id")
               .single();
             if (!profErr && newProf) {
@@ -329,6 +334,7 @@ const EditParticipantModal = ({
               setWrappedProfileId(newProf.id);
             }
           }
+
         }
       } catch (err) {
         console.error("Error saving wrapped answers:", err);
