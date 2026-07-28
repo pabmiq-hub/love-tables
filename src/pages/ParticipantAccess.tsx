@@ -45,6 +45,7 @@ interface MatchSelection {
   alreadySelected: boolean;
   previousSelectionType?: string;
   superLikedByMe?: boolean;
+  superLikedMe?: boolean;
   round: number;
   table: number;
 }
