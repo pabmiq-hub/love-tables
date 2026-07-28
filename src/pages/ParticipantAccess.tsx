@@ -424,6 +424,9 @@ const ParticipantAccess = () => {
       // Read super-like flags returned by edge function
       setHasSentSuperLike(!!data.hasSentSuperLike);
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
+      const senderIds: string[] = Array.isArray(data.receivedSuperLikeSenderIds) ? data.receivedSuperLikeSenderIds : [];
+      setReceivedSuperLikeSenderIds(senderIds);
+      const superLikedMeSet = new Set(senderIds);
 
       // Game mode payload (no `played` map sent to clients)
       setGameMode(data.gameMode || null);
