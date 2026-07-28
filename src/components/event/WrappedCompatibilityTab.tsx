@@ -40,6 +40,7 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [top, setTop] = useState<TopMatch[]>([]);
+  const [topByGender, setTopByGender] = useState<{ male: TopMatch[]; female: TopMatch[]; other: TopMatch[] }>({ male: [], female: [], other: [] });
   const [received, setReceived] = useState<ReceivedRequest[]>([]);
   const [sentCount, setSentCount] = useState(0);
   const [maxRequests, setMaxRequests] = useState(3);
@@ -109,6 +110,7 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
       });
       if (error) throw error;
       setTop(data.topMatches || []);
+      setTopByGender(data.topByGender || { male: [], female: [], other: [] });
       setReceived(data.receivedRequests || []);
       setSentCount(data.sentCount || 0);
       setMaxRequests(data.maxRequests || 3);
@@ -218,49 +220,82 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
         </Card>
       )}
 
-      {top.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">{T.empty}</p>
-      ) : (
-        <div className="space-y-2">
-          {top.map((m, idx) => {
-            const out = m.outgoing;
-            const statusLabel = out?.status === "pending" ? T.pending
-              : out?.status === "accepted" ? T.accepted
-              : out?.status === "rejected" ? T.rejected : null;
-            return (
-              <Card key={m.participantId} className="p-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                  {idx + 1}
+      {(() => {
+        const male = topByGender.male || [];
+        const female = topByGender.female || [];
+        const other = topByGender.other || [];
+        const hasSplit = male.length + female.length + other.length > 0;
+        if (!hasSplit && top.length === 0) {
+          return <p className="text-sm text-muted-foreground text-center py-6">{T.empty}</p>;
+        }
+
+        const renderCard = (m: TopMatch, idx: number) => {
+          const out = m.outgoing;
+          const statusLabel = out?.status === "pending" ? T.pending
+            : out?.status === "accepted" ? T.accepted
+            : out?.status === "rejected" ? T.rejected : null;
+          return (
+            <Card key={m.participantId} className="p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                {idx + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-primary font-bold text-base">{m.compat}%</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-primary font-bold text-lg">{m.compat}%</span>
-                    <span className="text-xs text-muted-foreground">{T.compat}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {[m.gender, m.ageRange, m.topHobbyLabel].filter(Boolean).join(" · ")}
-                  </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {[m.ageRange, m.topHobbyLabel].filter(Boolean).join(" · ")}
                 </div>
-                {statusLabel ? (
-                  <Badge variant={out?.status === "accepted" ? "default" : "outline"} className="text-xs">
-                    {statusLabel}
-                  </Badge>
+              </div>
+              {statusLabel ? (
+                <Badge variant={out?.status === "accepted" ? "default" : "outline"} className="text-xs shrink-0">
+                  {statusLabel}
+                </Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={remaining <= 0}
+                  onClick={() => setTarget(m)}
+                  title={remaining <= 0 ? T.limitReached : T.askMatch}
+                  className="shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </Card>
+          );
+        };
+
+        const colTitle = (key: "male" | "female" | "other") => {
+          if (key === "male") return lang === "en" ? "Men" : "Hombres";
+          if (key === "female") return lang === "en" ? "Women" : "Mujeres";
+          return lang === "en" ? "Other" : "Otro";
+        };
+
+        const cols: Array<{ key: "male" | "female" | "other"; list: TopMatch[] }> = [
+          { key: "male", list: male },
+          { key: "female", list: female },
+        ];
+        if (other.length > 0) cols.push({ key: "other", list: other });
+
+        return (
+          <div className={`grid gap-3 ${cols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+            {cols.map(({ key, list }) => (
+              <div key={key} className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+                  {colTitle(key)} · {list.length}
+                </div>
+                {list.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">—</p>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={remaining <= 0}
-                    onClick={() => setTarget(m)}
-                    title={remaining <= 0 ? T.limitReached : T.askMatch}
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </Button>
+                  list.map((m, i) => renderCard(m, i))
                 )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <AlertDialogContent>

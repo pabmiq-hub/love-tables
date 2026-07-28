@@ -45,6 +45,7 @@ interface MatchSelection {
   alreadySelected: boolean;
   previousSelectionType?: string;
   superLikedByMe?: boolean;
+  superLikedMe?: boolean;
   round: number;
   table: number;
 }
@@ -139,6 +140,7 @@ const ParticipantAccess = () => {
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
+  const [receivedSuperLikeSenderIds, setReceivedSuperLikeSenderIds] = useState<string[]>([]);
   const [hasSentSuperLike, setHasSentSuperLike] = useState(false);
   const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
@@ -422,6 +424,9 @@ const ParticipantAccess = () => {
       // Read super-like flags returned by edge function
       setHasSentSuperLike(!!data.hasSentSuperLike);
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
+      const senderIds: string[] = Array.isArray(data.receivedSuperLikeSenderIds) ? data.receivedSuperLikeSenderIds : [];
+      setReceivedSuperLikeSenderIds(senderIds);
+      const superLikedMeSet = new Set(senderIds);
 
       // Game mode payload (no `played` map sent to clients)
       setGameMode(data.gameMode || null);
@@ -469,6 +474,7 @@ const ParticipantAccess = () => {
             alreadySelected: !!existingType,
             previousSelectionType: existingType,
             superLikedByMe: superLikedMap.get(tm.id) || false,
+            superLikedMe: superLikedMeSet.has(tm.id),
             round: assignment.round,
             table: assignment.table,
           });
@@ -1198,6 +1204,8 @@ const ParticipantAccess = () => {
                                   key={`${ms.participantId}-${round}`}
                                   className={`p-3 rounded-lg transition-all ${ms.superLikedByMe
                                     ? 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border-2 border-amber-400 shadow-md'
+                                    : ms.superLikedMe
+                                      ? 'bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 shadow-md'
                                     : ms.alreadySelected
                                       ? 'bg-green-50 dark:bg-green-950/20 border-2 border-green-500/50'
                                       : (ms.friendship || ms.dating)
@@ -1210,6 +1218,12 @@ const ParticipantAccess = () => {
                                       {tablemate.name}
                                       {ms.superLikedByMe && (
                                         <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                                      )}
+                                      {ms.superLikedMe && (
+                                        <Badge className="bg-blue-500 hover:bg-blue-500 text-white text-[10px] px-1.5 py-0 h-4">
+                                          <Star className="w-2.5 h-2.5 fill-white text-white mr-1" />
+                                          {eventLang === 'en' ? 'Super Like received' : 'Te ha dado Super Like'}
+                                        </Badge>
                                       )}
                                     </span>
                                     {ms.alreadySelected && (

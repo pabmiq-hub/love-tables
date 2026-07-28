@@ -275,8 +275,8 @@ serve(async (req) => {
       supabase.from('participant_selections').select('selected_id, selection_type, is_super_like').eq('event_id', eventId).eq('selector_id', participant.id),
       // Has this participant already sent a super like?
       supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true).limit(1),
-      // Has this participant RECEIVED any super like?
-      supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true).limit(1),
+      // Has this participant RECEIVED any super like? Include sender IDs.
+      supabase.from('participant_selections').select('selector_id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true),
       // Has this participant already used their Flechazo?
       supabase.from('crush_requests').select('status, target_id').eq('event_id', eventId).eq('requester_id', participant.id).maybeSingle(),
     ]);
@@ -308,7 +308,8 @@ serve(async (req) => {
     }));
 
     const hasSentSuperLike = !!(sentSuperLikeResult.data && sentSuperLikeResult.data.length > 0);
-    const hasReceivedSuperLike = !!(receivedSuperLikeResult.data && receivedSuperLikeResult.data.length > 0);
+    const receivedSuperLikeSenderIds = Array.from(new Set(((receivedSuperLikeResult.data || []) as any[]).map((r: any) => r.selector_id).filter(Boolean)));
+    const hasReceivedSuperLike = receivedSuperLikeSenderIds.length > 0;
 
     console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
@@ -343,6 +344,7 @@ serve(async (req) => {
         preliminaryConfirmation,
         hasSentSuperLike,
         hasReceivedSuperLike,
+        receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
         existingCrush: existingCrushResult.data
           ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }

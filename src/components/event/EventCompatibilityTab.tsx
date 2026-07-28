@@ -21,6 +21,7 @@ interface Props {
 interface Row {
   id: string;
   name: string;
+  gender: string | null;
   profileId: string | null;
   answers: WrappedAnswers | null;
   topHobbyKey: string | null;
@@ -29,7 +30,16 @@ interface Row {
 interface RankedMatch {
   otherId: string;
   otherName: string;
+  otherGender: string | null;
   score: number;
+}
+
+function normalizeGenderBucket(g: string | null | undefined): "male" | "female" | "other" {
+  const s = String(g || "").toLowerCase().trim();
+  if (!s) return "other";
+  if (s === "m" || s.startsWith("hom") || s.startsWith("masc") || s === "male") return "male";
+  if (s.startsWith("muj") || s.startsWith("fem") || s === "f" || s === "female") return "female";
+  return "other";
 }
 
 const HOBBY_LABEL_ES: Record<string, string> = (() => {
@@ -56,7 +66,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
     const load = async () => {
       const { data: parts } = await (supabase as any)
         .from("participants")
-        .select("id, name, wrapped_profile_id, cancelled_at")
+        .select("id, name, gender, wrapped_profile_id, cancelled_at")
         .eq("event_id", eventId)
         .is("cancelled_at", null);
 
@@ -80,6 +90,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         return {
           id: p.id,
           name: p.name,
+          gender: p.gender || null,
           profileId: p.wrapped_profile_id || null,
           answers: prof?.answers || null,
           topHobbyKey: Array.isArray(prof?.hobbies_ranked) && prof!.hobbies_ranked!.length > 0 ? prof!.hobbies_ranked![0] : null,
@@ -114,17 +125,22 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
 
   const withProfile = useMemo(() => rows.filter(r => r.answers), [rows]);
 
-  const topMatches = useMemo(() => {
-    const result = new Map<string, RankedMatch[]>();
+  const topByGender = useMemo(() => {
+    const result = new Map<string, { male: RankedMatch[]; female: RankedMatch[]; other: RankedMatch[] }>();
     for (const a of withProfile) {
       const list: RankedMatch[] = [];
       for (const b of withProfile) {
         if (b.id === a.id) continue;
         const score = computeCompatibility(a.answers, b.answers, questions);
-        list.push({ otherId: b.id, otherName: b.name, score });
+        list.push({ otherId: b.id, otherName: b.name, otherGender: b.gender, score });
       }
       list.sort((x, y) => y.score - x.score);
-      result.set(a.id, list.slice(0, 10));
+      const buckets = { male: [] as RankedMatch[], female: [] as RankedMatch[], other: [] as RankedMatch[] };
+      for (const m of list) {
+        const b = normalizeGenderBucket(m.otherGender);
+        if (buckets[b].length < 10) buckets[b].push(m);
+      }
+      result.set(a.id, buckets);
     }
     return result;
   }, [withProfile, questions]);
@@ -179,8 +195,9 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         ) : (
           <div className="space-y-2">
             {filtered.map(r => {
-              const list = topMatches.get(r.id) || [];
-              const best = list[0];
+              const buckets = topByGender.get(r.id) || { male: [], female: [], other: [] };
+              const merged = [...buckets.male, ...buckets.female, ...buckets.other].sort((a, b) => b.score - a.score);
+              const best = merged[0];
               const hasProfile = !!r.answers;
               const isOpen = openId === r.id;
 
@@ -197,6 +214,12 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
                   </div>
                 );
               }
+
+              const cols: Array<{ key: "male" | "female" | "other"; title: string; list: RankedMatch[] }> = [
+                { key: "male", title: "Hombres", list: buckets.male },
+                { key: "female", title: "Mujeres", list: buckets.female },
+              ];
+              if (buckets.other.length > 0) cols.push({ key: "other", title: "Otro", list: buckets.other });
 
               return (
                 <Collapsible
@@ -230,30 +253,37 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
                     )}
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="border-t px-3 py-2 space-y-1">
-                      {list.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2">Sin coincidencias.</p>
-                      ) : (
-                        list.map((m, i) => (
-                          <div
-                            key={m.otherId}
-                            className={`flex items-center justify-between gap-3 py-1.5 px-2 rounded ${i === 0 ? "bg-primary/5" : ""}`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className={`text-xs w-5 text-center ${i === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                                {i + 1}
-                              </span>
-                              <span className={`text-sm truncate ${i === 0 ? "font-medium" : ""}`}>{m.otherName}</span>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={i === 0 ? "bg-primary/10 text-primary border-primary/30" : ""}
-                            >
-                              {m.score}%
-                            </Badge>
+                    <div className={`border-t px-3 py-3 grid gap-4 ${cols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+                      {cols.map(({ key, title, list }) => (
+                        <div key={key} className="space-y-1">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+                            {title} · {list.length}
                           </div>
-                        ))
-                      )}
+                          {list.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-2 px-1">—</p>
+                          ) : (
+                            list.map((m, i) => (
+                              <div
+                                key={m.otherId}
+                                className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded ${i === 0 ? "bg-primary/5" : ""}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`text-xs w-5 text-center ${i === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+                                    {i + 1}
+                                  </span>
+                                  <span className={`text-sm truncate ${i === 0 ? "font-medium" : ""}`}>{m.otherName}</span>
+                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={i === 0 ? "bg-primary/10 text-primary border-primary/30" : ""}
+                                >
+                                  {m.score}%
+                                </Badge>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
