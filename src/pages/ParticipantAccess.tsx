@@ -140,6 +140,7 @@ const ParticipantAccess = () => {
   const [totalRounds, setTotalRounds] = useState<number>(0);
   const [participantName, setParticipantName] = useState("");
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
+  const [receivedSuperLikeSenderIds, setReceivedSuperLikeSenderIds] = useState<string[]>([]);
   const [hasSentSuperLike, setHasSentSuperLike] = useState(false);
   const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
