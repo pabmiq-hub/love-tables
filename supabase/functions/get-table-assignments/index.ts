@@ -308,7 +308,8 @@ serve(async (req) => {
     }));
 
     const hasSentSuperLike = !!(sentSuperLikeResult.data && sentSuperLikeResult.data.length > 0);
-    const hasReceivedSuperLike = !!(receivedSuperLikeResult.data && receivedSuperLikeResult.data.length > 0);
+    const receivedSuperLikeSenderIds = Array.from(new Set(((receivedSuperLikeResult.data || []) as any[]).map((r: any) => r.selector_id).filter(Boolean)));
+    const hasReceivedSuperLike = receivedSuperLikeSenderIds.length > 0;
 
     console.log(`[get-table-assignments] Found ${finalAssignments.length} assignments for participant ${participant.id} (filtered to round ${currentRound})`);
 
