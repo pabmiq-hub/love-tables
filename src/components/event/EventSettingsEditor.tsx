@@ -441,16 +441,16 @@ const EventSettingsEditor = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-table-size">Tamaño de mesa {isLocked && <Lock className="w-3 h-3 inline text-muted-foreground" />}</Label>
+              <Label htmlFor="event-table-size">Tamaño de mesa</Label>
               {customTablesActive ? (
                 <div className="flex items-center gap-2">
                   <div className="flex-1 px-3 py-2 rounded-md border bg-muted/40 text-sm">
                     Personalizado · {formCustomTables!.tables.length} mesas · {formCustomTables!.tables.reduce((a, t) => a + (t.capacity || 0), 0)} plazas
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setShowCustomTablesDialog(true)} disabled={isLocked}>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setShowCustomTablesDialog(true)}>
                     Editar
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setFormCustomTables(null)} disabled={isLocked}>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setFormCustomTables(null)}>
                     Quitar
                   </Button>
                 </div>
@@ -463,7 +463,6 @@ const EventSettingsEditor = ({
                     max={12}
                     value={formTableSize}
                     onChange={(e) => setFormTableSize(parseInt(e.target.value) || 2)}
-                    disabled={isLocked}
                     className="flex-1"
                   />
                   {canUseCustomTables && (
@@ -472,7 +471,6 @@ const EventSettingsEditor = ({
                       size="sm"
                       variant="outline"
                       onClick={() => setShowCustomTablesDialog(true)}
-                      disabled={isLocked}
                       title="Configurar mesas con capacidades individuales"
                     >
                       <Settings2 className="w-4 h-4 mr-1" />
@@ -480,6 +478,11 @@ const EventSettingsEditor = ({
                     </Button>
                   )}
                 </div>
+              )}
+              {isLocked && (
+                <p className="text-xs text-muted-foreground">
+                  Los cambios se aplicarán al regenerar las mesas desde el panel del evento.
+                </p>
               )}
             </div>
             <div className="space-y-2">
