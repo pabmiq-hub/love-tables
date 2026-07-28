@@ -40,6 +40,7 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [top, setTop] = useState<TopMatch[]>([]);
+  const [topByGender, setTopByGender] = useState<{ male: TopMatch[]; female: TopMatch[]; other: TopMatch[] }>({ male: [], female: [], other: [] });
   const [received, setReceived] = useState<ReceivedRequest[]>([]);
   const [sentCount, setSentCount] = useState(0);
   const [maxRequests, setMaxRequests] = useState(3);
