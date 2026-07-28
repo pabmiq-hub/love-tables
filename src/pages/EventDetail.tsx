@@ -5439,6 +5439,30 @@ const EventDetail = () => {
                             Editar mesas
                           </Button>
                         )}
+                        {eventStatus === "active" && completedRounds.length === 0 && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Regenerar mesas
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Regenerar mesas?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Se descartarán las mesas actuales y se generarán nuevas respetando el tamaño de mesa configurado ({eventData.table_size} personas) y el resto de reglas del evento. Solo disponible antes de iniciar la primera ronda.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => initiateTableGeneration()}>
+                                  Regenerar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                         {eventData.draft_round === viewingRound && (
                           <Button
                             size="sm"
