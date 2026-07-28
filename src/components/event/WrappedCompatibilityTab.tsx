@@ -110,6 +110,7 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
       });
       if (error) throw error;
       setTop(data.topMatches || []);
+      setTopByGender(data.topByGender || { male: [], female: [], other: [] });
       setReceived(data.receivedRequests || []);
       setSentCount(data.sentCount || 0);
       setMaxRequests(data.maxRequests || 3);
