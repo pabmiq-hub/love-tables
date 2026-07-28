@@ -195,8 +195,9 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         ) : (
           <div className="space-y-2">
             {filtered.map(r => {
-              const list = topMatches.get(r.id) || [];
-              const best = list[0];
+              const buckets = topByGender.get(r.id) || { male: [], female: [], other: [] };
+              const merged = [...buckets.male, ...buckets.female, ...buckets.other].sort((a, b) => b.score - a.score);
+              const best = merged[0];
               const hasProfile = !!r.answers;
               const isOpen = openId === r.id;
 
@@ -213,6 +214,12 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
                   </div>
                 );
               }
+
+              const cols: Array<{ key: "male" | "female" | "other"; title: string; list: RankedMatch[] }> = [
+                { key: "male", title: "Hombres", list: buckets.male },
+                { key: "female", title: "Mujeres", list: buckets.female },
+              ];
+              if (buckets.other.length > 0) cols.push({ key: "other", title: "Otro", list: buckets.other });
 
               return (
                 <Collapsible
@@ -246,30 +253,37 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
                     )}
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="border-t px-3 py-2 space-y-1">
-                      {list.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2">Sin coincidencias.</p>
-                      ) : (
-                        list.map((m, i) => (
-                          <div
-                            key={m.otherId}
-                            className={`flex items-center justify-between gap-3 py-1.5 px-2 rounded ${i === 0 ? "bg-primary/5" : ""}`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className={`text-xs w-5 text-center ${i === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                                {i + 1}
-                              </span>
-                              <span className={`text-sm truncate ${i === 0 ? "font-medium" : ""}`}>{m.otherName}</span>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={i === 0 ? "bg-primary/10 text-primary border-primary/30" : ""}
-                            >
-                              {m.score}%
-                            </Badge>
+                    <div className={`border-t px-3 py-3 grid gap-4 ${cols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+                      {cols.map(({ key, title, list }) => (
+                        <div key={key} className="space-y-1">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+                            {title} · {list.length}
                           </div>
-                        ))
-                      )}
+                          {list.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-2 px-1">—</p>
+                          ) : (
+                            list.map((m, i) => (
+                              <div
+                                key={m.otherId}
+                                className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded ${i === 0 ? "bg-primary/5" : ""}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`text-xs w-5 text-center ${i === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+                                    {i + 1}
+                                  </span>
+                                  <span className={`text-sm truncate ${i === 0 ? "font-medium" : ""}`}>{m.otherName}</span>
+                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={i === 0 ? "bg-primary/10 text-primary border-primary/30" : ""}
+                                >
+                                  {m.score}%
+                                </Badge>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
