@@ -474,6 +474,7 @@ const ParticipantAccess = () => {
             alreadySelected: !!existingType,
             previousSelectionType: existingType,
             superLikedByMe: superLikedMap.get(tm.id) || false,
+            superLikedMe: superLikedMeSet.has(tm.id),
             round: assignment.round,
             table: assignment.table,
           });
