@@ -258,7 +258,13 @@ serve(async (req) => {
     scored.sort((a, b) => b.compat - a.compat);
     const top = scored.slice(0, 10);
 
-    // Enrich received requests with sender's compat/top hobby
+    // Split by gender for the two-column UI
+    const byGender: Record<"male" | "female" | "other", any[]> = { male: [], female: [], other: [] };
+    for (const s of scored) {
+      const bucket = normalizeGender(s.gender);
+      if (byGender[bucket].length < 10) byGender[bucket].push(s);
+    }
+
     const enrichedReceived = receivedList.map(r => {
       const s = scored.find(x => x.participantId === r.sender_participant_id);
       return {
@@ -274,6 +280,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       topMatches: top,
+      topByGender: byGender,
       receivedRequests: enrichedReceived,
       sentCount,
       maxRequests: 3,
