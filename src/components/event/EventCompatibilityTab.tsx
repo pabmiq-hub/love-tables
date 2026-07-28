@@ -125,17 +125,22 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
 
   const withProfile = useMemo(() => rows.filter(r => r.answers), [rows]);
 
-  const topMatches = useMemo(() => {
-    const result = new Map<string, RankedMatch[]>();
+  const topByGender = useMemo(() => {
+    const result = new Map<string, { male: RankedMatch[]; female: RankedMatch[]; other: RankedMatch[] }>();
     for (const a of withProfile) {
       const list: RankedMatch[] = [];
       for (const b of withProfile) {
         if (b.id === a.id) continue;
         const score = computeCompatibility(a.answers, b.answers, questions);
-        list.push({ otherId: b.id, otherName: b.name, score });
+        list.push({ otherId: b.id, otherName: b.name, otherGender: b.gender, score });
       }
       list.sort((x, y) => y.score - x.score);
-      result.set(a.id, list.slice(0, 10));
+      const buckets = { male: [] as RankedMatch[], female: [] as RankedMatch[], other: [] as RankedMatch[] };
+      for (const m of list) {
+        const b = normalizeGenderBucket(m.otherGender);
+        if (buckets[b].length < 10) buckets[b].push(m);
+      }
+      result.set(a.id, buckets);
     }
     return result;
   }, [withProfile, questions]);
