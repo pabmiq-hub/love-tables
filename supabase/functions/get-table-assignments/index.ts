@@ -344,6 +344,7 @@ serve(async (req) => {
         preliminaryConfirmation,
         hasSentSuperLike,
         hasReceivedSuperLike,
+        receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
         existingCrush: existingCrushResult.data
           ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }
