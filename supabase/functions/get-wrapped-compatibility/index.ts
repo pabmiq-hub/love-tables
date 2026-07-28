@@ -58,41 +58,96 @@ const DEFAULT_QUESTIONS = [
   { id: "top_hobbies", type: "ranked_top3" },
 ];
 
+const RELATED_CLUSTERS: Record<string, string[][]> = {
+  music: [
+    ["pop", "latin", "indie", "rock"],
+    ["electronic", "hiphop"],
+    ["classical", "jazz"],
+  ],
+  lifestyle: [
+    ["sport", "outdoor"],
+    ["traveler", "outdoor", "foodie"],
+    ["movies", "music", "reader", "artist"],
+    ["gamer", "movies"],
+  ],
+  humor: [
+    ["absurd", "sarcastic", "dark"],
+    ["smart", "sarcastic"],
+    ["physical", "absurd"],
+  ],
+  top_hobbies: [
+    ["board_games", "videogames"],
+    ["nature", "travel", "photography"],
+    ["movies_series", "music", "dance"],
+    ["art", "photography", "dance"],
+    ["cooking", "reading"],
+    ["sport", "nature"],
+  ],
+};
+function areRelated(qid: string, a: string, b: string): boolean {
+  if (!a || !b || a === b) return false;
+  const groups = RELATED_CLUSTERS[qid];
+  if (!groups) return false;
+  return groups.some((g) => g.includes(a) && g.includes(b));
+}
+
 function computeCompat(a: any, b: any, questions: any[]): number {
   if (!a || !b) return 0;
   let score = 0, max = 0;
   for (const q of questions) {
     const av = a[q.id]; const bv = b[q.id];
     if (q.type === "ranked_top3") {
-      max += 55;
+      max += 60;
       const ar = av || {}; const br = bv || {};
+      const aTops = [ar.top1, ar.top2, ar.top3].filter(Boolean);
+      const bTops = [br.top1, br.top2, br.top3].filter(Boolean);
       if (ar.top1 && ar.top1 === br.top1) score += 25;
+      else if (ar.top1 && bTops.includes(ar.top1)) score += 12;
+      else if (ar.top1 && bTops.some((x: string) => areRelated(q.id, ar.top1, x))) score += 6;
       if (ar.top2 && ar.top2 === br.top2) score += 15;
+      else if (ar.top2 && bTops.includes(ar.top2)) score += 8;
+      else if (ar.top2 && bTops.some((x: string) => areRelated(q.id, ar.top2, x))) score += 4;
       if (ar.top3 && ar.top3 === br.top3) score += 10;
-      const setA = new Set([ar.top1, ar.top2, ar.top3].filter(Boolean));
-      const setB = new Set([br.top1, br.top2, br.top3].filter(Boolean));
-      let overlap = 0;
-      for (const v of setA) if (setB.has(v)) overlap++;
-      const exact = (ar.top1 === br.top1 ? 1 : 0) + (ar.top2 === br.top2 ? 1 : 0) + (ar.top3 === br.top3 ? 1 : 0);
-      score += Math.min(5, (overlap - exact) * 3);
+      else if (ar.top3 && bTops.includes(ar.top3)) score += 5;
+      else if (ar.top3 && bTops.some((x: string) => areRelated(q.id, ar.top3, x))) score += 3;
+      let relBonus = 0;
+      for (const x of aTops) {
+        if (bTops.includes(x)) continue;
+        if (bTops.some((y: string) => areRelated(q.id, x, y))) relBonus += 2;
+      }
+      score += Math.min(10, relBonus);
     } else if (q.type === "single_choice" || q.type === "yes_no") {
       max += 8;
       if (av && bv && av === bv) score += 8;
+      else if (typeof av === "string" && typeof bv === "string" && areRelated(q.id, av, bv)) score += 4;
       if (q.id === "personality" && av && bv && av !== bv) {
         const pair = [String(av), String(bv)].sort().join("+");
         if (pair === "extrovert+introvert" || pair.includes("ambivert")) score += 5;
         max += 5;
       }
     } else if (q.type === "multi_choice") {
-      max += 20;
+      max += 22;
       const A = Array.isArray(av) ? av : [];
       const B = Array.isArray(bv) ? bv : [];
-      let shared = 0;
-      for (const x of A) if (B.includes(x)) shared++;
-      score += Math.min(20, shared * 4);
+      let shared = 0, related = 0;
+      for (const x of A) {
+        if (B.includes(x)) shared++;
+        else if (B.some((y: string) => areRelated(q.id, x, y))) related++;
+      }
+      score += Math.min(22, shared * 4 + related * 2);
     }
   }
   return max === 0 ? 0 : Math.round((score / max) * 100);
+}
+
+function normalizeGender(g: string | null | undefined): "male" | "female" | "other" {
+  const s = String(g || "").toLowerCase().trim();
+  if (!s) return "other";
+  if (["male", "hombre", "h", "m ", "hombres", "chico", "masculino"].some((k) => s === k.trim())) return "male";
+  if (["female", "mujer", "mujeres", "chica", "femenino", "f"].some((k) => s === k.trim())) return "female";
+  if (s.startsWith("hom") || s === "m" || s.startsWith("masc")) return "male";
+  if (s.startsWith("muj") || s.startsWith("fem")) return "female";
+  return "other";
 }
 
 serve(async (req) => {
