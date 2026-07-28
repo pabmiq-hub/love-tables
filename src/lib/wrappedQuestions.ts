@@ -154,8 +154,51 @@ export function getWrappedQuestions(source: unknown): WrappedQuestion[] {
 }
 
 /**
+ * Related-interest clusters per question. Two keys in the same cluster earn
+ * partial credit (0.5x) even when they are not identical — this rewards
+ * users with adjacent tastes (e.g. indie + rock, board_games + videogames,
+ * nature + travel).
+ */
+export const RELATED_CLUSTERS: Record<string, string[][]> = {
+  music: [
+    ["pop", "latin", "indie", "rock"],
+    ["electronic", "hiphop"],
+    ["classical", "jazz"],
+  ],
+  lifestyle: [
+    ["sport", "outdoor"],
+    ["traveler", "outdoor", "foodie"],
+    ["movies", "music", "reader", "artist"],
+    ["gamer", "movies"],
+  ],
+  humor: [
+    ["absurd", "sarcastic", "dark"],
+    ["smart", "sarcastic"],
+    ["physical", "absurd"],
+  ],
+  top_hobbies: [
+    ["board_games", "videogames"],
+    ["nature", "travel", "photography"],
+    ["movies_series", "music", "dance"],
+    ["art", "photography", "dance"],
+    ["cooking", "reading"],
+    ["sport", "nature"],
+  ],
+};
+
+function areRelated(qid: string, a: string, b: string): boolean {
+  if (!a || !b || a === b) return false;
+  const groups = RELATED_CLUSTERS[qid];
+  if (!groups) return false;
+  return groups.some(g => g.includes(a) && g.includes(b));
+}
+
+/**
  * Compute 0–100 compatibility between two wrapped answer sets.
  * Uses stable option keys, not translated labels.
+ *
+ * Scoring rewards exact matches AND related interests (see RELATED_CLUSTERS)
+ * at ~half weight to give a smoother compatibility gradient.
  */
 export function computeCompatibility(
   a: WrappedAnswers | null | undefined,
@@ -171,26 +214,36 @@ export function computeCompatibility(
     const bv = b[q.id];
 
     if (q.type === "ranked_top3") {
-      maxScore += 55; // 25 + 15 + 10 + up to 5 extra
+      maxScore += 60; // 25 + 15 + 10 + up to 10 extra (exact overlap + related)
       const ar = (av || {}) as any;
       const br = (bv || {}) as any;
+      const aTops = [ar.top1, ar.top2, ar.top3].filter(Boolean) as string[];
+      const bTops = [br.top1, br.top2, br.top3].filter(Boolean) as string[];
+
+      // Exact position matches
       if (ar.top1 && ar.top1 === br.top1) score += 25;
+      else if (ar.top1 && bTops.includes(ar.top1)) score += 12;
+      else if (ar.top1 && bTops.some(x => areRelated(q.id, ar.top1, x))) score += 6;
+
       if (ar.top2 && ar.top2 === br.top2) score += 15;
+      else if (ar.top2 && bTops.includes(ar.top2)) score += 8;
+      else if (ar.top2 && bTops.some(x => areRelated(q.id, ar.top2, x))) score += 4;
+
       if (ar.top3 && ar.top3 === br.top3) score += 10;
-      // bonus for shared in any order
-      const setA = new Set([ar.top1, ar.top2, ar.top3].filter(Boolean));
-      const setB = new Set([br.top1, br.top2, br.top3].filter(Boolean));
-      let overlap = 0;
-      for (const v of setA) if (setB.has(v)) overlap++;
-      // subtract exact matches already counted
-      const exact =
-        (ar.top1 && ar.top1 === br.top1 ? 1 : 0) +
-        (ar.top2 && ar.top2 === br.top2 ? 1 : 0) +
-        (ar.top3 && ar.top3 === br.top3 ? 1 : 0);
-      score += Math.min(5, (overlap - exact) * 3);
+      else if (ar.top3 && bTops.includes(ar.top3)) score += 5;
+      else if (ar.top3 && bTops.some(x => areRelated(q.id, ar.top3, x))) score += 3;
+
+      // Related-only bonus (any-order overlap not caught above)
+      let relBonus = 0;
+      for (const x of aTops) {
+        if (bTops.includes(x)) continue;
+        if (bTops.some(y => areRelated(q.id, x, y))) relBonus += 2;
+      }
+      score += Math.min(10, relBonus);
     } else if (q.type === "single_choice" || q.type === "yes_no") {
       maxScore += 8;
       if (av && bv && av === bv) score += 8;
+      else if (typeof av === "string" && typeof bv === "string" && areRelated(q.id, av, bv)) score += 4;
       // personality complementarity bonus
       if (q.id === "personality" && av && bv && av !== bv) {
         const pair = [String(av), String(bv)].sort().join("+");
@@ -198,12 +251,19 @@ export function computeCompatibility(
         maxScore += 5;
       }
     } else if (q.type === "multi_choice") {
-      maxScore += 20;
+      maxScore += 22;
       const A = Array.isArray(av) ? (av as string[]) : [];
       const B = Array.isArray(bv) ? (bv as string[]) : [];
       let shared = 0;
-      for (const x of A) if (B.includes(x)) shared++;
-      score += Math.min(20, shared * 4);
+      let related = 0;
+      for (const x of A) {
+        if (B.includes(x)) {
+          shared++;
+        } else if (B.some(y => areRelated(q.id, x, y))) {
+          related++;
+        }
+      }
+      score += Math.min(22, shared * 4 + related * 2);
     }
   }
 
