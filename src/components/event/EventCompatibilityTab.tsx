@@ -21,6 +21,7 @@ interface Props {
 interface Row {
   id: string;
   name: string;
+  gender: string | null;
   profileId: string | null;
   answers: WrappedAnswers | null;
   topHobbyKey: string | null;
@@ -29,7 +30,16 @@ interface Row {
 interface RankedMatch {
   otherId: string;
   otherName: string;
+  otherGender: string | null;
   score: number;
+}
+
+function normalizeGenderBucket(g: string | null | undefined): "male" | "female" | "other" {
+  const s = String(g || "").toLowerCase().trim();
+  if (!s) return "other";
+  if (s === "m" || s.startsWith("hom") || s.startsWith("masc") || s === "male") return "male";
+  if (s.startsWith("muj") || s.startsWith("fem") || s === "f" || s === "female") return "female";
+  return "other";
 }
 
 const HOBBY_LABEL_ES: Record<string, string> = (() => {
