@@ -66,7 +66,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
     const load = async () => {
       const { data: parts } = await (supabase as any)
         .from("participants")
-        .select("id, name, wrapped_profile_id, cancelled_at")
+        .select("id, name, gender, wrapped_profile_id, cancelled_at")
         .eq("event_id", eventId)
         .is("cancelled_at", null);
 
@@ -90,6 +90,7 @@ export default function EventCompatibilityTab({ eventId, wrappedQuestions }: Pro
         return {
           id: p.id,
           name: p.name,
+          gender: p.gender || null,
           profileId: p.wrapped_profile_id || null,
           answers: prof?.answers || null,
           topHobbyKey: Array.isArray(prof?.hobbies_ranked) && prof!.hobbies_ranked!.length > 0 ? prof!.hobbies_ranked![0] : null,
