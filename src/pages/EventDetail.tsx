@@ -5727,13 +5727,23 @@ const EventDetail = () => {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics">
-            <EventAnalytics
-              participants={activeParticipants}
-              tables={tables}
-              matches={matches}
-              selections={selections}
-              originalParticipantsCount={eventData?.original_participants_count}
-            />
+            <div className="space-y-8">
+              <EventAnalytics
+                participants={activeParticipants}
+                tables={tables}
+                matches={matches}
+                selections={selections}
+                originalParticipantsCount={eventData?.original_participants_count}
+              />
+              <EventEngagementInsights
+                eventId={id!}
+                participants={activeParticipants as any}
+                selections={selections as any}
+                matches={matches as any}
+                wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
+                wrappedQuestions={(eventData as any)?.wrapped_questions}
+              />
+            </div>
           </TabsContent>
 
           {/* Settings Tab */}
