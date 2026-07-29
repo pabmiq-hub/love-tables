@@ -14,6 +14,7 @@ import {
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import TableEditorModal from "@/components/event/TableEditorModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
+import EventEngagementInsights from "@/components/event/EventEngagementInsights";
 import EventSettingsTabs from "@/components/event/EventSettingsTabs";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
