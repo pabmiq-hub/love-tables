@@ -48,13 +48,21 @@ const EventEngagementInsights = ({
   const [crushRequests, setCrushRequests] = useState<any[]>([]);
   const [repeatRequests, setRepeatRequests] = useState<any[]>([]);
 
+  const profileIdsKey = useMemo(
+    () =>
+      Array.from(
+        new Set(participants.map((p) => p.wrapped_profile_id).filter(Boolean) as string[]),
+      )
+        .sort()
+        .join(","),
+    [participants],
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const profileIds = Array.from(
-        new Set(participants.map((p) => p.wrapped_profile_id).filter(Boolean) as string[]),
-      );
+      const profileIds = profileIdsKey ? profileIdsKey.split(",") : [];
 
       const [profilesRes, crushRes, repeatRes] = await Promise.all([
         profileIds.length > 0
@@ -76,7 +84,7 @@ const EventEngagementInsights = ({
     return () => {
       cancelled = true;
     };
-  }, [eventId, participants]);
+  }, [eventId, profileIdsKey]);
 
   const matchPairSet = useMemo(() => {
     const s = new Set<string>();
