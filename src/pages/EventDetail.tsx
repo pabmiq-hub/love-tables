@@ -14,6 +14,7 @@ import {
 import TableAssignmentModal from "@/components/event/TableAssignmentModal";
 import TableEditorModal from "@/components/event/TableEditorModal";
 import EventAnalytics from "@/components/event/EventAnalytics";
+import EventEngagementInsights from "@/components/event/EventEngagementInsights";
 import EventSettingsTabs from "@/components/event/EventSettingsTabs";
 import { BrandedHeader } from "@/components/BrandedHeader";
 import { useOrganizer } from "@/hooks/useOrganizer";
@@ -5727,13 +5728,23 @@ const EventDetail = () => {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics">
-            <EventAnalytics
-              participants={activeParticipants}
-              tables={tables}
-              matches={matches}
-              selections={selections}
-              originalParticipantsCount={eventData?.original_participants_count}
-            />
+            <div className="space-y-8">
+              <EventAnalytics
+                participants={activeParticipants}
+                tables={tables}
+                matches={matches}
+                selections={selections}
+                originalParticipantsCount={eventData?.original_participants_count}
+              />
+              <EventEngagementInsights
+                eventId={id!}
+                participants={activeParticipants as any}
+                selections={selections as any}
+                matches={matches as any}
+                wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
+                wrappedQuestions={(eventData as any)?.wrapped_questions}
+              />
+            </div>
           </TabsContent>
 
           {/* Settings Tab */}
