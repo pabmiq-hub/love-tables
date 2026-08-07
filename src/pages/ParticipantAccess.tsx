@@ -1069,31 +1069,36 @@ const ParticipantAccess = () => {
               </div>
             )}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <TabsList className={`grid w-full ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                <TabsTrigger value="info" className="flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" />
-                  {eventLang === 'es' ? 'Inicio' : 'Home'}
-                </TabsTrigger>
-                <TabsTrigger value="tables" className="flex items-center gap-1.5">
-                  <Table2 className="w-4 h-4" />
-                  {t.access.myTables}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="selections"
-                  className={`flex items-center gap-1.5 transition-all ${
-                    highlightSelectionsTab ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""
-                  }`}
-                >
-                  <Heart className="w-4 h-4" />
-                  {t.access.selections}
-                </TabsTrigger>
-                {wrappedEnabled && (
-                  <TabsTrigger value="compatibility" className="flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" />
-                    {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
+                  <TabsTrigger value="info" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                    <HelpCircle className="w-4 h-4 shrink-0" />
+                    {eventLang === 'es' ? 'Inicio' : 'Home'}
                   </TabsTrigger>
-                )}
-              </TabsList>
+                  {wrappedEnabled && (
+                    <TabsTrigger value="compatibility" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                      <Sparkles className="w-4 h-4 shrink-0" />
+                      {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+                <TabsList className="grid w-full sm:flex-1 grid-cols-2 h-auto">
+                  <TabsTrigger value="tables" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                    <Table2 className="w-4 h-4 shrink-0" />
+                    {t.access.myTables}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="selections"
+                    className={`flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap transition-all ${
+                      highlightSelectionsTab ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""
+                    }`}
+                  >
+                    <Heart className="w-4 h-4 shrink-0" />
+                    {t.access.selections}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
 
               <TabsContent value="tables" className="space-y-3 mt-4">
                 {tableAssignments.length === 0 ? (
