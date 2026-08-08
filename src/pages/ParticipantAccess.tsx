@@ -1068,8 +1068,9 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-20 sm:pb-0">
+              {/* Desktop / tablet: inline tabs */}
+              <div className="hidden sm:flex sm:flex-row sm:gap-2">
                 <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
                   <TabsTrigger value="info" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
                     <HelpCircle className="w-4 h-4 shrink-0" />
@@ -1098,6 +1099,47 @@ const ParticipantAccess = () => {
                   </TabsTrigger>
                 </TabsList>
               </div>
+
+              {/* Mobile: fixed bottom navigation bar */}
+              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+                <TabsList
+                  className={`w-full h-auto bg-transparent p-1 gap-1 rounded-none grid ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}
+                >
+                  <TabsTrigger
+                    value="info"
+                    className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                  >
+                    <HelpCircle className="w-5 h-5 shrink-0" />
+                    {eventLang === 'es' ? 'Inicio' : 'Home'}
+                  </TabsTrigger>
+                  {wrappedEnabled && (
+                    <TabsTrigger
+                      value="compatibility"
+                      className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                    >
+                      <Sparkles className="w-5 h-5 shrink-0" />
+                      {eventLang === 'es' ? 'Afinidad' : 'Match'}
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger
+                    value="tables"
+                    className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                  >
+                    <Table2 className="w-5 h-5 shrink-0" />
+                    {eventLang === 'es' ? 'Mesas' : 'Tables'}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="selections"
+                    className={`flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground transition-all ${
+                      highlightSelectionsTab ? "text-primary animate-pulse" : ""
+                    }`}
+                  >
+                    <Heart className="w-5 h-5 shrink-0" />
+                    {eventLang === 'es' ? 'Selección' : 'Picks'}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
 
 
               <TabsContent value="tables" className="space-y-3 mt-4">
