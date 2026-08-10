@@ -122,17 +122,30 @@ serve(async (req: Request) => {
       });
     }
 
-    // Check existing request from this requester
-    const { data: existing } = await supabase
-      .from("repeat_requests")
-      .select("id, status")
-      .eq("event_id", event_id)
-      .eq("requester_id", requester_id)
-      .maybeSingle();
+    // Allowance = 1 base + extras earned in the social game
+    const [{ data: existingRequests }, { data: extraRewards }] = await Promise.all([
+      supabase
+        .from("repeat_requests")
+        .select("id, status")
+        .eq("event_id", event_id)
+        .eq("requester_id", requester_id),
+      supabase
+        .from("game_rewards")
+        .select("id")
+        .eq("event_id", event_id)
+        .eq("participant_id", requester_id)
+        .eq("reward_type", "repeat"),
+    ]);
 
-    if (existing) {
+    const usedRepeats = (existingRequests || []).length;
+    const allowedRepeats = 1 + (extraRewards || []).length;
+
+    if (usedRepeats >= allowedRepeats) {
       return new Response(
-        JSON.stringify({ error: "Ya has usado tu solicitud de repetir en este evento", status: existing.status }),
+        JSON.stringify({
+          error: "Ya has usado tus solicitudes de repetir en este evento",
+          status: (existingRequests || [])[0]?.status,
+        }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

@@ -127,16 +127,30 @@ serve(async (req: Request) => {
     }
 
 
-    const { data: existing } = await supabase
-      .from("crush_requests")
-      .select("id, status")
-      .eq("event_id", event_id)
-      .eq("requester_id", requester_id)
-      .maybeSingle();
+    // Allowance = 1 base + extras earned in the social game
+    const [{ data: existingCrushes }, { data: extraCrushRewards }] = await Promise.all([
+      supabase
+        .from("crush_requests")
+        .select("id, status")
+        .eq("event_id", event_id)
+        .eq("requester_id", requester_id),
+      supabase
+        .from("game_rewards")
+        .select("id")
+        .eq("event_id", event_id)
+        .eq("participant_id", requester_id)
+        .eq("reward_type", "crush"),
+    ]);
 
-    if (existing) {
+    const usedCrushes = (existingCrushes || []).length;
+    const allowedCrushes = 1 + (extraCrushRewards || []).length;
+
+    if (usedCrushes >= allowedCrushes) {
       return new Response(
-        JSON.stringify({ error: "Ya has enviado tu flechazo en este evento", status: existing.status }),
+        JSON.stringify({
+          error: "Ya has enviado tus flechazos en este evento",
+          status: (existingCrushes || [])[0]?.status,
+        }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
