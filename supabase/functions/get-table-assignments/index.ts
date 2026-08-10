@@ -175,6 +175,7 @@ serve(async (req) => {
           totalRounds,
           eventStatus: event.status,
           crushEnabled: !!(event as any).crush_enabled,
+          socialGameEnabled: !!((event as any).social_game?.enabled),
           timer: {
             roundDuration: Math.floor((event.round_duration || 300) / 60),
             roundStartedAt: event.round_started_at,
@@ -346,6 +347,7 @@ serve(async (req) => {
         hasReceivedSuperLike,
         receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
+          socialGameEnabled: !!((event as any).social_game?.enabled),
         existingCrush: existingCrushResult.data
           ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }
           : null,
