@@ -397,8 +397,17 @@ serve(async (req) => {
           .eq('selector_id', selectorId)
           .eq('is_super_like', true);
         
-        // Only send notification if this is the first super like (should be 1 - the one we just inserted)
-        if (existingSuperLikes && existingSuperLikes.length <= 1) {
+        // Allowance = 1 base + extras earned in the social game
+        const { data: superLikeRewards } = await supabase
+          .from('game_rewards')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('participant_id', selectorId)
+          .eq('reward_type', 'super_like');
+        const superLikeAllowance = 1 + (superLikeRewards || []).length;
+
+        // Only notify while within the participant's allowance
+        if (existingSuperLikes && existingSuperLikes.length <= superLikeAllowance) {
           try {
             const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
             const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;

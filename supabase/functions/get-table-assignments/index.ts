@@ -269,17 +269,19 @@ serve(async (req) => {
     }
 
     // Fetch preferences for all tablemates + existing selections + super like/crush info in parallel
-    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult, existingCrushResult] = await Promise.all([
+    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult, existingCrushResult, superLikeRewardsResult] = await Promise.all([
       tablemateIds.size > 0
         ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
       supabase.from('participant_selections').select('selected_id, selection_type, is_super_like').eq('event_id', eventId).eq('selector_id', participant.id),
       // Has this participant already sent a super like?
-      supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true).limit(1),
+      supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true),
       // Has this participant RECEIVED any super like? Include sender IDs.
       supabase.from('participant_selections').select('selector_id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true),
       // Has this participant already used their Flechazo?
       supabase.from('crush_requests').select('status, target_id').eq('event_id', eventId).eq('requester_id', participant.id).maybeSingle(),
+      // Extra Super Likes earned in the social game
+      supabase.from('game_rewards').select('id').eq('event_id', eventId).eq('participant_id', participant.id).eq('reward_type', 'super_like'),
     ]);
 
     const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
@@ -308,7 +310,9 @@ serve(async (req) => {
       is_super_like: !!s.is_super_like,
     }));
 
-    const hasSentSuperLike = !!(sentSuperLikeResult.data && sentSuperLikeResult.data.length > 0);
+    const superLikesUsed = (sentSuperLikeResult.data || []).length;
+    const superLikeAllowance = 1 + ((superLikeRewardsResult as any)?.data || []).length;
+    const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
     const receivedSuperLikeSenderIds = Array.from(new Set(((receivedSuperLikeResult.data || []) as any[]).map((r: any) => r.selector_id).filter(Boolean)));
     const hasReceivedSuperLike = receivedSuperLikeSenderIds.length > 0;
 
@@ -344,6 +348,8 @@ serve(async (req) => {
         eventStatus: event.status,
         preliminaryConfirmation,
         hasSentSuperLike,
+        superLikesUsed,
+        superLikeAllowance,
         hasReceivedSuperLike,
         receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
