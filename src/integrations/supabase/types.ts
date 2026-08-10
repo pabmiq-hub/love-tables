@@ -145,6 +145,7 @@ export type Database = {
           email: string
           entity_type: string | null
           event_id: string
+          game_answers: Json | null
           gender: string | null
           id: string
           is_returning_participant: boolean | null
@@ -171,6 +172,7 @@ export type Database = {
           email: string
           entity_type?: string | null
           event_id: string
+          game_answers?: Json | null
           gender?: string | null
           id?: string
           is_returning_participant?: boolean | null
@@ -197,6 +199,7 @@ export type Database = {
           email?: string
           entity_type?: string | null
           event_id?: string
+          game_answers?: Json | null
           gender?: string | null
           id?: string
           is_returning_participant?: boolean | null
@@ -292,6 +295,7 @@ export type Database = {
           selection_closed_at: string | null
           selection_deadline_hours: number | null
           slot_quotas: Json | null
+          social_game: Json | null
           status: string
           super_like_enabled: boolean
           table_size: number
@@ -364,6 +368,7 @@ export type Database = {
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
+          social_game?: Json | null
           status?: string
           super_like_enabled?: boolean
           table_size?: number
@@ -436,6 +441,7 @@ export type Database = {
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
+          social_game?: Json | null
           status?: string
           super_like_enabled?: boolean
           table_size?: number
@@ -478,6 +484,127 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      game_rewards: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          participant_id: string
+          reward_type: string
+          round: number
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          participant_id: string
+          reward_type: string
+          round: number
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          participant_id?: string
+          reward_type?: string
+          round?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_rewards_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_rewards_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_rewards_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_votes: {
+        Row: {
+          created_at: string
+          event_id: string
+          guessed_participant_id: string
+          id: string
+          is_correct: boolean
+          question_id: string
+          round: number
+          target_participant_id: string
+          voter_participant_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          guessed_participant_id: string
+          id?: string
+          is_correct: boolean
+          question_id: string
+          round: number
+          target_participant_id: string
+          voter_participant_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          guessed_participant_id?: string
+          id?: string
+          is_correct?: boolean
+          question_id?: string
+          round?: number
+          target_participant_id?: string
+          voter_participant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_votes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_votes_guessed_participant_id_fkey"
+            columns: ["guessed_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_votes_target_participant_id_fkey"
+            columns: ["target_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_votes_voter_participant_id_fkey"
+            columns: ["voter_participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       global_participants: {
         Row: {
@@ -1170,6 +1297,7 @@ export type Database = {
           email: string | null
           entity_type: string | null
           event_id: string
+          game_answers: Json | null
           gender: string | null
           global_participant_id: string | null
           id: string
@@ -1207,6 +1335,7 @@ export type Database = {
           email?: string | null
           entity_type?: string | null
           event_id: string
+          game_answers?: Json | null
           gender?: string | null
           global_participant_id?: string | null
           id?: string
@@ -1244,6 +1373,7 @@ export type Database = {
           email?: string | null
           entity_type?: string | null
           event_id?: string
+          game_answers?: Json | null
           gender?: string | null
           global_participant_id?: string | null
           id?: string

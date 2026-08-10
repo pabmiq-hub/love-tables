@@ -23,6 +23,8 @@ import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayou
 import { Settings2, Languages, Sparkles } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import WrappedQuestionsEditor from "./WrappedQuestionsEditor";
+import SocialGameEditor from "./SocialGameEditor";
+import { normalizeSocialGame, type SocialGameConfig } from "@/lib/socialGame";
 import { DEFAULT_WRAPPED_QUESTIONS, getWrappedQuestions, type WrappedQuestion } from "@/lib/wrappedQuestions";
 
 const AVAILABLE_LANGUAGE_OPTIONS: { code: string; label: string }[] = [
@@ -150,6 +152,7 @@ const EventSettingsEditor = ({
   const [formRepeatRequestEnabled, setFormRepeatRequestEnabled] = useState(initialRepeatRequestEnabled);
   const [formCrushEnabled, setFormCrushEnabled] = useState(initialCrushEnabled);
   const [formWrappedEnabled, setFormWrappedEnabled] = useState(false);
+  const [formSocialGame, setFormSocialGame] = useState<SocialGameConfig>(normalizeSocialGame(null));
   const [formWrappedQuestions, setFormWrappedQuestions] = useState<WrappedQuestion[]>(DEFAULT_WRAPPED_QUESTIONS);
   const [showWrappedEditor, setShowWrappedEditor] = useState(false);
   const [formLanguagesEnabled, setFormLanguagesEnabled] = useState(false);
@@ -228,7 +231,7 @@ const EventSettingsEditor = ({
     const loadExtras = async () => {
       const { data } = await supabase
         .from("events")
-        .select("custom_registration_form, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
+        .select("custom_registration_form, wrapped_enabled, wrapped_questions, social_game, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -240,6 +243,7 @@ const EventSettingsEditor = ({
         }
       }
       if ((data as any)?.wrapped_enabled) setFormWrappedEnabled(true);
+      setFormSocialGame(normalizeSocialGame((data as any)?.social_game));
       setFormWrappedQuestions(getWrappedQuestions((data as any)?.wrapped_questions));
       if ((data as any)?.languages_enabled) setFormLanguagesEnabled(true);
       if (Array.isArray((data as any)?.available_languages) && (data as any).available_languages.length > 0) {
@@ -297,6 +301,12 @@ const EventSettingsEditor = ({
         crush_enabled: !isProfessional ? formCrushEnabled : false,
         wrapped_enabled: !isProfessional ? formWrappedEnabled : false,
         wrapped_questions: !isProfessional && formWrappedEnabled ? formWrappedQuestions : null,
+        social_game: !isProfessional && formSocialGame.enabled
+          ? {
+              enabled: true,
+              questions: formSocialGame.questions.filter((q) => q.label_es.trim() || q.label_en.trim()),
+            }
+          : { enabled: false, questions: formSocialGame.questions },
         languages_enabled: !isProfessional ? formLanguagesEnabled : false,
         available_languages: !isProfessional && formLanguagesEnabled ? formAvailableLanguages : [],
         checkin_opens_minutes_before: formCheckinMinutes,
@@ -820,6 +830,11 @@ const EventSettingsEditor = ({
                 />
               </div>
             </FeatureGate>
+          )}
+
+          {/* Social game «¿Quién es quién?» — Social only */}
+          {!isProfessional && (
+            <SocialGameEditor value={formSocialGame} onChange={setFormSocialGame} />
           )}
 
           {/* Game Mode (Modo lúdico) — Enterprise + Social only */}
