@@ -167,7 +167,7 @@ const ParticipantAccess = () => {
   const [isConfirmingPreliminary, setIsConfirmingPreliminary] = useState(false);
 
   // Active tab control (for guiding user after prelim confirmation)
-  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility" | "info">("info");
+  const [activeTab, setActiveTab] = useState<"tables" | "selections" | "compatibility" | "info" | "game">("info");
   const [highlightSelectionsTab, setHighlightSelectionsTab] = useState(false);
 
   // Repeat request feature
@@ -182,6 +182,7 @@ const ParticipantAccess = () => {
   const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingCrush, setIsSendingCrush] = useState(false);
   const [wrappedEnabled, setWrappedEnabled] = useState(false);
+  const [socialGameEnabled, setSocialGameEnabled] = useState(false);
 
   // Edit-existing-selection feature (key = `${participantId}-${round}`)
   const [editingKeys, setEditingKeys] = useState<Set<string>>(new Set());
@@ -403,6 +404,9 @@ const ParticipantAccess = () => {
       setCurrentRound(data.currentRound ?? currentRound);
       // Do not overwrite the event-level flag with false when an older cached
       // Edge Function response does not include the field yet.
+      if (Object.prototype.hasOwnProperty.call(data, 'socialGameEnabled')) {
+        setSocialGameEnabled(!!data.socialGameEnabled);
+      }
       if (Object.prototype.hasOwnProperty.call(data, 'crushEnabled')) {
         setCrushEnabled(!!data.crushEnabled);
       }
@@ -1071,7 +1075,7 @@ const ParticipantAccess = () => {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-20 sm:pb-0">
               {/* Desktop / tablet: inline tabs */}
               <div className="hidden sm:flex sm:flex-row sm:gap-2">
-                <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
+                <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled && socialGameEnabled ? 'grid-cols-3' : wrappedEnabled || socialGameEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
                   <TabsTrigger value="info" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
                     <HelpCircle className="w-4 h-4 shrink-0" />
                     {eventLang === 'es' ? 'Inicio' : 'Home'}
@@ -1080,6 +1084,12 @@ const ParticipantAccess = () => {
                     <TabsTrigger value="compatibility" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
                       <Sparkles className="w-4 h-4 shrink-0" />
                       {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                    </TabsTrigger>
+                  )}
+                  {socialGameEnabled && (
+                    <TabsTrigger value="game" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                      <Gamepad2 className="w-4 h-4 shrink-0" />
+                      {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -1103,7 +1113,7 @@ const ParticipantAccess = () => {
               {/* Mobile: fixed bottom navigation bar */}
               <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
                 <TabsList
-                  className={`w-full h-auto bg-transparent p-1 gap-1 rounded-none grid ${wrappedEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}
+                  className={`w-full h-auto bg-transparent p-1 gap-1 rounded-none grid ${3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 5 ? 'grid-cols-5' : 3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}
                 >
                   <TabsTrigger
                     value="info"
@@ -1119,6 +1129,15 @@ const ParticipantAccess = () => {
                     >
                       <Sparkles className="w-5 h-5 shrink-0" />
                       {eventLang === 'es' ? 'Afinidad' : 'Match'}
+                    </TabsTrigger>
+                  )}
+                  {socialGameEnabled && (
+                    <TabsTrigger
+                      value="game"
+                      className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                    >
+                      <Gamepad2 className="w-5 h-5 shrink-0" />
+                      {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
                   <TabsTrigger
@@ -1459,6 +1478,16 @@ const ParticipantAccess = () => {
                   </Button>
                 )}
               </TabsContent>
+
+              {socialGameEnabled && verifiedParticipant && (
+                <TabsContent value="game" className="mt-4">
+                  <SocialGameTab
+                    eventId={eventId!}
+                    verificationCode={verificationCode}
+                    lang={eventLang}
+                  />
+                </TabsContent>
+              )}
 
               {wrappedEnabled && verifiedParticipant && (
                 <TabsContent value="compatibility" className="mt-4">
