@@ -349,7 +349,7 @@ serve(async (req) => {
     }
 
     // ─── SOCIAL REGISTRATION (existing flow) ───
-    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant, wrappedAnswers, spokenLanguages } = body;
+    const { eventId, name, email, phone, gender, birthDate, preference, datingPreference, preferredAgeRange, isReturningParticipant, wrappedAnswers, spokenLanguages, gameAnswers } = body;
     
     console.log(`[register-participant] Registration for event: ${eventId}, name: ${name}`);
 
@@ -545,6 +545,7 @@ serve(async (req) => {
           position: nextPosition,
           marketing_consent: marketingConsent,
           wrapped_answers: wrappedAnswers && typeof wrappedAnswers === 'object' ? wrappedAnswers : null,
+          game_answers: gameAnswers && typeof gameAnswers === 'object' ? gameAnswers : null,
         });
 
 
@@ -656,6 +657,7 @@ serve(async (req) => {
         marketing_consent: marketingConsent,
         wrapped_profile_id: wrappedProfileId,
         spoken_languages: Array.isArray(spokenLanguages) ? spokenLanguages : [],
+        game_answers: gameAnswers && typeof gameAnswers === 'object' ? gameAnswers : null,
       })
       .select()
       .single();

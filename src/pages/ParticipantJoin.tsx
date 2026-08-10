@@ -22,6 +22,8 @@ import { RichTextRenderer } from "@/components/ui/rich-text-renderer";
 import { normalizeUpcomingEventDate } from "@/lib/eventDate";
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedQuestion, type WrappedAnswers } from "@/lib/wrappedQuestions";
+import SocialGameForm from "@/components/registration/SocialGameForm";
+import { normalizeSocialGame, missingSocialGameAnswers, type SocialGameAnswers, type SocialGameQuestion } from "@/lib/socialGame";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const LANGUAGE_LABELS: Record<string, { es: string; en: string }> = {
@@ -161,6 +163,11 @@ const ParticipantJoin = () => {
   const [wrappedQuestions, setWrappedQuestions] = useState<WrappedQuestion[]>([]);
   const [wrappedAnswers, setWrappedAnswers] = useState<WrappedAnswers>({});
   const [hasWrappedProfile, setHasWrappedProfile] = useState(false);
+
+  // Social game «¿Quién es quién?»
+  const [socialGameEnabled, setSocialGameEnabled] = useState(false);
+  const [socialGameQuestions, setSocialGameQuestions] = useState<SocialGameQuestion[]>([]);
+  const [gameAnswers, setGameAnswers] = useState<SocialGameAnswers>({});
   const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   // Languages
@@ -183,7 +190,7 @@ const ParticipantJoin = () => {
 
       const { data, error } = await (supabase as any)
         .from("events_public")
-        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, quota_waitlist_enabled, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions, languages_enabled, available_languages")
+        .select("id, name, date, status, language, event_time, event_location, custom_age_ranges, custom_genders, custom_preferences, custom_dating_preferences, registration_requirements_enabled, slot_quotas, quota_waitlist_enabled, registration_subtitle, registration_description, module, professional_config, custom_registration_form, registration_open, waitlist_enabled, wrapped_enabled, wrapped_questions, social_game, languages_enabled, available_languages")
         .eq("id", eventId)
         .single();
 
@@ -291,6 +298,13 @@ const ParticipantJoin = () => {
       if ((data as any).wrapped_enabled) {
         setWrappedEnabled(true);
         setWrappedQuestions(getWrappedQuestions((data as any).wrapped_questions));
+      }
+
+      // Social game
+      const sgCfg = normalizeSocialGame((data as any).social_game);
+      if (sgCfg.enabled) {
+        setSocialGameEnabled(true);
+        setSocialGameQuestions(sgCfg.questions);
       }
 
       // Languages
@@ -518,6 +532,21 @@ const ParticipantJoin = () => {
       return;
     }
 
+    // Social game: all questions are mandatory
+    if (socialGameEnabled && socialGameQuestions.length > 0) {
+      const missing = missingSocialGameAnswers(socialGameQuestions, gameAnswers);
+      if (missing.length > 0) {
+        toast({
+          title: "Error",
+          description: eventLang === 'en'
+            ? 'Please answer all the "Who\'s who?" game questions.'
+            : 'Responde todas las preguntas del juego ¿Quién es quién?',
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Wrapped: validate required interest questions
     if (wrappedEnabled && !hasWrappedProfile) {
       for (const q of wrappedQuestions) {
@@ -631,6 +660,7 @@ const ParticipantJoin = () => {
                 marketingConsent,
                 wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
                 spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
+                gameAnswers: socialGameEnabled ? gameAnswers : undefined,
                 forceWaitlist: true,
               }
             });
@@ -683,6 +713,7 @@ const ParticipantJoin = () => {
         marketingConsent,
         wrappedAnswers: wrappedEnabled && !hasWrappedProfile ? wrappedAnswers : undefined,
         spokenLanguages: languagesEnabled ? spokenLanguages : undefined,
+                gameAnswers: socialGameEnabled ? gameAnswers : undefined,
         forceWaitlist: wizardForceWaitlist || undefined,
       }
 
@@ -1151,7 +1182,7 @@ const ParticipantJoin = () => {
               </div>
             )}
             {(() => {
-              const isWizard = quotasEnabled || wrappedEnabled;
+              const isWizard = quotasEnabled || wrappedEnabled || socialGameEnabled;
               const showStep1Only = isWizard && wizardStep === 1 && !wizardForceWaitlist;
               const showWaitlistMode = isWizard && wizardForceWaitlist;
               const showStep2 = !isWizard || wizardStep === 2;
@@ -1423,6 +1454,15 @@ const ParticipantJoin = () => {
                       lang={eventLang}
                       values={wrappedAnswers}
                       onChange={setWrappedAnswers}
+                    />
+                  )}
+
+                  {(showStep2 || showWaitlistMode) && socialGameEnabled && socialGameQuestions.length > 0 && (
+                    <SocialGameForm
+                      questions={socialGameQuestions}
+                      lang={eventLang}
+                      values={gameAnswers}
+                      onChange={setGameAnswers}
                     />
                   )}
 

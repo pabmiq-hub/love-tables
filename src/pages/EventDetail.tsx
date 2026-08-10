@@ -2639,6 +2639,7 @@ const EventDetail = () => {
           solutions: entry.solutions,
           // Wrapped answers captured at waitlist signup, if any
           wrappedAnswers: entry.wrapped_answers || undefined,
+          gameAnswers: entry.game_answers || undefined,
           fromWaitlist: true,
         }
       });

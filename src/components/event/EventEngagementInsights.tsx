@@ -47,6 +47,8 @@ const EventEngagementInsights = ({
   >([]);
   const [crushRequests, setCrushRequests] = useState<any[]>([]);
   const [repeatRequests, setRepeatRequests] = useState<any[]>([]);
+  const [gameVotes, setGameVotes] = useState<any[]>([]);
+  const [gameRewards, setGameRewards] = useState<any[]>([]);
 
   const profileIdsKey = useMemo(
     () =>
@@ -64,7 +66,7 @@ const EventEngagementInsights = ({
       setLoading(true);
       const profileIds = profileIdsKey ? profileIdsKey.split(",") : [];
 
-      const [profilesRes, crushRes, repeatRes] = await Promise.all([
+      const [profilesRes, crushRes, repeatRes, votesRes, rewardsRes] = await Promise.all([
         profileIds.length > 0
           ? supabase.from("wrapped_profiles").select("id, answers, hobbies_ranked").in("id", profileIds)
           : Promise.resolve({ data: [], error: null } as any),
@@ -73,18 +75,39 @@ const EventEngagementInsights = ({
           .from("repeat_requests")
           .select("id, requester_id, target_id, status")
           .eq("event_id", eventId),
+        supabase.from("game_votes").select("voter_participant_id, is_correct, round").eq("event_id", eventId),
+        supabase.from("game_rewards").select("participant_id, reward_type").eq("event_id", eventId),
       ]);
 
       if (cancelled) return;
       setWrappedProfiles((profilesRes.data as any) || []);
       setCrushRequests((crushRes.data as any) || []);
       setRepeatRequests((repeatRes.data as any) || []);
+      setGameVotes((votesRes.data as any) || []);
+      setGameRewards((rewardsRes.data as any) || []);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, [eventId, profileIdsKey]);
+
+  const gameStats = useMemo(() => {
+    const total = gameVotes.length;
+    const correct = gameVotes.filter((v) => v.is_correct).length;
+    const players = new Set(gameVotes.map((v) => v.voter_participant_id)).size;
+    const rewardsByType = gameRewards.reduce<Record<string, number>>((acc, r) => {
+      acc[r.reward_type] = (acc[r.reward_type] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      total,
+      correct,
+      players,
+      accuracy: total > 0 ? Math.round((correct / total) * 100) : 0,
+      rewardsByType,
+    };
+  }, [gameVotes, gameRewards]);
 
   const matchPairSet = useMemo(() => {
     const s = new Set<string>();
@@ -232,6 +255,46 @@ const EventEngagementInsights = ({
 
   return (
     <div className="space-y-8">
+      {gameStats.total > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <Zap className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Juego ¿Quién es quién?</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-3xl font-bold">{gameStats.players}</div>
+                <p className="text-xs text-muted-foreground mt-1">Participantes que han jugado</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-3xl font-bold">{gameStats.total}</div>
+                <p className="text-xs text-muted-foreground mt-1">Votos emitidos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-3xl font-bold">{gameStats.accuracy}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Aciertos ({gameStats.correct})</p>
+                <Progress value={gameStats.accuracy} className="h-1.5 mt-2" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 space-y-1">
+                <p className="text-xs text-muted-foreground">Premios desbloqueados</p>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="secondary">Super Like ×{gameStats.rewardsByType.super_like || 0}</Badge>
+                  <Badge variant="secondary">Repetir ×{gameStats.rewardsByType.repeat || 0}</Badge>
+                  <Badge variant="secondary">Flechazo ×{gameStats.rewardsByType.crush || 0}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* ========== EVENTOS ESPECIALES ========== */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b">
