@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil, Send } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Loader2, Users, Smile, CheckCircle, Clock, Heart, KeyRound, Table2, Lock, MinusCircle, HelpCircle, Repeat2, Pencil, Send, Gamepad2 } from "lucide-react";
 import ParticipantRoundTimer from "@/components/event/ParticipantRoundTimer";
 import EventCountdown from "@/components/event/EventCountdown";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ import SuperLikeConfirmDialog from "@/components/ui/super-like-confirm-dialog";
 import { Star } from "lucide-react";
 import confetti from "canvas-confetti";
 import WrappedCompatibilityTab from "@/components/event/WrappedCompatibilityTab";
+import SocialGameTab from "@/components/event/SocialGameTab";
 
 interface MatchSelection {
   participantId: string;
