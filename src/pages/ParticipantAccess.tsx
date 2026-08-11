@@ -893,7 +893,7 @@ const ParticipantAccess = () => {
         });
         return;
       }
-      setCrushUsed({ status: 'pending', targetId: crushTarget.id });
+      setCrushesSent(prev => [...prev, { status: 'pending', targetId: crushTarget.id }]);
       toast({
         title: eventLang === 'es' ? '💘 Flechazo enviado' : '💘 Flechazo sent',
         description: eventLang === 'es'
