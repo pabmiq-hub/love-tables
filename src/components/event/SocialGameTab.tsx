@@ -33,7 +33,7 @@ const REWARD_META: Record<string, { icon: any; es: string; en: string }> = {
   crush: { icon: Heart, es: "Flechazo extra", en: "Extra Crush" },
 };
 
-const SocialGameTab = ({ eventId, verificationCode, lang }: Props) => {
+const SocialGameTab = ({ eventId, verificationCode, lang, onRewardsChange }: Props) => {
   const [isLoading, setIsLoading] = useState(true);
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [rewards, setRewards] = useState<{ round: number; type: string }[]>([]);
