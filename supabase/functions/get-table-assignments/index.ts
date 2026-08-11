@@ -269,7 +269,7 @@ serve(async (req) => {
     }
 
     // Fetch preferences for all tablemates + existing selections + super like/crush info in parallel
-    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult, existingCrushResult, superLikeRewardsResult] = await Promise.all([
+    const [preferencesResult, selectionsResult, sentSuperLikeResult, receivedSuperLikeResult, existingCrushResult, superLikeRewardsResult, crushRewardsResult] = await Promise.all([
       tablemateIds.size > 0
         ? supabase.from('participants').select('id, preference, dating_preference, gender').in('id', Array.from(tablemateIds))
         : Promise.resolve({ data: [], error: null }),
@@ -278,11 +278,14 @@ serve(async (req) => {
       supabase.from('participant_selections').select('id').eq('event_id', eventId).eq('selector_id', participant.id).eq('is_super_like', true),
       // Has this participant RECEIVED any super like? Include sender IDs.
       supabase.from('participant_selections').select('selector_id').eq('event_id', eventId).eq('selected_id', participant.id).eq('is_super_like', true),
-      // Has this participant already used their Flechazo?
-      supabase.from('crush_requests').select('status, target_id').eq('event_id', eventId).eq('requester_id', participant.id).maybeSingle(),
+      // Flechazos already sent (can be more than one when extras are earned in the game)
+      supabase.from('crush_requests').select('status, target_id, created_at').eq('event_id', eventId).eq('requester_id', participant.id).order('created_at', { ascending: true }),
       // Extra Super Likes earned in the social game
       supabase.from('game_rewards').select('id').eq('event_id', eventId).eq('participant_id', participant.id).eq('reward_type', 'super_like'),
+      // Extra Flechazos earned in the social game
+      supabase.from('game_rewards').select('id').eq('event_id', eventId).eq('participant_id', participant.id).eq('reward_type', 'crush'),
     ]);
+
 
     const preferencesMap = new Map<string, { preference: string | null; dating_preference: string | null; gender: string | null }>();
     if (preferencesResult.data) {
@@ -313,6 +316,12 @@ serve(async (req) => {
     const superLikesUsed = (sentSuperLikeResult.data || []).length;
     const superLikeAllowance = 1 + ((superLikeRewardsResult as any)?.data || []).length;
     const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
+    const crushesSent = (((existingCrushResult as any)?.data || []) as any[]).map((c: any) => ({
+      status: c.status,
+      targetId: c.target_id,
+    }));
+    const crushAllowance = 1 + ((crushRewardsResult as any)?.data || []).length;
+
     const receivedSuperLikeSenderIds = Array.from(new Set(((receivedSuperLikeResult.data || []) as any[]).map((r: any) => r.selector_id).filter(Boolean)));
     const hasReceivedSuperLike = receivedSuperLikeSenderIds.length > 0;
 
@@ -354,9 +363,12 @@ serve(async (req) => {
         receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
           socialGameEnabled: !!((event as any).social_game?.enabled),
-        existingCrush: existingCrushResult.data
-          ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }
-          : null,
+        crushes: crushesSent,
+        crushAllowance,
+        crushesUsed: crushesSent.length,
+        hasSentCrush: crushesSent.length >= crushAllowance,
+        existingCrush: crushesSent[0] || null,
+
         gameMode: gameModePayload,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),

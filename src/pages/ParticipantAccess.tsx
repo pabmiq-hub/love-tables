@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,7 +142,13 @@ const ParticipantAccess = () => {
   const [participantName, setParticipantName] = useState("");
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
   const [receivedSuperLikeSenderIds, setReceivedSuperLikeSenderIds] = useState<string[]>([]);
-  const [hasSentSuperLike, setHasSentSuperLike] = useState(false);
+  const [superLikesUsed, setSuperLikesUsed] = useState(0);
+  const [superLikeAllowance, setSuperLikeAllowance] = useState(1);
+  // Super Likes marked locally but not yet submitted to the server
+  const pendingSuperLikesRef = useRef(0);
+  const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
+
+
   const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
 
@@ -179,7 +185,10 @@ const ParticipantAccess = () => {
 
   // Crush/Flechazo feature
   const [crushEnabled, setCrushEnabled] = useState(false);
-  const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [crushesSent, setCrushesSent] = useState<{ status: string; targetId?: string }[]>([]);
+  const [crushAllowance, setCrushAllowance] = useState(1);
+  const crushSlotsLeft = Math.max(0, crushAllowance - crushesSent.length);
+
   const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingCrush, setIsSendingCrush] = useState(false);
   const [wrappedEnabled, setWrappedEnabled] = useState(false);
@@ -411,7 +420,13 @@ const ParticipantAccess = () => {
       if (Object.prototype.hasOwnProperty.call(data, 'crushEnabled')) {
         setCrushEnabled(!!data.crushEnabled);
       }
-      setCrushUsed(data.existingCrush || null);
+      setCrushesSent(
+        Array.isArray(data.crushes)
+          ? data.crushes
+          : (data.existingCrush ? [data.existingCrush] : [])
+      );
+      setCrushAllowance(typeof data.crushAllowance === 'number' ? data.crushAllowance : 1);
+
 
       // Store timer data
       if (data.timer) {
@@ -426,8 +441,16 @@ const ParticipantAccess = () => {
         if (s.is_super_like) superLikedMap.set(s.selected_id, true);
       });
 
-      // Read super-like flags returned by edge function
-      setHasSentSuperLike(!!data.hasSentSuperLike);
+      // Read super-like allowance/usage returned by edge function
+      pendingSuperLikesRef.current = 0;
+      setSuperLikeAllowance(typeof data.superLikeAllowance === 'number' ? data.superLikeAllowance : 1);
+      setSuperLikesUsed(
+        typeof data.superLikesUsed === 'number'
+          ? data.superLikesUsed
+          : (data.hasSentSuperLike ? 1 : 0)
+      );
+
+
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
       const senderIds: string[] = Array.isArray(data.receivedSuperLikeSenderIds) ? data.receivedSuperLikeSenderIds : [];
       setReceivedSuperLikeSenderIds(senderIds);
@@ -504,21 +527,21 @@ const ParticipantAccess = () => {
         console.warn('Could not fetch repeat request:', e);
       }
 
-      if (!data.existingCrush) {
+      if (!Array.isArray(data.crushes) && !data.existingCrush) {
         try {
-          const { data: existingCrush } = await (supabase as any)
+          const { data: fallbackCrushes } = await (supabase as any)
             .from('crush_requests')
             .select('status, target_id')
             .eq('event_id', eventId)
-            .eq('requester_id', verifiedParticipant.id)
-            .maybeSingle();
-          if (existingCrush) {
-            setCrushUsed({ status: existingCrush.status, targetId: existingCrush.target_id });
+            .eq('requester_id', verifiedParticipant.id);
+          if (Array.isArray(fallbackCrushes) && fallbackCrushes.length > 0) {
+            setCrushesSent(fallbackCrushes.map((c: any) => ({ status: c.status, targetId: c.target_id })));
           }
         } catch (e) {
           console.warn('Could not fetch crush request:', e);
         }
       }
+
 
       // Save session to localStorage
       saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
@@ -558,7 +581,9 @@ const ParticipantAccess = () => {
           : ms
       )
     );
-    setHasSentSuperLike(true);
+    pendingSuperLikesRef.current += 1;
+    setSuperLikesUsed(prev => prev + 1);
+
 
     // Confetti burst (golden)
     try {
@@ -849,8 +874,32 @@ const ParticipantAccess = () => {
     }
   };
 
+  // Re-read allowances (extra Super Like / Flechazo earned in the social game)
+  // without reloading the whole page.
+  const refreshAllowances = async () => {
+    if (!eventId || !verificationCode) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('get-table-assignments', {
+        body: { eventId, verificationCode },
+      });
+      if (error || !data || data.error) return;
+      if (typeof data.superLikeAllowance === 'number') setSuperLikeAllowance(data.superLikeAllowance);
+      if (typeof data.superLikesUsed === 'number') {
+        setSuperLikesUsed(data.superLikesUsed + pendingSuperLikesRef.current);
+      }
+
+      if (typeof data.crushAllowance === 'number') setCrushAllowance(data.crushAllowance);
+      if (Array.isArray(data.crushes)) setCrushesSent(data.crushes);
+    } catch {
+      /* non-blocking */
+    }
+  };
+
+
   const openCrushDialog = (participantId: string, name: string, round: number) => {
-    if (crushUsed) return;
+    if (crushSlotsLeft <= 0) return;
+    if (crushesSent.some(c => c.targetId === participantId)) return;
+
     setCrushTarget({ id: participantId, name, round });
   };
 
@@ -873,7 +922,7 @@ const ParticipantAccess = () => {
         });
         return;
       }
-      setCrushUsed({ status: 'pending', targetId: crushTarget.id });
+      setCrushesSent(prev => [...prev, { status: 'pending', targetId: crushTarget.id }]);
       toast({
         title: eventLang === 'es' ? '💘 Flechazo enviado' : '💘 Flechazo sent',
         description: eventLang === 'es'
@@ -1419,15 +1468,16 @@ const ParticipantAccess = () => {
                                       );
                                     })()}
                                     {crushEnabled && wantsRomance(verifiedParticipant?.preference) && wantsRomance(tablemate.preference) && (() => {
-                                      const isThisCrush = crushUsed?.targetId === ms.participantId;
-                                      if (!isThisCrush && crushUsed) return null;
-                                      if (isThisCrush) {
+                                      const thisCrush = crushesSent.find(c => c.targetId === ms.participantId);
+                                      if (!thisCrush && crushSlotsLeft <= 0) return null;
+                                      if (thisCrush) {
                                         return (
                                           <div className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-rose-50 dark:bg-rose-950/30 border border-rose-300 text-rose-800 dark:text-rose-200 text-xs font-semibold">
                                             <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
                                             {eventLang === 'es'
-                                              ? (crushUsed?.status === 'accepted' ? 'Flechazo aceptado 💘' : crushUsed?.status === 'declined' ? 'Flechazo rechazado' : 'Flechazo pendiente')
-                                              : (crushUsed?.status === 'accepted' ? 'Flechazo accepted 💘' : crushUsed?.status === 'declined' ? 'Flechazo declined' : 'Flechazo pending')}
+                                              ? (thisCrush.status === 'accepted' ? 'Flechazo aceptado 💘' : thisCrush.status === 'declined' ? 'Flechazo rechazado' : 'Flechazo pendiente')
+                                              : (thisCrush.status === 'accepted' ? 'Flechazo accepted 💘' : thisCrush.status === 'declined' ? 'Flechazo declined' : 'Flechazo pending')}
+
                                           </div>
                                         );
                                       }
@@ -1486,7 +1536,9 @@ const ParticipantAccess = () => {
                     eventId={eventId!}
                     verificationCode={verificationCode}
                     lang={eventLang}
+                    onRewardsChange={refreshAllowances}
                   />
+
                 </TabsContent>
               )}
 

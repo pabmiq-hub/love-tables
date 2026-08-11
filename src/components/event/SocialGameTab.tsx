@@ -23,7 +23,9 @@ interface Props {
   eventId: string;
   verificationCode: string;
   lang: "es" | "en";
+  onRewardsChange?: () => void;
 }
+
 
 const REWARD_META: Record<string, { icon: any; es: string; en: string }> = {
   super_like: { icon: Sparkles, es: "Super Like extra", en: "Extra Super Like" },
@@ -31,7 +33,7 @@ const REWARD_META: Record<string, { icon: any; es: string; en: string }> = {
   crush: { icon: Heart, es: "Flechazo extra", en: "Extra Crush" },
 };
 
-const SocialGameTab = ({ eventId, verificationCode, lang }: Props) => {
+const SocialGameTab = ({ eventId, verificationCode, lang, onRewardsChange }: Props) => {
   const [isLoading, setIsLoading] = useState(true);
   const [rounds, setRounds] = useState<RoundData[]>([]);
   const [rewards, setRewards] = useState<{ round: number; type: string }[]>([]);
@@ -82,6 +84,10 @@ const SocialGameTab = ({ eventId, verificationCode, lang }: Props) => {
 
     setRewards(data.rewards || []);
     await load();
+    // Let the parent panel re-read the Super Like / Flechazo allowances so a
+    // freshly earned extra becomes usable without reloading the page.
+    onRewardsChange?.();
+
   };
 
   if (isLoading) {
