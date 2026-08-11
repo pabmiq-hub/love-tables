@@ -316,6 +316,12 @@ serve(async (req) => {
     const superLikesUsed = (sentSuperLikeResult.data || []).length;
     const superLikeAllowance = 1 + ((superLikeRewardsResult as any)?.data || []).length;
     const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
+    const crushesSent = (((existingCrushResult as any)?.data || []) as any[]).map((c: any) => ({
+      status: c.status,
+      targetId: c.target_id,
+    }));
+    const crushAllowance = 1 + ((crushRewardsResult as any)?.data || []).length;
+
     const receivedSuperLikeSenderIds = Array.from(new Set(((receivedSuperLikeResult.data || []) as any[]).map((r: any) => r.selector_id).filter(Boolean)));
     const hasReceivedSuperLike = receivedSuperLikeSenderIds.length > 0;
 
