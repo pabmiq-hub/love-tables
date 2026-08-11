@@ -522,21 +522,21 @@ const ParticipantAccess = () => {
         console.warn('Could not fetch repeat request:', e);
       }
 
-      if (!data.existingCrush) {
+      if (!Array.isArray(data.crushes) && !data.existingCrush) {
         try {
-          const { data: existingCrush } = await (supabase as any)
+          const { data: fallbackCrushes } = await (supabase as any)
             .from('crush_requests')
             .select('status, target_id')
             .eq('event_id', eventId)
-            .eq('requester_id', verifiedParticipant.id)
-            .maybeSingle();
-          if (existingCrush) {
-            setCrushUsed({ status: existingCrush.status, targetId: existingCrush.target_id });
+            .eq('requester_id', verifiedParticipant.id);
+          if (Array.isArray(fallbackCrushes) && fallbackCrushes.length > 0) {
+            setCrushesSent(fallbackCrushes.map((c: any) => ({ status: c.status, targetId: c.target_id })));
           }
         } catch (e) {
           console.warn('Could not fetch crush request:', e);
         }
       }
+
 
       // Save session to localStorage
       saveSession(verifiedParticipant.id, data.participantName || verifiedParticipant.name, verifiedParticipant.email, verificationCode);
