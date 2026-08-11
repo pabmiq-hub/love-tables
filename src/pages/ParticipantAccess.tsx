@@ -567,7 +567,7 @@ const ParticipantAccess = () => {
           : ms
       )
     );
-    setHasSentSuperLike(true);
+    setSuperLikesUsed(prev => prev + 1);
 
     // Confetti burst (golden)
     try {
