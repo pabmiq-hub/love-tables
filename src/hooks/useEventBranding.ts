@@ -67,11 +67,12 @@ export function useEventBranding(eventId: string | undefined): EventBranding {
         }
 
         // Load branding config
-        const { data: brandingData } = await supabase
-          .from("organizer_branding")
+        const { data: brandingData } = await (supabase as any)
+          .from("organizer_branding_public")
           .select("*")
           .eq("organizer_id", organizer.id)
           .maybeSingle();
+
 
         const isWhiteLabel = brandingData?.is_white_label === true;
 

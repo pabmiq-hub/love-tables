@@ -57,11 +57,12 @@ export function useOrganizerBySlug(slug: string | undefined): OrganizerBrandingB
           return;
         }
 
-        const { data: brandingData } = await supabase
-          .from("organizer_branding")
+        const { data: brandingData } = await (supabase as any)
+          .from("organizer_branding_public")
           .select("*")
           .eq("organizer_id", organizer.id)
           .maybeSingle();
+
 
         setData({
           organizerId: organizer.id,
