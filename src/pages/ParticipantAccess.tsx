@@ -441,13 +441,15 @@ const ParticipantAccess = () => {
         if (s.is_super_like) superLikedMap.set(s.selected_id, true);
       });
 
-      // Read super-like flags returned by edge function
+      // Read super-like allowance/usage returned by edge function
+      pendingSuperLikesRef.current = 0;
       setSuperLikeAllowance(typeof data.superLikeAllowance === 'number' ? data.superLikeAllowance : 1);
       setSuperLikesUsed(
         typeof data.superLikesUsed === 'number'
           ? data.superLikesUsed
           : (data.hasSentSuperLike ? 1 : 0)
       );
+
 
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
       const senderIds: string[] = Array.isArray(data.receivedSuperLikeSenderIds) ? data.receivedSuperLikeSenderIds : [];
