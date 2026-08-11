@@ -417,7 +417,13 @@ const ParticipantAccess = () => {
       if (Object.prototype.hasOwnProperty.call(data, 'crushEnabled')) {
         setCrushEnabled(!!data.crushEnabled);
       }
-      setCrushUsed(data.existingCrush || null);
+      setCrushesSent(
+        Array.isArray(data.crushes)
+          ? data.crushes
+          : (data.existingCrush ? [data.existingCrush] : [])
+      );
+      setCrushAllowance(typeof data.crushAllowance === 'number' ? data.crushAllowance : 1);
+
 
       // Store timer data
       if (data.timer) {
