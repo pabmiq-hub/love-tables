@@ -868,7 +868,9 @@ const ParticipantAccess = () => {
   };
 
   const openCrushDialog = (participantId: string, name: string, round: number) => {
-    if (crushUsed) return;
+    if (crushSlotsLeft <= 0) return;
+    if (crushesSent.some(c => c.targetId === participantId)) return;
+
     setCrushTarget({ id: participantId, name, round });
   };
 
