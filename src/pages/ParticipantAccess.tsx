@@ -884,7 +884,10 @@ const ParticipantAccess = () => {
       });
       if (error || !data || data.error) return;
       if (typeof data.superLikeAllowance === 'number') setSuperLikeAllowance(data.superLikeAllowance);
-      if (typeof data.superLikesUsed === 'number') setSuperLikesUsed(data.superLikesUsed);
+      if (typeof data.superLikesUsed === 'number') {
+        setSuperLikesUsed(data.superLikesUsed + pendingSuperLikesRef.current);
+      }
+
       if (typeof data.crushAllowance === 'number') setCrushAllowance(data.crushAllowance);
       if (Array.isArray(data.crushes)) setCrushesSent(data.crushes);
     } catch {
