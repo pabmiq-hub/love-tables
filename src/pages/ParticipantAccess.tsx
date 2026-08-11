@@ -144,7 +144,10 @@ const ParticipantAccess = () => {
   const [receivedSuperLikeSenderIds, setReceivedSuperLikeSenderIds] = useState<string[]>([]);
   const [superLikesUsed, setSuperLikesUsed] = useState(0);
   const [superLikeAllowance, setSuperLikeAllowance] = useState(1);
+  // Super Likes marked locally but not yet submitted to the server
+  const pendingSuperLikesRef = useRef(0);
   const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
+
 
   const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
