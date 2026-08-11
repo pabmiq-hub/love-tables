@@ -182,7 +182,10 @@ const ParticipantAccess = () => {
 
   // Crush/Flechazo feature
   const [crushEnabled, setCrushEnabled] = useState(false);
-  const [crushUsed, setCrushUsed] = useState<{ status: string; targetId?: string } | null>(null);
+  const [crushesSent, setCrushesSent] = useState<{ status: string; targetId?: string }[]>([]);
+  const [crushAllowance, setCrushAllowance] = useState(1);
+  const crushSlotsLeft = Math.max(0, crushAllowance - crushesSent.length);
+
   const [crushTarget, setCrushTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingCrush, setIsSendingCrush] = useState(false);
   const [wrappedEnabled, setWrappedEnabled] = useState(false);
