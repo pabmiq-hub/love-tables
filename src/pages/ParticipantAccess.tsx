@@ -867,6 +867,25 @@ const ParticipantAccess = () => {
     }
   };
 
+  // Re-read allowances (extra Super Like / Flechazo earned in the social game)
+  // without reloading the whole page.
+  const refreshAllowances = async () => {
+    if (!eventId || !verificationCode) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('get-table-assignments', {
+        body: { eventId, verificationCode },
+      });
+      if (error || !data || data.error) return;
+      if (typeof data.superLikeAllowance === 'number') setSuperLikeAllowance(data.superLikeAllowance);
+      if (typeof data.superLikesUsed === 'number') setSuperLikesUsed(data.superLikesUsed);
+      if (typeof data.crushAllowance === 'number') setCrushAllowance(data.crushAllowance);
+      if (Array.isArray(data.crushes)) setCrushesSent(data.crushes);
+    } catch {
+      /* non-blocking */
+    }
+  };
+
+
   const openCrushDialog = (participantId: string, name: string, round: number) => {
     if (crushSlotsLeft <= 0) return;
     if (crushesSent.some(c => c.targetId === participantId)) return;
