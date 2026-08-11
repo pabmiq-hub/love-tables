@@ -1958,6 +1958,64 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_branding_public: {
+        Row: {
+          background_color: string | null
+          custom_footer_text: string | null
+          custom_welcome_text: string | null
+          font_family: string | null
+          hide_konektum_branding: boolean | null
+          is_white_label: boolean | null
+          organizer_id: string | null
+          primary_color: string | null
+          secondary_color: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          custom_footer_text?: string | null
+          custom_welcome_text?: string | null
+          font_family?: string | null
+          hide_konektum_branding?: boolean | null
+          is_white_label?: boolean | null
+          organizer_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          custom_footer_text?: string | null
+          custom_welcome_text?: string | null
+          font_family?: string | null
+          hide_konektum_branding?: boolean | null
+          is_white_label?: boolean | null
+          organizer_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_branding_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: true
+            referencedRelation: "organizers_public"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       organizers_public: {
         Row: {
           active_modules: string[] | null
