@@ -430,7 +430,13 @@ const ParticipantAccess = () => {
       });
 
       // Read super-like flags returned by edge function
-      setHasSentSuperLike(!!data.hasSentSuperLike);
+      setSuperLikeAllowance(typeof data.superLikeAllowance === 'number' ? data.superLikeAllowance : 1);
+      setSuperLikesUsed(
+        typeof data.superLikesUsed === 'number'
+          ? data.superLikesUsed
+          : (data.hasSentSuperLike ? 1 : 0)
+      );
+
       setHasReceivedSuperLike(!!data.hasReceivedSuperLike);
       const senderIds: string[] = Array.isArray(data.receivedSuperLikeSenderIds) ? data.receivedSuperLikeSenderIds : [];
       setReceivedSuperLikeSenderIds(senderIds);
