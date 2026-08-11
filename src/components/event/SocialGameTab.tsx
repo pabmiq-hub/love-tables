@@ -84,6 +84,10 @@ const SocialGameTab = ({ eventId, verificationCode, lang }: Props) => {
 
     setRewards(data.rewards || []);
     await load();
+    // Let the parent panel re-read the Super Like / Flechazo allowances so a
+    // freshly earned extra becomes usable without reloading the page.
+    onRewardsChange?.();
+
   };
 
   if (isLoading) {
