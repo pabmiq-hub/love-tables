@@ -581,7 +581,9 @@ const ParticipantAccess = () => {
           : ms
       )
     );
+    pendingSuperLikesRef.current += 1;
     setSuperLikesUsed(prev => prev + 1);
+
 
     // Confetti burst (golden)
     try {
