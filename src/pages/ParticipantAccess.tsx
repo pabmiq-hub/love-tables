@@ -1536,7 +1536,9 @@ const ParticipantAccess = () => {
                     eventId={eventId!}
                     verificationCode={verificationCode}
                     lang={eventLang}
+                    onRewardsChange={refreshAllowances}
                   />
+
                 </TabsContent>
               )}
 
