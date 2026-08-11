@@ -357,9 +357,12 @@ serve(async (req) => {
         receivedSuperLikeSenderIds,
         crushEnabled: !!(event as any).crush_enabled,
           socialGameEnabled: !!((event as any).social_game?.enabled),
-        existingCrush: existingCrushResult.data
-          ? { status: (existingCrushResult.data as any).status, targetId: (existingCrushResult.data as any).target_id }
-          : null,
+        crushes: crushesSent,
+        crushAllowance,
+        crushesUsed: crushesSent.length,
+        hasSentCrush: crushesSent.length >= crushAllowance,
+        existingCrush: crushesSent[0] || null,
+
         gameMode: gameModePayload,
         timer: {
           roundDuration: Math.floor((event.round_duration || 300) / 60),
