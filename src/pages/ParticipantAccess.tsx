@@ -142,7 +142,10 @@ const ParticipantAccess = () => {
   const [participantName, setParticipantName] = useState("");
   const [hasReceivedSuperLike, setHasReceivedSuperLike] = useState(false);
   const [receivedSuperLikeSenderIds, setReceivedSuperLikeSenderIds] = useState<string[]>([]);
-  const [hasSentSuperLike, setHasSentSuperLike] = useState(false);
+  const [superLikesUsed, setSuperLikesUsed] = useState(0);
+  const [superLikeAllowance, setSuperLikeAllowance] = useState(1);
+  const hasSentSuperLike = superLikesUsed >= superLikeAllowance;
+
   const [superLikeTarget, setSuperLikeTarget] = useState<{ id: string; name: string; round: number } | null>(null);
   const [isSendingSuperLike, setIsSendingSuperLike] = useState(false);
 
