@@ -23,7 +23,9 @@ interface Props {
   eventId: string;
   verificationCode: string;
   lang: "es" | "en";
+  onRewardsChange?: () => void;
 }
+
 
 const REWARD_META: Record<string, { icon: any; es: string; en: string }> = {
   super_like: { icon: Sparkles, es: "Super Like extra", en: "Extra Super Like" },
