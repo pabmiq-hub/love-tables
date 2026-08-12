@@ -131,6 +131,7 @@ const ParticipantAccess = () => {
   const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string; gender?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
+  const [pendingUrlCode, setPendingUrlCode] = useState(false);
 
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -348,6 +349,14 @@ const ParticipantAccess = () => {
       setSessionRestored(false);
     }
   }, [sessionRestored, verifiedParticipant, verificationCode]);
+
+  // Auto-verify when the code arrives in the URL (link from the check-in screen)
+  useEffect(() => {
+    if (pendingUrlCode && verificationCode.length === 6 && !verifiedParticipant) {
+      setPendingUrlCode(false);
+      handleVerifyCode();
+    }
+  }, [pendingUrlCode, verificationCode, verifiedParticipant]);
 
   useEffect(() => {
     if (!selectionDeadline) return;
