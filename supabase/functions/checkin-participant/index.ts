@@ -38,7 +38,74 @@ setInterval(() => {
   }
 }, 300000);
 
+/** "Nombre A." for participant-facing lists */
+function anonymizeName(full: string): string {
+  const parts = String(full || '').trim().split(/\s+/);
+  if (parts.length <= 1) return parts[0] || '';
+  return `${parts[0]} ${parts[1][0].toUpperCase()}.`;
+}
+
+/**
+ * Current table assignment for a participant: preliminary round (0) if present,
+ * otherwise the highest visible round from the published layout.
+ */
+async function getAssignment(supabase: any, eventId: string, participantId: string) {
+  const { data: ev } = await supabase
+    .from('events')
+    .select('preliminary_round, tables, current_round, status, draft_round')
+    .eq('id', eventId)
+    .maybeSingle();
+  if (!ev) return null;
+
+  const findIn = (tablesArr: any, round: number) => {
+    if (!Array.isArray(tablesArr)) return null;
+    for (let i = 0; i < tablesArr.length; i++) {
+      const table = tablesArr[i];
+      if (!Array.isArray(table)) continue;
+      if (table.some((p: any) => p?.id === participantId)) {
+        return {
+          round,
+          table: i + 1,
+          tablemates: table
+            .filter((p: any) => p?.id !== participantId)
+            .map((p: any) => anonymizeName(p?.name || '')),
+        };
+      }
+    }
+    return null;
+  };
+
+  const prelim = (ev as any).preliminary_round;
+  if (prelim?.enabled && Array.isArray(prelim.tables)) {
+    const dismissed: number[] = prelim.dismissed_tables || [];
+    const confirmations: Record<string, boolean> = prelim.confirmations || {};
+    if (confirmations[participantId] !== false) {
+      const visible = prelim.tables.map((t: any, i: number) => (dismissed.includes(i) ? null : t));
+      const found = findIn(visible, 0);
+      if (found) return found;
+    }
+  }
+
+  const rounds = Array.isArray((ev as any).tables) ? (ev as any).tables : [];
+  const draftRound = (ev as any).draft_round ?? null;
+  const currentRound = (ev as any).current_round || 0;
+  const candidates = rounds
+    .filter((r: any) => {
+      const n = Number(r?.round) || 0;
+      if (draftRound !== null && n === draftRound) return false;
+      return (ev as any).status === 'completed' || n <= currentRound;
+    })
+    .sort((a: any, b: any) => (Number(b?.round) || 0) - (Number(a?.round) || 0));
+
+  for (const r of candidates) {
+    const found = findIn(r?.tables, Number(r?.round) || 0);
+    if (found) return found;
+  }
+  return null;
+}
+
 // Generate unique 6-digit verification code
+
 async function generateUniqueCode(supabase: any): Promise<string> {
   let attempts = 0;
   const maxAttempts = 10;
