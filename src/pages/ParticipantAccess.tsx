@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -125,11 +125,13 @@ const areDatingPreferencesCompatible = (pref1: string, gender1: string | null, p
 
 const ParticipantAccess = () => {
   const { id: eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("verify_code");
   const [verificationCode, setVerificationCode] = useState("");
   const [verifiedParticipant, setVerifiedParticipant] = useState<{ id: string; name: string; email?: string; preference?: string; dating_preference?: string; gender?: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
+  const [pendingUrlCode, setPendingUrlCode] = useState(false);
 
   const [matchSelections, setMatchSelections] = useState<MatchSelection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -322,6 +324,13 @@ const ParticipantAccess = () => {
           }
         }
 
+        // Code passed in the URL (e.g. coming from the check-in confirmation)
+        const urlCode = (searchParams.get('code') || '').replace(/\D/g, '');
+        if (urlCode.length === 6) {
+          setVerificationCode(urlCode);
+          setPendingUrlCode(true);
+        }
+
         setIsLoading(false);
       } catch (err) {
         console.error('Error checking event status:', err);
@@ -340,6 +349,14 @@ const ParticipantAccess = () => {
       setSessionRestored(false);
     }
   }, [sessionRestored, verifiedParticipant, verificationCode]);
+
+  // Auto-verify when the code arrives in the URL (link from the check-in screen)
+  useEffect(() => {
+    if (pendingUrlCode && verificationCode.length === 6 && !verifiedParticipant) {
+      setPendingUrlCode(false);
+      handleVerifyCode();
+    }
+  }, [pendingUrlCode, verificationCode, verifiedParticipant]);
 
   useEffect(() => {
     if (!selectionDeadline) return;

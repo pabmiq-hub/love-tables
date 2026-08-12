@@ -31,8 +31,10 @@ const ParticipantCheckin = () => {
 
   const [verificationCode, setVerificationCode] = useState(searchParams.get('code') || "");
   const [participantInfo, setParticipantInfo] = useState<ParticipantInfo | null>(null);
+  const [assignment, setAssignment] = useState<{ round: number; table: number; tablemates: string[] } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
+
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [checkinNotYetOpen, setCheckinNotYetOpen] = useState(false);
   const [countdownData, setCountdownData] = useState<{ name: string; date: string; time: string | null; minutes: number } | null>(null);
@@ -138,6 +140,11 @@ const ParticipantCheckin = () => {
       setParticipantInfo(data.participant);
       if (data.participant.alreadyCheckedIn) {
         setAlreadyCheckedIn(true);
+        // Idempotent call: retrieves the current table assignment (incl. preliminary round)
+        const { data: checkinData } = await supabase.functions.invoke('checkin-participant', {
+          body: { eventId, verificationCode, sendEmail: false }
+        });
+        if (checkinData?.assignment) setAssignment(checkinData.assignment);
       }
     }
     
@@ -157,6 +164,7 @@ const ParticipantCheckin = () => {
       if (data?.participant?.alreadyCheckedIn) {
         setAlreadyCheckedIn(true);
         setIsCheckedIn(true);
+        if (data?.assignment) setAssignment(data.assignment);
       } else {
         toast({
           title: "Error",
@@ -168,6 +176,7 @@ const ParticipantCheckin = () => {
       return;
     }
 
+    if (data?.assignment) setAssignment(data.assignment);
     setIsCheckedIn(true);
     setIsConfirming(false);
     toast({
@@ -175,6 +184,25 @@ const ParticipantCheckin = () => {
       description: t.checkin.successMsg,
     });
   };
+
+  const assignmentBlock = assignment ? (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 mb-4 text-left">
+      <p className="text-xs uppercase tracking-wide text-primary font-semibold mb-1">
+        {assignment.round === 0
+          ? (eventLang === 'en' ? 'Warm-up round' : 'Ronda preliminar')
+          : (eventLang === 'en' ? `Round ${assignment.round}` : `Ronda ${assignment.round}`)}
+      </p>
+      <p className="font-display text-2xl font-semibold mb-1">
+        {eventLang === 'en' ? `Table ${assignment.table}` : `Mesa ${assignment.table}`}
+      </p>
+      {assignment.tablemates.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {(eventLang === 'en' ? 'With: ' : 'Con: ') + assignment.tablemates.join(', ')}
+        </p>
+      )}
+    </div>
+  ) : null;
+
 
   if (isLoading) {
     return (
@@ -234,9 +262,24 @@ const ParticipantCheckin = () => {
                 <p className="text-sm text-muted-foreground">{participantInfo.email}</p>
               </div>
             )}
+            {assignmentBlock}
+            <Button
+              variant="hero"
+              className="w-full mb-4"
+              onClick={() => {
+                const m = window.location.pathname.match(/^\/o\/([^/]+)\//);
+                const target = m
+                  ? `/o/${m[1]}/access/${eventId}?code=${verificationCode}`
+                  : `/event/${eventId}/access?code=${verificationCode}`;
+                window.location.href = target;
+              }}
+            >
+              {eventLang === 'en' ? 'Go to my panel' : 'Ir a mi panel'}
+            </Button>
             <div className="flex items-center justify-center gap-2">
               <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} />
             </div>
+
           </CardContent>
         </Card>
       </div>
@@ -268,11 +311,14 @@ const ParticipantCheckin = () => {
               </div>
 
               {alreadyCheckedIn ? (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-center">
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {t.checkin.alreadyCheckedInWarning}
-                  </p>
-                </div>
+                <>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-center">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      {t.checkin.alreadyCheckedInWarning}
+                    </p>
+                  </div>
+                  {assignmentBlock}
+                </>
               ) : (
                 <div className="flex gap-3">
                   <Button
