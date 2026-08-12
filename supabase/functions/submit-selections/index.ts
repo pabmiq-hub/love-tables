@@ -435,7 +435,7 @@ serve(async (req) => {
       }
     }
 
-    }
+
 
     const totalSelections = alreadySelectedIds.size + newSelections.length;
     console.log(`[submit-selections] Successfully saved ${newSelections.length} new selections. Total: ${totalSelections}`);
