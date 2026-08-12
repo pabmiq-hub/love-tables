@@ -31,8 +31,10 @@ const ParticipantCheckin = () => {
 
   const [verificationCode, setVerificationCode] = useState(searchParams.get('code') || "");
   const [participantInfo, setParticipantInfo] = useState<ParticipantInfo | null>(null);
+  const [assignment, setAssignment] = useState<{ round: number; table: number; tablemates: string[] } | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
+
   const [eventExists, setEventExists] = useState<boolean | null>(null);
   const [checkinNotYetOpen, setCheckinNotYetOpen] = useState(false);
   const [countdownData, setCountdownData] = useState<{ name: string; date: string; time: string | null; minutes: number } | null>(null);
