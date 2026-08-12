@@ -104,9 +104,16 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId } = await req.json();
-    
-    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikeId: ${superLikeId || 'none'}`);
+    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId, superLikeIds: rawSuperLikeIds } = await req.json();
+
+    // Accept either a single superLikeId (legacy) or an array of superLikeIds (game rewards allow extras)
+    const superLikeIdList: string[] = Array.from(new Set(
+      (Array.isArray(rawSuperLikeIds) ? rawSuperLikeIds : (superLikeId ? [superLikeId] : []))
+        .filter((id: unknown): id is string => typeof id === 'string')
+    ));
+
+    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikes: ${superLikeIdList.length}`);
+
 
     // Validate required fields
     if (!eventId || (!rawSelectorId && !verificationCode)) {
