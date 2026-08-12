@@ -521,7 +521,9 @@ serve(async (req) => {
           ageRange: participant.age_range,
           verificationCode: newVerificationCode
         },
+        assignment: await getAssignment(supabase, eventId, participant.id),
         emailSent,
+
         message: emailSent 
           ? 'Check-in completado. Se ha enviado un email con el código de acceso.'
           : 'Check-in completado.'
