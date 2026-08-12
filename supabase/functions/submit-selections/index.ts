@@ -104,9 +104,16 @@ serve(async (req) => {
       );
     }
 
-    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId } = await req.json();
-    
-    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikeId: ${superLikeId || 'none'}`);
+    const { eventId, selectorId: rawSelectorId, verificationCode, selections, superLikeId, superLikeIds: rawSuperLikeIds } = await req.json();
+
+    // Accept either a single superLikeId (legacy) or an array of superLikeIds (game rewards allow extras)
+    const superLikeIdList: string[] = Array.from(new Set(
+      (Array.isArray(rawSuperLikeIds) ? rawSuperLikeIds : (superLikeId ? [superLikeId] : []))
+        .filter((id: unknown): id is string => typeof id === 'string')
+    ));
+
+    console.log(`[submit-selections] Request for event: ${eventId}, selectorId: ${rawSelectorId || 'N/A'}, verificationCode: ${verificationCode ? '****' : 'N/A'}, selections count: ${selections?.length || 0}, superLikes: ${superLikeIdList.length}`);
+
 
     // Validate required fields
     if (!eventId || (!rawSelectorId && !verificationCode)) {
@@ -340,7 +347,31 @@ serve(async (req) => {
     const selectorDatingPref = selectorParticipant.dating_preference || '';
     const selectorGender = selectorParticipant.gender || null;
 
+    // Super like allowance = 1 base + extras earned in the social game
+    const { data: superLikeRewards } = await supabase
+      .from('game_rewards')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('participant_id', selectorId)
+      .eq('reward_type', 'super_like');
+    const superLikeAllowance = 1 + (superLikeRewards || []).length;
+
+    const { data: previousSuperLikes } = await supabase
+      .from('participant_selections')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('selector_id', selectorId)
+      .eq('is_super_like', true);
+    const remainingSuperLikes = Math.max(0, superLikeAllowance - (previousSuperLikes || []).length);
+
+    // Keep only the super likes that fit within the remaining allowance and are part of this batch
+    const newSelectionIds = new Set(newSelections.map((s: { selected_id: string }) => s.selected_id));
+    const allowedSuperLikeIds = new Set(
+      superLikeIdList.filter((id) => newSelectionIds.has(id)).slice(0, remainingSuperLikes)
+    );
+
     // Validate and downgrade incompatible dating selections to friendship
+
     const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => {
       let selectionType = s.selection_type;
       
@@ -360,7 +391,7 @@ serve(async (req) => {
         selector_id: selectorId,
         selected_id: s.selected_id,
         selection_type: selectionType,
-        is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
+        is_super_like: allowedSuperLikeIds.has(s.selected_id),
       };
     });
 
@@ -382,51 +413,29 @@ serve(async (req) => {
       .update({ selection_submitted_at: new Date().toISOString() })
       .eq('id', selectorId);
 
-    // Trigger super like notification if applicable
-    if (superLikeId && event.super_like_enabled) {
-      // Check if the super like was actually inserted (not a duplicate)
-      const superLikeInserted = selectionsToInsert.some(
-        (s: { selected_id: string; is_super_like: boolean }) => s.selected_id === superLikeId && s.is_super_like
-      );
-      if (superLikeInserted) {
-        // Verify this participant hasn't already sent a super like before (double check)
-        const { data: existingSuperLikes } = await supabase
-          .from('participant_selections')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('selector_id', selectorId)
-          .eq('is_super_like', true);
-        
-        // Allowance = 1 base + extras earned in the social game
-        const { data: superLikeRewards } = await supabase
-          .from('game_rewards')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('participant_id', selectorId)
-          .eq('reward_type', 'super_like');
-        const superLikeAllowance = 1 + (superLikeRewards || []).length;
-
-        // Only notify while within the participant's allowance
-        if (existingSuperLikes && existingSuperLikes.length <= superLikeAllowance) {
-          try {
-            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-            const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-            await fetch(`${supabaseUrl}/functions/v1/send-super-like-notification`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseAnonKey}`,
-              },
-              body: JSON.stringify({ eventId, recipientId: superLikeId }),
-            });
-            console.log(`[submit-selections] Super like notification triggered for recipient: ${superLikeId}`);
-          } catch (notifError) {
-            console.error('[submit-selections] Error sending super like notification:', notifError);
-            // Don't fail the whole request for a notification error
-          }
+    // Trigger super like notifications for every super like actually stored
+    if (allowedSuperLikeIds.size > 0 && event.super_like_enabled) {
+      const notifyUrl = Deno.env.get('SUPABASE_URL')!;
+      const notifyKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      for (const recipientId of allowedSuperLikeIds) {
+        try {
+          await fetch(`${notifyUrl}/functions/v1/send-super-like-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${notifyKey}`,
+            },
+            body: JSON.stringify({ eventId, recipientId }),
+          });
+          console.log(`[submit-selections] Super like notification triggered for recipient: ${recipientId}`);
+        } catch (notifError) {
+          console.error('[submit-selections] Error sending super like notification:', notifError);
+          // Don't fail the whole request for a notification error
         }
       }
     }
+
+
 
     const totalSelections = alreadySelectedIds.size + newSelections.length;
     console.log(`[submit-selections] Successfully saved ${newSelections.length} new selections. Total: ${totalSelections}`);
