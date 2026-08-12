@@ -729,13 +729,16 @@ const ParticipantAccess = () => {
       return { selected_id: ms.participantId, selection_type: selectionType };
     });
 
-    const superLikedSelection = matchSelections.find(ms => !ms.alreadySelected && ms.superLikedByMe);
-    const superLikeId = superLikedSelection?.participantId;
+    const superLikeIds = Array.from(deduped.values())
+      .filter(ms => !ms.alreadySelected && ms.superLikedByMe)
+      .map(ms => ms.participantId);
+    const superLikeId = superLikeIds[0];
 
     if (selections.length > 0) {
       const { data, error } = await supabase.functions.invoke('submit-selections', {
-        body: { eventId, verificationCode, selections, superLikeId }
+        body: { eventId, verificationCode, selections, superLikeId, superLikeIds }
       });
+
 
       if (error || data?.error) {
         toast({ title: t.access.error, description: data?.error || t.access.errorSaving, variant: "destructive" });
