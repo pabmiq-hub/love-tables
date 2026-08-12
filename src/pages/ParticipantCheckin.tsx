@@ -266,7 +266,13 @@ const ParticipantCheckin = () => {
             <Button
               variant="hero"
               className="w-full mb-4"
-              onClick={() => window.location.href = `/participant/${eventId}/access?code=${verificationCode}`}
+              onClick={() => {
+                const m = window.location.pathname.match(/^\/o\/([^/]+)\//);
+                const target = m
+                  ? `/o/${m[1]}/access/${eventId}?code=${verificationCode}`
+                  : `/event/${eventId}/access?code=${verificationCode}`;
+                window.location.href = target;
+              }}
             >
               {eventLang === 'en' ? 'Go to my panel' : 'Ir a mi panel'}
             </Button>
