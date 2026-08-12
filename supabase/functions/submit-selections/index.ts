@@ -391,7 +391,7 @@ serve(async (req) => {
         selector_id: selectorId,
         selected_id: s.selected_id,
         selection_type: selectionType,
-        is_super_like: superLikeId && s.selected_id === superLikeId ? true : false,
+        is_super_like: allowedSuperLikeIds.has(s.selected_id),
       };
     });
 
