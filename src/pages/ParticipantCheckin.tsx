@@ -311,11 +311,14 @@ const ParticipantCheckin = () => {
               </div>
 
               {alreadyCheckedIn ? (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-center">
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {t.checkin.alreadyCheckedInWarning}
-                  </p>
-                </div>
+                <>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-center">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      {t.checkin.alreadyCheckedInWarning}
+                    </p>
+                  </div>
+                  {assignmentBlock}
+                </>
               ) : (
                 <div className="flex gap-3">
                   <Button
