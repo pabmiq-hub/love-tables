@@ -413,50 +413,28 @@ serve(async (req) => {
       .update({ selection_submitted_at: new Date().toISOString() })
       .eq('id', selectorId);
 
-    // Trigger super like notification if applicable
-    if (superLikeId && event.super_like_enabled) {
-      // Check if the super like was actually inserted (not a duplicate)
-      const superLikeInserted = selectionsToInsert.some(
-        (s: { selected_id: string; is_super_like: boolean }) => s.selected_id === superLikeId && s.is_super_like
-      );
-      if (superLikeInserted) {
-        // Verify this participant hasn't already sent a super like before (double check)
-        const { data: existingSuperLikes } = await supabase
-          .from('participant_selections')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('selector_id', selectorId)
-          .eq('is_super_like', true);
-        
-        // Allowance = 1 base + extras earned in the social game
-        const { data: superLikeRewards } = await supabase
-          .from('game_rewards')
-          .select('id')
-          .eq('event_id', eventId)
-          .eq('participant_id', selectorId)
-          .eq('reward_type', 'super_like');
-        const superLikeAllowance = 1 + (superLikeRewards || []).length;
-
-        // Only notify while within the participant's allowance
-        if (existingSuperLikes && existingSuperLikes.length <= superLikeAllowance) {
-          try {
-            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-            const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-            await fetch(`${supabaseUrl}/functions/v1/send-super-like-notification`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseAnonKey}`,
-              },
-              body: JSON.stringify({ eventId, recipientId: superLikeId }),
-            });
-            console.log(`[submit-selections] Super like notification triggered for recipient: ${superLikeId}`);
-          } catch (notifError) {
-            console.error('[submit-selections] Error sending super like notification:', notifError);
-            // Don't fail the whole request for a notification error
-          }
+    // Trigger super like notifications for every super like actually stored
+    if (allowedSuperLikeIds.size > 0 && event.super_like_enabled) {
+      const notifyUrl = Deno.env.get('SUPABASE_URL')!;
+      const notifyKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      for (const recipientId of allowedSuperLikeIds) {
+        try {
+          await fetch(`${notifyUrl}/functions/v1/send-super-like-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${notifyKey}`,
+            },
+            body: JSON.stringify({ eventId, recipientId }),
+          });
+          console.log(`[submit-selections] Super like notification triggered for recipient: ${recipientId}`);
+        } catch (notifError) {
+          console.error('[submit-selections] Error sending super like notification:', notifError);
+          // Don't fail the whole request for a notification error
         }
       }
+    }
+
     }
 
     const totalSelections = alreadySelectedIds.size + newSelections.length;
