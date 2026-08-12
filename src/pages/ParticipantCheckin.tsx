@@ -262,9 +262,18 @@ const ParticipantCheckin = () => {
                 <p className="text-sm text-muted-foreground">{participantInfo.email}</p>
               </div>
             )}
+            {assignmentBlock}
+            <Button
+              variant="hero"
+              className="w-full mb-4"
+              onClick={() => window.location.href = `/participant/${eventId}/access?code=${verificationCode}`}
+            >
+              {eventLang === 'en' ? 'Go to my panel' : 'Ir a mi panel'}
+            </Button>
             <div className="flex items-center justify-center gap-2">
               <BrandedLogo logoUrl={eb.logoUrl} companyName={eb.companyName} isWhiteLabel={eb.isWhiteLabel} />
             </div>
+
           </CardContent>
         </Card>
       </div>
