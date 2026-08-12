@@ -347,7 +347,31 @@ serve(async (req) => {
     const selectorDatingPref = selectorParticipant.dating_preference || '';
     const selectorGender = selectorParticipant.gender || null;
 
+    // Super like allowance = 1 base + extras earned in the social game
+    const { data: superLikeRewards } = await supabase
+      .from('game_rewards')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('participant_id', selectorId)
+      .eq('reward_type', 'super_like');
+    const superLikeAllowance = 1 + (superLikeRewards || []).length;
+
+    const { data: previousSuperLikes } = await supabase
+      .from('participant_selections')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('selector_id', selectorId)
+      .eq('is_super_like', true);
+    const remainingSuperLikes = Math.max(0, superLikeAllowance - (previousSuperLikes || []).length);
+
+    // Keep only the super likes that fit within the remaining allowance and are part of this batch
+    const newSelectionIds = new Set(newSelections.map((s: { selected_id: string }) => s.selected_id));
+    const allowedSuperLikeIds = new Set(
+      superLikeIdList.filter((id) => newSelectionIds.has(id)).slice(0, remainingSuperLikes)
+    );
+
     // Validate and downgrade incompatible dating selections to friendship
+
     const selectionsToInsert = newSelections.map((s: { selected_id: string; selection_type: string }) => {
       let selectionType = s.selection_type;
       
