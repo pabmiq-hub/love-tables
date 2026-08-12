@@ -140,6 +140,11 @@ const ParticipantCheckin = () => {
       setParticipantInfo(data.participant);
       if (data.participant.alreadyCheckedIn) {
         setAlreadyCheckedIn(true);
+        // Idempotent call: retrieves the current table assignment (incl. preliminary round)
+        const { data: checkinData } = await supabase.functions.invoke('checkin-participant', {
+          body: { eventId, verificationCode, sendEmail: false }
+        });
+        if (checkinData?.assignment) setAssignment(checkinData.assignment);
       }
     }
     
@@ -159,6 +164,7 @@ const ParticipantCheckin = () => {
       if (data?.participant?.alreadyCheckedIn) {
         setAlreadyCheckedIn(true);
         setIsCheckedIn(true);
+        if (data?.assignment) setAssignment(data.assignment);
       } else {
         toast({
           title: "Error",
@@ -170,6 +176,7 @@ const ParticipantCheckin = () => {
       return;
     }
 
+    if (data?.assignment) setAssignment(data.assignment);
     setIsCheckedIn(true);
     setIsConfirming(false);
     toast({
@@ -177,6 +184,25 @@ const ParticipantCheckin = () => {
       description: t.checkin.successMsg,
     });
   };
+
+  const assignmentBlock = assignment ? (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 mb-4 text-left">
+      <p className="text-xs uppercase tracking-wide text-primary font-semibold mb-1">
+        {assignment.round === 0
+          ? (eventLang === 'en' ? 'Warm-up round' : 'Ronda preliminar')
+          : (eventLang === 'en' ? `Round ${assignment.round}` : `Ronda ${assignment.round}`)}
+      </p>
+      <p className="font-display text-2xl font-semibold mb-1">
+        {eventLang === 'en' ? `Table ${assignment.table}` : `Mesa ${assignment.table}`}
+      </p>
+      {assignment.tablemates.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {(eventLang === 'en' ? 'With: ' : 'Con: ') + assignment.tablemates.join(', ')}
+        </p>
+      )}
+    </div>
+  ) : null;
+
 
   if (isLoading) {
     return (
