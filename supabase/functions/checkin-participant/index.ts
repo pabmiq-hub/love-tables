@@ -308,6 +308,7 @@ serve(async (req) => {
               email: participant.email,
               verificationCode: code,
             },
+            assignment: await getAssignment(supabase, eventId, participant.id),
             emailSent,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -324,10 +325,12 @@ serve(async (req) => {
             name: participant.name,
             email: participant.email,
             verificationCode: code,
-          }
+          },
+          assignment: await getAssignment(supabase, eventId, participant.id),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     }
 
     // Generate verification code if participant doesn't have one yet
