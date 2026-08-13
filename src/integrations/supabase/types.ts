@@ -1851,6 +1851,7 @@ export type Database = {
           selection_closed_at: string | null
           selection_deadline_hours: number | null
           slot_quotas: Json | null
+          social_game: Json | null
           status: string | null
           super_like_enabled: boolean | null
           table_size: number | null
@@ -1900,6 +1901,7 @@ export type Database = {
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
+          social_game?: Json | null
           status?: string | null
           super_like_enabled?: boolean | null
           table_size?: number | null
@@ -1949,6 +1951,7 @@ export type Database = {
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
           slot_quotas?: Json | null
+          social_game?: Json | null
           status?: string | null
           super_like_enabled?: boolean | null
           table_size?: number | null
