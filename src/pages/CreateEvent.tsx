@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit, FlaskConical } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { generateFakeParticipants, type FakeGenConfig } from "@/lib/fakeParticipantGenerator";
+import { DEFAULT_WRAPPED_QUESTIONS } from "@/lib/wrappedQuestions";
+import { DEFAULT_SOCIAL_GAME_QUESTIONS } from "@/lib/socialGame";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -416,6 +418,15 @@ const CreateEvent = () => {
         ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
       series_id: seriesId,
+      // Test mode (social): enable every participant-facing feature so the organizer
+      // can try the full experience (wrapped compatibility + «¿Quién es quién?» game)
+      wrapped_enabled: isTestMode && eventModule === "social" ? true : undefined,
+      social_game: (isTestMode && eventModule === "social"
+        ? { enabled: true, questions: DEFAULT_SOCIAL_GAME_QUESTIONS }
+        : undefined) as unknown as Json,
+      super_like_enabled: isTestMode && eventModule === "social" ? true : undefined,
+      repeat_request_enabled: isTestMode && eventModule === "social" ? true : undefined,
+      crush_enabled: isTestMode && eventModule === "social" ? true : undefined,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -455,6 +466,11 @@ const CreateEvent = () => {
         needs: p.needs || null,
         solutions: p.solutions || null,
         business_interests: p.businessInterests ? [p.businessInterests] : null,
+        birth_date: (p as any).birthDate || null,
+        // Wrapped submode + social game answers (fully filled in test mode)
+        wrapped_answers: ((p as any).wrappedAnswers || null) as unknown as Json,
+        game_answers: ((p as any).gameAnswers || null) as unknown as Json,
+        spoken_languages: (p as any).spokenLanguages || undefined,
         // Test mode fields
         is_fake: isTestMode,
         // Auto-checkin fake participants so the organizer can immediately test rounds & matches
@@ -1646,6 +1662,9 @@ const CreateEvent = () => {
                         companySizes: professionalPreferences.companySizes,
                         predefinedNeeds: professionalPreferences.predefinedNeeds,
                         predefinedSolutions: professionalPreferences.predefinedSolutions,
+                        wrappedQuestions: DEFAULT_WRAPPED_QUESTIONS,
+                        socialGameQuestions: DEFAULT_SOCIAL_GAME_QUESTIONS,
+                        availableLanguages: ["es", "ca", "en"],
                       };
                       const generated = generateFakeParticipants(cfg);
                       setParticipants(generated as unknown as Participant[]);
