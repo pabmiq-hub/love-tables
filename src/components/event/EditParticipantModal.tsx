@@ -18,7 +18,7 @@ import {
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedAnswers, type WrappedQuestion } from "@/lib/wrappedQuestions";
 import SocialGameForm from "@/components/registration/SocialGameForm";
-import { normalizeSocialGame, socialGameLabel, type SocialGameAnswers } from "@/lib/socialGame";
+import { normalizeSocialGame, type SocialGameAnswers } from "@/lib/socialGame";
 
 
 // Default professional options

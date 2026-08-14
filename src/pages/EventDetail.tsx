@@ -6015,6 +6015,8 @@ const EventDetail = () => {
             wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
             wrappedQuestions={(eventData as any)?.wrapped_questions || null}
             eventLanguage={(eventData?.language === 'en' ? 'en' : 'es') as 'es' | 'en'}
+            socialGameEnabled={isSocialGameEnabled((eventData as any)?.social_game)}
+            socialGame={(eventData as any)?.social_game || null}
           />
 
         )}
