@@ -1934,6 +1934,13 @@ const CreateEvent = () => {
             }}
           />
         )}
+
+        <WrappedQuestionsEditor
+          open={showWrappedEditor}
+          onOpenChange={setShowWrappedEditor}
+          value={wrappedQuestions}
+          onSave={setWrappedQuestions}
+        />
       </main>
     </div>
     </TooltipProvider>
