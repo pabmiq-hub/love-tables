@@ -94,6 +94,8 @@ const EditParticipantModal = ({
   wrappedEnabled = false,
   wrappedQuestions = null,
   eventLanguage = "es",
+  socialGameEnabled = false,
+  socialGame = null,
 }: EditParticipantModalProps) => {
 
   // Use custom preferences if provided, otherwise use defaults
