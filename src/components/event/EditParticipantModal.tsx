@@ -54,7 +54,7 @@ interface ParticipantData {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
-  game_answers?: Record<string, unknown> | null;
+  game_answers?: unknown;
 }
 
 export interface EventCustomPreferences {
