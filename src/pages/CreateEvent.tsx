@@ -1223,6 +1223,68 @@ const CreateEvent = () => {
                   </div>
                 </div>
 
+                {/* Participant-facing "eventos" (Super Like / Repetir / Flechazo) */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1 pr-4">
+                    <Label className="text-base">⭐ Super Like</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Cada participante puede enviar 1 Super Like por evento. El destinatario recibe un email anónimo.
+                    </p>
+                  </div>
+                  <Switch checked={superLikeEnabled} onCheckedChange={setSuperLikeEnabled} />
+                </div>
+
+                <FeatureGate feature="repeat_request" showUpgrade={false}>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-base">🔁 Función "Repetir"</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Permite pedir una vez por evento volver a coincidir con un compañero de mesa. Si acepta, se crea una inclusión en la siguiente ronda.
+                      </p>
+                    </div>
+                    <Switch checked={repeatRequestEnabled} onCheckedChange={setRepeatRequestEnabled} />
+                  </div>
+                </FeatureGate>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1 pr-4">
+                    <Label className="text-base">💘 Función "Flechazo"</Label>
+                    <p className="text-sm text-muted-foreground">
+                      1 Flechazo directo por evento. El destinatario acepta o rechaza; si acepta, se intercambian contactos y coinciden en mesa.
+                    </p>
+                  </div>
+                  <Switch checked={crushEnabled} onCheckedChange={setCrushEnabled} />
+                </div>
+
+                {/* Wrapped mode */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-base">✨ Modo Wrapped</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Añade un formulario de intereses en 2 pasos y calcula la compatibilidad entre participantes.
+                      </p>
+                    </div>
+                    <Switch checked={wrappedEnabled} onCheckedChange={setWrappedEnabled} />
+                  </div>
+                  {wrappedEnabled && (
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        {wrappedQuestions.length} preguntas de intereses configuradas
+                      </p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowWrappedEditor(true)}>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Personalizar preguntas
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Social game «¿Quién es quién?» */}
+                <SocialGameEditor value={socialGame} onChange={setSocialGame} />
+
+
+
                 {/* Game Mode (Modo lúdico) — Enterprise feature, Social only */}
                 {canUseGameMode && (
                   <GameModeEditor
