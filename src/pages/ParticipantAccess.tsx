@@ -1180,54 +1180,60 @@ const ParticipantAccess = () => {
                 </TabsList>
               </div>
 
-              {/* Mobile: fixed bottom navigation bar */}
-              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+              {/* Mobile: fixed bottom navigation with two levels */}
+              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)] space-y-1 p-1">
+                {/* Level 1: Inicio / Afinidad / Juego */}
                 <TabsList
-                  className={`w-full h-auto bg-transparent p-1 gap-1 rounded-none grid ${3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 5 ? 'grid-cols-5' : 3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}
+                  className={`w-full h-auto bg-muted/40 p-1 gap-1 grid ${1 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 3 ? 'grid-cols-3' : 1 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}
                 >
                   <TabsTrigger
                     value="info"
-                    className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs data-[state=active]:text-primary"
                   >
-                    <HelpCircle className="w-5 h-5 shrink-0" />
+                    <HelpCircle className="w-4 h-4 shrink-0" />
                     {eventLang === 'es' ? 'Inicio' : 'Home'}
                   </TabsTrigger>
                   {wrappedEnabled && (
                     <TabsTrigger
                       value="compatibility"
-                      className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                      className="flex items-center justify-center gap-1.5 py-2 text-xs data-[state=active]:text-primary"
                     >
-                      <Sparkles className="w-5 h-5 shrink-0" />
+                      <Sparkles className="w-4 h-4 shrink-0" />
                       {eventLang === 'es' ? 'Afinidad' : 'Match'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
                     <TabsTrigger
                       value="game"
-                      className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                      className="flex items-center justify-center gap-1.5 py-2 text-xs data-[state=active]:text-primary"
                     >
-                      <Gamepad2 className="w-5 h-5 shrink-0" />
+                      <Gamepad2 className="w-4 h-4 shrink-0" />
                       {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
+                </TabsList>
+
+                {/* Level 2: Mesas / Selecciones */}
+                <TabsList className="w-full h-auto bg-muted/40 p-1 gap-1 grid grid-cols-2">
                   <TabsTrigger
                     value="tables"
-                    className="flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs data-[state=active]:text-primary"
                   >
-                    <Table2 className="w-5 h-5 shrink-0" />
+                    <Table2 className="w-4 h-4 shrink-0" />
                     {eventLang === 'es' ? 'Mesas' : 'Tables'}
                   </TabsTrigger>
                   <TabsTrigger
                     value="selections"
-                    className={`flex flex-col items-center justify-center gap-1 py-2 text-[10px] data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none text-muted-foreground transition-all ${
+                    className={`flex items-center justify-center gap-1.5 py-2 text-xs data-[state=active]:text-primary transition-all ${
                       highlightSelectionsTab ? "text-primary animate-pulse" : ""
                     }`}
                   >
-                    <Heart className="w-5 h-5 shrink-0" />
+                    <Heart className="w-4 h-4 shrink-0" />
                     {eventLang === 'es' ? 'Selección' : 'Picks'}
                   </TabsTrigger>
                 </TabsList>
               </div>
+
 
 
 
