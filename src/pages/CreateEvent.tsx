@@ -33,6 +33,9 @@ import { GameModeConfig, EMPTY_GAME_MODE } from "@/lib/gameMode";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
+import EventSeriesManager from "@/components/event/EventSeriesManager";
+import { createSeriesEventsFromBase, type SeriesDateEntry } from "@/lib/eventSeries";
+
 type B2BRotationType = "client_fixed" | "provider_fixed";
 type RegistrationFormMode = "auto" | "template" | "custom";
 
