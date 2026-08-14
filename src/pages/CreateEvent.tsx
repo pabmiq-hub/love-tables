@@ -415,6 +415,7 @@ const CreateEvent = () => {
       game_mode: (eventModule === "social" && canUseGameMode && gameMode.enabled && gameMode.dynamics.length > 0
         ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
+      series_id: seriesId,
     };
 
     const { data: eventData, error: eventError } = await supabase
