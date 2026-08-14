@@ -167,6 +167,8 @@ const ParticipantAccess = () => {
   const [eventDate, setEventDate] = useState<string>("");
   const [eventName, setEventName] = useState<string>("");
   const [eventTime, setEventTime] = useState<string | null>(null);
+  const [eventLocation, setEventLocation] = useState<string | null>(null);
+  const [participantsCount, setParticipantsCount] = useState<number | null>(null);
   const [checkinMinutes, setCheckinMinutes] = useState<number>(60);
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
