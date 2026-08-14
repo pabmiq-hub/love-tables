@@ -134,6 +134,33 @@ export type Database = {
           },
         ]
       }
+      event_series: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organizer_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organizer_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organizer_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_waitlist: {
         Row: {
           age_range: string | null
@@ -294,6 +321,7 @@ export type Database = {
           scheduled_email_at: string | null
           selection_closed_at: string | null
           selection_deadline_hours: number | null
+          series_id: string | null
           slot_quotas: Json | null
           social_game: Json | null
           status: string
@@ -367,6 +395,7 @@ export type Database = {
           scheduled_email_at?: string | null
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
+          series_id?: string | null
           slot_quotas?: Json | null
           social_game?: Json | null
           status?: string
@@ -440,6 +469,7 @@ export type Database = {
           scheduled_email_at?: string | null
           selection_closed_at?: string | null
           selection_deadline_hours?: number | null
+          series_id?: string | null
           slot_quotas?: Json | null
           social_game?: Json | null
           status?: string
@@ -453,7 +483,15 @@ export type Database = {
           wrapped_enabled?: boolean
           wrapped_questions?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "event_series"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       features: {
         Row: {
@@ -2055,6 +2093,14 @@ export type Database = {
       generate_slug: { Args: { input: string }; Returns: string }
       get_organizer_id: { Args: { _user_id: string }; Returns: string }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
+      get_series_current_event: {
+        Args: { _slug: string }
+        Returns: {
+          event_id: string
+          organizer_slug: string
+          series_name: string
+        }[]
+      }
       has_feature: {
         Args: { _feature_code: string; _user_id: string }
         Returns: boolean

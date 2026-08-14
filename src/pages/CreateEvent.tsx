@@ -33,6 +33,9 @@ import { GameModeConfig, EMPTY_GAME_MODE } from "@/lib/gameMode";
 
 type ParticipantMode = "manual" | "excel" | "both";
 type EventModule = "social" | "professional";
+import EventSeriesManager from "@/components/event/EventSeriesManager";
+import { createSeriesEventsFromBase, type SeriesDateEntry } from "@/lib/eventSeries";
+
 type B2BRotationType = "client_fixed" | "provider_fixed";
 type RegistrationFormMode = "auto" | "template" | "custom";
 
@@ -176,6 +179,8 @@ const CreateEvent = () => {
   // Common fields
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [seriesDates, setSeriesDates] = useState<SeriesDateEntry[]>([]);
   const [eventLanguage, setEventLanguage] = useState<"es" | "en">("es");
   const [eventLocation, setEventLocation] = useState("");
   const [rounds, setRounds] = useState(5);
@@ -410,6 +415,7 @@ const CreateEvent = () => {
       game_mode: (eventModule === "social" && canUseGameMode && gameMode.enabled && gameMode.dynamics.length > 0
         ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
+      series_id: seriesId,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -489,9 +495,26 @@ const CreateEvent = () => {
       }
     }
     
+    // Create the remaining events of the recurring series (same config, other dates)
+    let seriesCreated = 0;
+    if (seriesId && seriesDates.length > 0) {
+      try {
+        const ids = await createSeriesEventsFromBase(eventData.id, seriesId, seriesDates);
+        seriesCreated = ids.length;
+      } catch {
+        toast({
+          title: "Advertencia",
+          description: "El evento se creó pero no se pudieron crear las fechas siguientes de la serie",
+          variant: "destructive",
+        });
+      }
+    }
+
     toast({
       title: "Evento creado",
-      description: "El evento se ha creado correctamente",
+      description: seriesCreated > 0
+        ? `El evento se ha creado junto a ${seriesCreated} fecha(s) más de la serie`
+        : "El evento se ha creado correctamente",
     });
     navigate(`/admin/events/${eventData.id}`);
     setIsLoading(false);
@@ -925,6 +948,17 @@ const CreateEvent = () => {
                   Idioma del formulario de inscripción y las comunicaciones con participantes
                 </p>
               </div>
+              {user && (
+                <EventSeriesManager
+                  organizerUserId={user.id}
+                  organizerSlug={organizer?.slug}
+                  seriesId={seriesId}
+                  onSeriesChange={setSeriesId}
+                  pendingDates={seriesDates}
+                  onPendingDatesChange={setSeriesDates}
+                  compact
+                />
+              )}
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={prevStep}>
                   Atrás

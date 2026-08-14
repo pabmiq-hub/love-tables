@@ -18,6 +18,9 @@ import GameModeEditor from "./GameModeEditor";
 import { GameModeConfig, EMPTY_GAME_MODE, normalizeGameMode } from "@/lib/gameMode";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useFeatures } from "@/hooks/useFeatures";
+import { useAuth } from "@/hooks/useAuth";
+import { useOrganizer } from "@/hooks/useOrganizer";
+import EventSeriesManager from "./EventSeriesManager";
 import CustomTableLayoutDialog from "./CustomTableLayoutDialog";
 import { CustomTableLayout, isCustomTablesEnabled } from "@/lib/customTableLayout";
 import { Settings2, Languages, Sparkles } from "lucide-react";
@@ -76,6 +79,7 @@ interface EventSettingsEditorProps {
   paymentReminderFirstHours?: number;
   paymentReminderSecondHours?: number | null;
   customTables?: CustomTableLayout | null;
+  seriesId?: string | null;
   onUpdate: (updates: Record<string, any>) => void;
 }
 
@@ -120,12 +124,17 @@ const EventSettingsEditor = ({
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
   paymentReminderSecondHours: initialPaymentReminderSecondHours = null,
   customTables: initialCustomTables = null,
+  seriesId: initialSeriesId = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
   const { hasFeature, isSuperAdmin } = useFeatures();
+  const { user } = useAuth();
+  const { organizer } = useOrganizer();
+  const [seriesId, setSeriesId] = useState<string | null>(initialSeriesId);
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
 
   const [formName, setFormName] = useState(name);
   const [formDate, setFormDate] = useState(date);
@@ -1036,6 +1045,30 @@ const EventSettingsEditor = ({
           </div>
         </CardContent>
       </Card>
+
+      {user && (
+        <div className="mt-6">
+          <EventSeriesManager
+            organizerUserId={user.id}
+            organizerSlug={organizer?.slug}
+            seriesId={seriesId}
+            eventId={eventId}
+            onSeriesChange={async (value) => {
+              setSeriesId(value);
+              const { error } = await supabase
+                .from("events")
+                .update({ series_id: value } as never)
+                .eq("id", eventId);
+              if (error) {
+                toast({ title: "Error", description: "No se pudo guardar la serie", variant: "destructive" });
+                return;
+              }
+              onUpdate({ series_id: value });
+            }}
+          />
+        </div>
+      )}
+
 
       {/* Registration Form Preview Modal */}
       <RegistrationFormPreviewModal
