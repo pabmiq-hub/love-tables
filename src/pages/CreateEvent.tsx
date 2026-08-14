@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload, Users, Clock, Table2, Loader2, Plus, FileSpreadsheet, UserPlus, History, Lock, Sparkles, Briefcase, Heart, Bot, ClipboardList, Pencil, LayoutTemplate, Zap, Calendar, FileEdit, FlaskConical } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { generateFakeParticipants, type FakeGenConfig } from "@/lib/fakeParticipantGenerator";
-import { DEFAULT_WRAPPED_QUESTIONS } from "@/lib/wrappedQuestions";
-import { DEFAULT_SOCIAL_GAME_QUESTIONS } from "@/lib/socialGame";
+import { DEFAULT_WRAPPED_QUESTIONS, type WrappedQuestion } from "@/lib/wrappedQuestions";
+import { DEFAULT_SOCIAL_GAME_QUESTIONS, type SocialGameConfig } from "@/lib/socialGame";
+import WrappedQuestionsEditor from "@/components/event/WrappedQuestionsEditor";
+import SocialGameEditor from "@/components/event/SocialGameEditor";
+import { FeatureGate } from "@/components/FeatureGate";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -204,6 +207,14 @@ const CreateEvent = () => {
   const [preliminaryRoundEnabled, setPreliminaryRoundEnabled] = useState(false);
   const [gameMode, setGameMode] = useState<GameModeConfig>({ ...EMPTY_GAME_MODE });
   const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
+  // Social participant-facing features (also editable later in event settings)
+  const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
+  const [repeatRequestEnabled, setRepeatRequestEnabled] = useState(false);
+  const [crushEnabled, setCrushEnabled] = useState(false);
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
+  const [wrappedQuestions, setWrappedQuestions] = useState<WrappedQuestion[]>(DEFAULT_WRAPPED_QUESTIONS);
+  const [showWrappedEditor, setShowWrappedEditor] = useState(false);
+  const [socialGame, setSocialGame] = useState<SocialGameConfig>({ enabled: false, questions: DEFAULT_SOCIAL_GAME_QUESTIONS });
   
   // Registration form customization (shared between social and professional)
   const [customFormEnabled, setCustomFormEnabled] = useState(false);
@@ -418,15 +429,21 @@ const CreateEvent = () => {
         ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
       series_id: seriesId,
-      // Test mode (social): enable every participant-facing feature so the organizer
-      // can try the full experience (wrapped compatibility + «¿Quién es quién?» game)
-      wrapped_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      social_game: (isTestMode && eventModule === "social"
-        ? { enabled: true, questions: DEFAULT_SOCIAL_GAME_QUESTIONS }
-        : undefined) as unknown as Json,
-      super_like_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      repeat_request_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      crush_enabled: isTestMode && eventModule === "social" ? true : undefined,
+      // Social participant-facing features. In test mode everything is enabled so the
+      // organizer can try the full experience (wrapped compatibility + «¿Quién es quién?»)
+      wrapped_enabled: eventModule === "social" ? (isTestMode || wrappedEnabled) : false,
+      wrapped_questions: (eventModule === "social" && (isTestMode || wrappedEnabled)
+        ? (isTestMode && !wrappedEnabled ? DEFAULT_WRAPPED_QUESTIONS : wrappedQuestions)
+        : null) as unknown as Json,
+      social_game: (eventModule === "social" && (isTestMode || socialGame.enabled)
+        ? {
+            enabled: true,
+            questions: socialGame.questions.length > 0 ? socialGame.questions : DEFAULT_SOCIAL_GAME_QUESTIONS,
+          }
+        : null) as unknown as Json,
+      super_like_enabled: eventModule === "social" ? (isTestMode || superLikeEnabled) : false,
+      repeat_request_enabled: eventModule === "social" ? (isTestMode || repeatRequestEnabled) : false,
+      crush_enabled: eventModule === "social" ? (isTestMode || crushEnabled) : false,
     };
 
     const { data: eventData, error: eventError } = await supabase
@@ -1212,6 +1229,68 @@ const CreateEvent = () => {
                   </div>
                 </div>
 
+                {/* Participant-facing "eventos" (Super Like / Repetir / Flechazo) */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1 pr-4">
+                    <Label className="text-base">⭐ Super Like</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Cada participante puede enviar 1 Super Like por evento. El destinatario recibe un email anónimo.
+                    </p>
+                  </div>
+                  <Switch checked={superLikeEnabled} onCheckedChange={setSuperLikeEnabled} />
+                </div>
+
+                <FeatureGate feature="repeat_request" showUpgrade={false}>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-base">🔁 Función "Repetir"</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Permite pedir una vez por evento volver a coincidir con un compañero de mesa. Si acepta, se crea una inclusión en la siguiente ronda.
+                      </p>
+                    </div>
+                    <Switch checked={repeatRequestEnabled} onCheckedChange={setRepeatRequestEnabled} />
+                  </div>
+                </FeatureGate>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1 pr-4">
+                    <Label className="text-base">💘 Función "Flechazo"</Label>
+                    <p className="text-sm text-muted-foreground">
+                      1 Flechazo directo por evento. El destinatario acepta o rechaza; si acepta, se intercambian contactos y coinciden en mesa.
+                    </p>
+                  </div>
+                  <Switch checked={crushEnabled} onCheckedChange={setCrushEnabled} />
+                </div>
+
+                {/* Wrapped mode */}
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 pr-4">
+                      <Label className="text-base">✨ Modo Wrapped</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Añade un formulario de intereses en 2 pasos y calcula la compatibilidad entre participantes.
+                      </p>
+                    </div>
+                    <Switch checked={wrappedEnabled} onCheckedChange={setWrappedEnabled} />
+                  </div>
+                  {wrappedEnabled && (
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        {wrappedQuestions.length} preguntas de intereses configuradas
+                      </p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowWrappedEditor(true)}>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Personalizar preguntas
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Social game «¿Quién es quién?» */}
+                <SocialGameEditor value={socialGame} onChange={setSocialGame} />
+
+
+
                 {/* Game Mode (Modo lúdico) — Enterprise feature, Social only */}
                 {canUseGameMode && (
                   <GameModeEditor
@@ -1861,6 +1940,13 @@ const CreateEvent = () => {
             }}
           />
         )}
+
+        <WrappedQuestionsEditor
+          open={showWrappedEditor}
+          onOpenChange={setShowWrappedEditor}
+          value={wrappedQuestions}
+          onSave={setWrappedQuestions}
+        />
       </main>
     </div>
     </TooltipProvider>
