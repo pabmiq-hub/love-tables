@@ -336,7 +336,16 @@ const EditParticipantModal = ({
       if (formData.birth_date) {
         updateData.age = getAge(formData.birth_date);
       }
+      if (socialGameEnabled) {
+        const cleaned: SocialGameAnswers = {};
+        Object.entries(gameAnswers).forEach(([k, v]) => {
+          const val = String(v || "").trim();
+          if (val) cleaned[k] = val;
+        });
+        updateData.game_answers = Object.keys(cleaned).length > 0 ? cleaned : null;
+      }
     }
+
 
     const { error } = await supabase
       .from("participants")
