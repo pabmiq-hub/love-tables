@@ -5978,6 +5978,7 @@ const EventDetail = () => {
             canEdit={eventStatus === "pending"}
             isProfessional={eventData?.module === "professional"}
             eventStatus={eventStatus}
+            socialGame={eventData?.social_game}
             onAssignToTables={() => {
               const participant = selectedParticipant;
               setSelectedParticipant(null);
