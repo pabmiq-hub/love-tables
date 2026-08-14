@@ -87,6 +87,7 @@ interface ParticipantDetailModalProps {
   canEdit: boolean;
   isProfessional?: boolean;
   eventStatus?: string;
+  socialGame?: unknown;
   onAssignToTables?: (participant: ParticipantData) => void;
 }
 
