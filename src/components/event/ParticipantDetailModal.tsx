@@ -521,6 +521,38 @@ const ParticipantDetailModal = ({
               );
             })()}
 
+            {/* Social game answers */}
+            {participant.game_answers && Object.keys(participant.game_answers).length > 0 && (() => {
+              const cfg = normalizeSocialGame(socialGame);
+              const labels: Record<string, string> = {};
+              for (const q of [...cfg.questions, ...DEFAULT_SOCIAL_GAME_QUESTIONS]) {
+                if (!labels[q.id]) labels[q.id] = q.label_es || q.id;
+              }
+              const entries = Object.entries(participant.game_answers as Record<string, unknown>)
+                .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "");
+              if (entries.length === 0) return null;
+              return (
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                    <Gamepad2 className="w-4 h-4 text-primary" /> Juego «¿Quién es quién?»
+                  </p>
+                  <div className="grid gap-3">
+                    {entries.map(([k, v]) => (
+                      <div key={k} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Gamepad2 className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-muted-foreground break-words">{labels[k] || k}</p>
+                          <p className="font-medium text-sm break-words whitespace-pre-wrap">{String(v)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+
+
             {/* Payment status */}
             {participant.payment_status && (
               <div className="border-t pt-3 mt-3">
