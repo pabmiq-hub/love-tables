@@ -204,6 +204,14 @@ const CreateEvent = () => {
   const [preliminaryRoundEnabled, setPreliminaryRoundEnabled] = useState(false);
   const [gameMode, setGameMode] = useState<GameModeConfig>({ ...EMPTY_GAME_MODE });
   const canUseGameMode = hasFeature("game_mode") || isSuperAdmin;
+  // Social participant-facing features (also editable later in event settings)
+  const [superLikeEnabled, setSuperLikeEnabled] = useState(false);
+  const [repeatRequestEnabled, setRepeatRequestEnabled] = useState(false);
+  const [crushEnabled, setCrushEnabled] = useState(false);
+  const [wrappedEnabled, setWrappedEnabled] = useState(false);
+  const [wrappedQuestions, setWrappedQuestions] = useState<WrappedQuestion[]>(DEFAULT_WRAPPED_QUESTIONS);
+  const [showWrappedEditor, setShowWrappedEditor] = useState(false);
+  const [socialGame, setSocialGame] = useState<SocialGameConfig>({ enabled: false, questions: DEFAULT_SOCIAL_GAME_QUESTIONS });
   
   // Registration form customization (shared between social and professional)
   const [customFormEnabled, setCustomFormEnabled] = useState(false);
