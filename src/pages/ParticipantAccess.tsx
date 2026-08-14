@@ -1210,43 +1210,43 @@ const ParticipantAccess = () => {
                 >
                   <TabsTrigger
                     value="info"
-                    className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                   >
-                    <HelpCircle className="w-5 h-5 shrink-0" />
+                    <HelpCircle className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Inicio' : 'Home'}
                   </TabsTrigger>
                   {wrappedEnabled && (
                     <TabsTrigger
                       value="compatibility"
-                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                     >
-                      <Sparkles className="w-5 h-5 shrink-0" />
+                      <Sparkles className="w-6 h-6 shrink-0" />
                       {eventLang === 'es' ? 'Afinidad' : 'Match'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
                     <TabsTrigger
                       value="game"
-                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                     >
-                      <Gamepad2 className="w-5 h-5 shrink-0" />
+                      <Gamepad2 className="w-6 h-6 shrink-0" />
                       {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
                   <TabsTrigger
                     value="tables"
-                    className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                   >
-                    <Table2 className="w-5 h-5 shrink-0" />
+                    <Table2 className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Mesas' : 'Tables'}
                   </TabsTrigger>
                   <TabsTrigger
                     value="selections"
-                    className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none transition-all ${
+                    className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-all ${
                       highlightSelectionsTab ? "text-primary animate-pulse" : ""
                     }`}
                   >
-                    <Heart className="w-5 h-5 shrink-0" />
+                    <Heart className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Selección' : 'Picks'}
                   </TabsTrigger>
                 </TabsList>
