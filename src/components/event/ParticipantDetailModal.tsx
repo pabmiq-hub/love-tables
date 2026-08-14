@@ -101,6 +101,7 @@ const ParticipantDetailModal = ({
   canEdit,
   isProfessional = false,
   eventStatus,
+  socialGame,
   onAssignToTables,
 }: ParticipantDetailModalProps) => {
   const { toast } = useToast();
