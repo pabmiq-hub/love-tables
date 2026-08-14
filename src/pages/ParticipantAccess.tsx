@@ -269,6 +269,8 @@ const ParticipantAccess = () => {
         setEventDate(event.date);
         setEventName(event.name);
         setEventTime(event.event_time || null);
+        setEventLocation((event as any).event_location || null);
+        setParticipantsCount((event as any).participants_count ?? null);
         setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
 
         // Resolve repeat-request feature: trust event-level toggle as source of truth.
