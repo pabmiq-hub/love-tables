@@ -1,4 +1,14 @@
 // Helper to generate synthetic participants for test events.
+import {
+  DEFAULT_WRAPPED_QUESTIONS,
+  type WrappedAnswers,
+  type WrappedQuestion,
+} from "./wrappedQuestions";
+import {
+  DEFAULT_SOCIAL_GAME_QUESTIONS,
+  type SocialGameAnswers,
+  type SocialGameQuestion,
+} from "./socialGame";
 
 export interface FakeGenConfig {
   count: number;
@@ -17,6 +27,10 @@ export interface FakeGenConfig {
   companySizes?: string[];
   predefinedNeeds?: string[];
   predefinedSolutions?: string[];
+  // Wrapped submode + social game (social events): fake participants answer the full form
+  wrappedQuestions?: WrappedQuestion[];
+  socialGameQuestions?: SocialGameQuestion[];
+  availableLanguages?: string[];
 }
 
 export const DEFAULT_FAKE_CONFIG: Omit<FakeGenConfig, "count" | "ageRanges" | "preferences" | "datingPreferences"> = {
@@ -84,6 +98,79 @@ export interface GeneratedFakeParticipant {
   companySize?: string;
   needs?: string[];
   solutions?: string[];
+  // Wrapped submode + social game
+  wrappedAnswers?: WrappedAnswers;
+  gameAnswers?: SocialGameAnswers;
+  spokenLanguages?: string[];
+}
+
+
+// ---- Wrapped submode + social game synthetic answers ----
+
+function fakeWrappedAnswers(
+  questions: WrappedQuestion[],
+  rng: () => number
+): WrappedAnswers {
+  const answers: WrappedAnswers = {};
+  for (const q of questions) {
+    const keys = q.options_key && q.options_key.length > 0
+      ? q.options_key
+      : (q.i18n?.es?.options || []).map((_, i) => String(i));
+
+    if (q.type === "yes_no") {
+      answers[q.id] = rng() > 0.5;
+    } else if (q.type === "single_choice") {
+      if (keys.length > 0) answers[q.id] = pick(keys, rng);
+    } else if (q.type === "multi_choice") {
+      const n = 1 + Math.floor(rng() * Math.min(3, Math.max(1, keys.length)));
+      answers[q.id] = pickMany(keys, n, rng);
+    } else if (q.type === "ranked_top3") {
+      const top = pickMany(keys, 3, rng);
+      answers[q.id] = { top1: top[0], top2: top[1], top3: top[2] };
+    }
+  }
+  return answers;
+}
+
+const GAME_ANSWERS_POOL: Record<string, { es: string[]; en: string[] }> = {
+  profession: {
+    es: ["Diseñadora gráfica", "Profesor de instituto", "Enfermero", "Desarrolladora web", "Arquitecta", "Comercial", "Fisioterapeuta"],
+    en: ["Graphic designer", "High school teacher", "Nurse", "Web developer", "Architect", "Sales rep", "Physiotherapist"],
+  },
+  fun_fact: {
+    es: ["He dormido en un iglú", "Sé silbar con los dedos", "He corrido dos maratones", "Toco la trompeta desde los 8 años", "Nunca he visto Titanic"],
+    en: ["I slept in an igloo once", "I can whistle with my fingers", "I ran two marathons", "I've played trumpet since I was 8", "I've never seen Titanic"],
+  },
+  useless_talent: {
+    es: ["Recito el abecedario al revés", "Muevo las orejas", "Adivino canciones en 2 segundos", "Hago malabares con naranjas", "Doblo la lengua en tres"],
+    en: ["I recite the alphabet backwards", "I can wiggle my ears", "I name songs in 2 seconds", "I juggle oranges", "I can fold my tongue in three"],
+  },
+  movie_genre: {
+    es: ["Comedia romántica", "Documental de naturaleza", "Thriller nórdico", "Comedia absurda", "Aventura de sobremesa"],
+    en: ["Romantic comedy", "Nature documentary", "Nordic thriller", "Absurd comedy", "Afternoon adventure"],
+  },
+  guilty_pleasure: {
+    es: ["Los realities de citas", "Cantar reggaetón en la ducha", "La pizza con piña", "Las novelas de vampiros", "Los vídeos de gatos"],
+    en: ["Dating reality shows", "Singing reggaeton in the shower", "Pineapple pizza", "Vampire novels", "Cat videos"],
+  },
+};
+
+const GENERIC_GAME_ANSWERS = {
+  es: ["Una respuesta muy típica mía", "Depende del día, pero suele ser sí", "Nada que pueda contar aquí", "Me lo preguntan mucho", "Prefiero sorprender en persona"],
+  en: ["A very me kind of answer", "Depends on the day, usually yes", "Nothing I can share here", "People ask me this a lot", "I'd rather surprise you in person"],
+};
+
+function fakeGameAnswers(
+  questions: SocialGameQuestion[],
+  lang: "es" | "en",
+  rng: () => number
+): SocialGameAnswers {
+  const answers: SocialGameAnswers = {};
+  for (const q of questions) {
+    const pool = GAME_ANSWERS_POOL[q.id]?.[lang] || GENERIC_GAME_ANSWERS[lang];
+    answers[q.id] = pick(pool, rng);
+  }
+  return answers;
 }
 
 export function generateFakeParticipants(
@@ -161,6 +248,26 @@ export function generateFakeParticipants(
       datingPreference,
       birthDate,
     };
+
+    if (!config.isProfessional) {
+      participant.wrappedAnswers = fakeWrappedAnswers(
+        config.wrappedQuestions && config.wrappedQuestions.length > 0
+          ? config.wrappedQuestions
+          : DEFAULT_WRAPPED_QUESTIONS,
+        rng
+      );
+      participant.gameAnswers = fakeGameAnswers(
+        config.socialGameQuestions && config.socialGameQuestions.length > 0
+          ? config.socialGameQuestions
+          : DEFAULT_SOCIAL_GAME_QUESTIONS,
+        config.language,
+        rng
+      );
+      const langs = config.availableLanguages && config.availableLanguages.length > 0
+        ? config.availableLanguages
+        : ["es", "ca", "en"];
+      participant.spokenLanguages = pickMany(langs, 1 + Math.floor(rng() * Math.min(2, langs.length)), rng);
+    }
 
     if (config.isProfessional) {
       const companyName = `${pick(COMPANY_PREFIXES, rng)}${pick(COMPANY_SUFFIXES, rng)}`;

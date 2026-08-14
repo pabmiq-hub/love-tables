@@ -231,6 +231,7 @@ const EventDetail = () => {
   const { branding } = useOrganizer();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
+  const [isSyncingTestData, setIsSyncingTestData] = useState(false);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
@@ -3763,6 +3764,33 @@ const EventDetail = () => {
               <p className="text-sm text-orange-700/80 dark:text-orange-300/80">
                 Este evento contiene participantes ficticios. No cuenta en analíticas globales, CRM ni lista de remarketing. Los emails automáticos están desactivados o redirigidos.
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 border-orange-400 text-orange-700 dark:text-orange-300"
+                disabled={isSyncingTestData}
+                onClick={async () => {
+                  const orgId = (eventData as any)?.organizer_id;
+                  if (!orgId || !id) return;
+                  setIsSyncingTestData(true);
+                  try {
+                    const { backfillTestEventData } = await import("@/lib/testModeData");
+                    const res = await backfillTestEventData(id, orgId, { enableFeatures: true });
+                    toast({
+                      title: "Datos de prueba actualizados",
+                      description: `${res.updated} participantes completados · ${res.linked} perfiles de compatibilidad creados`,
+                    });
+                    await loadEventData();
+                  } catch (e) {
+                    toast({ title: "Error", description: "No se pudieron actualizar los datos de prueba", variant: "destructive" });
+                  } finally {
+                    setIsSyncingTestData(false);
+                  }
+                }}
+              >
+                {isSyncingTestData ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Completar datos de prueba (Wrapped + juego)
+              </Button>
             </div>
           </div>
         )}
