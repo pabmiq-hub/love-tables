@@ -121,12 +121,17 @@ const EventSettingsEditor = ({
   paymentReminderFirstHours: initialPaymentReminderFirstHours = 24,
   paymentReminderSecondHours: initialPaymentReminderSecondHours = null,
   customTables: initialCustomTables = null,
+  seriesId: initialSeriesId = null,
   onUpdate,
 }: EventSettingsEditorProps) => {
   const { toast } = useToast();
   const { hasFeature, isSuperAdmin } = useFeatures();
+  const { user } = useAuth();
+  const { organizer } = useOrganizer();
+  const [seriesId, setSeriesId] = useState<string | null>(initialSeriesId);
   const [isSaving, setIsSaving] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
 
   const [formName, setFormName] = useState(name);
   const [formDate, setFormDate] = useState(date);
