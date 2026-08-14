@@ -170,8 +170,53 @@ const EditParticipantModal = ({
     return () => { cancelled = true; };
   }, [wrappedEnabled, participant.id]);
 
+  // Social game «¿Quién es quién?» state
+  const socialGameConfig = normalizeSocialGame(socialGame);
+  const socialGameQuestions = socialGameEnabled && !isProfessional ? socialGameConfig.questions : [];
+  const toAnswers = (raw: unknown): SocialGameAnswers => {
+    const obj = (raw || {}) as Record<string, unknown>;
+    const out: SocialGameAnswers = {};
+    Object.entries(obj).forEach(([k, v]) => {
+      if (v !== null && v !== undefined) out[k] = String(v);
+    });
+    return out;
+  };
+  const [gameAnswers, setGameAnswers] = useState<SocialGameAnswers>(() => toAnswers(participant.game_answers));
+  const [loadingGame, setLoadingGame] = useState<boolean>(false);
+  const [hadGameAnswers, setHadGameAnswers] = useState<boolean>(
+    Object.values(toAnswers(participant.game_answers)).some((v) => String(v).trim().length > 0)
+  );
 
-  
+  // Always refresh from DB so existing answers are visible even when the list
+  // row does not carry game_answers.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!socialGameEnabled || isProfessional) return;
+      setLoadingGame(true);
+      const { data } = await supabase
+        .from("participants")
+        .select("game_answers")
+        .eq("id", participant.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const fetched = toAnswers(data?.game_answers);
+      if (Object.keys(fetched).length > 0) {
+        setGameAnswers(fetched);
+        setHadGameAnswers(Object.values(fetched).some((v) => String(v).trim().length > 0));
+      }
+      setLoadingGame(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [socialGameEnabled, isProfessional, participant.id]);
+
+  // Answers whose question no longer exists in the event config (read-only)
+  const orphanGameAnswers = Object.entries(gameAnswers).filter(
+    ([id, v]) => !socialGameQuestions.some((q) => q.id === id) && String(v || "").trim().length > 0
+  );
+
+
   // Social fields
   const [formData, setFormData] = useState({
     name: participant.name,
