@@ -1046,6 +1046,22 @@ const EventSettingsEditor = ({
         </CardContent>
       </Card>
 
+      {user && (
+        <div className="mt-6">
+          <EventSeriesManager
+            organizerUserId={user.id}
+            organizerSlug={organizer?.slug}
+            seriesId={seriesId}
+            eventId={eventId}
+            onSeriesChange={(value) => {
+              setSeriesId(value);
+              onUpdate({ series_id: value });
+            }}
+          />
+        </div>
+      )}
+
+
       {/* Registration Form Preview Modal */}
       <RegistrationFormPreviewModal
         open={showPreviewModal}
