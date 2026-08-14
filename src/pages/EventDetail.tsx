@@ -139,6 +139,7 @@ interface EventData {
   game_mode: import("@/lib/gameMode").GameModeConfig | null;
   custom_tables: import("@/lib/customTableLayout").CustomTableLayout | null;
   draft_round: number | null;
+  social_game?: unknown;
 }
 
 interface SlotQuotaConfig {
