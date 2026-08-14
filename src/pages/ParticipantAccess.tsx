@@ -1113,20 +1113,30 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in bg-card/80 backdrop-blur-sm">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">{t.access.hello} {participantName || verifiedParticipant?.name}</CardTitle>
-            <CardDescription>
-              {eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
-            </CardDescription>
-            {timeRemaining && eventStatus === 'completed' && (
-              <Badge variant="secondary" className="mx-auto mt-2">
-                <Clock className="w-3 h-3 mr-1" />
-                {timeRemaining}
-              </Badge>
-            )}
-          </CardHeader>
-          <CardContent>
+        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none sm:border sm:bg-card/80 sm:backdrop-blur-sm">
+          <CardContent className="px-0 pt-0 sm:px-6 sm:pt-6">
+            <div className="mb-4">
+              <EventHeroCard
+                eventName={eventName}
+                eventDate={eventDate}
+                eventTime={eventTime}
+                eventLocation={eventLocation}
+                participantName={participantName || verifiedParticipant?.name}
+                participantsCount={participantsCount}
+                rounds={totalRounds}
+                currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
+                statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
+                lang={eventLang === 'en' ? 'en' : 'es'}
+              />
+              {timeRemaining && eventStatus === 'completed' && (
+                <div className="flex justify-center mt-3">
+                  <Badge variant="secondary">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {timeRemaining}
+                  </Badge>
+                </div>
+              )}
+            </div>
             {/* Round Timer */}
             {timerData && currentRound > 0 && eventStatus !== 'completed' && (
               <div className="mb-4">
