@@ -177,7 +177,7 @@ interface DbParticipant {
   business_interests?: string[] | null;
   payment_status?: string | null;
   paid_at?: string | null;
-  game_answers?: Record<string, unknown> | null;
+  game_answers?: unknown;
 }
 
 interface Match {
