@@ -63,7 +63,7 @@ interface ParticipantData {
   payment_status?: string | null;
   paid_at?: string | null;
   wrapped_profile_id?: string | null;
-  game_answers?: Record<string, unknown> | null;
+  game_answers?: unknown;
   created_at?: string | null;
 }
 

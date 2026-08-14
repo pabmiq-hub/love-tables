@@ -17,6 +17,8 @@ import {
 } from "@/lib/excelParser";
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedAnswers, type WrappedQuestion } from "@/lib/wrappedQuestions";
+import SocialGameForm from "@/components/registration/SocialGameForm";
+import { normalizeSocialGame, type SocialGameAnswers } from "@/lib/socialGame";
 
 
 // Default professional options
@@ -52,6 +54,7 @@ interface ParticipantData {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  game_answers?: unknown;
 }
 
 export interface EventCustomPreferences {
@@ -77,6 +80,8 @@ interface EditParticipantModalProps {
   wrappedEnabled?: boolean;
   wrappedQuestions?: unknown;
   eventLanguage?: "es" | "en";
+  socialGameEnabled?: boolean;
+  socialGame?: unknown;
 }
 
 const EditParticipantModal = ({
@@ -89,6 +94,8 @@ const EditParticipantModal = ({
   wrappedEnabled = false,
   wrappedQuestions = null,
   eventLanguage = "es",
+  socialGameEnabled = false,
+  socialGame = null,
 }: EditParticipantModalProps) => {
 
   // Use custom preferences if provided, otherwise use defaults
@@ -163,8 +170,53 @@ const EditParticipantModal = ({
     return () => { cancelled = true; };
   }, [wrappedEnabled, participant.id]);
 
+  // Social game «¿Quién es quién?» state
+  const socialGameConfig = normalizeSocialGame(socialGame);
+  const socialGameQuestions = socialGameEnabled && !isProfessional ? socialGameConfig.questions : [];
+  const toAnswers = (raw: unknown): SocialGameAnswers => {
+    const obj = (raw || {}) as Record<string, unknown>;
+    const out: SocialGameAnswers = {};
+    Object.entries(obj).forEach(([k, v]) => {
+      if (v !== null && v !== undefined) out[k] = String(v);
+    });
+    return out;
+  };
+  const [gameAnswers, setGameAnswers] = useState<SocialGameAnswers>(() => toAnswers(participant.game_answers));
+  const [loadingGame, setLoadingGame] = useState<boolean>(false);
+  const [hadGameAnswers, setHadGameAnswers] = useState<boolean>(
+    Object.values(toAnswers(participant.game_answers)).some((v) => String(v).trim().length > 0)
+  );
 
-  
+  // Always refresh from DB so existing answers are visible even when the list
+  // row does not carry game_answers.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!socialGameEnabled || isProfessional) return;
+      setLoadingGame(true);
+      const { data } = await supabase
+        .from("participants")
+        .select("game_answers")
+        .eq("id", participant.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const fetched = toAnswers(data?.game_answers);
+      if (Object.keys(fetched).length > 0) {
+        setGameAnswers(fetched);
+        setHadGameAnswers(Object.values(fetched).some((v) => String(v).trim().length > 0));
+      }
+      setLoadingGame(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [socialGameEnabled, isProfessional, participant.id]);
+
+  // Answers whose question no longer exists in the event config (read-only)
+  const orphanGameAnswers = Object.entries(gameAnswers).filter(
+    ([id, v]) => !socialGameQuestions.some((q) => q.id === id) && String(v || "").trim().length > 0
+  );
+
+
   // Social fields
   const [formData, setFormData] = useState({
     name: participant.name,
@@ -284,7 +336,16 @@ const EditParticipantModal = ({
       if (formData.birth_date) {
         updateData.age = getAge(formData.birth_date);
       }
+      if (socialGameEnabled) {
+        const cleaned: SocialGameAnswers = {};
+        Object.entries(gameAnswers).forEach(([k, v]) => {
+          const val = String(v || "").trim();
+          if (val) cleaned[k] = val;
+        });
+        updateData.game_answers = Object.keys(cleaned).length > 0 ? cleaned : null;
+      }
     }
+
 
     const { error } = await supabase
       .from("participants")
@@ -376,6 +437,7 @@ const EditParticipantModal = ({
         gender: formData.gender || null,
         birth_date: formData.birth_date || null,
         is_returning_participant: formData.is_returning_participant === "yes" ? true : formData.is_returning_participant === "no" ? false : null,
+        ...(socialGameEnabled ? { game_answers: gameAnswers as Record<string, unknown> } : {}),
       }),
     });
   };
@@ -664,6 +726,53 @@ const EditParticipantModal = ({
             </div>
           )}
 
+          {socialGameEnabled && !isProfessional && socialGameQuestions.length > 0 && (
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div>
+                <h3 className="font-semibold text-base">
+                  {eventLanguage === "en" ? "Who's who? game" : "Juego «¿Quién es quién?»"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {hadGameAnswers
+                    ? (eventLanguage === "en"
+                        ? "These are the participant's current answers. You can edit them."
+                        : "Estas son las respuestas actuales del participante. Puedes editarlas.")
+                    : (eventLanguage === "en"
+                        ? "This participant registered before the game was enabled. You can fill in the answers here."
+                        : "Este participante se registró antes de activar el juego. Puedes completar las respuestas aquí.")}
+                </p>
+              </div>
+              {loadingGame ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> {eventLanguage === "en" ? "Loading…" : "Cargando…"}
+                </div>
+              ) : (
+                <>
+                  <SocialGameForm
+                    questions={socialGameQuestions}
+                    lang={eventLanguage}
+                    values={gameAnswers}
+                    onChange={setGameAnswers}
+                  />
+                  {orphanGameAnswers.length > 0 && (
+                    <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {eventLanguage === "en"
+                          ? "Answers to questions no longer in this event"
+                          : "Respuestas a preguntas que ya no están en el evento"}
+                      </p>
+                      {orphanGameAnswers.map(([id, value]) => (
+                        <div key={id} className="text-sm">
+                          <span className="text-muted-foreground">{id}: </span>
+                          <span>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
 
           <DialogFooter className="gap-2">

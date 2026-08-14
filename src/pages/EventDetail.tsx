@@ -37,6 +37,7 @@ import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EventCompatibilityTab from "@/components/event/EventCompatibilityTab";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
+import { isSocialGameEnabled } from "@/lib/socialGame";
 import ScheduleEmailDialog from "@/components/event/ScheduleEmailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -176,6 +177,7 @@ interface DbParticipant {
   business_interests?: string[] | null;
   payment_status?: string | null;
   paid_at?: string | null;
+  game_answers?: unknown;
 }
 
 interface Match {
@@ -6015,6 +6017,8 @@ const EventDetail = () => {
             wrappedEnabled={!!(eventData as any)?.wrapped_enabled}
             wrappedQuestions={(eventData as any)?.wrapped_questions || null}
             eventLanguage={(eventData?.language === 'en' ? 'en' : 'es') as 'es' | 'en'}
+            socialGameEnabled={isSocialGameEnabled((eventData as any)?.social_game)}
+            socialGame={(eventData as any)?.social_game || null}
           />
 
         )}
