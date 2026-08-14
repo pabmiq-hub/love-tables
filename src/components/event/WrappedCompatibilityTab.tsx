@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Loader2, Sparkles, Send, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import CompatRing from "@/components/ui/compat-ring";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -235,16 +236,21 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
             : out?.status === "accepted" ? T.accepted
             : out?.status === "rejected" ? T.rejected : null;
           return (
-            <Card key={m.participantId} className="p-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                {idx + 1}
-              </div>
+            <Card key={m.participantId} className="p-3 flex items-center gap-3 rounded-2xl border-border/60 shadow-soft">
+              <CompatRing value={m.compat} size={52} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-primary font-bold text-base">{m.compat}%</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
+                  <span className="font-display text-sm font-semibold truncate">
+                    {m.ageRange || "—"}
+                  </span>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {[m.ageRange, m.topHobbyLabel].filter(Boolean).join(" · ")}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {[m.topHobbyLabel, m.gender].filter(Boolean).map((chip) => (
+                    <span key={chip} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {chip}
+                    </span>
+                  ))}
                 </div>
               </div>
               {statusLabel ? (
@@ -253,14 +259,14 @@ export default function WrappedCompatibilityTab({ eventId, participantId, verifi
                 </Badge>
               ) : (
                 <Button
-                  size="sm"
+                  size="icon"
                   variant="outline"
                   disabled={remaining <= 0}
                   onClick={() => setTarget(m)}
                   title={remaining <= 0 ? T.limitReached : T.askMatch}
-                  className="shrink-0"
+                  className="shrink-0 rounded-full"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
                 </Button>
               )}
             </Card>

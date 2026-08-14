@@ -37,6 +37,7 @@ import { Star } from "lucide-react";
 import confetti from "canvas-confetti";
 import WrappedCompatibilityTab from "@/components/event/WrappedCompatibilityTab";
 import SocialGameTab from "@/components/event/SocialGameTab";
+import EventHeroCard from "@/components/participant/EventHeroCard";
 
 interface MatchSelection {
   participantId: string;
@@ -166,6 +167,8 @@ const ParticipantAccess = () => {
   const [eventDate, setEventDate] = useState<string>("");
   const [eventName, setEventName] = useState<string>("");
   const [eventTime, setEventTime] = useState<string | null>(null);
+  const [eventLocation, setEventLocation] = useState<string | null>(null);
+  const [participantsCount, setParticipantsCount] = useState<number | null>(null);
   const [checkinMinutes, setCheckinMinutes] = useState<number>(60);
   const [selectionDeadline, setSelectionDeadline] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -247,7 +250,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await (supabase as any)
           .from('events_public')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, has_preliminary_tables, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, event_location, participants_count, checkin_opens_minutes_before, has_preliminary_tables, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled')
           .eq('id', eventId)
           .single();
 
@@ -266,6 +269,8 @@ const ParticipantAccess = () => {
         setEventDate(event.date);
         setEventName(event.name);
         setEventTime(event.event_time || null);
+        setEventLocation((event as any).event_location || null);
+        setParticipantsCount((event as any).participants_count ?? null);
         setCheckinMinutes(event.checkin_opens_minutes_before ?? 60);
 
         // Resolve repeat-request feature: trust event-level toggle as source of truth.
@@ -1113,20 +1118,30 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in bg-card/80 backdrop-blur-sm">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">{t.access.hello} {participantName || verifiedParticipant?.name}</CardTitle>
-            <CardDescription>
-              {eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
-            </CardDescription>
-            {timeRemaining && eventStatus === 'completed' && (
-              <Badge variant="secondary" className="mx-auto mt-2">
-                <Clock className="w-3 h-3 mr-1" />
-                {timeRemaining}
-              </Badge>
-            )}
-          </CardHeader>
-          <CardContent>
+        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none sm:border sm:bg-card/80 sm:backdrop-blur-sm">
+          <CardContent className="px-0 pt-0 sm:px-6 sm:pt-6">
+            <div className="mb-4">
+              <EventHeroCard
+                eventName={eventName}
+                eventDate={eventDate}
+                eventTime={eventTime}
+                eventLocation={eventLocation}
+                participantName={participantName || verifiedParticipant?.name}
+                participantsCount={participantsCount}
+                rounds={totalRounds}
+                currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
+                statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
+                lang={eventLang === 'en' ? 'en' : 'es'}
+              />
+              {timeRemaining && eventStatus === 'completed' && (
+                <div className="flex justify-center mt-3">
+                  <Badge variant="secondary">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {timeRemaining}
+                  </Badge>
+                </div>
+              )}
+            </div>
             {/* Round Timer */}
             {timerData && currentRound > 0 && eventStatus !== 'completed' && (
               <div className="mb-4">
@@ -1181,7 +1196,7 @@ const ParticipantAccess = () => {
               </div>
 
               {/* Mobile: single fixed bottom navigation bar (icon + label) */}
-              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/80 backdrop-blur-2xl shadow-elevated pb-[env(safe-area-inset-bottom)]">
                 <TabsList
                   className={`w-full h-auto bg-transparent p-0 rounded-none grid ${
                     2 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 4
@@ -1195,43 +1210,43 @@ const ParticipantAccess = () => {
                 >
                   <TabsTrigger
                     value="info"
-                    className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                   >
-                    <HelpCircle className="w-5 h-5 shrink-0" />
+                    <HelpCircle className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Inicio' : 'Home'}
                   </TabsTrigger>
                   {wrappedEnabled && (
                     <TabsTrigger
                       value="compatibility"
-                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                     >
-                      <Sparkles className="w-5 h-5 shrink-0" />
+                      <Sparkles className="w-6 h-6 shrink-0" />
                       {eventLang === 'es' ? 'Afinidad' : 'Match'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
                     <TabsTrigger
                       value="game"
-                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                     >
-                      <Gamepad2 className="w-5 h-5 shrink-0" />
+                      <Gamepad2 className="w-6 h-6 shrink-0" />
                       {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
                   <TabsTrigger
                     value="tables"
-                    className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
                   >
-                    <Table2 className="w-5 h-5 shrink-0" />
+                    <Table2 className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Mesas' : 'Tables'}
                   </TabsTrigger>
                   <TabsTrigger
                     value="selections"
-                    className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none transition-all ${
+                    className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-all ${
                       highlightSelectionsTab ? "text-primary animate-pulse" : ""
                     }`}
                   >
-                    <Heart className="w-5 h-5 shrink-0" />
+                    <Heart className="w-6 h-6 shrink-0" />
                     {eventLang === 'es' ? 'Selección' : 'Picks'}
                   </TabsTrigger>
                 </TabsList>
