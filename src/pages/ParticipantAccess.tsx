@@ -972,7 +972,7 @@ const ParticipantAccess = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-start lg:justify-center p-4">
       {/* Preliminary Round Confirmation Modal */}
       <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
         <DialogContent className="max-w-sm">
@@ -1118,8 +1118,9 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none sm:border sm:bg-card/80 sm:backdrop-blur-sm">
-          <CardContent className="px-0 pt-0 sm:px-6 sm:pt-6">
+        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none lg:border lg:bg-card/80 lg:backdrop-blur-sm">
+          <CardContent className="px-0 pt-0 lg:px-6 lg:pt-6">
+
             <div className="mb-4">
               <EventHeroCard
                 eventName={eventName}
@@ -1157,35 +1158,33 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-24 sm:pb-0">
-              {/* Desktop / tablet: inline tabs */}
-              <div className="hidden sm:flex sm:flex-row sm:gap-2">
-                <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled && socialGameEnabled ? 'grid-cols-3' : wrappedEnabled || socialGameEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
-                  <TabsTrigger value="info" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-28 lg:pb-0">
+              {/* Desktop: single inline tab row */}
+              <div className="hidden lg:block">
+                <TabsList className="flex w-full h-auto gap-1">
+                  <TabsTrigger value="info" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                     <HelpCircle className="w-4 h-4 shrink-0" />
                     {eventLang === 'es' ? 'Inicio' : 'Home'}
                   </TabsTrigger>
                   {wrappedEnabled && (
-                    <TabsTrigger value="compatibility" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                    <TabsTrigger value="compatibility" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                       <Sparkles className="w-4 h-4 shrink-0" />
                       {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
-                    <TabsTrigger value="game" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                    <TabsTrigger value="game" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                       <Gamepad2 className="w-4 h-4 shrink-0" />
                       {eventLang === 'es' ? 'Juego' : 'Game'}
                     </TabsTrigger>
                   )}
-                </TabsList>
-                <TabsList className="grid w-full sm:flex-1 grid-cols-2 h-auto">
-                  <TabsTrigger value="tables" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap">
+                  <TabsTrigger value="tables" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                     <Table2 className="w-4 h-4 shrink-0" />
                     {t.access.myTables}
                   </TabsTrigger>
                   <TabsTrigger
                     value="selections"
-                    className={`flex items-center justify-center gap-1.5 text-xs sm:text-sm py-2 whitespace-nowrap transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap transition-all ${
                       highlightSelectionsTab ? "ring-2 ring-primary ring-offset-2 animate-pulse" : ""
                     }`}
                   >
@@ -1195,62 +1194,52 @@ const ParticipantAccess = () => {
                 </TabsList>
               </div>
 
-              {/* Mobile: single fixed bottom navigation bar (icon + label) */}
-              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/80 backdrop-blur-2xl shadow-elevated pb-[env(safe-area-inset-bottom)]">
-                <TabsList
-                  className={`w-full h-auto bg-transparent p-0 rounded-none grid ${
-                    2 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 4
-                      ? 'grid-cols-4'
-                      : 2 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 3
-                      ? 'grid-cols-3'
-                      : 2 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 2
-                      ? 'grid-cols-2'
-                      : 'grid-cols-5'
-                  }`}
-                >
-                  <TabsTrigger
-                    value="info"
-                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
-                  >
-                    <HelpCircle className="w-6 h-6 shrink-0" />
-                    {eventLang === 'es' ? 'Inicio' : 'Home'}
-                  </TabsTrigger>
-                  {wrappedEnabled && (
-                    <TabsTrigger
-                      value="compatibility"
-                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
+              {/* Mobile / tablet: fixed bottom navigation bar (icon + label) */}
+              <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
+                {(() => {
+                  const navItemCount = 3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) - 1;
+                  const itemBase = `flex flex-col items-center justify-center gap-1 py-2.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none transition-colors ${
+                    navItemCount >= 5 ? 'text-[10px]' : 'text-[11px]'
+                  }`;
+                  const iconBase = navItemCount >= 5 ? 'w-[22px] h-[22px] shrink-0' : 'w-6 h-6 shrink-0';
+                  return (
+                    <TabsList
+                      className={`w-full h-auto bg-transparent p-0 rounded-none grid ${
+                        navItemCount === 5 ? 'grid-cols-5' : navItemCount === 4 ? 'grid-cols-4' : navItemCount === 3 ? 'grid-cols-3' : 'grid-cols-2'
+                      }`}
                     >
-                      <Sparkles className="w-6 h-6 shrink-0" />
-                      {eventLang === 'es' ? 'Afinidad' : 'Match'}
-                    </TabsTrigger>
-                  )}
-                  {socialGameEnabled && (
-                    <TabsTrigger
-                      value="game"
-                      className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
-                    >
-                      <Gamepad2 className="w-6 h-6 shrink-0" />
-                      {eventLang === 'es' ? 'Juego' : 'Game'}
-                    </TabsTrigger>
-                  )}
-                  <TabsTrigger
-                    value="tables"
-                    className="flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-colors"
-                  >
-                    <Table2 className="w-6 h-6 shrink-0" />
-                    {eventLang === 'es' ? 'Mesas' : 'Tables'}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="selections"
-                    className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground rounded-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow-none transition-all ${
-                      highlightSelectionsTab ? "text-primary animate-pulse" : ""
-                    }`}
-                  >
-                    <Heart className="w-6 h-6 shrink-0" />
-                    {eventLang === 'es' ? 'Selección' : 'Picks'}
-                  </TabsTrigger>
-                </TabsList>
+                      <TabsTrigger value="info" className={itemBase}>
+                        <HelpCircle className={iconBase} />
+                        {eventLang === 'es' ? 'Inicio' : 'Home'}
+                      </TabsTrigger>
+                      {wrappedEnabled && (
+                        <TabsTrigger value="compatibility" className={itemBase}>
+                          <Sparkles className={iconBase} />
+                          {eventLang === 'es' ? 'Afinidad' : 'Match'}
+                        </TabsTrigger>
+                      )}
+                      {socialGameEnabled && (
+                        <TabsTrigger value="game" className={itemBase}>
+                          <Gamepad2 className={iconBase} />
+                          {eventLang === 'es' ? 'Juego' : 'Game'}
+                        </TabsTrigger>
+                      )}
+                      <TabsTrigger value="tables" className={itemBase}>
+                        <Table2 className={iconBase} />
+                        {eventLang === 'es' ? 'Mesas' : 'Tables'}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="selections"
+                        className={`${itemBase} ${highlightSelectionsTab ? 'text-primary animate-pulse' : ''}`}
+                      >
+                        <Heart className={`${iconBase} ${activeTab === 'selections' ? 'fill-current' : ''}`} />
+                        {eventLang === 'es' ? 'Selección' : 'Picks'}
+                      </TabsTrigger>
+                    </TabsList>
+                  );
+                })()}
               </div>
+
 
 
 
