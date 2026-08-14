@@ -1118,8 +1118,9 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none sm:border sm:bg-card/80 sm:backdrop-blur-sm">
-          <CardContent className="px-0 pt-0 sm:px-6 sm:pt-6">
+        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none lg:border lg:bg-card/80 lg:backdrop-blur-sm">
+          <CardContent className="px-0 pt-0 lg:px-6 lg:pt-6">
+
             <div className="mb-4">
               <EventHeroCard
                 eventName={eventName}
