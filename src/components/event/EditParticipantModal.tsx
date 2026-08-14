@@ -726,6 +726,53 @@ const EditParticipantModal = ({
             </div>
           )}
 
+          {socialGameEnabled && !isProfessional && socialGameQuestions.length > 0 && (
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div>
+                <h3 className="font-semibold text-base">
+                  {eventLanguage === "en" ? "Who's who? game" : "Juego «¿Quién es quién?»"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {hadGameAnswers
+                    ? (eventLanguage === "en"
+                        ? "These are the participant's current answers. You can edit them."
+                        : "Estas son las respuestas actuales del participante. Puedes editarlas.")
+                    : (eventLanguage === "en"
+                        ? "This participant registered before the game was enabled. You can fill in the answers here."
+                        : "Este participante se registró antes de activar el juego. Puedes completar las respuestas aquí.")}
+                </p>
+              </div>
+              {loadingGame ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> {eventLanguage === "en" ? "Loading…" : "Cargando…"}
+                </div>
+              ) : (
+                <>
+                  <SocialGameForm
+                    questions={socialGameQuestions}
+                    lang={eventLanguage}
+                    values={gameAnswers}
+                    onChange={setGameAnswers}
+                  />
+                  {orphanGameAnswers.length > 0 && (
+                    <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {eventLanguage === "en"
+                          ? "Answers to questions no longer in this event"
+                          : "Respuestas a preguntas que ya no están en el evento"}
+                      </p>
+                      {orphanGameAnswers.map(([id, value]) => (
+                        <div key={id} className="text-sm">
+                          <span className="text-muted-foreground">{id}: </span>
+                          <span>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
 
           <DialogFooter className="gap-2">
