@@ -231,6 +231,7 @@ const EventDetail = () => {
   const { branding } = useOrganizer();
   
   const [eventData, setEventData] = useState<EventData | null>(null);
+  const [isSyncingTestData, setIsSyncingTestData] = useState(false);
   const [participants, setParticipants] = useState<DbParticipant[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
@@ -3769,16 +3770,17 @@ const EventDetail = () => {
                 className="mt-3 border-orange-400 text-orange-700 dark:text-orange-300"
                 disabled={isSyncingTestData}
                 onClick={async () => {
-                  if (!user?.id) return;
+                  const orgId = (eventData as any)?.organizer_id;
+                  if (!orgId || !id) return;
                   setIsSyncingTestData(true);
                   try {
                     const { backfillTestEventData } = await import("@/lib/testModeData");
-                    const res = await backfillTestEventData(eventId!, user.id, { enableFeatures: true });
+                    const res = await backfillTestEventData(id, orgId, { enableFeatures: true });
                     toast({
                       title: "Datos de prueba actualizados",
                       description: `${res.updated} participantes completados · ${res.linked} perfiles de compatibilidad creados`,
                     });
-                    await fetchEventData();
+                    await loadEventData();
                   } catch (e) {
                     toast({ title: "Error", description: "No se pudieron actualizar los datos de prueba", variant: "destructive" });
                   } finally {
