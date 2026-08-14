@@ -925,6 +925,17 @@ const CreateEvent = () => {
                   Idioma del formulario de inscripción y las comunicaciones con participantes
                 </p>
               </div>
+              {user && (
+                <EventSeriesManager
+                  organizerUserId={user.id}
+                  organizerSlug={organizer?.slug}
+                  seriesId={seriesId}
+                  onSeriesChange={setSeriesId}
+                  pendingDates={seriesDates}
+                  onPendingDatesChange={setSeriesDates}
+                  compact
+                />
+              )}
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={prevStep}>
                   Atrás
