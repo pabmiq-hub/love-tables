@@ -74,8 +74,9 @@ interface QuotaStatus {
   available: number;
 }
 
-const ParticipantJoin = () => {
-  const { id: eventId } = useParams();
+const ParticipantJoin = ({ eventIdOverride }: { eventIdOverride?: string } = {}) => {
+  const { id: routeEventId } = useParams();
+  const eventId = eventIdOverride || routeEventId;
   const eb = useEventBranding(eventId);
   const { toast } = useToast();
   
