@@ -37,6 +37,7 @@ import { Star } from "lucide-react";
 import confetti from "canvas-confetti";
 import WrappedCompatibilityTab from "@/components/event/WrappedCompatibilityTab";
 import SocialGameTab from "@/components/event/SocialGameTab";
+import EventHeroCard from "@/components/participant/EventHeroCard";
 
 interface MatchSelection {
   participantId: string;
