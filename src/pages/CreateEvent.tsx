@@ -496,8 +496,26 @@ const CreateEvent = () => {
     }
     
     toast({
+    // Create the remaining events of the recurring series (same config, other dates)
+    let seriesCreated = 0;
+    if (seriesId && seriesDates.length > 0) {
+      try {
+        const ids = await createSeriesEventsFromBase(eventData.id, seriesId, seriesDates);
+        seriesCreated = ids.length;
+      } catch {
+        toast({
+          title: "Advertencia",
+          description: "El evento se creó pero no se pudieron crear las fechas siguientes de la serie",
+          variant: "destructive",
+        });
+      }
+    }
+
+    toast({
       title: "Evento creado",
-      description: "El evento se ha creado correctamente",
+      description: seriesCreated > 0
+        ? `El evento se ha creado junto a ${seriesCreated} fecha(s) más de la serie`
+        : "El evento se ha creado correctamente",
     });
     navigate(`/admin/events/${eventData.id}`);
     setIsLoading(false);
