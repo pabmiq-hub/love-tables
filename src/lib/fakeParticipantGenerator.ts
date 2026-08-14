@@ -118,7 +118,7 @@ function fakeWrappedAnswers(
       : (q.i18n?.es?.options || []).map((_, i) => String(i));
 
     if (q.type === "yes_no") {
-      answers[q.id] = rng() > 0.5 ? "yes" : "no";
+      answers[q.id] = rng() > 0.5;
     } else if (q.type === "single_choice") {
       if (keys.length > 0) answers[q.id] = pick(keys, rng);
     } else if (q.type === "multi_choice") {
