@@ -481,8 +481,24 @@ const CreateEvent = () => {
       const { data: insertedParticipants, error: participantsError } = await supabase
         .from("participants")
         .insert(participantsToInsert)
-        .select("id, name");
+        .select("id, name, email");
       
+      if (isTestMode && eventModule === "social" && insertedParticipants && insertedParticipants.length > 0) {
+        // Link a wrapped_profile per fake participant so compatibility works right away
+        const { linkWrappedProfiles } = await import("@/lib/testModeData");
+        const byEmail = new Map(
+          participants.map((pp: any) => [String(pp.email || "").toLowerCase(), pp.wrappedAnswers])
+        );
+        await linkWrappedProfiles(
+          user.id,
+          insertedParticipants.map((ip: any) => ({
+            id: ip.id,
+            email: ip.email,
+            wrappedAnswers: byEmail.get(String(ip.email || "").toLowerCase()) || null,
+          }))
+        );
+      }
+
       if (participantsError) {
         toast({
           title: "Advertencia",
