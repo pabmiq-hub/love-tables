@@ -15,6 +15,7 @@ import CreateEvent from "./pages/CreateEvent";
 import EventDetail from "./pages/EventDetail";
 import ParticipantSelect from "./pages/ParticipantSelect";
 import ParticipantJoin from "./pages/ParticipantJoin";
+import SeriesJoin from "./pages/SeriesJoin";
 import ParticipantCancellation from "./pages/ParticipantCancellation";
 import ParticipantCheckin from "./pages/ParticipantCheckin";
 import ParticipantTables from "./pages/ParticipantTables";
