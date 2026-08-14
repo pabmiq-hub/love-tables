@@ -1196,7 +1196,7 @@ const ParticipantAccess = () => {
               </div>
 
               {/* Mobile: single fixed bottom navigation bar (icon + label) */}
-              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+              <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/80 backdrop-blur-2xl shadow-elevated pb-[env(safe-area-inset-bottom)]">
                 <TabsList
                   className={`w-full h-auto bg-transparent p-0 rounded-none grid ${
                     2 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) === 4
