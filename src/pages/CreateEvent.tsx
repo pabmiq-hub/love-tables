@@ -429,15 +429,21 @@ const CreateEvent = () => {
         ? { enabled: true, dynamics: gameMode.dynamics, played: {} }
         : null) as unknown as Json,
       series_id: seriesId,
-      // Test mode (social): enable every participant-facing feature so the organizer
-      // can try the full experience (wrapped compatibility + «¿Quién es quién?» game)
-      wrapped_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      social_game: (isTestMode && eventModule === "social"
-        ? { enabled: true, questions: DEFAULT_SOCIAL_GAME_QUESTIONS }
-        : undefined) as unknown as Json,
-      super_like_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      repeat_request_enabled: isTestMode && eventModule === "social" ? true : undefined,
-      crush_enabled: isTestMode && eventModule === "social" ? true : undefined,
+      // Social participant-facing features. In test mode everything is enabled so the
+      // organizer can try the full experience (wrapped compatibility + «¿Quién es quién?»)
+      wrapped_enabled: eventModule === "social" ? (isTestMode || wrappedEnabled) : false,
+      wrapped_questions: (eventModule === "social" && (isTestMode || wrappedEnabled)
+        ? (isTestMode && !wrappedEnabled ? DEFAULT_WRAPPED_QUESTIONS : wrappedQuestions)
+        : null) as unknown as Json,
+      social_game: (eventModule === "social" && (isTestMode || socialGame.enabled)
+        ? {
+            enabled: true,
+            questions: socialGame.questions.length > 0 ? socialGame.questions : DEFAULT_SOCIAL_GAME_QUESTIONS,
+          }
+        : null) as unknown as Json,
+      super_like_enabled: eventModule === "social" ? (isTestMode || superLikeEnabled) : false,
+      repeat_request_enabled: eventModule === "social" ? (isTestMode || repeatRequestEnabled) : false,
+      crush_enabled: eventModule === "social" ? (isTestMode || crushEnabled) : false,
     };
 
     const { data: eventData, error: eventError } = await supabase
