@@ -70,9 +70,13 @@ const App = () => (
           <Route path="/repeat-response" element={<RepeatResponse />} />
           <Route path="/crush-response" element={<CrushResponse />} />
           <Route path="/:slug/:id/join" element={<LegacyJoinRedirect />} />
+          {/* Recurring series shared link */}
+          <Route path="/s/:seriesSlug" element={<SeriesJoin />} />
+          <Route path="/s/:seriesSlug/join" element={<SeriesJoin />} />
           {/* Slug-based organizer portal routes */}
           <Route path="/o/:slug" element={<OrganizerPortal />}>
             <Route path="join/:id" element={<ParticipantJoin />} />
+            <Route path="s/:seriesSlug" element={<SeriesJoin />} />
             <Route path="checkin/:id" element={<ParticipantCheckin />} />
             <Route path="select/:id" element={<ParticipantSelect />} />
             <Route path="tables/:id" element={<ParticipantTables />} />
