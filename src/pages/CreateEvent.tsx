@@ -176,6 +176,8 @@ const CreateEvent = () => {
   // Common fields
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [seriesDates, setSeriesDates] = useState<SeriesDateEntry[]>([]);
   const [eventLanguage, setEventLanguage] = useState<"es" | "en">("es");
   const [eventLocation, setEventLocation] = useState("");
   const [rounds, setRounds] = useState(5);
