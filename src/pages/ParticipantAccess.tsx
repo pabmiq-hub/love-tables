@@ -250,7 +250,7 @@ const ParticipantAccess = () => {
       try {
         const { data: event, error } = await (supabase as any)
           .from('events_public')
-          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, checkin_opens_minutes_before, has_preliminary_tables, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled')
+          .select('status, current_round, selection_deadline_hours, selection_closed_at, scheduled_email_at, language, date, name, event_time, event_location, participants_count, checkin_opens_minutes_before, has_preliminary_tables, checkin_open, repeat_request_enabled, crush_enabled, wrapped_enabled')
           .eq('id', eventId)
           .single();
 
