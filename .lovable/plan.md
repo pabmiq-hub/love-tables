@@ -18,7 +18,8 @@ Permitir que los organizadores vean y editen las respuestas del juego social de 
   - `socialGame?: unknown` (la configuración JSONB del evento)
 
 **Estado**
-- Crear estado `gameAnswers: SocialGameAnswers` inicializado desde `participant.game_answers`.
+- Crear estado `gameAnswers: SocialGameAnswers` precargado con las respuestas existentes de `participant.game_answers` (mapeadas por id de pregunta y convertidas a texto), de modo que quien ya contestó vea sus respuestas actuales en los campos y pueda corregirlas.
+- Si el participante tiene respuestas con ids que ya no están en la configuración actual del evento, mostrarlas también como filas de solo lectura para no perder información.
 - Usar `normalizeSocialGame(socialGame)` para obtener la lista de preguntas activas del evento.
 
 **UI**
