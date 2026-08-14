@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key, Cake, Languages, RotateCcw, Megaphone, Sparkles, CreditCard } from "lucide-react";
+import { User, Mail, Phone, Calendar, Heart, Users, Table2, Edit, Building2, Briefcase, Target, Lightbulb, Copy, Key, Cake, Languages, RotateCcw, Megaphone, Sparkles, CreditCard, Gamepad2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WRAPPED_QUESTIONS } from "@/lib/wrappedQuestions";
+import { normalizeSocialGame, DEFAULT_SOCIAL_GAME_QUESTIONS } from "@/lib/socialGame";
 
 // Normalize a mix of language codes/labels into a deduped list of Spanish labels.
 const LANG_MAP: Record<string, string> = {
