@@ -972,7 +972,7 @@ const ParticipantAccess = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-start lg:justify-center p-4">
       {/* Preliminary Round Confirmation Modal */}
       <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
         <DialogContent className="max-w-sm">
