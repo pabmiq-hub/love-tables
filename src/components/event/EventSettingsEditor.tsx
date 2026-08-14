@@ -1053,8 +1053,16 @@ const EventSettingsEditor = ({
             organizerSlug={organizer?.slug}
             seriesId={seriesId}
             eventId={eventId}
-            onSeriesChange={(value) => {
+            onSeriesChange={async (value) => {
               setSeriesId(value);
+              const { error } = await supabase
+                .from("events")
+                .update({ series_id: value } as never)
+                .eq("id", eventId);
+              if (error) {
+                toast({ title: "Error", description: "No se pudo guardar la serie", variant: "destructive" });
+                return;
+              }
               onUpdate({ series_id: value });
             }}
           />
