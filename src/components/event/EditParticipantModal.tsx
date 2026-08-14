@@ -437,6 +437,7 @@ const EditParticipantModal = ({
         gender: formData.gender || null,
         birth_date: formData.birth_date || null,
         is_returning_participant: formData.is_returning_participant === "yes" ? true : formData.is_returning_participant === "no" ? false : null,
+        ...(socialGameEnabled ? { game_answers: gameAnswers as Record<string, unknown> } : {}),
       }),
     });
   };
