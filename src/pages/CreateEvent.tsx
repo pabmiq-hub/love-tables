@@ -495,7 +495,6 @@ const CreateEvent = () => {
       }
     }
     
-    toast({
     // Create the remaining events of the recurring series (same config, other dates)
     let seriesCreated = 0;
     if (seriesId && seriesDates.length > 0) {
