@@ -1142,7 +1142,7 @@ const ParticipantAccess = () => {
                 />
               </div>
             )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-32 sm:pb-0">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-24 sm:pb-0">
               {/* Desktop / tablet: inline tabs */}
               <div className="hidden sm:flex sm:flex-row sm:gap-2">
                 <TabsList className={`grid w-full sm:flex-1 ${wrappedEnabled && socialGameEnabled ? 'grid-cols-3' : wrappedEnabled || socialGameEnabled ? 'grid-cols-2' : 'grid-cols-1'} h-auto`}>
