@@ -139,6 +139,7 @@ interface EventData {
   game_mode: import("@/lib/gameMode").GameModeConfig | null;
   custom_tables: import("@/lib/customTableLayout").CustomTableLayout | null;
   draft_round: number | null;
+  social_game?: unknown;
 }
 
 interface SlotQuotaConfig {
@@ -5978,6 +5979,7 @@ const EventDetail = () => {
             canEdit={eventStatus === "pending"}
             isProfessional={eventData?.module === "professional"}
             eventStatus={eventStatus}
+            socialGame={eventData?.social_game}
             onAssignToTables={() => {
               const participant = selectedParticipant;
               setSelectedParticipant(null);
