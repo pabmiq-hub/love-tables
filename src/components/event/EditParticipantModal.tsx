@@ -17,6 +17,8 @@ import {
 } from "@/lib/excelParser";
 import WrappedInterestsForm from "@/components/registration/WrappedInterestsForm";
 import { getWrappedQuestions, type WrappedAnswers, type WrappedQuestion } from "@/lib/wrappedQuestions";
+import SocialGameForm from "@/components/registration/SocialGameForm";
+import { normalizeSocialGame, socialGameLabel, type SocialGameAnswers } from "@/lib/socialGame";
 
 
 // Default professional options
@@ -52,6 +54,7 @@ interface ParticipantData {
   needs?: string[] | null;
   solutions?: string[] | null;
   business_interests?: string[] | null;
+  game_answers?: Record<string, unknown> | null;
 }
 
 export interface EventCustomPreferences {
@@ -77,6 +80,8 @@ interface EditParticipantModalProps {
   wrappedEnabled?: boolean;
   wrappedQuestions?: unknown;
   eventLanguage?: "es" | "en";
+  socialGameEnabled?: boolean;
+  socialGame?: unknown;
 }
 
 const EditParticipantModal = ({
