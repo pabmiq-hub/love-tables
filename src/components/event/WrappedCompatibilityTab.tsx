@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Loader2, Sparkles, Send, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import CompatRing from "@/components/ui/compat-ring";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
