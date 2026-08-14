@@ -37,6 +37,7 @@ import CloseEventDialog from "@/components/event/CloseEventDialog";
 import ParticipantDetailModal from "@/components/event/ParticipantDetailModal";
 import EventCompatibilityTab from "@/components/event/EventCompatibilityTab";
 import EditParticipantModal from "@/components/event/EditParticipantModal";
+import { isSocialGameEnabled } from "@/lib/socialGame";
 import ScheduleEmailDialog from "@/components/event/ScheduleEmailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
