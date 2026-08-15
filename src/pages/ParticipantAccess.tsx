@@ -1160,50 +1160,10 @@ const ParticipantAccess = () => {
           {/* Static header */}
           <div className="shrink-0">
             <EventHeroCard
-              eventName={eventName}
-              eventDate={eventDate}
-              eventTime={eventTime}
-              eventLocation={eventLocation}
-              participantName={participantName || verifiedParticipant?.name}
               participantsCount={participantsCount}
-              currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
-              statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
+              rounds={totalRounds}
+              currentRound={currentRound}
               lang={eventLang === 'en' ? 'en' : 'es'}
-              roundSlot={
-                eventStatus === 'completed' ? (
-                  timeRemaining ? (
-                    <div className="flex justify-center">
-                      <Badge variant="secondary">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {timeRemaining}
-                      </Badge>
-                    </div>
-                  ) : null
-                ) : currentRound > 0 && timerData ? (
-                  <ParticipantRoundTimer
-                    roundDuration={timerData.roundDuration}
-                    activeRound={currentRound}
-                    totalRounds={totalRounds}
-                    roundStartedAt={timerData.roundStartedAt}
-                    roundPausedAt={timerData.roundPausedAt}
-                    roundElapsedSeconds={timerData.roundElapsedSeconds}
-                    completedRounds={timerData.completedRounds}
-                    lang={eventLang}
-                    variant="embedded"
-                  />
-                ) : tableAssignments.some(a => a.round === 0) ? (
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-primary">
-                      {eventLang === 'es' ? 'Ronda preliminar' : 'Preliminary round'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {eventLang === 'es'
-                        ? `Antes de empezar las ${totalRounds || 0} rondas oficiales`
-                        : `Before the ${totalRounds || 0} official rounds start`}
-                    </p>
-                  </div>
-                ) : null
-              }
             />
           </div>
 
