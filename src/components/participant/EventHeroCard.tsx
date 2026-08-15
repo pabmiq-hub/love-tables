@@ -1,4 +1,5 @@
 import { Clock, MapPin, Table2, Users, Layers } from "lucide-react";
+import { ReactNode } from "react";
 
 interface EventHeroCardProps {
   eventName: string;
@@ -10,8 +11,10 @@ interface EventHeroCardProps {
   rounds?: number | null;
   currentTable?: number | null;
   statusLabel?: string;
+  roundSlot?: ReactNode;
   lang: "es" | "en";
 }
+
 
 const MONTHS = {
   es: ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"],
@@ -33,8 +36,10 @@ export default function EventHeroCard({
   rounds,
   currentTable,
   statusLabel,
+  roundSlot,
   lang,
 }: EventHeroCardProps) {
+
   // Timezone-safe parsing: append midday to avoid day shifts.
   const d = eventDate ? new Date(`${eventDate.slice(0, 10)}T12:00:00`) : null;
   const dateBadge = d
@@ -102,7 +107,11 @@ export default function EventHeroCard({
         </div>
 
         {stats.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 pt-1">
+          <div
+            className={`grid gap-2 pt-1 ${
+              stats.length >= 3 ? "grid-cols-3" : stats.length === 2 ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
             {stats.map(({ icon: Icon, value, label }) => (
               <div key={label} className="rounded-xl bg-muted/50 px-2 py-3 text-center">
                 <Icon className="w-4 h-4 text-primary mx-auto mb-1" />
@@ -113,6 +122,9 @@ export default function EventHeroCard({
           </div>
         )}
       </div>
+
+      {roundSlot && <div className="border-t border-border/60 px-5 py-4">{roundSlot}</div>}
+
     </div>
   );
 }

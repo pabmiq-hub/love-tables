@@ -355,6 +355,17 @@ const ParticipantAccess = () => {
     }
   }, [sessionRestored, verifiedParticipant, verificationCode]);
 
+  // Keep the panel in sync while the event runs: new rounds and tables published
+  // by the organizer appear automatically without the participant reloading.
+  useEffect(() => {
+    if (step !== "panel" || !verificationCode || !eventId) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      handleConfirmIdentity(true);
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [step, verificationCode, eventId]);
+
   // Auto-verify when the code arrives in the URL (link from the check-in screen)
   useEffect(() => {
     if (pendingUrlCode && verificationCode.length === 6 && !verifiedParticipant) {
@@ -411,10 +422,13 @@ const ParticipantAccess = () => {
     }
   };
 
-  const handleConfirmIdentity = async () => {
+  // Latest values readable from the polling interval (avoids stale closures).
+  const roundStateRef = useRef({ assignments: 0, currentRound: 0 });
+
+  const handleConfirmIdentity = async (silent = false) => {
     if (!verifiedParticipant || !eventId) return;
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('get-table-assignments', {
@@ -423,13 +437,29 @@ const ParticipantAccess = () => {
 
       if (error || !data || data.error) {
         console.error('Error fetching table assignments:', data?.error || error);
+        if (silent) return;
         setStep("error");
         setIsLoading(false);
         return;
       }
 
-      setParticipantName(data.participantName);
       const assignments: TableAssignment[] = data.assignments || [];
+      const nextRound = data.currentRound ?? currentRound;
+
+      // Silent refresh: if nothing structural changed, only sync the timer so
+      // local (unsaved) selections are preserved.
+      if (
+        silent &&
+        assignments.length === roundStateRef.current.assignments &&
+        nextRound === roundStateRef.current.currentRound
+      ) {
+        if (data.timer) setTimerData(data.timer);
+        if (typeof data.superLikeAllowance === 'number') setSuperLikeAllowance(data.superLikeAllowance);
+        return;
+      }
+      roundStateRef.current = { assignments: assignments.length, currentRound: nextRound };
+
+      setParticipantName(data.participantName);
       setTableAssignments(assignments);
       setTotalRounds(data.totalRounds);
       setEventStatus(data.eventStatus || eventStatus);
@@ -485,7 +515,7 @@ const ParticipantAccess = () => {
       const prelimConfirm = data.preliminaryConfirmation;
       setPreliminaryConfirmation(prelimConfirm);
       const hasRound0 = assignments.some((a: TableAssignment) => a.round === 0);
-      if (hasRound0 && prelimConfirm === null) {
+      if (hasRound0 && prelimConfirm === null && !silent) {
         // Participant hasn't answered yet - show modal
         setShowPreliminaryModal(true);
       }
@@ -972,7 +1002,14 @@ const ParticipantAccess = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-start lg:justify-center p-4">
+    <div
+      className={`bg-gradient-hero flex flex-col items-center p-4 ${
+        step === "panel"
+          ? "h-[100dvh] overflow-hidden justify-start lg:h-auto lg:min-h-screen lg:overflow-visible lg:justify-center"
+          : "min-h-screen justify-start lg:justify-center"
+      }`}
+    >
+
       {/* Preliminary Round Confirmation Modal */}
       <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
         <DialogContent className="max-w-sm">
@@ -1010,9 +1047,10 @@ const ParticipantAccess = () => {
         {t.access.back}
       </button>
 
-      <div className="mb-8 animate-fade-in">
-        <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
+      <div className={`animate-fade-in shrink-0 ${step === "panel" ? "mb-3 lg:mb-6" : "mb-8"}`}>
+        <img src={konektumLogo} alt="Konektum" className="h-8 w-auto lg:h-10" />
       </div>
+
 
       {step === "not_started" && eventDate && (
         <EventCountdown
@@ -1109,7 +1147,7 @@ const ParticipantAccess = () => {
               <Button variant="outline" className="flex-1" onClick={() => { setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>
                 {t.access.no}
               </Button>
-              <Button variant="hero" className="flex-1" onClick={handleConfirmIdentity} disabled={isLoading}>
+              <Button variant="hero" className="flex-1" onClick={() => handleConfirmIdentity()} disabled={isLoading}>
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t.access.yes}
               </Button>
             </div>
@@ -1118,47 +1156,63 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none lg:border lg:bg-card/80 lg:backdrop-blur-sm">
-          <CardContent className="px-0 pt-0 lg:px-6 lg:pt-6">
+        <div className="w-full max-w-lg flex-1 min-h-0 flex flex-col animate-scale-in lg:flex-none lg:min-h-0 lg:block">
+          {/* Static header */}
+          <div className="shrink-0">
+            <EventHeroCard
+              eventName={eventName}
+              eventDate={eventDate}
+              eventTime={eventTime}
+              eventLocation={eventLocation}
+              participantName={participantName || verifiedParticipant?.name}
+              participantsCount={participantsCount}
+              currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
+              statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
+              lang={eventLang === 'en' ? 'en' : 'es'}
+              roundSlot={
+                eventStatus === 'completed' ? (
+                  timeRemaining ? (
+                    <div className="flex justify-center">
+                      <Badge variant="secondary">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {timeRemaining}
+                      </Badge>
+                    </div>
+                  ) : null
+                ) : currentRound > 0 && timerData ? (
+                  <ParticipantRoundTimer
+                    roundDuration={timerData.roundDuration}
+                    activeRound={currentRound}
+                    totalRounds={totalRounds}
+                    roundStartedAt={timerData.roundStartedAt}
+                    roundPausedAt={timerData.roundPausedAt}
+                    roundElapsedSeconds={timerData.roundElapsedSeconds}
+                    completedRounds={timerData.completedRounds}
+                    lang={eventLang}
+                    variant="embedded"
+                  />
+                ) : tableAssignments.some(a => a.round === 0) ? (
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-primary">
+                      {eventLang === 'es' ? 'Ronda preliminar' : 'Preliminary round'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {eventLang === 'es'
+                        ? `Antes de empezar las ${totalRounds || 0} rondas oficiales`
+                        : `Before the ${totalRounds || 0} official rounds start`}
+                    </p>
+                  </div>
+                ) : null
+              }
+            />
+          </div>
 
-            <div className="mb-4">
-              <EventHeroCard
-                eventName={eventName}
-                eventDate={eventDate}
-                eventTime={eventTime}
-                eventLocation={eventLocation}
-                participantName={participantName || verifiedParticipant?.name}
-                participantsCount={participantsCount}
-                rounds={totalRounds}
-                currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
-                statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
-                lang={eventLang === 'en' ? 'en' : 'es'}
-              />
-              {timeRemaining && eventStatus === 'completed' && (
-                <div className="flex justify-center mt-3">
-                  <Badge variant="secondary">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {timeRemaining}
-                  </Badge>
-                </div>
-              )}
-            </div>
-            {/* Round Timer */}
-            {timerData && currentRound > 0 && eventStatus !== 'completed' && (
-              <div className="mb-4">
-                <ParticipantRoundTimer
-                  roundDuration={timerData.roundDuration}
-                  activeRound={currentRound}
-                  totalRounds={totalRounds}
-                  roundStartedAt={timerData.roundStartedAt}
-                  roundPausedAt={timerData.roundPausedAt}
-                  roundElapsedSeconds={timerData.roundElapsedSeconds}
-                  completedRounds={timerData.completedRounds}
-                  lang={eventLang}
-                />
-              </div>
-            )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-28 lg:pb-0">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as any)}
+            className="w-full flex-1 min-h-0 flex flex-col mt-4 lg:mt-4 lg:block"
+          >
+
               {/* Desktop: single inline tab row */}
               <div className="hidden lg:block">
                 <TabsList className="flex w-full h-auto gap-1">
@@ -1169,7 +1223,7 @@ const ParticipantAccess = () => {
                   {wrappedEnabled && (
                     <TabsTrigger value="compatibility" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                       <Sparkles className="w-4 h-4 shrink-0" />
-                      {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                      {eventLang === 'es' ? 'Afinidad' : 'Match'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
@@ -1240,9 +1294,8 @@ const ParticipantAccess = () => {
                 })()}
               </div>
 
-
-
-
+              {/* Scrollable content area (header and bottom nav stay static) */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 lg:pb-0 lg:overflow-visible lg:flex-none">
 
 
               <TabsContent value="tables" className="space-y-3 mt-4">
@@ -1649,7 +1702,7 @@ const ParticipantAccess = () => {
                       <Sparkles className="w-4 h-4 text-primary mt-0.5" />
                       <div className="flex-1">
                         <p className="text-sm font-semibold">
-                          {eventLang === 'es' ? 'Compatibilidad Wrapped' : 'Wrapped compatibility'}
+                          {eventLang === 'es' ? 'Afinidad' : 'Affinity'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {eventLang === 'es'
@@ -1660,6 +1713,34 @@ const ParticipantAccess = () => {
                     </div>
                   </button>
                 )}
+
+                {socialGameEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('game')}
+                    className="w-full text-left rounded-xl border-2 border-primary/40 p-4 bg-gradient-primary/10 bg-primary/10 hover:bg-primary/15 transition-colors shadow-sm"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Gamepad2 className="w-5 h-5 text-primary mt-0.5" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold">
+                            {eventLang === 'es' ? 'Juego «¿Quién es quién?»' : 'Game "Who is who?"'}
+                          </p>
+                          <Badge className="text-[10px] px-2 py-0">
+                            {eventLang === 'es' ? 'Gana premios' : 'Win rewards'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'En cada ronda verás respuestas anónimas de tus compañeros de mesa (las que contestaste al inscribirte). Adivina de quién es cada respuesta: cuantos más aciertos, más premios desbloqueas (Super Likes extra, repetir mesa o Flechazo).'
+                            : 'Each round you will see anonymous answers from your tablemates (the ones you filled in at sign-up). Guess who wrote each answer: the more correct guesses, the more rewards you unlock (extra Super Likes, table repeat or Crush).'}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
 
                 <div className="pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
@@ -1730,9 +1811,9 @@ const ParticipantAccess = () => {
                   </div>
                 </div>
               </TabsContent>
+              </div>
             </Tabs>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {step === "done" && (
