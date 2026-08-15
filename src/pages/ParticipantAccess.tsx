@@ -1185,7 +1185,7 @@ const ParticipantAccess = () => {
                   {wrappedEnabled && (
                     <TabsTrigger value="compatibility" className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2 whitespace-nowrap">
                       <Sparkles className="w-4 h-4 shrink-0" />
-                      {eventLang === 'es' ? 'Compatibilidad' : 'Compatibility'}
+                      {eventLang === 'es' ? 'Afinidad' : 'Match'}
                     </TabsTrigger>
                   )}
                   {socialGameEnabled && (
@@ -1256,9 +1256,8 @@ const ParticipantAccess = () => {
                 })()}
               </div>
 
-
-
-
+              {/* Scrollable content area (header and bottom nav stay static) */}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 lg:pb-0 lg:overflow-visible lg:flex-none">
 
 
               <TabsContent value="tables" className="space-y-3 mt-4">
@@ -1746,9 +1745,9 @@ const ParticipantAccess = () => {
                   </div>
                 </div>
               </TabsContent>
+              </div>
             </Tabs>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {step === "done" && (
