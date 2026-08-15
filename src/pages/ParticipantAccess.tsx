@@ -1256,6 +1256,43 @@ const ParticipantAccess = () => {
 
               {/* Scrollable content area (header and bottom nav stay static) */}
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28 lg:pb-0 lg:overflow-visible lg:flex-none">
+                {/* Round timer / status card (moved out of the fixed header to keep it compact) */}
+                {eventStatus === 'completed' ? (
+                  timeRemaining ? (
+                    <div className="flex justify-center mt-4">
+                      <Badge variant="secondary">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {timeRemaining}
+                      </Badge>
+                    </div>
+                  ) : null
+                ) : currentRound > 0 && timerData ? (
+                  <div className="mt-4">
+                    <ParticipantRoundTimer
+                      roundDuration={timerData.roundDuration}
+                      activeRound={currentRound}
+                      totalRounds={totalRounds}
+                      roundStartedAt={timerData.roundStartedAt}
+                      roundPausedAt={timerData.roundPausedAt}
+                      roundElapsedSeconds={timerData.roundElapsedSeconds}
+                      completedRounds={timerData.completedRounds}
+                      lang={eventLang}
+                      variant="embedded"
+                    />
+                  </div>
+                ) : tableAssignments.some(a => a.round === 0) ? (
+                  <div className="text-center mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <p className="text-sm font-medium text-primary">
+                      {eventLang === 'es' ? 'Ronda preliminar' : 'Preliminary round'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {eventLang === 'es'
+                        ? `Antes de empezar las ${totalRounds || 0} rondas oficiales`
+                        : `Before the ${totalRounds || 0} official rounds start`}
+                    </p>
+                  </div>
+                ) : null}
+
 
 
               <TabsContent value="tables" className="space-y-3 mt-4">
