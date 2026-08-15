@@ -1118,47 +1118,63 @@ const ParticipantAccess = () => {
       )}
 
       {step === "panel" && (
-        <Card className="w-full max-w-lg animate-scale-in border-0 bg-transparent shadow-none lg:border lg:bg-card/80 lg:backdrop-blur-sm">
-          <CardContent className="px-0 pt-0 lg:px-6 lg:pt-6">
+        <div className="w-full max-w-lg flex-1 min-h-0 flex flex-col animate-scale-in lg:flex-none lg:min-h-0 lg:block">
+          {/* Static header */}
+          <div className="shrink-0">
+            <EventHeroCard
+              eventName={eventName}
+              eventDate={eventDate}
+              eventTime={eventTime}
+              eventLocation={eventLocation}
+              participantName={participantName || verifiedParticipant?.name}
+              participantsCount={participantsCount}
+              currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
+              statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
+              lang={eventLang === 'en' ? 'en' : 'es'}
+              roundSlot={
+                eventStatus === 'completed' ? (
+                  timeRemaining ? (
+                    <div className="flex justify-center">
+                      <Badge variant="secondary">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {timeRemaining}
+                      </Badge>
+                    </div>
+                  ) : null
+                ) : currentRound > 0 && timerData ? (
+                  <ParticipantRoundTimer
+                    roundDuration={timerData.roundDuration}
+                    activeRound={currentRound}
+                    totalRounds={totalRounds}
+                    roundStartedAt={timerData.roundStartedAt}
+                    roundPausedAt={timerData.roundPausedAt}
+                    roundElapsedSeconds={timerData.roundElapsedSeconds}
+                    completedRounds={timerData.completedRounds}
+                    lang={eventLang}
+                    variant="embedded"
+                  />
+                ) : tableAssignments.some(a => a.round === 0) ? (
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-primary">
+                      {eventLang === 'es' ? 'Ronda preliminar' : 'Preliminary round'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {eventLang === 'es'
+                        ? `Antes de empezar las ${totalRounds || 0} rondas oficiales`
+                        : `Before the ${totalRounds || 0} official rounds start`}
+                    </p>
+                  </div>
+                ) : null
+              }
+            />
+          </div>
 
-            <div className="mb-4">
-              <EventHeroCard
-                eventName={eventName}
-                eventDate={eventDate}
-                eventTime={eventTime}
-                eventLocation={eventLocation}
-                participantName={participantName || verifiedParticipant?.name}
-                participantsCount={participantsCount}
-                rounds={totalRounds}
-                currentTable={tableAssignments.find(a => a.round === currentRound)?.table ?? null}
-                statusLabel={eventStatus === 'completed' ? t.access.eventFinished : t.access.roundInProgress.replace('{round}', String(currentRound))}
-                lang={eventLang === 'en' ? 'en' : 'es'}
-              />
-              {timeRemaining && eventStatus === 'completed' && (
-                <div className="flex justify-center mt-3">
-                  <Badge variant="secondary">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {timeRemaining}
-                  </Badge>
-                </div>
-              )}
-            </div>
-            {/* Round Timer */}
-            {timerData && currentRound > 0 && eventStatus !== 'completed' && (
-              <div className="mb-4">
-                <ParticipantRoundTimer
-                  roundDuration={timerData.roundDuration}
-                  activeRound={currentRound}
-                  totalRounds={totalRounds}
-                  roundStartedAt={timerData.roundStartedAt}
-                  roundPausedAt={timerData.roundPausedAt}
-                  roundElapsedSeconds={timerData.roundElapsedSeconds}
-                  completedRounds={timerData.completedRounds}
-                  lang={eventLang}
-                />
-              </div>
-            )}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full pb-28 lg:pb-0">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as any)}
+            className="w-full flex-1 min-h-0 flex flex-col mt-4 lg:mt-4 lg:block"
+          >
+
               {/* Desktop: single inline tab row */}
               <div className="hidden lg:block">
                 <TabsList className="flex w-full h-auto gap-1">
