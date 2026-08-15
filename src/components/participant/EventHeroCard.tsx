@@ -1,4 +1,5 @@
 import { Clock, MapPin, Table2, Users, Layers } from "lucide-react";
+import { ReactNode } from "react";
 
 interface EventHeroCardProps {
   eventName: string;
@@ -10,8 +11,10 @@ interface EventHeroCardProps {
   rounds?: number | null;
   currentTable?: number | null;
   statusLabel?: string;
+  roundSlot?: ReactNode;
   lang: "es" | "en";
 }
+
 
 const MONTHS = {
   es: ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"],
