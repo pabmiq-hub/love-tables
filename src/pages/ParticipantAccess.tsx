@@ -972,7 +972,14 @@ const ParticipantAccess = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-start lg:justify-center p-4">
+    <div
+      className={`bg-gradient-hero flex flex-col items-center p-4 ${
+        step === "panel"
+          ? "h-[100dvh] overflow-hidden justify-start lg:h-auto lg:min-h-screen lg:overflow-visible lg:justify-center"
+          : "min-h-screen justify-start lg:justify-center"
+      }`}
+    >
+
       {/* Preliminary Round Confirmation Modal */}
       <Dialog open={showPreliminaryModal} onOpenChange={setShowPreliminaryModal}>
         <DialogContent className="max-w-sm">
