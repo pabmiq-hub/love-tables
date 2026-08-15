@@ -1017,9 +1017,10 @@ const ParticipantAccess = () => {
         {t.access.back}
       </button>
 
-      <div className="mb-8 animate-fade-in">
-        <img src={konektumLogo} alt="Konektum" className="h-10 w-auto" />
+      <div className={`animate-fade-in shrink-0 ${step === "panel" ? "mb-3 lg:mb-6" : "mb-8"}`}>
+        <img src={konektumLogo} alt="Konektum" className="h-8 w-auto lg:h-10" />
       </div>
+
 
       {step === "not_started" && eventDate && (
         <EventCountdown
