@@ -422,6 +422,9 @@ const ParticipantAccess = () => {
     }
   };
 
+  // Latest values readable from the polling interval (avoids stale closures).
+  const roundStateRef = useRef({ assignments: 0, currentRound: 0 });
+
   const handleConfirmIdentity = async (silent = false) => {
     if (!verifiedParticipant || !eventId) return;
 
@@ -440,8 +443,23 @@ const ParticipantAccess = () => {
         return;
       }
 
-      setParticipantName(data.participantName);
       const assignments: TableAssignment[] = data.assignments || [];
+      const nextRound = data.currentRound ?? currentRound;
+
+      // Silent refresh: if nothing structural changed, only sync the timer so
+      // local (unsaved) selections are preserved.
+      if (
+        silent &&
+        assignments.length === roundStateRef.current.assignments &&
+        nextRound === roundStateRef.current.currentRound
+      ) {
+        if (data.timer) setTimerData(data.timer);
+        if (typeof data.superLikeAllowance === 'number') setSuperLikeAllowance(data.superLikeAllowance);
+        return;
+      }
+      roundStateRef.current = { assignments: assignments.length, currentRound: nextRound };
+
+      setParticipantName(data.participantName);
       setTableAssignments(assignments);
       setTotalRounds(data.totalRounds);
       setEventStatus(data.eventStatus || eventStatus);
@@ -497,7 +515,7 @@ const ParticipantAccess = () => {
       const prelimConfirm = data.preliminaryConfirmation;
       setPreliminaryConfirmation(prelimConfirm);
       const hasRound0 = assignments.some((a: TableAssignment) => a.round === 0);
-      if (hasRound0 && prelimConfirm === null) {
+      if (hasRound0 && prelimConfirm === null && !silent) {
         // Participant hasn't answered yet - show modal
         setShowPreliminaryModal(true);
       }
