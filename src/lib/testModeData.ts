@@ -115,7 +115,7 @@ export async function backfillTestEventData(
 
   const { data: fakes } = await supabase
     .from("participants")
-    .select("id, name, email, gender, birth_date, wrapped_answers, game_answers, spoken_languages, wrapped_profile_id")
+    .select("id, name, email, gender, birth_date, game_answers, spoken_languages, wrapped_profile_id")
     .eq("event_id", eventId)
     .eq("is_fake", true);
 
