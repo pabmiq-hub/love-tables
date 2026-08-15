@@ -484,8 +484,7 @@ const CreateEvent = () => {
         solutions: p.solutions || null,
         business_interests: p.businessInterests ? [p.businessInterests] : null,
         birth_date: (p as any).birthDate || null,
-        // Wrapped submode + social game answers (fully filled in test mode)
-        wrapped_answers: ((p as any).wrappedAnswers || null) as unknown as Json,
+        // Social game answers (fully filled in test mode). Wrapped answers live in wrapped_profiles.
         game_answers: ((p as any).gameAnswers || null) as unknown as Json,
         spoken_languages: (p as any).spokenLanguages || undefined,
         // Test mode fields

@@ -115,7 +115,7 @@ export async function backfillTestEventData(
 
   const { data: fakes } = await supabase
     .from("participants")
-    .select("id, name, email, gender, birth_date, wrapped_answers, game_answers, spoken_languages, wrapped_profile_id")
+    .select("id, name, email, gender, birth_date, game_answers, spoken_languages, wrapped_profile_id")
     .eq("event_id", eventId)
     .eq("is_fake", true);
 
@@ -148,10 +148,8 @@ export async function backfillTestEventData(
     if (!g) continue;
 
     const updates: Record<string, any> = {};
-    const hasWrapped = f.wrapped_answers && Object.keys(f.wrapped_answers).length > 0;
     const hasGame = f.game_answers && Object.keys(f.game_answers).length > 0;
 
-    if (!hasWrapped) updates.wrapped_answers = g.wrappedAnswers || null;
     if (!hasGame) updates.game_answers = g.gameAnswers || null;
     if (!Array.isArray(f.spoken_languages) || f.spoken_languages.length === 0) {
       updates.spoken_languages = g.spokenLanguages || [];
@@ -163,9 +161,9 @@ export async function backfillTestEventData(
       if (!error) updated++;
     }
 
-    const answers = (updates.wrapped_answers || f.wrapped_answers) as WrappedAnswers | null;
-    if (!f.wrapped_profile_id && answers) {
-      toLink.push({ id: f.id, email: f.email, wrappedAnswers: answers });
+    // Wrapped answers live on wrapped_profiles, linked via wrapped_profile_id
+    if (!f.wrapped_profile_id && g.wrappedAnswers) {
+      toLink.push({ id: f.id, email: f.email, wrappedAnswers: g.wrappedAnswers as WrappedAnswers });
     }
   }
 
