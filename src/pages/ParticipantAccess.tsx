@@ -1197,7 +1197,7 @@ const ParticipantAccess = () => {
               {/* Mobile / tablet: fixed bottom navigation bar (icon + label) */}
               <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-card/90 backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
                 {(() => {
-                  const navItemCount = 3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0) - 1;
+                  const navItemCount = 3 + (wrappedEnabled ? 1 : 0) + (socialGameEnabled ? 1 : 0);
                   const itemBase = `flex flex-col items-center justify-center gap-1 py-2.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none transition-colors ${
                     navItemCount >= 5 ? 'text-[10px]' : 'text-[11px]'
                   }`;
