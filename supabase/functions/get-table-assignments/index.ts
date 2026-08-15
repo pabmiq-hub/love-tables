@@ -199,11 +199,15 @@ serve(async (req) => {
     const draftRound = (event as any).draft_round ?? null;
     for (const roundData of tables) {
       const roundNumber = roundData.round;
-      
-      // Only include rounds that are completed or currently active
-      if (!isCompleted && roundNumber > currentRound) continue;
-      // Skip rounds that are still in DRAFT (not yet published by the organizer)
-      if (draftRound !== null && roundNumber === draftRound) continue;
+
+      // Hide rounds that are still in DRAFT (and anything after them):
+      // the organizer publishes rounds by clearing/advancing draft_round.
+      if (draftRound !== null && roundNumber >= draftRound) continue;
+
+      // Safety net: if there is no draft pointer, never show rounds beyond the
+      // total configured rounds.
+      if (roundNumber > totalRounds) continue;
+
       
       
       
