@@ -11,6 +11,10 @@ interface ParticipantRoundTimerProps {
   roundElapsedSeconds: number;
   completedRounds: number[];
   lang: Language;
+  /** Overrides the "Round X of N" label (e.g. preliminary round). */
+  roundLabel?: string;
+  /** "embedded" removes the card background so it can merge into a parent card. */
+  variant?: "card" | "embedded";
 }
 
 const ParticipantRoundTimer = ({
@@ -22,7 +26,10 @@ const ParticipantRoundTimer = ({
   roundElapsedSeconds,
   completedRounds,
   lang,
+  roundLabel,
+  variant = "card",
 }: ParticipantRoundTimerProps) => {
+  const embedded = variant === "embedded";
   const totalSeconds = roundDuration * 60;
   const t = translations[lang];
   const isRoundCompleted = completedRounds.includes(activeRound);
@@ -68,7 +75,7 @@ const ParticipantRoundTimer = ({
   // All rounds completed
   if (isRoundCompleted && activeRound >= totalRounds) {
     return (
-      <div className="bg-green-500/10 rounded-lg p-4 text-center space-y-2">
+      <div className={`text-center space-y-2 ${embedded ? '' : 'bg-green-500/10 rounded-lg p-4'}`}>
         <div className="flex items-center justify-center gap-2 text-green-600">
           <Check className="w-5 h-5" />
           <span className="font-medium">
@@ -82,11 +89,11 @@ const ParticipantRoundTimer = ({
   // Round not started yet
   if (hasNotStarted) {
     return (
-      <div className="bg-muted rounded-lg p-4 text-center space-y-2">
+      <div className={`text-center space-y-2 ${embedded ? '' : 'bg-muted rounded-lg p-4'}`}>
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
           <Clock className="w-5 h-5" />
           <span className="font-medium">
-            {t.access.round} {activeRound} {lang === 'es' ? 'de' : 'of'} {totalRounds}
+            {roundLabel ?? `${t.access.round} ${activeRound} ${lang === 'es' ? 'de' : 'of'} ${totalRounds}`}
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -97,13 +104,15 @@ const ParticipantRoundTimer = ({
   }
 
   return (
-    <div className={`rounded-lg p-4 text-center space-y-3 transition-colors ${
-      isWarning ? 'bg-yellow-500/10' : isFinished ? 'bg-green-500/10' : 'bg-primary/5'
+    <div className={`text-center space-y-3 transition-colors ${
+      embedded
+        ? ''
+        : `rounded-lg p-4 ${isWarning ? 'bg-yellow-500/10' : isFinished ? 'bg-green-500/10' : 'bg-primary/5'}`
     }`}>
       <div className="flex items-center justify-center gap-2">
         <Timer className={`w-4 h-4 ${isWarning ? 'text-yellow-600' : isFinished ? 'text-green-600' : 'text-primary'}`} />
         <span className={`text-sm font-medium ${isWarning ? 'text-yellow-600' : isFinished ? 'text-green-600' : 'text-primary'}`}>
-          {t.access.round} {activeRound} {lang === 'es' ? 'de' : 'of'} {totalRounds}
+          {roundLabel ?? `${t.access.round} ${activeRound} ${lang === 'es' ? 'de' : 'of'} ${totalRounds}`}
         </span>
       </div>
 
