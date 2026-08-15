@@ -1672,7 +1672,7 @@ const ParticipantAccess = () => {
                       <Sparkles className="w-4 h-4 text-primary mt-0.5" />
                       <div className="flex-1">
                         <p className="text-sm font-semibold">
-                          {eventLang === 'es' ? 'Compatibilidad Wrapped' : 'Wrapped compatibility'}
+                          {eventLang === 'es' ? 'Afinidad' : 'Affinity'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {eventLang === 'es'
@@ -1683,6 +1683,34 @@ const ParticipantAccess = () => {
                     </div>
                   </button>
                 )}
+
+                {socialGameEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('game')}
+                    className="w-full text-left rounded-xl border-2 border-primary/40 p-4 bg-gradient-primary/10 bg-primary/10 hover:bg-primary/15 transition-colors shadow-sm"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Gamepad2 className="w-5 h-5 text-primary mt-0.5" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold">
+                            {eventLang === 'es' ? 'Juego «¿Quién es quién?»' : 'Game "Who is who?"'}
+                          </p>
+                          <Badge className="text-[10px] px-2 py-0">
+                            {eventLang === 'es' ? 'Gana premios' : 'Win rewards'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {eventLang === 'es'
+                            ? 'En cada ronda verás respuestas anónimas de tus compañeros de mesa (las que contestaste al inscribirte). Adivina de quién es cada respuesta: cuantos más aciertos, más premios desbloqueas (Super Likes extra, repetir mesa o Flechazo).'
+                            : 'Each round you will see anonymous answers from your tablemates (the ones you filled in at sign-up). Guess who wrote each answer: the more correct guesses, the more rewards you unlock (extra Super Likes, table repeat or Crush).'}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                )}
+
 
                 <div className="pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
