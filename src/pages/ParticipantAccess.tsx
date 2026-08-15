@@ -355,6 +355,17 @@ const ParticipantAccess = () => {
     }
   }, [sessionRestored, verifiedParticipant, verificationCode]);
 
+  // Keep the panel in sync while the event runs: new rounds and tables published
+  // by the organizer appear automatically without the participant reloading.
+  useEffect(() => {
+    if (step !== "panel" || !verificationCode || !eventId) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      handleConfirmIdentity(true);
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [step, verificationCode, eventId]);
+
   // Auto-verify when the code arrives in the URL (link from the check-in screen)
   useEffect(() => {
     if (pendingUrlCode && verificationCode.length === 6 && !verifiedParticipant) {
@@ -411,10 +422,10 @@ const ParticipantAccess = () => {
     }
   };
 
-  const handleConfirmIdentity = async () => {
+  const handleConfirmIdentity = async (silent = false) => {
     if (!verifiedParticipant || !eventId) return;
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('get-table-assignments', {
@@ -423,6 +434,7 @@ const ParticipantAccess = () => {
 
       if (error || !data || data.error) {
         console.error('Error fetching table assignments:', data?.error || error);
+        if (silent) return;
         setStep("error");
         setIsLoading(false);
         return;
@@ -1117,7 +1129,7 @@ const ParticipantAccess = () => {
               <Button variant="outline" className="flex-1" onClick={() => { setStep("verify_code"); setVerificationCode(""); setVerifiedParticipant(null); }}>
                 {t.access.no}
               </Button>
-              <Button variant="hero" className="flex-1" onClick={handleConfirmIdentity} disabled={isLoading}>
+              <Button variant="hero" className="flex-1" onClick={() => handleConfirmIdentity()} disabled={isLoading}>
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t.access.yes}
               </Button>
             </div>
