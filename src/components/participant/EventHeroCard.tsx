@@ -36,8 +36,10 @@ export default function EventHeroCard({
   rounds,
   currentTable,
   statusLabel,
+  roundSlot,
   lang,
 }: EventHeroCardProps) {
+
   // Timezone-safe parsing: append midday to avoid day shifts.
   const d = eventDate ? new Date(`${eventDate.slice(0, 10)}T12:00:00`) : null;
   const dateBadge = d
